@@ -1,0 +1,110 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+/* design-system/00-foundations.md カラーパレット: stone ベース + セマンティックトークン。
+   shadcn/ui new-york スタイル互換。HEX で書き、OKLCH 統一は別セッション（UI-12）で検討。 */
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --color-warning-border: var(--warning-border);
+  --color-warning-strong: var(--warning-strong);
+  --color-warning-emphasis: var(--warning-emphasis);
+  --color-destructive-soft: var(--destructive-soft);
+  --color-destructive-border: var(--destructive-border);
+  --color-destructive-strong: var(--destructive-strong);
+  --color-success-soft: var(--success-soft);
+  --color-success-emphasis: var(--success-emphasis);
+  --color-rank-top-bg: var(--rank-top-bg);
+  --color-rank-top-badge-bg: var(--rank-top-badge-bg);
+  --color-rank-top-badge-text: var(--rank-top-badge-text);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --font-sans:
+    -apple-system, BlinkMacSystemFont, "Hiragino Kaku Gothic ProN", "Hiragino Sans", Meiryo,
+    sans-serif;
+}
+
+:root {
+  --radius: 0.5rem;
+
+  /* stone scale（design-system/00-foundations.md カラーパレット） */
+  --background: #fafaf9; /* stone-50 */
+  --foreground: #1c1917; /* stone-900 */
+  --card: #f5f5f4; /* stone-100 */
+  --card-foreground: #1c1917;
+  --popover: #fafaf9;
+  --popover-foreground: #1c1917;
+  --border: #e7e5e4; /* stone-200 */
+  --input: #e7e5e4;
+  --muted: #f5f5f4; /* stone-100 */
+  --muted-foreground: #78716c; /* stone-500 */
+  --accent: #f5f5f4;
+  --accent-foreground: #1c1917;
+  --secondary: #e7e5e4; /* stone-200 */
+  --secondary-foreground: #1c1917;
+
+  /* セマンティックカラー（design-system/00-foundations.md カラーパレット） */
+  --primary: #b45309; /* amber-700 */
+  --primary-foreground: #fafaf9;
+  --ring: #b45309;
+  --destructive: #b91c1c; /* red-700 */
+  --destructive-foreground: #fafaf9;
+  --success: #15803d; /* green-700 */
+  --warning: #d97706; /* amber-600 */
+
+  /* PR-C 新設 shade token（docs/design-system/00-foundations.md と HEX 一字一句一致させること） */
+  --warning-soft: #fffbeb; /* amber-50 */
+  --warning-border: #fde68a; /* amber-200 */
+  --warning-strong: #78350f; /* amber-900 */
+  --warning-emphasis: #b45309; /* amber-700 */
+  --destructive-soft: #fef2f2; /* red-50 */
+  --destructive-border: #fecaca; /* red-200 */
+  --destructive-strong: #7f1d1d; /* red-900 */
+  --success-soft: #f0fdf4; /* green-50 */
+  --success-emphasis: #16a34a; /* green-600 */
+  --rank-top-bg: #fffbeb; /* amber-50 */
+  --rank-top-badge-bg: #fef3c7; /* amber-100 */
+  --rank-top-badge-text: #92400e; /* amber-800 */
+}
+
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+  html,
+  body,
+  #root {
+    height: 100%;
+    overflow: hidden;
+  }
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-sans);
+  }
+}

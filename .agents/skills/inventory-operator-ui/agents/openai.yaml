@@ -1,0 +1,4 @@
+interface:
+  display_name: "Inventory Operator UI"
+  short_description: "Design or review readable inventory UI for the store operator."
+  default_prompt: "Use $inventory-operator-ui to design or review this inventory-system operator-facing UI change with non-color status signals, Japanese business labels, and Windows native L3 considerations."

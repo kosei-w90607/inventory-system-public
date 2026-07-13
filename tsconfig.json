@@ -1,0 +1,43 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "useDefineForClassFields": true,
+    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "skipLibCheck": true,
+
+    /* Bundler mode */
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "jsx": "react-jsx",
+
+    /* Linting */
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+
+    /* Path alias for shadcn/ui (paths は tsconfig.json からの相対として解釈、baseUrl は TS 7.0 で削除予定のため不使用) */
+    "paths": {
+      "@/*": ["./src/*"]
+    },
+
+    /* Test types (Phase 1 7-7a Vitest 初期化): types 明示で @types/* auto-include が無効化されるため、
+       既存利用中の types (node / react / react-dom / vite/client) も併記。
+       vite/client は src/vite-env.d.ts triple-slash directive で src 配下は解決済、
+       vitest.config.ts (src 外) の import.meta.env 参照に対する保険 */
+    "types": [
+      "vitest/globals",
+      "@testing-library/jest-dom",
+      "vite/client",
+      "node",
+      "react",
+      "react-dom"
+    ]
+  },
+  "include": ["src", "src/test", "vitest.config.ts"],
+  "references": [{ "path": "./tsconfig.node.json" }]
+}

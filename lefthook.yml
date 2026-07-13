@@ -1,0 +1,30 @@
+# Frontend 限定の pre-commit hook
+# 初回セットアップ: npx lefthook install
+# 緊急 bypass: git commit --no-verify
+# Rust / 設計書の品質ゲートは scripts/pre-push.sh が pre-push で担当する
+#
+# glob_matcher: doublestar を使う理由
+# - デフォルト gobwas matcher は `*.ts` がトップレベルのみ、`**/*.ts` がサブディレクトリのみにしか
+#   マッチしないため、`src/**` と ルートの設定ファイル（`tsconfig.json` 等）を両方カバーできない
+# - doublestar は Bash-like で `**/*.ts` が root + subdir 両方マッチ
+# - 参考: https://github.com/evilmartians/lefthook/blob/master/docs/configuration/glob_matcher.md
+
+glob_matcher: doublestar
+
+pre-commit:
+  parallel: false
+  commands:
+    eslint:
+      glob: "**/*.{ts,tsx,js,jsx}"
+      run: npx eslint --fix {staged_files}
+      stage_fixed: true
+      skip:
+        - merge
+        - rebase
+    prettier:
+      glob: "**/*.{ts,tsx,js,jsx,json,md,yml,yaml}"
+      run: npx prettier --write {staged_files}
+      stage_fixed: true
+      skip:
+        - merge
+        - rebase

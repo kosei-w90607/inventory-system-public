@@ -1,0 +1,22 @@
+# https://editorconfig.org
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+indent_style = space
+indent_size = 2
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+# Markdown の行末スペース 2 つ = <br> 慣習を保護
+[*.md]
+trim_trailing_whitespace = false
+
+# Rust は rustfmt default (4-space) と揃える
+[*.rs]
+indent_size = 4
+
+# Makefile は tab 必須（将来追加時の保険）
+[Makefile]
+indent_style = tab

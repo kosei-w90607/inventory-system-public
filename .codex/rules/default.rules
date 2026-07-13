@@ -1,0 +1,297 @@
+# Project-local Codex exec policy for inventory-system.
+# This policy is mirrored at `.codex/execpolicy.rules` and `.codex/rules/default.rules`.
+# Keep Desktop/global approval narrow: only the repo-owned safe wrappers should be auto-allowed.
+
+prefix_rule(
+    pattern = ["wsl.exe", "-d", "Ubuntu-22.04", "--cd", "/home/kosei/Projects/inventory-system", "--exec", "/home/kosei/Projects/inventory-system/.codex/bin/read-safe-file.sh"],
+    decision = "allow",
+    justification = "Allows safe repository file reads while the wrapper rejects env, auth, key, cert, secret, and credential paths.",
+)
+
+prefix_rule(
+    pattern = ["wsl.exe", "-d", "Ubuntu-22.04", "--cd", "/home/kosei/Projects/inventory-system", "--exec", "/home/kosei/Projects/inventory-system/.codex/bin/search-safe-files.sh"],
+    decision = "allow",
+    justification = "Allows safe repository search while the wrapper excludes env, auth, key, cert, secret, and credential paths.",
+)
+
+prefix_rule(
+    pattern = ["wsl.exe", "-d", "Ubuntu-22.04", "--cd", "/home/kosei/Projects/inventory-system", "--exec", "/home/kosei/Projects/inventory-system/.codex/bin/list-safe-files.sh"],
+    decision = "allow",
+    justification = "Allows safe repository file listing while the wrapper excludes env, auth, key, cert, secret, and credential paths.",
+)
+
+# The same safe wrappers are allowed in the shorter forms Codex commonly emits
+# when the current working directory is already the canonical repository root.
+prefix_rule(
+    pattern = ["wsl.exe", "-d", "Ubuntu-22.04", "--cd", "/home/kosei/Projects/inventory-system", "--exec", ".codex/bin/read-safe-file.sh"],
+    decision = "allow",
+    justification = "Allows the repo-relative safe read wrapper from the canonical WSL project root.",
+)
+
+prefix_rule(
+    pattern = ["wsl.exe", "-d", "Ubuntu-22.04", "--cd", "/home/kosei/Projects/inventory-system", "--exec", ".codex/bin/search-safe-files.sh"],
+    decision = "allow",
+    justification = "Allows the repo-relative safe search wrapper from the canonical WSL project root.",
+)
+
+prefix_rule(
+    pattern = ["wsl.exe", "-d", "Ubuntu-22.04", "--cd", "/home/kosei/Projects/inventory-system", "--exec", ".codex/bin/list-safe-files.sh"],
+    decision = "allow",
+    justification = "Allows the repo-relative safe list wrapper from the canonical WSL project root.",
+)
+
+prefix_rule(
+    pattern = ["/home/kosei/Projects/inventory-system/.codex/bin/read-safe-file.sh"],
+    decision = "allow",
+    justification = "Allows the absolute safe read wrapper when Codex runs directly inside WSL.",
+)
+
+prefix_rule(
+    pattern = ["/home/kosei/Projects/inventory-system/.codex/bin/search-safe-files.sh"],
+    decision = "allow",
+    justification = "Allows the absolute safe search wrapper when Codex runs directly inside WSL.",
+)
+
+prefix_rule(
+    pattern = ["/home/kosei/Projects/inventory-system/.codex/bin/list-safe-files.sh"],
+    decision = "allow",
+    justification = "Allows the absolute safe list wrapper when Codex runs directly inside WSL.",
+)
+
+prefix_rule(
+    pattern = [".codex/bin/read-safe-file.sh"],
+    decision = "allow",
+    justification = "Allows the repo-relative safe read wrapper in a trusted project session.",
+)
+
+prefix_rule(
+    pattern = [".codex/bin/search-safe-files.sh"],
+    decision = "allow",
+    justification = "Allows the repo-relative safe search wrapper in a trusted project session.",
+)
+
+prefix_rule(
+    pattern = [".codex/bin/list-safe-files.sh"],
+    decision = "allow",
+    justification = "Allows the repo-relative safe list wrapper in a trusted project session.",
+)
+
+prefix_rule(
+    pattern = ["codex", "execpolicy", "check"],
+    decision = "allow",
+    justification = "Allows local read-only validation of execpolicy rules against command tokens.",
+)
+
+prefix_rule(
+    pattern = ["codex", "doctor"],
+    decision = "allow",
+    justification = "Allows local redacted Codex installation/config diagnostics.",
+)
+
+prefix_rule(
+    pattern = ["codex", "features", "list"],
+    decision = "allow",
+    justification = "Allows local Codex feature-flag inspection.",
+)
+
+# Raw shell and raw readers are intentionally not trusted. Use the wrappers above.
+prefix_rule(
+    pattern = ["wsl.exe", "-d", "Ubuntu-22.04", "--cd", "/home/kosei/Projects/inventory-system", "--exec", "bash", "-lc"],
+    decision = "prompt",
+    justification = "Raw bash -lc can execute arbitrary commands and must be reviewed.",
+)
+
+prefix_rule(
+    pattern = ["wsl.exe", "-d", "Ubuntu-22.04", "--exec", "bash", "-lc"],
+    decision = "prompt",
+    justification = "Raw bash -lc can execute arbitrary commands and must be reviewed.",
+)
+
+prefix_rule(
+    pattern = ["wsl.exe", "-d", "Ubuntu-22.04", "--cd", "/home/kosei/Projects/inventory-system", "--exec", ["cat", "sed", "rg", "find"]],
+    decision = "prompt",
+    justification = "Raw read/search commands can bypass safe wrapper path filters.",
+)
+
+prefix_rule(
+    pattern = ["wsl.exe", "-d", "Ubuntu-22.04", "--exec", ["cat", "sed", "rg", "find"]],
+    decision = "prompt",
+    justification = "Raw read/search commands can bypass safe wrapper path filters.",
+)
+
+# Read-only review commands are safe enough to run without prompting.
+prefix_rule(
+    pattern = ["wsl.exe", "-d", "Ubuntu-22.04", "--cd", "/home/kosei/Projects/inventory-system", "--exec", "git", "status"],
+    decision = "allow",
+    justification = "Allows read-only repository status inspection for reviews.",
+)
+
+prefix_rule(
+    pattern = ["wsl.exe", "-d", "Ubuntu-22.04", "--cd", "/home/kosei/Projects/inventory-system", "--exec", "git", "diff"],
+    decision = "allow",
+    justification = "Allows read-only repository diff inspection for reviews.",
+)
+
+prefix_rule(
+    pattern = ["wsl.exe", "-d", "Ubuntu-22.04", "--cd", "/home/kosei/Projects/inventory-system", "--exec", "git", "log"],
+    decision = "allow",
+    justification = "Allows read-only repository history inspection for reviews.",
+)
+
+prefix_rule(
+    pattern = ["wsl.exe", "-d", "Ubuntu-22.04", "--cd", "/home/kosei/Projects/inventory-system", "--exec", "git", "show"],
+    decision = "allow",
+    justification = "Allows read-only repository object inspection for reviews.",
+)
+
+prefix_rule(
+    pattern = ["git", ["status", "diff", "log", "show"]],
+    decision = "allow",
+    justification = "Allows read-only git inspection in a trusted project session.",
+)
+
+prefix_rule(
+    pattern = ["wsl.exe", "-d", "Ubuntu-22.04", "--cd", "/home/kosei/Projects/inventory-system", "--exec", "bash", "scripts/doc-consistency-check.sh"],
+    decision = "allow",
+    justification = "Allows the repo-owned documentation consistency check.",
+)
+
+prefix_rule(
+    pattern = ["wsl.exe", "-d", "Ubuntu-22.04", "--cd", "/home/kosei/Projects/inventory-system", "--exec", "bash", "scripts/check-env-safety.sh"],
+    decision = "allow",
+    justification = "Allows the documented env safety check (read-only repo-owned script).",
+)
+
+prefix_rule(
+    pattern = ["bash", "scripts/doc-consistency-check.sh"],
+    decision = "allow",
+    justification = "Allows the repo-owned documentation consistency check in a trusted project session.",
+)
+
+prefix_rule(
+    pattern = ["bash", "scripts/check-env-safety.sh"],
+    decision = "allow",
+    justification = "Allows the documented env safety check in a trusted project session.",
+)
+
+prefix_rule(
+    pattern = ["wsl.exe", "-d", "Ubuntu-22.04", "--cd", "/home/kosei/Projects/inventory-system", "--exec", "npm", "run", ["typecheck", "lint", "format:check", "build", "test"]],
+    decision = "allow",
+    justification = "Allows documented frontend verification commands (read-only or build-only, repo-owned scripts).",
+)
+
+prefix_rule(
+    pattern = ["wsl.exe", "-d", "Ubuntu-22.04", "--cd", "/home/kosei/Projects/inventory-system", "--exec", "npm", "test"],
+    decision = "allow",
+    justification = "Allows documented frontend Vitest runs, including targeted test paths.",
+)
+
+prefix_rule(
+    pattern = ["npm", "run", ["typecheck", "lint", "format:check", "build", "test"]],
+    decision = "allow",
+    justification = "Allows documented frontend verification commands in a trusted project session.",
+)
+
+prefix_rule(
+    pattern = ["npm", "test"],
+    decision = "allow",
+    justification = "Allows documented frontend Vitest runs in a trusted project session.",
+)
+
+prefix_rule(
+    pattern = ["wsl.exe", "-d", "Ubuntu-22.04", "--cd", "/home/kosei/Projects/inventory-system", "--exec", "cargo", ["check", "test", "clippy"]],
+    decision = "allow",
+    justification = "Allows documented Rust verification subcommands (read-only, no remote mutation).",
+)
+
+prefix_rule(
+    pattern = ["wsl.exe", "-d", "Ubuntu-22.04", "--cd", "/home/kosei/Projects/inventory-system/src-tauri", "--exec", "cargo", ["check", "test", "clippy"]],
+    decision = "allow",
+    justification = "Allows documented Rust verification subcommands from the Tauri crate directory.",
+)
+
+prefix_rule(
+    pattern = ["cargo", ["check", "test", "clippy"]],
+    decision = "allow",
+    justification = "Allows documented Rust verification subcommands in a trusted project session.",
+)
+
+prefix_rule(
+    pattern = ["wsl.exe", "-d", "Ubuntu-22.04", "--cd", "/home/kosei/Projects/inventory-system", "--exec", "cargo", "fmt", "--check"],
+    decision = "allow",
+    justification = "Allows documented Rust format check in --check mode (read-only, does not modify files).",
+)
+
+prefix_rule(
+    pattern = ["wsl.exe", "-d", "Ubuntu-22.04", "--cd", "/home/kosei/Projects/inventory-system/src-tauri", "--exec", "cargo", "fmt", "--check"],
+    decision = "allow",
+    justification = "Allows documented Rust format check from the Tauri crate directory.",
+)
+
+prefix_rule(
+    pattern = ["cargo", "fmt", "--check"],
+    decision = "allow",
+    justification = "Allows documented Rust format check in a trusted project session.",
+)
+
+# GitHub and git mutations remain intentional review points.
+prefix_rule(
+    pattern = ["wsl.exe", "-d", "Ubuntu-22.04", "--cd", "/home/kosei/Projects/inventory-system", "--exec", "git", ["add", "commit", "push", "merge", "rebase", "branch", "tag", "restore", "checkout", "switch", "rm", "mv"]],
+    decision = "prompt",
+    justification = "Git mutations require explicit user intent.",
+)
+
+prefix_rule(
+    pattern = ["git", ["add", "commit", "push", "merge", "rebase", "branch", "tag", "restore", "checkout", "switch", "rm", "mv"]],
+    decision = "prompt",
+    justification = "Git mutations require explicit user intent in a trusted project session.",
+)
+
+prefix_rule(
+    pattern = ["wsl.exe", "-d", "Ubuntu-22.04", "--cd", "/home/kosei/Projects/inventory-system", "--exec", "gh"],
+    decision = "prompt",
+    justification = "GitHub CLI may read or mutate remote state; review the exact command.",
+)
+
+prefix_rule(
+    pattern = ["gh"],
+    decision = "prompt",
+    justification = "GitHub CLI may read or mutate remote state; review the exact command.",
+)
+
+# Destructive operations are forbidden by default in this project policy.
+prefix_rule(
+    pattern = ["wsl.exe", "-d", "Ubuntu-22.04", "--cd", "/home/kosei/Projects/inventory-system", "--exec", ["rm", "rmdir", "unlink", "shred"]],
+    decision = "forbidden",
+    justification = "Filesystem deletion/destruction must not be auto-approved.",
+)
+
+prefix_rule(
+    pattern = [["rm", "rmdir", "unlink", "shred"]],
+    decision = "forbidden",
+    justification = "Filesystem deletion/destruction must not be auto-approved.",
+)
+
+prefix_rule(
+    pattern = ["wsl.exe", "-d", "Ubuntu-22.04", "--cd", "/home/kosei/Projects/inventory-system", "--exec", "git", ["reset", "clean"]],
+    decision = "forbidden",
+    justification = "Destructive git operations require separate explicit approval naming the exact target.",
+)
+
+prefix_rule(
+    pattern = ["git", ["reset", "clean"]],
+    decision = "forbidden",
+    justification = "Destructive git operations require separate explicit approval naming the exact target.",
+)
+
+prefix_rule(
+    pattern = ["wsl.exe", "-d", "Ubuntu-22.04", "--cd", "/home/kosei/Projects/inventory-system", "--exec", "git", "push", "--force"],
+    decision = "forbidden",
+    justification = "Force push is destructive and must not be auto-approved.",
+)
+
+prefix_rule(
+    pattern = ["git", "push", "--force"],
+    decision = "forbidden",
+    justification = "Force push is destructive and must not be auto-approved.",
+)

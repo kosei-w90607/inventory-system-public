@@ -1,0 +1,80 @@
+# npm dependency-security 常設 monitoring（D-030）
+#
+# 週次または明示 dispatch で scripts/npm-security-monitor.sh を実行し、findings があれば
+# issue で通知する（情報提供のみ、自動対処なし）。
+# - findings あり: 固定タイトルの issue を作成 or 既存 open issue へ report を追記
+# - clean: open の alert issue があれば「解消」コメントを付けて close
+# - check 自体の失敗 (exit 2): workflow run を fail させる（issue は作らない）
+name: npm security monitor
+
+on:
+  schedule:
+    - cron: "0 21 * * 0" # Monday 06:00 JST
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+env:
+  ALERT_TITLE: "npm dependency security alert"
+
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 20
+
+      # npm audit は package-lock.json だけで実行できるため npm ci は不要。
+      # script 内の gh api（advisory check）に GH_TOKEN が必要。
+      - name: Run security monitor
+        id: monitor
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set +e
+          ./scripts/npm-security-monitor.sh > report.md
+          echo "exit_code=$?" >> "$GITHUB_OUTPUT"
+          cat report.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Notify findings via issue
+        if: steps.monitor.outputs.exit_code == '1'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          existing=$(gh issue list --state open --search "in:title \"$ALERT_TITLE\"" --json number --jq '.[0].number // empty')
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --body-file report.md
+            echo "既存 issue #$existing に report を追記しました" >> "$GITHUB_STEP_SUMMARY"
+          else
+            gh issue create --title "$ALERT_TITLE" --body-file report.md
+            echo "alert issue を新規作成しました" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Close alert issue when clean
+        if: steps.monitor.outputs.exit_code == '0'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          existing=$(gh issue list --state open --search "in:title \"$ALERT_TITLE\"" --json number --jq '.[0].number // empty')
+          if [ -n "$existing" ]; then
+            {
+              echo "✅ 今回の check で findings が解消されました。close します。"
+              echo ""
+              cat report.md
+            } > close-comment.md
+            gh issue comment "$existing" --body-file close-comment.md
+            gh issue close "$existing"
+            echo "alert issue #$existing を close しました" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Fail on check error
+        if: steps.monitor.outputs.exit_code != '0' && steps.monitor.outputs.exit_code != '1'
+        run: |
+          echo "monitor check 自体が失敗しました (exit ${{ steps.monitor.outputs.exit_code }})" >&2
+          exit 1

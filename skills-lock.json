@@ -1,0 +1,75 @@
+{
+  "version": 1,
+  "skills": {
+    "calling-frontend-from-tauri-rust": {
+      "source": "dchuk/claude-code-tauri-skills",
+      "sourceType": "github",
+      "computedHash": "4fd27ed64c2a3a89dabc25f5f38ed1d9b2c0cc7e37f723896d0023f6938c7f91"
+    },
+    "calling-rust-from-tauri-frontend": {
+      "source": "dchuk/claude-code-tauri-skills",
+      "sourceType": "github",
+      "computedHash": "384db541a0a09f2890227e95f17c82e5b50470eb2dd4b7b51cedb19a2f8de3e0"
+    },
+    "configuring-tauri-apps": {
+      "source": "dchuk/claude-code-tauri-skills",
+      "sourceType": "github",
+      "computedHash": "4d95faab7f5f00ec501c81ec1130760800e9801708782397f3b5cb1a530b1712"
+    },
+    "configuring-tauri-capabilities": {
+      "source": "dchuk/claude-code-tauri-skills",
+      "sourceType": "github",
+      "computedHash": "86886ccd735b96e8c2a480b5269fde9a2ffdb0b2bdda9e2b46b8a6ba4e31f7d8"
+    },
+    "configuring-tauri-permissions": {
+      "source": "dchuk/claude-code-tauri-skills",
+      "sourceType": "github",
+      "computedHash": "7d97da37393a64773d9375af3512440b36f5269ab5cc9a20532e340b3d494dae"
+    },
+    "debugging-tauri-apps": {
+      "source": "dchuk/claude-code-tauri-skills",
+      "sourceType": "github",
+      "computedHash": "fbc8c3ecac07c458f3fe3177668dd52489218b64e0b6af5b016dc057d6295ff3"
+    },
+    "distributing-tauri-for-windows": {
+      "source": "dchuk/claude-code-tauri-skills",
+      "sourceType": "github",
+      "computedHash": "45673645d000496e86f0bbd7cf0735feba0a9bc13b918d35e78693c47fed2c66"
+    },
+    "listening-to-tauri-events": {
+      "source": "dchuk/claude-code-tauri-skills",
+      "sourceType": "github",
+      "computedHash": "30f60a654e8379b775c3282c3a54f9b03df7179a3098882cb984a32ffceb7d90"
+    },
+    "setting-up-tauri-projects": {
+      "source": "dchuk/claude-code-tauri-skills",
+      "sourceType": "github",
+      "computedHash": "9e3d6eb49ffdd81a270eaa6b7de6479092019132aa14691773524aa33ab48a07"
+    },
+    "systematic-debugging": {
+      "source": "obra/superpowers",
+      "sourceType": "github",
+      "computedHash": "72e9ab72627e4fd8ed26a582e82309a98ecdc4f6e1c99418430ac05682c9e91d"
+    },
+    "test-driven-development": {
+      "source": "obra/superpowers",
+      "sourceType": "github",
+      "computedHash": "126f1ebf6ccd414f42544f6e83d8cc5adb089e1108eaffb7c400701e37eecd9f"
+    },
+    "testing-tauri-apps": {
+      "source": "dchuk/claude-code-tauri-skills",
+      "sourceType": "github",
+      "computedHash": "12084f72d1e7c13dc0c11e882df9a65b252cdb8184fb1e93bc06a4516a4c3a35"
+    },
+    "understanding-tauri-architecture": {
+      "source": "dchuk/claude-code-tauri-skills",
+      "sourceType": "github",
+      "computedHash": "8246fabd39dbd1c0f43e85bd2f6235667182e483c693bf770fe40d29fba977f8"
+    },
+    "varlock": {
+      "source": "wrsmith108/varlock-claude-skill",
+      "sourceType": "github",
+      "computedHash": "2824a93a3e95776afc78a55d8c6697ec86251d49ed4fa1e8db614ae0fd2381af"
+    }
+  }
+}

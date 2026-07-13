@@ -1,0 +1,254 @@
+<style>
+#erd svg.erDiagram .divider path { stroke-opacity: 0.5; }
+#erd svg.erDiagram .row-rect-odd path,
+#erd svg.erDiagram .row-rect-odd rect,
+#erd svg.erDiagram .row-rect-even path,
+#erd svg.erDiagram .row-rect-even rect { stroke: none !important; }
+#erd { overflow-x: auto; }
+</style>
+<div id="erd"></div>
+<script type="module">
+import mermaid from 'https://esm.sh/mermaid@11/dist/mermaid.esm.min.mjs';
+const dark = matchMedia('(prefers-color-scheme: dark)').matches;
+await document.fonts.ready;
+mermaid.initialize({
+  startOnLoad: false,
+  theme: 'base',
+  fontFamily: '"Anthropic Sans", sans-serif',
+  themeVariables: {
+    darkMode: dark,
+    fontSize: '13px',
+    fontFamily: '"Anthropic Sans", sans-serif',
+    lineColor: dark ? '#9c9a92' : '#73726c',
+    textColor: dark ? '#c2c0b6' : '#3d3d3a',
+  },
+});
+const { svg } = await mermaid.render('erd-svg', `erDiagram
+  products ||--o{ inventory_movements : has
+  products ||--o{ sale_records : has
+  products ||--o{ price_history : has
+  products ||--o{ stocktake_items : counted_in
+  products }o--|| departments : belongs_to
+  products }o--o| suppliers : supplied_by
+
+  departments ||--o{ products : contains
+
+  suppliers ||--o{ products : supplies
+  suppliers ||--o{ receiving_records : delivers
+
+  receiving_records ||--o{ receiving_items : contains
+  receiving_items }o--|| products : references
+
+  return_records ||--o{ return_items : contains
+  return_items }o--|| products : references
+
+  manual_sales ||--o{ manual_sale_items : contains
+  manual_sale_items }o--|| products : references
+
+  disposal_records ||--o{ disposal_items : contains
+  disposal_items }o--|| products : references
+
+  csv_imports ||--o{ sale_records : generates
+  sale_records }o--|| products : sold
+
+  stocktakes ||--o{ stocktake_items : contains
+
+  products {
+    TEXT product_code PK "JAN or custom code"
+    TEXT name "required"
+    INTEGER department_id FK
+    INTEGER supplier_id FK "nullable"
+    INTEGER selling_price "tax-incl yen"
+    INTEGER cost_price "yen"
+    TEXT tax_rate "10pct 8pct exempt"
+    TEXT maker_code "nullable"
+    INTEGER stock_quantity "pcs or cm"
+    TEXT stock_unit "pcs or cm"
+    BOOLEAN is_discontinued "soft delete"
+    BOOLEAN plu_dirty "needs export"
+    TEXT created_at
+    TEXT updated_at
+  }
+
+  departments {
+    INTEGER id PK
+    TEXT name "unique"
+    TEXT code_prefix "nullable F H etc"
+    INTEGER next_seq "auto-numbering"
+  }
+
+  suppliers {
+    INTEGER id PK
+    TEXT name "unique"
+    TEXT created_at
+  }
+
+  price_history {
+    INTEGER id PK
+    TEXT product_code FK
+    INTEGER old_selling
+    INTEGER new_selling
+    INTEGER old_cost
+    INTEGER new_cost
+    TEXT changed_at
+  }
+
+  inventory_movements {
+    INTEGER id PK
+    TEXT product_code FK
+    TEXT movement_type "sale_auto sale_manual receiving return disposal stocktake"
+    INTEGER quantity "positive or negative"
+    INTEGER stock_after
+    TEXT reference_type "nullable"
+    INTEGER reference_id "nullable"
+    TEXT note "nullable"
+    TEXT created_at
+  }
+
+  csv_imports {
+    INTEGER id PK
+    TEXT filename
+    TEXT settlement_date
+    TEXT file_hash "duplicate check"
+    INTEGER total_items
+    INTEGER total_amount
+    TEXT status "completed rolled_back"
+    TEXT imported_at
+  }
+
+  sale_records {
+    INTEGER id PK
+    INTEGER csv_import_id FK "nullable for manual"
+    TEXT product_code FK
+    TEXT sale_date
+    INTEGER quantity "negative for returns"
+    INTEGER amount "negative for returns"
+    TEXT source "auto or manual"
+    TEXT reason "nullable"
+    TEXT note "nullable"
+    TEXT created_at
+  }
+
+  receiving_records {
+    INTEGER id PK
+    INTEGER supplier_id FK "nullable"
+    TEXT receiving_date
+    TEXT note "nullable"
+    TEXT created_at
+  }
+
+  receiving_items {
+    INTEGER id PK
+    INTEGER receiving_record_id FK
+    TEXT product_code FK
+    INTEGER quantity
+    INTEGER cost_price "at time"
+  }
+
+  return_records {
+    INTEGER id PK
+    TEXT return_type "return or exchange"
+    TEXT return_date
+    BOOLEAN register_processed "csv handles stock"
+    TEXT receipt_image_path "nullable"
+    TEXT note "nullable"
+    TEXT created_at
+  }
+
+  return_items {
+    INTEGER id PK
+    INTEGER return_record_id FK
+    TEXT product_code FK
+    TEXT direction "in or out"
+    INTEGER quantity
+  }
+
+  manual_sales {
+    INTEGER id PK
+    TEXT sale_date
+    TEXT reason "plu_unregistered offregister fabric other"
+    TEXT note "nullable"
+    TEXT created_at
+  }
+
+  manual_sale_items {
+    INTEGER id PK
+    INTEGER manual_sale_id FK
+    TEXT product_code FK
+    INTEGER quantity
+    INTEGER amount
+  }
+
+  disposal_records {
+    INTEGER id PK
+    TEXT disposal_date
+    TEXT created_at
+  }
+
+  disposal_items {
+    INTEGER id PK
+    INTEGER disposal_record_id FK
+    TEXT product_code FK
+    TEXT disposal_type "disposal damage other"
+    INTEGER quantity
+    INTEGER cost_price "loss amount"
+    TEXT reason
+  }
+
+  stocktakes {
+    INTEGER id PK
+    TEXT started_at
+    TEXT completed_at "nullable"
+    TEXT status "in_progress completed"
+    INTEGER total_cost "tax report"
+  }
+
+  stocktake_items {
+    INTEGER id PK
+    INTEGER stocktake_id FK
+    TEXT product_code FK
+    INTEGER system_stock "at count time"
+    INTEGER actual_count "nullable"
+    TEXT counted_at "nullable"
+  }
+
+  operation_logs {
+    INTEGER id PK
+    TEXT operation_type
+    TEXT summary
+    TEXT detail_json "nullable"
+    TEXT created_at
+  }
+
+  app_settings {
+    TEXT key PK
+    TEXT value
+    TEXT updated_at
+  }
+`);
+document.getElementById('erd').innerHTML = svg;
+
+document.querySelectorAll('#erd svg.erDiagram .node').forEach(node => {
+  const firstPath = node.querySelector('path[d]');
+  if (!firstPath) return;
+  const d = firstPath.getAttribute('d');
+  const nums = d.match(/-?[\d.]+/g)?.map(Number);
+  if (!nums || nums.length < 8) return;
+  const xs = [nums[0], nums[2], nums[4], nums[6]];
+  const ys = [nums[1], nums[3], nums[5], nums[7]];
+  const x = Math.min(...xs), y = Math.min(...ys);
+  const w = Math.max(...xs) - x, h = Math.max(...ys) - y;
+  const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+  rect.setAttribute('x', x); rect.setAttribute('y', y);
+  rect.setAttribute('width', w); rect.setAttribute('height', h);
+  rect.setAttribute('rx', '8');
+  for (const a of ['fill', 'stroke', 'stroke-width', 'class', 'style']) {
+    if (firstPath.hasAttribute(a)) rect.setAttribute(a, firstPath.getAttribute(a));
+  }
+  firstPath.replaceWith(rect);
+});
+
+document.querySelectorAll('#erd svg.erDiagram .row-rect-odd path, #erd svg.erDiagram .row-rect-even path').forEach(p => {
+  p.setAttribute('stroke', 'none');
+});
+</script>

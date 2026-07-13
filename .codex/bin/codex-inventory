@@ -1,0 +1,154 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+REPO="${CODEX_INVENTORY_REPO:-/home/kosei/Projects/inventory-system}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+BAR="${CODEX_INVENTORY_BAR:-$SCRIPT_DIR/codex-inventory-bar}"
+REAL_CODEX="${REAL_CODEX:-/home/kosei/.npm-global/bin/codex}"
+SESSION_PREFIX="${CODEX_INVENTORY_SESSION_PREFIX:-codex-inventory}"
+BAR_HEIGHT="${CODEX_INVENTORY_BAR_HEIGHT:-4}"
+TMUX_BAR_ENABLED="${CODEX_INVENTORY_TMUX_BAR:-${CODEX_INVENTORY_BAR_ENABLED:-0}}"
+NATIVE_STATUS_ENABLED="${CODEX_INVENTORY_NATIVE_STATUS:-1}"
+DISABLE_ALT_SCROLL="${CODEX_INVENTORY_DISABLE_ALT_SCROLL:-1}"
+NO_BAR_STATUS_LINE="${CODEX_INVENTORY_NO_BAR_STATUS_LINE:-[\"model-with-reasoning\",\"context-remaining\",\"context-used\",\"five-hour-limit\",\"weekly-limit\",\"git-branch\",\"branch-changes\",\"approval-mode\",\"codex-version\"]}"
+NO_BAR_PROFILE="${CODEX_INVENTORY_NO_BAR_PROFILE:-inventory-no-bar}"
+ALT_SCROLL_SUPPRESSOR_PID=""
+
+inside_tmux=false
+if [[ "${1:-}" == "--inside-tmux" ]]; then
+  inside_tmux=true
+  shift
+fi
+
+debug=false
+if [[ "${1:-}" == "--debug" ]]; then
+  debug=true
+  shift
+fi
+
+if [[ ! -x "$REAL_CODEX" ]]; then
+  REAL_CODEX="$(command -v codex)"
+fi
+
+if [[ "$debug" == true ]]; then
+  printf 'codex-inventory debug\n'
+  printf '  repo: %s\n' "$REPO"
+  printf '  wrapper: %s\n' "$0"
+  printf '  bar: %s\n' "$BAR"
+  printf '  real_codex: %s\n' "$REAL_CODEX"
+  printf '  tmux: %s\n' "$(command -v tmux || printf 'missing')"
+  printf '  inside_tmux: %s\n' "${TMUX:+yes}"
+  printf '  no_bar: %s\n' "${CODEX_INVENTORY_NO_BAR:-0}"
+  printf '  tmux_bar_enabled: %s\n' "$TMUX_BAR_ENABLED"
+  printf '  native_status_enabled: %s\n' "$NATIVE_STATUS_ENABLED"
+  printf '  no_bar_status_line: %s\n' "$NO_BAR_STATUS_LINE"
+  printf '  no_bar_profile: %s\n' "$NO_BAR_PROFILE"
+  printf '  no_bar_profile_file: %s\n' "${CODEX_HOME:-$HOME/.codex}/${NO_BAR_PROFILE}.config.toml"
+  printf '  disable_alt_scroll: %s\n' "$DISABLE_ALT_SCROLL"
+  if [[ "${CODEX_INVENTORY_NO_BAR:-}" == "1" ]] || [[ "$TMUX_BAR_ENABLED" != "1" ]] || ! command -v tmux >/dev/null 2>&1; then
+    printf '  launch_mode: plain codex\n'
+  elif [[ -z "${TMUX:-}" && "$inside_tmux" != true ]]; then
+    printf '  launch_mode: new tmux session\n'
+  else
+    printf '  launch_mode: split tmux pane\n'
+  fi
+  exit 0
+fi
+
+start_alt_scroll_suppressor() {
+  if [[ "$DISABLE_ALT_SCROLL" != "1" ]] || [[ ! -t 1 ]]; then
+    return 0
+  fi
+
+  (
+    while true; do
+      # Keep terminal mouse reporting disabled. Some Codex TUI startup paths
+      # enable xterm mouse modes after MCP initialization; when that happens,
+      # wheel input can arrive as TUI/composer input instead of terminal
+      # scrollback. Disable the common mouse modes plus alternate-scroll.
+      printf '\033[?1000l\033[?1002l\033[?1003l\033[?1005l\033[?1006l\033[?1015l\033[?1007l'
+      sleep 0.2
+    done
+  ) &
+  ALT_SCROLL_SUPPRESSOR_PID="$!"
+}
+
+stop_alt_scroll_suppressor() {
+  if [[ -n "$ALT_SCROLL_SUPPRESSOR_PID" ]]; then
+    kill "$ALT_SCROLL_SUPPRESSOR_PID" >/dev/null 2>&1 || true
+    wait "$ALT_SCROLL_SUPPRESSOR_PID" >/dev/null 2>&1 || true
+    ALT_SCROLL_SUPPRESSOR_PID=""
+  fi
+}
+
+run_codex_plain() {
+  local status
+  local codex_config_args=()
+  if [[ "$NATIVE_STATUS_ENABLED" == "1" ]]; then
+    if [[ -r "${CODEX_HOME:-$HOME/.codex}/${NO_BAR_PROFILE}.config.toml" ]]; then
+      codex_config_args=(--profile "$NO_BAR_PROFILE")
+    elif [[ -n "$NO_BAR_STATUS_LINE" ]]; then
+      codex_config_args=(-c "status_line=$NO_BAR_STATUS_LINE")
+    fi
+  fi
+  trap stop_alt_scroll_suppressor EXIT INT TERM
+  start_alt_scroll_suppressor
+  set +e
+  "$REAL_CODEX" \
+    "${codex_config_args[@]}" \
+    -C "$REPO" \
+    --sandbox workspace-write \
+    --ask-for-approval on-request \
+    "$@"
+  status="$?"
+  set -e
+  stop_alt_scroll_suppressor
+  exit "$status"
+}
+
+if [[ "${CODEX_INVENTORY_NO_BAR:-}" == "1" ]] || [[ "$TMUX_BAR_ENABLED" != "1" ]] || ! command -v tmux >/dev/null 2>&1; then
+  run_codex_plain "$@"
+fi
+
+if [[ -z "${TMUX:-}" && "$inside_tmux" != true ]]; then
+  session="${SESSION_PREFIX}-$(date +%Y%m%d%H%M%S)"
+  quoted_args=""
+  for arg in "$@"; do
+    printf -v quoted '%q' "$arg"
+    quoted_args+=" $quoted"
+  done
+  tmux new-session \
+    -d \
+    -s "$session" \
+    -n codex \
+    -c "$REPO" \
+    "CODEX_INVENTORY_INSIDE_TMUX=1 CODEX_INVENTORY_TMUX_BAR=1 \"$0\" --inside-tmux$quoted_args"
+  tmux set-option -t "$session" status off >/dev/null
+  exec tmux attach-session -t "$session"
+fi
+
+main_pane="$(tmux display-message -p '#{pane_id}')"
+bar_pane="$(
+  tmux split-window \
+    -v \
+    -l "$BAR_HEIGHT" \
+    -c "$REPO" \
+    -P \
+    -F '#{pane_id}' \
+    "$BAR"
+)"
+
+cleanup() {
+  stop_alt_scroll_suppressor
+  tmux kill-pane -t "$bar_pane" >/dev/null 2>&1 || true
+}
+trap cleanup EXIT INT TERM
+
+tmux select-pane -t "$main_pane" >/dev/null 2>&1 || true
+
+start_alt_scroll_suppressor
+"$REAL_CODEX" \
+  -C "$REPO" \
+  --sandbox workspace-write \
+  --ask-for-approval on-request \
+  "$@"

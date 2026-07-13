@@ -1,0 +1,4 @@
+interface:
+  display_name: "Inventory Workflow Start"
+  short_description: "Classify inventory tasks and route workflow."
+  default_prompt: "Use $inventory-workflow-start to classify this inventory-system task, choose the required workflow artifacts, and start with the lightest sufficient process."

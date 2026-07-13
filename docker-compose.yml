@@ -1,0 +1,15 @@
+services:
+  dev:
+    build: .
+    volumes:
+      - .:/workspace
+      - cargo-cache:/cargo-cache
+      - node-modules:/workspace/node_modules
+    working_dir: /workspace
+    stdin_open: true
+    tty: true
+    command: /bin/bash
+
+volumes:
+  cargo-cache:
+  node-modules:

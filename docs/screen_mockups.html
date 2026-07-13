@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>在庫管理システム 画面モックアップ</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Hiragino Kaku Gothic ProN","Noto Sans JP",sans-serif;color:#2C2C2A;background:#F5F4F0;line-height:1.6}
+.app{max-width:760px;margin:0 auto;background:#fff;min-height:100vh;border-left:1px solid #e0dfd9;border-right:1px solid #e0dfd9}
+.screen{display:none;padding:1.5rem}
+.screen.active{display:block}
+.mock-nav{background:#2C2C2A;color:#fff;padding:12px 1.5rem;display:flex;align-items:center;gap:12px;flex-wrap:wrap;position:sticky;top:0;z-index:100}
+.mock-nav span{font-size:13px;opacity:0.6}
+.mock-nav button{background:rgba(255,255,255,0.15);border:none;color:#fff;padding:4px 12px;border-radius:6px;font-size:12px;cursor:pointer}
+.mock-nav button:hover{background:rgba(255,255,255,0.25)}
+.mock-nav button.current{background:rgba(255,255,255,0.3);font-weight:600}
+.page-header{display:flex;align-items:center;gap:12px;margin-bottom:1.5rem}
+.back-btn{background:none;border:1px solid #D3D1C7;border-radius:8px;padding:6px 14px;font-size:13px;cursor:pointer;color:#5F5E5A}
+.back-btn:hover{background:#F1EFE8}
+h1{font-size:22px;font-weight:500}
+h2{font-size:18px;font-weight:500}
+.summary{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:1.5rem}
+.summary-4{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:1.5rem}
+.stat{background:#F1EFE8;border-radius:8px;padding:12px 16px}
+.stat .label{font-size:12px;color:#5F5E5A;margin-bottom:2px}
+.stat .value{font-size:22px;font-weight:500}
+.stat .sub{font-size:11px;color:#888780;margin-top:2px}
+.alert-bar{background:#FAEEDA;border-radius:8px;padding:12px 16px;margin-bottom:1.5rem;font-size:13px;color:#854F0B;display:flex;align-items:center;gap:8px}
+.alert-dot{width:8px;height:8px;border-radius:50%;background:#BA7517;flex-shrink:0}
+.section-label{font-size:14px;font-weight:500;color:#5F5E5A;margin-bottom:8px;padding-left:4px}
+.menu{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:1.5rem}
+.menu-btn{background:#fff;border:1px solid #D3D1C7;border-radius:12px;padding:1rem 1.25rem;cursor:pointer;text-align:left;transition:background .15s}
+.menu-btn:hover{background:#F1EFE8}
+.menu-btn:active{transform:scale(0.98)}
+.menu-btn .btn-title{font-size:16px;font-weight:500;margin-bottom:4px;color:#2C2C2A}
+.menu-btn .btn-desc{font-size:13px;color:#5F5E5A}
+.menu-btn.highlight{border:2px solid #85B7EB}
+.bottom-row{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.bottom-btn{background:#fff;border:1px solid #D3D1C7;border-radius:8px;padding:12px 16px;cursor:pointer;text-align:center;font-size:13px;color:#5F5E5A}
+.bottom-btn:hover{background:#F1EFE8}
+.steps{display:flex;align-items:center;gap:8px;margin-bottom:1.5rem}
+.step{display:flex;align-items:center;gap:6px;font-size:13px;color:#888780}
+.step.active{color:#2C2C2A;font-weight:500}
+.step.done{color:#639922}
+.step-num{width:24px;height:24px;border-radius:50%;border:1px solid #D3D1C7;display:flex;align-items:center;justify-content:center;font-size:12px}
+.step.active .step-num{background:#E6F1FB;color:#185FA5;border-color:#85B7EB}
+.step.done .step-num{background:#EAF3DE;color:#3B6D11;border-color:#97C459}
+.step-line{width:20px;height:1px;background:#D3D1C7}
+.file-info{background:#F1EFE8;border-radius:8px;padding:1rem;margin-bottom:1.5rem;display:flex;align-items:center;justify-content:space-between}
+.file-info .fname{font-size:14px;font-weight:500}
+.file-info .fmeta{font-size:12px;color:#5F5E5A}
+.drop-zone{border:2px dashed #B4B2A9;border-radius:12px;padding:3rem 2rem;text-align:center;margin-bottom:1.5rem;cursor:pointer}
+.drop-zone:hover{background:#F1EFE8}
+.drop-zone .main-text{font-size:16px;font-weight:500;margin-bottom:8px}
+.drop-zone .sub-text{font-size:13px;color:#5F5E5A}
+.tbl-wrap{border:1px solid #D3D1C7;border-radius:12px;overflow:hidden;margin-bottom:1.5rem}
+table{width:100%;font-size:13px;border-collapse:collapse}
+th{text-align:left;padding:10px 12px;color:#5F5E5A;font-weight:400;background:#F1EFE8;border-bottom:1px solid #D3D1C7}
+td{padding:10px 12px;border-bottom:1px solid #e8e7e2}
+tr:last-child td{border-bottom:none}
+.num{text-align:right;font-variant-numeric:tabular-nums}
+.subtotal-row{background:#F1EFE8;font-weight:500}
+.subtotal-row td{border-bottom:1px solid #D3D1C7}
+.dept{display:inline-block;background:#F1EFE8;padding:2px 8px;border-radius:6px;font-size:12px;color:#5F5E5A}
+.manual{display:inline-block;background:#FAEEDA;color:#854F0B;padding:2px 6px;border-radius:6px;font-size:11px;margin-left:6px}
+.warn-badge{display:inline-block;background:#FAEEDA;color:#854F0B;font-size:12px;padding:2px 8px;border-radius:6px}
+.stock-zero{color:#A32D2D;font-weight:500}
+.stock-low{color:#854F0B;font-weight:500}
+.action-bar{display:flex;justify-content:space-between;align-items:center}
+.btn-primary{background:#E6F1FB;color:#185FA5;border:none;border-radius:8px;padding:10px 24px;font-size:15px;font-weight:500;cursor:pointer}
+.btn-primary:hover{opacity:0.85}
+.btn-cancel{background:none;border:1px solid #D3D1C7;border-radius:8px;padding:10px 24px;font-size:15px;cursor:pointer;color:#5F5E5A}
+.btn-cancel:hover{background:#F1EFE8}
+.result{background:#EAF3DE;border-radius:12px;padding:1.5rem;text-align:center;margin-bottom:1.5rem}
+.result .check{font-size:32px;color:#3B6D11;margin-bottom:8px}
+.result .msg{font-size:16px;font-weight:500;color:#3B6D11;margin-bottom:12px}
+.result-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;text-align:center;margin-top:12px}
+.result-stat .val{font-size:18px;font-weight:500;color:#3B6D11}
+.result-stat .lbl{font-size:12px;color:#5F5E5A}
+.controls{display:flex;align-items:center;gap:12px;margin-bottom:1rem;flex-wrap:wrap}
+.date-nav{display:flex;align-items:center;gap:8px}
+.date-nav button{background:none;border:1px solid #D3D1C7;border-radius:8px;padding:6px 10px;font-size:14px;cursor:pointer;color:#5F5E5A}
+.date-nav .current{font-size:16px;font-weight:500;min-width:160px;text-align:center}
+.filter-group{display:flex;align-items:center;gap:8px;margin-left:auto}
+.filter-group label{font-size:13px;color:#5F5E5A}
+.filter-group select{padding:6px 10px;font-size:13px;border-radius:8px;border:1px solid #D3D1C7}
+.tabs{display:flex;border-bottom:1px solid #D3D1C7;margin-bottom:16px}
+.tab{padding:10px 20px;font-size:14px;color:#5F5E5A;cursor:pointer;border-bottom:2px solid transparent;background:none;border-top:none;border-left:none;border-right:none}
+.tab:hover{color:#2C2C2A}
+.tab.active{color:#2C2C2A;font-weight:500;border-bottom-color:#378ADD}
+.export-bar{display:flex;gap:8px;justify-content:flex-end}
+.export-btn{background:none;border:1px solid #D3D1C7;border-radius:8px;padding:8px 16px;font-size:13px;cursor:pointer;color:#5F5E5A}
+.export-btn:hover{background:#F1EFE8}
+.search-bar{display:flex;gap:8px;margin-bottom:1rem}
+.search-bar input{flex:1;padding:10px 14px;font-size:15px;border-radius:8px;border:1px solid #B4B2A9}
+.search-bar button{padding:10px 20px;font-size:14px;border-radius:8px;border:1px solid #D3D1C7;background:#fff;cursor:pointer;color:#5F5E5A;white-space:nowrap}
+.filter-row{display:flex;gap:12px;align-items:center;margin-bottom:1.5rem;flex-wrap:wrap}
+.chip{display:inline-block;padding:4px 12px;border-radius:20px;font-size:13px;cursor:pointer;border:1px solid #D3D1C7;background:#fff;color:#5F5E5A}
+.chip:hover{background:#F1EFE8}
+.chip.active-danger{background:#FCEBEB;color:#A32D2D;border-color:#F09595}
+.chip.active-warn{background:#FAEEDA;color:#854F0B;border-color:#FAC775}
+.detail-card{background:#fff;border:1px solid #D3D1C7;border-radius:12px;padding:1.25rem;margin-bottom:1.5rem}
+.detail-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px}
+.detail-header .code{font-size:13px;color:#5F5E5A;margin-top:2px}
+.detail-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+.detail-item .dl{font-size:12px;color:#5F5E5A;margin-bottom:2px}
+.detail-item .dv{font-size:15px;font-weight:500}
+.detail-actions{display:flex;gap:8px;margin-top:16px;padding-top:12px;border-top:1px solid #e8e7e2}
+.detail-actions button{padding:8px 16px;font-size:13px;border-radius:8px;border:1px solid #D3D1C7;background:#fff;cursor:pointer;color:#5F5E5A}
+.detail-actions button:hover{background:#F1EFE8}
+.bar-wrap{display:flex;align-items:center;gap:8px}
+.bar{height:14px;border-radius:3px;background:#85B7EB;min-width:2px}
+.bar-pct{font-size:12px;color:#5F5E5A;min-width:36px}
+.rank-num{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;font-size:12px;font-weight:500}
+.rank-1{background:#FAEEDA;color:#854F0B}
+.rank-2{background:#F1EFE8;color:#5F5E5A}
+.rank-3{background:#F1EFE8;color:#5F5E5A}
+.change-up{color:#3B6D11}
+.change-down{color:#A32D2D}
+.more-row{padding:8px 12px;font-size:12px;color:#888780;text-align:center}
+.status-badge{display:inline-block;padding:4px 12px;border-radius:8px;font-size:13px}
+.status-danger{background:#FCEBEB;color:#A32D2D}
+</style>
+</head>
+<body>
+
+<div class="app">
+
+<nav class="mock-nav">
+  <span>モックアップ:</span>
+  <button onclick="show('flow')" id="nav-flow">遷移図</button>
+  <button onclick="show('home')" id="nav-home">ホーム</button>
+  <button onclick="show('csv')" id="nav-csv">CSV取込み</button>
+  <button onclick="show('daily')" id="nav-daily">日次売上</button>
+  <button onclick="show('inventory')" id="nav-inventory">在庫照会</button>
+  <button onclick="show('monthly')" id="nav-monthly">月次売上</button>
+</nav>
+
+<!-- ==================== 画面遷移図 ==================== -->
+<div class="screen active" id="screen-flow">
+<div style="padding:1rem 0">
+<h1 style="margin-bottom:1rem">画面遷移図</h1>
+<svg width="100%" viewBox="0 0 680 660" style="display:block">
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
+<rect x="240" y="10" width="200" height="46" rx="8" fill="#E1F5EE" stroke="#0F6E56" stroke-width="0.5"/>
+<text x="340" y="38" text-anchor="middle" font-size="14" font-weight="500" fill="#085041">ホーム画面</text>
+<text font-size="12" fill="#0F6E56" x="100" y="80" text-anchor="middle">毎日の業務</text>
+<line x1="40" y1="86" x2="160" y2="86" stroke="#0F6E56" stroke-width="0.5"/>
+<text font-size="12" fill="#185FA5" x="340" y="80" text-anchor="middle">商品管理</text>
+<line x1="260" y1="86" x2="420" y2="86" stroke="#185FA5" stroke-width="0.5"/>
+<text font-size="12" fill="#854F0B" x="570" y="80" text-anchor="middle">システム管理</text>
+<line x1="490" y1="86" x2="640" y2="86" stroke="#854F0B" stroke-width="0.5"/>
+<line x1="290" y1="56" x2="100" y2="94" stroke="#5F5E5A" stroke-width="0.5" marker-end="url(#arrow)"/>
+<line x1="340" y1="56" x2="340" y2="94" stroke="#5F5E5A" stroke-width="0.5" marker-end="url(#arrow)"/>
+<line x1="390" y1="56" x2="570" y2="94" stroke="#5F5E5A" stroke-width="0.5" marker-end="url(#arrow)"/>
+<rect x="20" y="96" width="160" height="36" rx="6" fill="#E1F5EE" stroke="#0F6E56" stroke-width="0.5"/>
+<text x="100" y="118" text-anchor="middle" font-size="13" fill="#085041">CSV取込み</text>
+<rect x="20" y="146" width="160" height="36" rx="6" fill="#E1F5EE" stroke="#0F6E56" stroke-width="0.5"/>
+<text x="100" y="168" text-anchor="middle" font-size="13" fill="#085041">日次売上レポート</text>
+<rect x="20" y="196" width="160" height="36" rx="6" fill="#E1F5EE" stroke="#0F6E56" stroke-width="0.5"/>
+<text x="100" y="218" text-anchor="middle" font-size="13" fill="#085041">在庫照会</text>
+<rect x="20" y="246" width="160" height="36" rx="6" fill="#E1F5EE" stroke="#0F6E56" stroke-width="0.5"/>
+<text x="100" y="268" text-anchor="middle" font-size="13" fill="#085041">月次売上レポート</text>
+<line x1="100" y1="132" x2="100" y2="146" stroke="#5F5E5A" stroke-width="0.5" marker-end="url(#arrow)"/>
+<line x1="100" y1="182" x2="100" y2="196" stroke="#5F5E5A" stroke-width="0.5" marker-end="url(#arrow)"/>
+<line x1="100" y1="232" x2="100" y2="246" stroke="#5F5E5A" stroke-width="0.5" marker-end="url(#arrow)"/>
+<rect x="230" y="96" width="140" height="36" rx="6" fill="#E6F1FB" stroke="#185FA5" stroke-width="0.5"/>
+<text x="300" y="118" text-anchor="middle" font-size="13" fill="#0C447C">商品検索・一覧</text>
+<rect x="230" y="146" width="140" height="36" rx="6" fill="#E6F1FB" stroke="#185FA5" stroke-width="0.5"/>
+<text x="300" y="168" text-anchor="middle" font-size="13" fill="#0C447C">商品登録</text>
+<rect x="390" y="146" width="140" height="36" rx="6" fill="#E6F1FB" stroke="#185FA5" stroke-width="0.5"/>
+<text x="460" y="168" text-anchor="middle" font-size="13" fill="#0C447C">商品修正</text>
+<rect x="230" y="196" width="140" height="36" rx="6" fill="#E6F1FB" stroke="#185FA5" stroke-width="0.5"/>
+<text x="300" y="218" text-anchor="middle" font-size="13" fill="#0C447C">一括インポート</text>
+<line x1="300" y1="132" x2="300" y2="146" stroke="#5F5E5A" stroke-width="0.5" marker-end="url(#arrow)"/>
+<line x1="370" y1="114" x2="392" y2="150" stroke="#5F5E5A" stroke-width="0.5" marker-end="url(#arrow)"/>
+<text font-size="11" fill="#888780" x="396" y="130">一覧から選択</text>
+<rect x="490" y="96" width="150" height="36" rx="6" fill="#FAEEDA" stroke="#BA7517" stroke-width="0.5"/>
+<text x="565" y="118" text-anchor="middle" font-size="13" fill="#633806">バックアップ</text>
+<rect x="490" y="146" width="150" height="36" rx="6" fill="#FAEEDA" stroke="#BA7517" stroke-width="0.5"/>
+<text x="565" y="168" text-anchor="middle" font-size="13" fill="#633806">操作ログ</text>
+<rect x="490" y="196" width="150" height="36" rx="6" fill="#FAEEDA" stroke="#BA7517" stroke-width="0.5"/>
+<text x="565" y="218" text-anchor="middle" font-size="13" fill="#633806">設定</text>
+<text font-size="12" fill="#993C1D" x="100" y="320" text-anchor="middle">入出庫</text>
+<line x1="40" y1="326" x2="160" y2="326" stroke="#993C1D" stroke-width="0.5"/>
+<text font-size="12" fill="#993C1D" x="340" y="320" text-anchor="middle">在庫補正</text>
+<line x1="260" y1="326" x2="420" y2="326" stroke="#993C1D" stroke-width="0.5"/>
+<text font-size="12" fill="#185FA5" x="570" y="320" text-anchor="middle">POS連携</text>
+<line x1="490" y1="326" x2="640" y2="326" stroke="#185FA5" stroke-width="0.5"/>
+<rect x="20" y="336" width="160" height="36" rx="6" fill="#FAECE7" stroke="#993C1D" stroke-width="0.5"/>
+<text x="100" y="358" text-anchor="middle" font-size="13" fill="#712B13">入庫記録</text>
+<rect x="20" y="386" width="160" height="36" rx="6" fill="#FAECE7" stroke="#993C1D" stroke-width="0.5"/>
+<text x="100" y="408" text-anchor="middle" font-size="13" fill="#712B13">返品・交換</text>
+<rect x="20" y="436" width="160" height="36" rx="6" fill="#FAECE7" stroke="#993C1D" stroke-width="0.5"/>
+<text x="100" y="458" text-anchor="middle" font-size="13" fill="#712B13">手動販売出庫</text>
+<rect x="20" y="486" width="160" height="36" rx="6" fill="#FAECE7" stroke="#993C1D" stroke-width="0.5"/>
+<text x="100" y="508" text-anchor="middle" font-size="13" fill="#712B13">廃棄・破損</text>
+<rect x="240" y="336" width="180" height="46" rx="6" fill="#FAECE7" stroke="#993C1D" stroke-width="0.5"/>
+<text x="330" y="354" text-anchor="middle" font-size="13" font-weight="500" fill="#712B13">棚卸し</text>
+<text x="330" y="370" text-anchor="middle" font-size="11" fill="#993C1D">10月〜大晦日</text>
+<rect x="240" y="400" width="180" height="36" rx="6" fill="#FAECE7" stroke="#993C1D" stroke-width="0.5"/>
+<text x="330" y="422" text-anchor="middle" font-size="13" fill="#712B13">在庫変動履歴</text>
+<rect x="490" y="336" width="150" height="36" rx="6" fill="#E6F1FB" stroke="#185FA5" stroke-width="0.5"/>
+<text x="565" y="358" text-anchor="middle" font-size="13" fill="#0C447C">PLU書出し</text>
+<rect x="490" y="386" width="150" height="36" rx="6" fill="#E6F1FB" stroke="#185FA5" stroke-width="0.5"/>
+<text x="565" y="408" text-anchor="middle" font-size="13" fill="#0C447C">整合性検証</text>
+<rect x="20" y="560" width="640" height="86" rx="8" fill="none" stroke="#B4B2A9" stroke-width="0.5" stroke-dasharray="4 4"/>
+<text x="40" y="580" font-size="13" font-weight="500" fill="#5F5E5A">利用者の1日の流れ</text>
+<rect x="40" y="594" width="70" height="30" rx="6" fill="#F1EFE8" stroke="#D3D1C7" stroke-width="0.5"/>
+<text x="75" y="613" text-anchor="middle" font-size="11" fill="#5F5E5A">開店</text>
+<text x="120" y="613" font-size="11" fill="#888780">→</text>
+<rect x="132" y="594" width="70" height="30" rx="6" fill="#E1F5EE" stroke="#0F6E56" stroke-width="0.5"/>
+<text x="167" y="613" text-anchor="middle" font-size="11" fill="#085041">在庫照会</text>
+<text x="212" y="613" font-size="11" fill="#888780">→</text>
+<rect x="224" y="594" width="70" height="30" rx="6" fill="#FAECE7" stroke="#993C1D" stroke-width="0.5"/>
+<text x="259" y="613" text-anchor="middle" font-size="11" fill="#712B13">入庫記録</text>
+<text x="304" y="613" font-size="11" fill="#888780">→</text>
+<rect x="316" y="594" width="60" height="30" rx="6" fill="#F1EFE8" stroke="#D3D1C7" stroke-width="0.5"/>
+<text x="346" y="613" text-anchor="middle" font-size="11" fill="#5F5E5A">営業</text>
+<text x="386" y="613" font-size="11" fill="#888780">→</text>
+<rect x="398" y="594" width="60" height="30" rx="6" fill="#F1EFE8" stroke="#D3D1C7" stroke-width="0.5"/>
+<text x="428" y="613" text-anchor="middle" font-size="11" fill="#5F5E5A">精算</text>
+<text x="468" y="613" font-size="11" fill="#888780">→</text>
+<rect x="480" y="594" width="80" height="30" rx="6" fill="#E1F5EE" stroke="#0F6E56" stroke-width="0.5"/>
+<text x="520" y="613" text-anchor="middle" font-size="11" fill="#085041">CSV取込み</text>
+<text x="570" y="613" font-size="11" fill="#888780">→</text>
+<rect x="582" y="594" width="60" height="30" rx="6" fill="#E1F5EE" stroke="#0F6E56" stroke-width="0.5"/>
+<text x="612" y="613" text-anchor="middle" font-size="11" fill="#085041">売上確認</text>
+</svg>
+</div>
+</div>
+
+<!-- ==================== ホーム画面 ==================== -->
+<div class="screen" id="screen-home">
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem">
+  <h1>在庫管理システム</h1>
+  <span style="font-size:14px;color:#5F5E5A">2026年3月21日（土）</span>
+</div>
+<div class="alert-bar">
+  <span class="alert-dot"></span>
+  <span>PLU書出しが必要な変更が 3件 あります</span>
+  <button style="margin-left:auto;font-size:12px;padding:4px 12px;border:1px solid #D3D1C7;border-radius:6px;background:#fff;cursor:pointer">書出し画面へ</button>
+</div>
+<div class="summary">
+  <div class="stat"><div class="label">昨日の売上</div><div class="value">¥38,420</div><div class="sub">47点</div></div>
+  <div class="stat"><div class="label">在庫切れ</div><div class="value" style="color:#A32D2D">5件</div><div class="sub">要発注チェック</div></div>
+  <div class="stat"><div class="label">在庫少</div><div class="value" style="color:#854F0B">12件</div><div class="sub">閾値以下</div></div>
+</div>
+<div class="section-label">毎日の作業</div>
+<div class="menu">
+  <button class="menu-btn highlight" onclick="show('csv')"><div class="btn-title">売上データ取込み</div><div class="btn-desc">閉店後にレジのCSVを読み込む</div></button>
+  <button class="menu-btn" onclick="show('daily')"><div class="btn-title">売上レポート</div><div class="btn-desc">日次・月次の売上一覧</div></button>
+  <button class="menu-btn" onclick="show('inventory')"><div class="btn-title">在庫照会</div><div class="btn-desc">商品の在庫数を確認する</div></button>
+  <button class="menu-btn"><div class="btn-title">商品管理</div><div class="btn-desc">登録・修正・検索</div></button>
+</div>
+<div class="section-label">入庫・出庫</div>
+<div class="menu">
+  <button class="menu-btn"><div class="btn-title">入庫記録</div><div class="btn-desc">仕入れた商品を記録する</div></button>
+  <button class="menu-btn"><div class="btn-title">返品・交換</div><div class="btn-desc">お客様からの返品や交換</div></button>
+  <button class="menu-btn"><div class="btn-title">手動販売出庫</div><div class="btn-desc">CSVに載らない販売を記録</div></button>
+  <button class="menu-btn"><div class="btn-title">廃棄・破損</div><div class="btn-desc">使えなくなった商品を記録</div></button>
+</div>
+<div class="section-label">その他</div>
+<div class="bottom-row">
+  <button class="bottom-btn">棚卸し</button>
+  <button class="bottom-btn">バックアップ</button>
+  <button class="bottom-btn">設定</button>
+</div>
+</div>
+
+<!-- ==================== CSV取込み画面 ==================== -->
+<div class="screen" id="screen-csv">
+<div class="page-header"><button class="back-btn" onclick="show('home')">戻る</button><h1>売上データ取込み</h1></div>
+<div class="steps">
+  <div class="step done"><span class="step-num">1</span>ファイル選択</div><span class="step-line"></span>
+  <div class="step active"><span class="step-num">2</span>内容確認</div><span class="step-line"></span>
+  <div class="step"><span class="step-num">3</span>完了</div>
+</div>
+<div class="file-info"><div><div class="fname">Z004_260320PLU_商品_.CSV</div><div class="fmeta">精算日: 2026年3月20日 / 244KB</div></div><button class="btn-cancel" style="padding:6px 12px;font-size:13px">変更</button></div>
+<div class="tbl-wrap">
+  <div style="background:#F1EFE8;padding:12px 16px;font-size:14px;font-weight:500;border-bottom:1px solid #D3D1C7">取込みプレビュー（販売のあった商品: 23件）</div>
+  <table>
+    <tr><th>商品コード</th><th>商品名</th><th>個数</th><th>金額</th><th></th></tr>
+    <tr><td>4973167119402</td><td>マイルドクレンジングO</td><td>2</td><td>¥6,600</td><td></td></tr>
+    <tr><td>4973167320884</td><td>ソフニングコンディt</td><td>1</td><td>¥3,850</td><td></td></tr>
+    <tr><td>4906943220993</td><td>手芸等材料</td><td>5</td><td>¥2,750</td><td><span class="warn-badge">生地（在庫減算なし）</span></td></tr>
+    <tr><td>4953544111083</td><td>ゴム</td><td>3</td><td>¥990</td><td></td></tr>
+  </table>
+  <div class="more-row">... 他19件</div>
+</div>
+<div class="action-bar"><button class="btn-cancel">キャンセル</button><button class="btn-primary">取込みを実行する</button></div>
+<div style="margin-top:2.5rem;padding-top:1.5rem;border-top:1px solid #e8e7e2">
+  <p style="font-size:14px;font-weight:500;margin-bottom:12px;color:#5F5E5A">完了後のイメージ</p>
+  <div class="result">
+    <div class="check">&#10003;</div><div class="msg">取込みが完了しました</div>
+    <div class="result-stats">
+      <div class="result-stat"><div class="val">23</div><div class="lbl">取込み件数</div></div>
+      <div class="result-stat"><div class="val">¥38,420</div><div class="lbl">売上合計</div></div>
+      <div class="result-stat"><div class="val">20</div><div class="lbl">在庫引落し</div></div>
+      <div class="result-stat"><div class="val">1</div><div class="lbl">警告</div></div>
+    </div>
+  </div>
+  <div style="display:flex;gap:12px;justify-content:center">
+    <button class="btn-cancel" onclick="show('daily')">売上レポートを見る</button>
+    <button class="btn-cancel" onclick="show('home')">ホームに戻る</button>
+  </div>
+</div>
+</div>
+
+<!-- ==================== 日次売上レポート ==================== -->
+<div class="screen" id="screen-daily">
+<div class="page-header"><button class="back-btn" onclick="show('home')">戻る</button><h1>売上レポート</h1></div>
+<div class="tabs"><button class="tab active">商品別</button><button class="tab" onclick="show('monthly')">月次集計</button></div>
+<div class="controls">
+  <div class="date-nav"><button>前日</button><span class="current">2026年3月20日（金）</span><button>翌日</button></div>
+  <div class="filter-group"><label>部門</label><select><option>すべて</option><option>毛糸</option><option>手芸等材料</option></select></div>
+</div>
+<div class="summary-4">
+  <div class="stat"><div class="label">売上合計</div><div class="value">¥38,420</div></div>
+  <div class="stat"><div class="label">販売点数</div><div class="value">47点</div></div>
+  <div class="stat" title="売上レコード行数ベース。レシート単位の取引件数は後続仕様で定義。"><div class="label">売上明細数</div><div class="value">23件</div><div class="sub">自動22 / 手動1</div></div>
+  <div class="stat"><div class="label">前日比</div><div class="value change-up">+¥4,280</div><div class="sub">+12.5%</div></div>
+</div>
+<div class="tbl-wrap">
+<table>
+  <tr><th>商品コード</th><th>商品名</th><th>部門</th><th class="num">数量</th><th class="num">単価</th><th class="num">金額</th></tr>
+  <tr class="subtotal-row"><td colspan="3">トワニー</td><td class="num">8</td><td></td><td class="num">¥18,700</td></tr>
+  <tr><td>4973167119402</td><td>マイルドクレンジングO</td><td><span class="dept">トワニー</span></td><td class="num">2</td><td class="num">¥3,300</td><td class="num">¥6,600</td></tr>
+  <tr><td>4973167320884</td><td>ソフニングコンディt</td><td><span class="dept">トワニー</span></td><td class="num">1</td><td class="num">¥3,850</td><td class="num">¥3,850</td></tr>
+  <tr><td>4973167947982</td><td>ローション1t</td><td><span class="dept">トワニー</span></td><td class="num">3</td><td class="num">¥1,650</td><td class="num">¥4,950</td></tr>
+  <tr><td>4973167947999</td><td>ローション2t</td><td><span class="dept">トワニー</span></td><td class="num">2</td><td class="num">¥1,650</td><td class="num">¥3,300</td></tr>
+  <tr class="subtotal-row"><td colspan="3">毛糸</td><td class="num">12</td><td></td><td class="num">¥8,580</td></tr>
+  <tr><td>4976383262108</td><td>ハマナカ アミアミ極太 col.42</td><td><span class="dept">毛糸</span></td><td class="num">4</td><td class="num">¥594</td><td class="num">¥2,376</td></tr>
+  <tr><td>4979738052116</td><td>ダルマ やわらかラム col.12</td><td><span class="dept">毛糸</span></td><td class="num">5</td><td class="num">¥484</td><td class="num">¥2,420</td></tr>
+  <tr><td>—</td><td>（手入力）毛糸バラ売り</td><td><span class="dept">毛糸</span><span class="manual">手動</span></td><td class="num">2</td><td class="num">¥1,001</td><td class="num">¥2,002</td></tr>
+  <tr><td colspan="6" class="more-row">... 他14件</td></tr>
+  <tr class="subtotal-row" style="font-size:15px"><td colspan="3" style="font-weight:500">合計</td><td class="num" style="font-weight:500">47</td><td></td><td class="num" style="font-weight:500">¥38,420</td></tr>
+</table>
+</div>
+<div class="export-bar"><button class="export-btn">CSV出力</button><button class="export-btn">印刷</button></div>
+</div>
+
+<!-- ==================== 在庫照会 ==================== -->
+<div class="screen" id="screen-inventory">
+<div class="page-header"><button class="back-btn" onclick="show('home')">戻る</button><h1>在庫照会</h1></div>
+<div class="search-bar"><input type="text" placeholder="商品コード、商品名、JANで検索"/></div>
+<div class="filter-row">
+  <label style="font-size:13px;color:#5F5E5A">部門</label>
+  <select style="padding:6px 10px;font-size:13px;border-radius:8px;border:1px solid #D3D1C7"><option>すべて</option><option>毛糸</option><option>手芸等材料</option><option>布</option></select>
+  <span style="width:12px"></span>
+  <span class="chip active-danger">在庫切れ</span>
+  <span class="chip active-warn">在庫少</span>
+  <span class="chip">すべて</span>
+</div>
+<div class="summary">
+  <div class="stat"><div class="label">表示中の商品数</div><div class="value">5件</div></div>
+  <div class="stat"><div class="label">在庫切れ</div><div class="value" style="color:#A32D2D">5件</div></div>
+  <div class="stat"><div class="label">在庫少（閾値以下）</div><div class="value" style="color:#854F0B">12件</div></div>
+</div>
+<div class="tbl-wrap">
+<table>
+  <tr><th style="width:22%">商品コード</th><th style="width:28%">商品名</th><th style="width:14%">部門</th><th style="width:12%" class="num">在庫数</th><th style="width:12%" class="num">売価</th><th style="width:12%" class="num">最終販売</th></tr>
+  <tr><td>4976383262108</td><td>ハマナカ アミアミ極太 col.42</td><td><span class="dept">毛糸</span></td><td class="num stock-zero">0</td><td class="num">¥594</td><td class="num">3/20</td></tr>
+  <tr><td>4953544111083</td><td>家庭用平ゴム 8コール</td><td><span class="dept">ゴム</span></td><td class="num stock-zero">0</td><td class="num">¥330</td><td class="num">3/19</td></tr>
+  <tr><td>H-0012</td><td>ヘアクリップ リボン 黒</td><td><span class="dept">ヘア雑貨</span></td><td class="num stock-zero">0</td><td class="num">¥440</td><td class="num">3/18</td></tr>
+  <tr><td>4976383262207</td><td>ハマナカ アミアミ極太 col.51</td><td><span class="dept">毛糸</span></td><td class="num stock-zero">0</td><td class="num">¥594</td><td class="num">3/20</td></tr>
+  <tr><td>F-0003</td><td>パッチワーク用カラー布</td><td><span class="dept">布</span></td><td class="num stock-zero">0 cm</td><td class="num">¥110/10cm</td><td class="num">3/17</td></tr>
+</table>
+</div>
+<p style="font-size:14px;font-weight:500;color:#5F5E5A;margin-bottom:12px">商品をクリックすると詳細を表示</p>
+<div class="detail-card">
+  <div class="detail-header">
+    <div><h2>ハマナカ アミアミ極太 col.42</h2><div class="detail-header code">4976383262108</div></div>
+    <span class="status-badge status-danger">在庫切れ</span>
+  </div>
+  <div class="detail-grid">
+    <div class="detail-item"><div class="dl">在庫数</div><div class="dv" style="color:#A32D2D">0 個</div></div>
+    <div class="detail-item"><div class="dl">売価</div><div class="dv">¥594</div></div>
+    <div class="detail-item"><div class="dl">原価</div><div class="dv">¥111</div></div>
+    <div class="detail-item"><div class="dl">部門</div><div class="dv">毛糸</div></div>
+    <div class="detail-item"><div class="dl">最終入庫</div><div class="dv">2026/02/15</div></div>
+    <div class="detail-item"><div class="dl">最終販売</div><div class="dv">2026/03/20</div></div>
+  </div>
+  <div class="detail-actions">
+    <button>商品情報を修正</button>
+    <button>在庫変動履歴</button>
+    <button>入庫記録へ</button>
+  </div>
+</div>
+</div>
+
+<!-- ==================== 月次売上レポート ==================== -->
+<div class="screen" id="screen-monthly">
+<div class="page-header"><button class="back-btn" onclick="show('home')">戻る</button><h1>売上レポート</h1></div>
+<div class="tabs"><button class="tab" onclick="show('daily')">商品別</button><button class="tab active">月次集計</button></div>
+<div class="controls">
+  <div class="date-nav"><button>前月</button><span class="current">2026年3月</span><button>翌月</button></div>
+  <div class="filter-group"><label>部門</label><select><option>すべて</option><option>毛糸</option><option>手芸等材料</option></select></div>
+</div>
+<div class="summary-4">
+  <div class="stat"><div class="label">月間売上合計</div><div class="value">¥682,400</div></div>
+  <div class="stat"><div class="label">月間販売点数</div><div class="value">1,024点</div></div>
+  <div class="stat"><div class="label">営業日数</div><div class="value">20日</div><div class="sub">日平均 ¥34,120</div></div>
+  <div class="stat"><div class="label">前月比</div><div class="value change-up">+¥48,200</div><div class="sub">+7.6%</div></div>
+</div>
+<div class="section-label">部門別売上・構成比</div>
+<div class="tbl-wrap">
+<table>
+  <tr><th style="width:18%">部門</th><th style="width:10%" class="num">数量</th><th style="width:16%" class="num">金額</th><th style="width:34%">構成比</th><th style="width:12%" class="num">前月比</th></tr>
+  <tr><td>トワニー</td><td class="num">186</td><td class="num">¥248,600</td><td><div class="bar-wrap"><div class="bar" style="width:36%"></div><span class="bar-pct">36.4%</span></div></td><td class="num change-up">+12.3%</td></tr>
+  <tr><td>毛糸</td><td class="num">298</td><td class="num">¥152,300</td><td><div class="bar-wrap"><div class="bar" style="width:22%"></div><span class="bar-pct">22.3%</span></div></td><td class="num change-up">+8.1%</td></tr>
+  <tr><td>手芸等材料</td><td class="num">215</td><td class="num">¥98,400</td><td><div class="bar-wrap"><div class="bar" style="width:14%"></div><span class="bar-pct">14.4%</span></div></td><td class="num change-down">-3.2%</td></tr>
+  <tr><td>布</td><td class="num">87</td><td class="num">¥64,200</td><td><div class="bar-wrap"><div class="bar" style="width:9%"></div><span class="bar-pct">9.4%</span></div></td><td class="num change-up">+1.5%</td></tr>
+  <tr><td>ヘア雑貨</td><td class="num">112</td><td class="num">¥42,800</td><td><div class="bar-wrap"><div class="bar" style="width:6%"></div><span class="bar-pct">6.3%</span></div></td><td class="num change-down">-5.7%</td></tr>
+  <tr><td colspan="5" class="more-row">... 他16部門</td></tr>
+  <tr class="subtotal-row"><td>合計</td><td class="num">1,024</td><td class="num">¥682,400</td><td><div class="bar-wrap"><div class="bar" style="width:100%"></div><span class="bar-pct">100%</span></div></td><td class="num change-up">+7.6%</td></tr>
+</table>
+</div>
+<div class="section-label">売上金額ランキング（上位10商品）</div>
+<div class="tbl-wrap">
+<table>
+  <tr><th style="width:6%"></th><th style="width:18%">商品コード</th><th style="width:28%">商品名</th><th style="width:12%">部門</th><th style="width:10%" class="num">数量</th><th style="width:14%" class="num">金額</th><th style="width:10%" class="num">前月比</th></tr>
+  <tr><td><span class="rank-num rank-1">1</span></td><td>4973167119402</td><td>マイルドクレンジングO</td><td style="font-size:12px;color:#5F5E5A">トワニー</td><td class="num">42</td><td class="num">¥138,600</td><td class="num change-up">+18%</td></tr>
+  <tr><td><span class="rank-num rank-2">2</span></td><td>4973167320884</td><td>ソフニングコンディt</td><td style="font-size:12px;color:#5F5E5A">トワニー</td><td class="num">28</td><td class="num">¥107,800</td><td class="num change-up">+5%</td></tr>
+  <tr><td><span class="rank-num rank-3">3</span></td><td>4976383262108</td><td>ハマナカ アミアミ極太 col.42</td><td style="font-size:12px;color:#5F5E5A">毛糸</td><td class="num">64</td><td class="num">¥38,016</td><td class="num change-up">+22%</td></tr>
+  <tr><td style="font-size:12px;color:#888780;text-align:center">4</td><td>4979738052116</td><td>ダルマ やわらかラム col.12</td><td style="font-size:12px;color:#5F5E5A">毛糸</td><td class="num">58</td><td class="num">¥28,072</td><td class="num change-down">-8%</td></tr>
+  <tr><td style="font-size:12px;color:#888780;text-align:center">5</td><td>4953544111083</td><td>家庭用平ゴム 8コール</td><td style="font-size:12px;color:#5F5E5A">ゴム</td><td class="num">86</td><td class="num">¥28,380</td><td class="num change-up">+3%</td></tr>
+  <tr><td colspan="7" class="more-row">... 6位〜10位</td></tr>
+</table>
+</div>
+<div class="export-bar"><button class="export-btn">CSV出力</button><button class="export-btn">印刷</button></div>
+</div>
+
+</div>
+
+<script>
+function show(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById('screen-'+id).classList.add('active');
+  document.querySelectorAll('.mock-nav button').forEach(b=>b.classList.remove('current'));
+  var btn=document.getElementById('nav-'+id);
+  if(btn)btn.classList.add('current');
+  window.scrollTo(0,0);
+}
+show('flow');
+</script>
+</body>
+</html>

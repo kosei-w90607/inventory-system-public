@@ -1,0 +1,4 @@
+interface:
+  display_name: "Inventory Implementation"
+  short_description: "Implement inventory tasks with repo gates."
+  default_prompt: "Use $inventory-implementation to implement the next scoped inventory-system task."

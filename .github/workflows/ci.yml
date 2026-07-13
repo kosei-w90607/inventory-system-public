@@ -1,0 +1,384 @@
+name: CI
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    types: [opened, ready_for_review]
+    paths-ignore:
+      - "docs/**"
+      - "*.md"
+      - ".agents/**"
+      - ".claude/skills/**"
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  changes:
+    name: Detect changed areas
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.pull_request.draft == false &&
+      !(contains(github.event.pull_request.body, 'Hosted CI: skip') &&
+      github.actor == github.repository_owner &&
+      (contains(github.event.pull_request.body, 'Risk: R0') ||
+      contains(github.event.pull_request.body, 'Risk: R1'))))
+    runs-on: ubuntu-latest
+    outputs:
+      rust: ${{ steps.filter.outputs.rust }}
+      rust_drift: ${{ steps.filter.outputs.rust_drift }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+      docs: ${{ steps.filter.outputs.docs }}
+      env: ${{ steps.filter.outputs.env }}
+      generated: ${{ steps.filter.outputs.generated }}
+      traceability: ${{ steps.filter.outputs.traceability }}
+      workflow: ${{ steps.filter.outputs.workflow }}
+      unknown: ${{ steps.filter.outputs.unknown }}
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - id: filter
+        name: Classify changed paths
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          output="$RUNNER_TEMP/changed-areas.txt"
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            scripts/ci/classify-changes.sh --all > "$output"
+          else
+            scripts/ci/classify-changes.sh \
+              --base "${{ github.event.pull_request.base.sha }}" \
+              --head "${{ github.event.pull_request.head.sha }}" > "$output"
+          fi
+
+          cat "$output" >> "$GITHUB_OUTPUT"
+
+          {
+            echo "### Changed-area routing"
+            echo
+            sed 's/^/- /' "$output"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  # ── Rust fmt / clippy ──
+  rust_lint:
+    name: Rust fmt/clippy
+    needs: changes
+    if: needs.changes.outputs.rust == 'true' || needs.changes.outputs.workflow == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: src-tauri
+
+    steps:
+      - uses: actions/checkout@v6
+
+      # Tauri Linux ビルド依存
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libssl-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            libxdo-dev \
+            file \
+            build-essential \
+            pkg-config \
+            libsqlite3-dev
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Cache Cargo
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('src-tauri/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      - name: Disk usage before Rust lint
+        run: |
+          df -h .
+          du -sh target 2>/dev/null || true
+
+      - name: cargo fmt
+        run: cargo fmt --check
+
+      - name: cargo clippy
+        run: cargo clippy --all-targets --all-features -- -D warnings
+
+      - name: Disk usage after Rust lint
+        if: always()
+        run: |
+          df -h .
+          du -sh target 2>/dev/null || true
+
+  # ── Rust tests ──
+  rust_test:
+    name: Rust tests
+    needs: changes
+    if: needs.changes.outputs.rust == 'true' || needs.changes.outputs.workflow == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: src-tauri
+
+    steps:
+      - uses: actions/checkout@v6
+
+      # Tauri Linux ビルド依存
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libssl-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            libxdo-dev \
+            file \
+            build-essential \
+            pkg-config \
+            libsqlite3-dev
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Cargo
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('src-tauri/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      - name: Disk usage before Rust tests
+        run: |
+          df -h .
+          du -sh target 2>/dev/null || true
+
+      - name: cargo test
+        run: cargo test
+
+      - name: Disk usage after Rust tests
+        if: always()
+        run: |
+          df -h .
+          du -sh target 2>/dev/null || true
+
+  # ── Rust generated output drift checks ──
+  rust_drift:
+    name: Rust generated drift
+    needs: changes
+    if: needs.changes.outputs.rust == 'true' || needs.changes.outputs.rust_drift == 'true' || needs.changes.outputs.workflow == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: src-tauri
+
+    steps:
+      - uses: actions/checkout@v6
+
+      # Tauri Linux ビルド依存
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libssl-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            libxdo-dev \
+            file \
+            build-essential \
+            pkg-config \
+            libsqlite3-dev
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Cargo
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('src-tauri/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      - name: Disk usage before Rust drift
+        run: |
+          df -h .
+          du -sh target 2>/dev/null || true
+
+      # bindings.ts drift check (2026-04-21 追加、ADR-002 運用更新)
+      # tauri-specta が生成する src/lib/bindings.ts を vendor-in 運用に切り替えたため、
+      # Rust 側の型変更後に bindings.ts の commit を忘れるドリフトを機械検知する。
+      - name: bindings.ts drift check (regenerate and diff)
+        working-directory: .
+        run: |
+          cd src-tauri
+          cargo run --bin generate_bindings
+          cd ..
+          if ! git diff --exit-code src/lib/bindings.ts; then
+            echo "::error file=src/lib/bindings.ts::src/lib/bindings.ts が Rust 型と乖離しています"
+            echo "修正手順: ローカルで 'cd src-tauri && cargo run --bin generate_bindings' を実行し、生成結果を commit に含めてください"
+            exit 1
+          fi
+
+      # traceability check (2026-06-11 追加、WF-TRACE-01〜04)
+      # docs/function-design/90-traceability.md を bindings.ts と同じ vendor-in + drift check 運用にする。
+      # T1 drift / T2 phantom REQ / T4 FE baseline は ERROR、T3 テスト 0 本 REQ は WARN（無書込 --check）。
+      # 失敗時の修正手順はコマンド出力が日本語で案内する（再生成 / インベントリ追記 / baseline 更新）。
+      - name: traceability check (generate_traceability --check)
+        run: cargo run --bin generate_traceability -- --check
+
+      - name: Disk usage after Rust drift
+        if: always()
+        run: |
+          df -h .
+          du -sh target 2>/dev/null || true
+
+  # ── 既存のRustチェック名を維持する集約ゲート ──
+  rust:
+    name: Rust (fmt + clippy + test)
+    needs: [changes, rust_lint, rust_test, rust_drift]
+    if: always() && needs.changes.result == 'success'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Summarize Rust gate
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ "${{ needs.changes.result }}" != "success" ]]; then
+            echo "::error::Changed-area detection failed"
+            exit 1
+          fi
+
+          core_required="${{ needs.changes.outputs.rust == 'true' || needs.changes.outputs.workflow == 'true' }}"
+          drift_required="${{ needs.changes.outputs.rust == 'true' || needs.changes.outputs.rust_drift == 'true' || needs.changes.outputs.workflow == 'true' }}"
+          if [[ "$core_required" != "true" && "$drift_required" != "true" ]]; then
+            echo "Rust gate skipped: no Rust, generated binding, traceability, or workflow changes."
+            exit 0
+          fi
+
+          lint_result="${{ needs.rust_lint.result }}"
+          test_result="${{ needs.rust_test.result }}"
+          drift_result="${{ needs.rust_drift.result }}"
+
+          echo "rust_lint=$lint_result"
+          echo "rust_test=$test_result"
+          echo "rust_drift=$drift_result"
+
+          if [[ "$core_required" == "true" && ( "$lint_result" != "success" || "$test_result" != "success" ) ]]; then
+            echo "::error::One or more required Rust core sub-jobs failed"
+            exit 1
+          fi
+
+          if [[ "$drift_required" == "true" && "$drift_result" != "success" ]]; then
+            echo "::error::One or more required Rust sub-jobs failed"
+            exit 1
+          fi
+
+  # ── 設計書の横断整合チェック（~10秒、全PRで実行） ──
+  docs:
+    name: Design doc consistency
+    needs: changes
+    if: always() && needs.changes.result == 'success'
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install ripgrep
+        run: sudo apt-get update && sudo apt-get install -y ripgrep
+
+      - name: Run doc consistency check
+        run: bash scripts/doc-consistency-check.sh
+
+  # ── 環境変数ファイルの安全性チェック ──
+  env_safety:
+    name: Env safety
+    needs: changes
+    if: needs.changes.outputs.env == 'true' || needs.changes.outputs.workflow == 'true'
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Check env safety
+        # docs/UI_TECH_STACK.md §6.9 環境変数設計の静的検査 (4 項目: prod の debug/mock 禁止 / VITE_* 変数名の秘密語 / .gitignore 記載 / tracked .env* 検出)
+        run: bash scripts/check-env-safety.sh
+
+  # ── フロントエンド品質ゲート（typecheck + lint + format + build） ──
+  frontend:
+    name: Frontend (typecheck + lint + format + build)
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true' || needs.changes.outputs.workflow == 'true'
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: npm install
+        run: npm ci
+
+      - name: Generate route tree
+        # .npmrc の ignore-scripts=true (Mini Shai-Hulud worm 防御) で
+        # pretypecheck / prelint の lifecycle hook が auto-run しないため、
+        # CI で明示的に routeTree.gen.ts を生成 (npm run <script> は許容コマンド)
+        run: npm run generate:routes
+
+      - name: npm typecheck
+        run: npm run typecheck
+
+      - name: npm lint
+        run: npm run lint
+
+      - name: npm format:check
+        run: npm run format:check
+
+      - name: npm test
+        # Phase 1 7-7a で導入した Vitest による純関数 unit test (option A、4 file / 71 ケース)
+        # pretest hook で generate:routes を呼ぶが、CI では既に generate 済のため idempotent
+        run: npm test
+
+      - name: npm build
+        run: npm run build
+
+      - name: npm audit (warn-only, high+)
+        # 現状 3 件 (moderate x2 via markdownlint-cli2/smol-toml, high x1 via vite 7.0.4)
+        # 修正は follow-up PR。本 step は可視化のみ。
+        # continue-on-error でジョブ継続 + 真の失敗（ネットワーク障害等）も step 失敗として観測可能にする
+        continue-on-error: true
+        run: npm audit --audit-level=high

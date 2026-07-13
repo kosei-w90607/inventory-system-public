@@ -1,0 +1,128 @@
+#!/usr/bin/env node
+"use strict";
+
+import { spawn } from "node:child_process";
+import fs from "node:fs";
+
+const realCodex =
+  process.env.REAL_CODEX && fs.existsSync(process.env.REAL_CODEX)
+    ? process.env.REAL_CODEX
+    : fs.existsSync("/home/kosei/.npm-global/bin/codex")
+      ? "/home/kosei/.npm-global/bin/codex"
+      : "codex";
+
+const timeoutMs = Number(process.env.CODEX_INVENTORY_METRICS_TIMEOUT_MS || 5000);
+
+function send(proc, message) {
+  proc.stdin.write(`${JSON.stringify(message)}\n`);
+}
+
+function formatRemaining(resetEpochSeconds) {
+  if (!Number.isFinite(resetEpochSeconds)) return "?";
+  const seconds = Math.max(0, resetEpochSeconds - Math.floor(Date.now() / 1000));
+  const days = Math.floor(seconds / 86400);
+  const hours = Math.floor((seconds % 86400) / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  if (days > 0) return `${days}d${String(hours).padStart(2, "0")}h`;
+  return `${hours}h${String(minutes).padStart(2, "0")}m`;
+}
+
+function usageBar(usedPercent) {
+  const width = 8;
+  const pct = Math.max(0, Math.min(100, Number(usedPercent) || 0));
+  const filled = pct > 0 ? Math.max(1, Math.round((pct / 100) * width)) : 0;
+  return `[${"#".repeat(filled)}${"-".repeat(width - filled)}]`;
+}
+
+function formatWindow(label, window) {
+  if (!window || typeof window !== "object") return `${label} [?] ?% ?`;
+  const usedPercent = Number(window.usedPercent);
+  const resetsAt = Number(window.resetsAt);
+  const pct = Number.isFinite(usedPercent) ? usedPercent : 0;
+  return `${label} ${usageBar(pct)} ${pct}% ${formatRemaining(resetsAt)}`;
+}
+
+const proc = spawn(realCodex, ["app-server", "--stdio"], {
+  stdio: ["pipe", "pipe", "ignore"],
+});
+
+let buffer = "";
+let finished = false;
+
+const timer = setTimeout(() => {
+  if (!finished) {
+    finished = true;
+    proc.kill();
+    process.exit(1);
+  }
+}, timeoutMs);
+
+proc.stdout.on("data", (chunk) => {
+  buffer += chunk.toString("utf8");
+  for (;;) {
+    const newline = buffer.indexOf("\n");
+    if (newline < 0) break;
+    const line = buffer.slice(0, newline);
+    buffer = buffer.slice(newline + 1);
+    if (!line.trim()) continue;
+
+    let message;
+    try {
+      message = JSON.parse(line);
+    } catch {
+      continue;
+    }
+
+    if (message.id === 0) {
+      send(proc, { method: "initialized", params: {} });
+      send(proc, {
+        method: "account/rateLimits/read",
+        id: 1,
+        params: {},
+      });
+      continue;
+    }
+
+    if (message.id === 1) {
+      finished = true;
+      clearTimeout(timer);
+      proc.kill();
+      if (message.error) process.exit(1);
+
+      const result = message.result || {};
+      const rateLimits = result.rateLimits || {};
+      const credits = result.rateLimitResetCredits || {};
+      const creditsText = Number.isFinite(Number(credits.availableCount))
+        ? `resets ${credits.availableCount}`
+        : "resets ?";
+
+      console.log(
+        `${formatWindow("5h", rateLimits.primary)} | ${formatWindow(
+          "7d",
+          rateLimits.secondary,
+        )} | ${creditsText}`,
+      );
+      process.exit(0);
+    }
+  }
+});
+
+proc.on("error", () => {
+  if (!finished) {
+    finished = true;
+    clearTimeout(timer);
+    process.exit(1);
+  }
+});
+
+send(proc, {
+  method: "initialize",
+  id: 0,
+  params: {
+    clientInfo: {
+      name: "codex_inventory_bar",
+      title: "Codex Inventory Bar",
+      version: "0.1.0",
+    },
+  },
+});

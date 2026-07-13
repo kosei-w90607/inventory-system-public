@@ -1,0 +1,31 @@
+# Build artifacts
+dist/
+dist-ssr/
+node_modules/
+
+# Rust / Tauri 全体 (cargo fmt が Rust 主権、JSON/ gen は手動 or 自動生成)
+src-tauri/
+
+# Auto-generated (.gitignore 済だが防衛的に明記)
+src/routeTree.gen.ts
+src/lib/bindings.ts
+
+# Lockfiles
+package-lock.json
+*.lock
+
+# Docs / 運用ノート: markdownlint-cli2 に主権を残す（devDep に登録済、将来本格運用予定）
+docs/
+tasks/
+Plans.md
+CLAUDE.md
+AGENTS.md
+README.md
+
+# Editor / IDE
+.vscode/
+.idea/
+
+# Claude Code / Agent 内部運用 (設計・コード品質ゲート対象外)
+.agents/
+.claude/

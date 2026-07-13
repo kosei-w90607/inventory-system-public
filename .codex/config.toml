@@ -1,0 +1,11 @@
+# Project-local Codex defaults.
+# This file records repository intent; active loading can depend on the Codex version.
+# Keep machine-specific overrides in `.codex/config.local.toml` (gitignored).
+
+sandbox_mode = "workspace-write"
+# Low-friction local WSL default. Commands still run inside workspace-write sandbox;
+# explicit escalation, remote mutation, and destructive operations remain review points.
+approval_policy = "on-request"
+
+[features]
+hooks = true

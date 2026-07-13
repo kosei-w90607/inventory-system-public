@@ -1,0 +1,158 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+REPO="${CODEX_INVENTORY_REPO:-/home/kosei/Projects/inventory-system}"
+CONFIG="${CODEX_HOME:-$HOME/.codex}/config.toml"
+REAL_CODEX="${REAL_CODEX:-/home/kosei/.npm-global/bin/codex}"
+INTERVAL="${CODEX_INVENTORY_BAR_INTERVAL:-2}"
+COLOR_MODE="${CODEX_INVENTORY_BAR_COLOR:-always}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+METRICS="${CODEX_INVENTORY_METRICS:-$SCRIPT_DIR/codex-inventory-metrics}"
+METRICS_CACHE="${CODEX_INVENTORY_METRICS_CACHE:-/tmp/codex-inventory-rate-limits-${USER:-user}.txt}"
+METRICS_CACHE_SECONDS="${CODEX_INVENTORY_METRICS_CACHE_SECONDS:-60}"
+once=false
+
+if [[ "${1:-}" == "--once" ]]; then
+  once=true
+fi
+
+if [[ ! -x "$REAL_CODEX" ]]; then
+  REAL_CODEX="$(command -v codex)"
+fi
+
+color() {
+  local code="$1"
+  shift
+  if [[ "$COLOR_MODE" == "always" || ( "$COLOR_MODE" == "auto" && -t 1 && -z "${NO_COLOR:-}" ) ]]; then
+    printf '\033[%sm%s\033[0m' "$code" "$*"
+  else
+    printf '%s' "$*"
+  fi
+}
+
+config_value() {
+  local key="$1"
+  if [[ -r "$CONFIG" ]]; then
+    awk -F= -v key="$key" '
+      $1 ~ "^[[:space:]]*" key "[[:space:]]*$" {
+        value=$2
+        gsub(/^[[:space:]]+|[[:space:]]+$/, "", value)
+        gsub(/^"|"$/, "", value)
+        print value
+        exit
+      }
+    ' "$CONFIG"
+  fi
+}
+
+project_trust_level() {
+  if [[ -r "$CONFIG" ]]; then
+    awk -F= -v section="[projects.\"$REPO\"]" '
+      $0 == section { in_section=1; next }
+      /^\[/ { in_section=0 }
+      in_section && $1 ~ /^[[:space:]]*trust_level[[:space:]]*$/ {
+        value=$2
+        gsub(/^[[:space:]]+|[[:space:]]+$/, "", value)
+        gsub(/^"|"$/, "", value)
+        print value
+        exit
+      }
+    ' "$CONFIG"
+  fi
+}
+
+metrics_line() {
+  local now mtime tmp line
+  now="$(date +%s)"
+  if [[ -r "$METRICS_CACHE" ]]; then
+    mtime="$(stat -c %Y "$METRICS_CACHE" 2>/dev/null || printf 0)"
+    if (( now - mtime < METRICS_CACHE_SECONDS )); then
+      cat "$METRICS_CACHE"
+      return 0
+    fi
+  fi
+
+  if [[ -x "$METRICS" ]]; then
+    tmp="${METRICS_CACHE}.$$"
+    if line="$("$METRICS" 2>/dev/null)" && [[ -n "$line" ]]; then
+      printf '%s\n' "$line" > "$tmp"
+      mv "$tmp" "$METRICS_CACHE" 2>/dev/null || true
+      printf '%s\n' "$line"
+      return 0
+    fi
+    rm -f "$tmp" 2>/dev/null || true
+  fi
+
+  printf '5h [--------] ?%% ? | 7d [--------] ?%% ? | resets ?\n'
+}
+
+truncate_text() {
+  local text="$1"
+  local max="$2"
+  if (( max > 1 && ${#text} > max )); then
+    printf '%s…' "${text:0:max-1}"
+  else
+    printf '%s' "$text"
+  fi
+}
+
+render() {
+  local cols repo_name branch dirty ahead_behind shortstat added deleted codex_version
+  local model reasoning sandbox approval root_marker line1 line2 line3 branch_display
+
+  cols="${COLUMNS:-$(tput cols 2>/dev/null || printf 120)}"
+  repo_name="$(basename "$REPO")"
+  branch="$(git -C "$REPO" branch --show-current 2>/dev/null || true)"
+  [[ -n "$branch" ]] || branch="$(git -C "$REPO" rev-parse --short HEAD 2>/dev/null || printf 'no-git')"
+
+  dirty=""
+  if [[ -n "$(git -C "$REPO" status --porcelain 2>/dev/null || true)" ]]; then
+    dirty="*"
+  fi
+
+  ahead_behind="$(git -C "$REPO" status --short --branch 2>/dev/null | sed -n '1s/.*\[\(.*\)\].*/\1/p')"
+  [[ -n "$ahead_behind" ]] && ahead_behind=" $ahead_behind"
+
+  shortstat="$(git -C "$REPO" diff --shortstat HEAD 2>/dev/null || true)"
+  added="$(printf '%s' "$shortstat" | sed -n 's/.* \([0-9][0-9]*\) insertion.*/+\1/p')"
+  deleted="$(printf '%s' "$shortstat" | sed -n 's/.* \([0-9][0-9]*\) deletion.*/-\1/p')"
+  [[ -n "$added" ]] || added="+0"
+  [[ -n "$deleted" ]] || deleted="-0"
+
+  codex_version="$("$REAL_CODEX" --version 2>/dev/null | tail -n 1 | awk '{print $2}')"
+  [[ -n "$codex_version" ]] || codex_version="unknown"
+
+  model="$(config_value model)"
+  reasoning="$(config_value model_reasoning_effort)"
+  sandbox="$(config_value sandbox_mode)"
+  approval="$(config_value approval_policy)"
+  root_marker="$(project_trust_level)"
+
+  [[ -n "$model" ]] || model="model?"
+  [[ -n "$reasoning" ]] || reasoning="reasoning?"
+  [[ -n "$sandbox" ]] || sandbox="sandbox?"
+  [[ -n "$approval" ]] || approval="approval?"
+  [[ -n "$root_marker" ]] || root_marker="project"
+
+  line1="$(color '1;35' "$(metrics_line)")"
+  if (( cols < 88 )); then
+    branch_display="$(truncate_text "$branch$dirty" 28)"
+    line2="$(color '1;36' "$repo_name") | $(color '35' "$branch_display")$ahead_behind | $(color '32' "$added") $(color '31' "$deleted")"
+    line3="$(color '1;33' "$model") | $(color '36' "effort:$reasoning") | $(color '90' "v$codex_version") | $(color '90' "sandbox:$sandbox")"
+  else
+    branch_display="$(truncate_text "$branch$dirty" 42)"
+    line2="$(color '1;36' "$repo_name") | $(color '35' "$branch_display")$ahead_behind | $(color '32' "$added") $(color '31' "$deleted") | $(color '90' "v$codex_version")"
+    line3="$(color '1;33' "$model") | $(color '36' "effort:$reasoning") | $(color '90' "sandbox:$sandbox") | $(color '90' "approval:$approval") | $(color '90' "trust:$root_marker")"
+  fi
+
+  printf '\033[H\033[2J'
+  printf '%s\n' "$line1"
+  printf '%s\n' "$line2"
+  printf '%s\n' "$line3"
+}
+
+while true; do
+  render
+  "$once" && exit 0
+  sleep "$INTERVAL"
+done

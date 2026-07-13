@@ -1,0 +1,50 @@
+[package]
+name = "inventory-system-tauri-scaffold"
+version = "0.1.0"
+description = "A Tauri App"
+authors = ["you"]
+edition = "2021"
+# src/bin/generate_bindings.rs 追加で bin が 2 つになったため、`cargo run` / `tauri dev` が
+# どちらを起動するか決められなくなる。default-run で main binary を明示して曖昧性を解消。
+default-run = "inventory-system-tauri-scaffold"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+# The `_lib` suffix may seem redundant but it is necessary
+# to make the lib name unique and wouldn't conflict with the bin name.
+# This seems to be only an issue on Windows, see https://github.com/rust-lang/cargo/issues/8519
+name = "inventory_system_tauri_scaffold_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-opener = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+# tauri-specta: invoke 型定義を Rust から TS に自動生成（ADR-002 / 2026-04-20 採用）
+specta = { version = "2.0.0-rc.24", features = ["derive"] }
+specta-typescript = "0.0.11"
+tauri-specta = { version = "2.0.0-rc.24", features = ["derive", "typescript"] }
+rusqlite = { version = "0.31", features = ["bundled"] }
+sha2 = "0.10"
+chrono = "0.4"
+encoding_rs = "0.8"
+regex = "1"
+uuid = { version = "1", features = ["v4"] }
+base64 = "0.22"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
+tracing-appender = "0.2"
+rand = "0.8"
+tauri-plugin-dialog = "2.7.1"
+tauri-plugin-fs = "2.5.1"
+
+[dev-dependencies]
+serial_test = "3"
+tauri = { version = "2", features = ["test"] }
+tempfile = "3"
+syn = { version = "2", features = ["full"] }
