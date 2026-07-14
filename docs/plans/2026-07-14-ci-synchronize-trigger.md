@@ -2,10 +2,10 @@
 
 ## Workflow State
 
-- Phase: plan-gate
+- Phase: implementing
 - Risk: R3
 - Execution Mode: codex-only
-- Plan Commit: pending
+- Plan Commit: 28476a0
 - Amendments: none
 - Coordinator: root Codex; scope, evidence, phase transitions, and Human Gate stops
 - Writer: root Codex; source docs, workflow, tests, and dashboard
@@ -198,3 +198,5 @@ Pending Plan Gate approval.
 ## Review Response
 
 - Findings Freeze: not yet frozen; post-freeze exceptions: none.
+- 2026-07-14 Plan Gate broad review: P1=0 / P2=1 / P3=1。P2はevent typesの文字列検査がwrong node/commentを受理し得る構造検証不足、P3は`docs/ci.md` Related RecordsのD-043欠落。
+- 2026-07-14 Plan Gate closure: commit `28476a0` で実効YAMLの構造parse、3値完全一致、削除/余分event mutation計画とD-043参照を同期し、P1=0 / P2=0。`plan-gate -> plan-approved -> implementing` の全遷移条件が揃った。
