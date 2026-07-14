@@ -79,7 +79,7 @@
 
 ## 次の行動
 
-1. UI-13 実装フェーズ: Codex への機能実装発注（relay 1 回目）→ Claude 陣営 visual polish → independent review → L3 + owner visual confirmation。Goal 節 H3 形式は plan commit `e5776ab` で dogfood 済み。Ready head 更新の `synchronize` / cancellation 実動作確認は UI-13 実装 PR の Ready 後 head 更新で実測する（PR #4 積み残し）。
+1. UI-13 実装フェーズ（active packet: [plans/2026-07-15-ui13-integrity-check.md](plans/2026-07-15-ui13-integrity-check.md)）: Codex 機能実装（実装は完了間近、品質 gate 通過中）→ Claude 陣営 visual polish → independent review → L3 + owner visual confirmation。Goal 節 H3 形式は plan commit `e5776ab` で dogfood 済み。Ready head 更新の `synchronize` / cancellation 実動作確認は UI-13 実装 PR の Ready 後 head 更新で実測する（PR #4 積み残し）。
 2. PLU-24（JAN なし独自コード商品のレジでの売り方）を次回店舗接点で確認（issue #135 残項目）。
 3. slice 2 follow-up 群（軽量、単独 PR 可）: hook 統合導入（`.claude/hooks/` + settings.json、sandbox 書込み制約の外での作業が前提）/ `Amendments:` SHA 抽出の strict 化 / `check_plan_commit_ancestry` の section-scoped 抽出 / `check_signature_cross_reference` の pipefail 潜在バグ / no-active-plan check の導入（WARN から）。詳細は [archive/plans/2026-07-12-mechanical-workflow-slice2.md](archive/plans/2026-07-12-mechanical-workflow-slice2.md) Review Response と decision-log D-039。
 
