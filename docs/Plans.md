@@ -5,7 +5,7 @@
 ## 現在のフェーズ
 
 - 製品フェーズ: Phase 3 UI 群は PR #117 までに完了。Phase 4 は UI-11b（PR #144）/ UI-11a（PR #151/#152）/ UI-10 棚卸し（PR #159）/ UI-11c 操作ログ（PR #164）が完了し、残りは UI-13。`v0.8.0-ui-daily` tag は `f44f99a`。
-- 現在の基準: public repositoryの`main`はsanitized parentless snapshot `902647b`から開始した。初回hosted CIは同じHEADへのmanual dispatch（run `29299411942`）でsuccessを確認済み。
+- 現在の基準: public repository の `main` は sanitized parentless snapshot `902647b` から開始した。public surface 確認、同じHEADへの初回 hosted CI manual dispatch（run `29299411942`）green、fresh public-writer clone 作成まで完了し、以後の開発は public-writer のみで行う。旧cloneは history-view 専用で public push に使用しない。
 - 完了: public 化 Phase A（R3、PR #167、`6af7de7`）。公開不可情報の抽象化、実原価 canary の synthetic 置換、local-only source 2点の untrack、40-ID semantic coverage ledger、legacy URL 非リンク化、履歴境界、Phase B runbook を実装した。Plan Gate 3 round、独立 Double Audit と closure、candidate/clean-archive privacy checks、exact-HEAD local full は P1/P2=0 / green。hosted run は runner 割当前の account-level infrastructure failure で、owner が local full を compensating evidence とする単発 disposition を承認して merge。証跡: [archived Packet](archive/plans/2026-07-13-public-repo-phase-a-sanitization.md) / [Matrix](archive/plans/test-matrices/2026-07-13-public-repo-phase-a-sanitization.md) / [WER](archive/plans/2026-07-14-public-repo-phase-a-sanitization-workflow-effectiveness-review.md)。
 - 完了: public 化 Phase B。sanitized parentless snapshotをpublic repositoryへ移行し、public-writer fresh cloneを通常開発用、旧private cloneをpublic push authorityのないhistory-view専用として分離した。public visibilityと初回hosted CI greenを確認済み。goal driftと再発防止は[D-045](decision-log.md)と[WER](archive/plans/2026-07-14-public-repo-phase-b-goal-drift-workflow-effectiveness-review.md)を参照。
 - 2026-06-30 UI-08前フィールド確認により、現店舗の日報主入力は `Z001` / `Z002` / `Z005`、`Z004` は PLU(商品) / 商品別トラックとして扱う方針に更新した。詳細は [plu-export-and-real-csv-verification.md](plu-export-and-real-csv-verification.md) と archived plan [archive/plans/2026-06-30-ui08-field-check-impact-plan.md](archive/plans/2026-06-30-ui08-field-check-impact-plan.md)。
@@ -25,6 +25,7 @@
 
 ## 進行中・直近完了した作業
 
+- [ ] CI synchronize trigger correction（R3 workflow gate change）: active [Plan Packet](plans/2026-07-14-ci-synchronize-trigger.md) / [Test Design Matrix](plans/test-matrices/2026-07-14-ci-synchronize-trigger.md)。D-033 の private-repository 前提を public 向け D-043 で限定的に更新し、Draft runner 0 / `push: main` なし / exact-HEAD evidence を維持したまま `pull_request.synchronize` を復旧する。branch protection、required context、`paths-ignore` 再設計は別R3。
 - [x] public migration learning sync（R2、Public PR #1、squash merge `713bdfc`）: [archived Plan Packet](archive/plans/2026-07-14-public-migration-learning-sync.md)。Phase B goal-drift WER、D-045、public化・初回 hosted CI green 後のdashboard状態をpublic repositoryへ同期した。CI `synchronize` trigger修正とgeneric workflow guard実装は別変更。
 - [x] public 化 Phase B runbook安全設計とmigration実行: private control plane / public payload、parentless snapshot、public-writer / history-view分離を実施し、public visibilityと初回hosted CI greenまで完了。安全設計の証跡は[packet](archive/plans/2026-07-14-public-repo-phase-b-design-hardening.md) / [Matrix](archive/plans/test-matrices/2026-07-14-public-repo-phase-b-design-hardening.md) / [WER](archive/plans/2026-07-14-public-repo-phase-b-design-hardening-workflow-effectiveness-review.md)、実行時のgoal driftは[D-045](decision-log.md) / [WER](archive/plans/2026-07-14-public-repo-phase-b-goal-drift-workflow-effectiveness-review.md)を参照。
 - [x] PR #164 WER起点のworkflow手順硬化（R3、PR #165 (private archive) squash merge `c0dd65f`）: [WER](archive/plans/2026-07-12-ui11c-pr164-workflow-effectiveness-review.md)の指摘を D-038 として記録し、Findings Freeze / Owner Effort Budget / L3 Eligibility / Evidence Ownership拡張 / drift-fix sweep / Contract Probe を `docs/DEV_WORKFLOW.md` に正本化、`docs/AGENT_OPERATING_MANUAL.md` §3 のモデル固定役割表を独立性制約リストへ置換、テンプレ2件更新、`check-plan-on-exit.sh` fallback修正。hosted final run 29192090291 (private archive Actions evidence 29192090291) success・三点SHA一致。Double Audit 2本+closureで P1/P2=0、owner実働は承認3接点のみ（新規律の自主dogfood成功）。archived packet: [archive/plans/2026-07-12-pr164-wer-workflow-hardening.md](archive/plans/2026-07-12-pr164-wer-workflow-hardening.md)、[Test Matrix](archive/plans/test-matrices/2026-07-12-pr164-wer-workflow-hardening.md)。機械強制（PK4/PK5/hook）は D-034 slice 2 が D-038 新語彙込みで引き継ぎ。
@@ -75,10 +76,11 @@
 
 ## 次の行動
 
-1. CI `synchronize` trigger修正を別R3 changeとして完了する。
+1. active [CI synchronize trigger correction Plan Packet](plans/2026-07-14-ci-synchronize-trigger.md) で、最新 `main` 統合後の検証・独立review・state-only Ready遷移・exact-HEAD L1・hosted final・mergeを完了する。
 2. D-045 follow-upとして、goal invariant / evidence adjudication / non-destructive revalidation / budget hard stopを`DEV_WORKFLOW.md`、Plan Packet template、`inventory-workflow-start`へ反映する別R3 workflow changeを計画する。
-3. UI-13 に着手（Phase 4残り。D-038/D-039新規律のapp実装側dogfood target）。
-4. PLU-24（JANなし独自コード商品のレジでの売り方）を次回店舗接点で確認（issue #135残項目）。
+3. UI-13 に着手（Phase 4 残り。D-038/D-039 新規律の app 実装側 dogfood target — D-038 Revisit 指定の次回 WER 突合対象）。
+4. PLU-24（JAN なし独自コード商品のレジでの売り方）を次回店舗接点で確認（issue #135 残項目）。
+5. slice 2 follow-up 群（軽量、単独 PR 可）: hook 統合導入（`.claude/hooks/` + settings.json、sandbox 書込み制約の外での作業が前提）/ `Amendments:` SHA 抽出の strict 化 / `check_plan_commit_ancestry` の section-scoped 抽出 / `check_signature_cross_reference` の pipefail 潜在バグ / no-active-plan check の導入（WARN から）。詳細は [archive/plans/2026-07-12-mechanical-workflow-slice2.md](archive/plans/2026-07-12-mechanical-workflow-slice2.md) Review Response と decision-log D-039。
 
 ## 後回し Backlog の参照先
 
