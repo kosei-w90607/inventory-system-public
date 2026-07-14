@@ -74,6 +74,7 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 
 - `docs/function-design/75-ui-integrity-check.md` 新設（UI-13 の設計正本。UI-13-D1〜D8 を記録）+ `docs/FUNCTION_DESIGN.md` 目次の「UI-13 未記載」記述更新
 - `src-tauri/src/lib.rs`: specta `collect_commands` へ `run_integrity_check` / `fix_integrity` の 2 行追加（登録漏れ是正、Contract Probe で発覚。ロジック変更なし）
+- `src/config/navigation.ts`: ui-13 entry の有効化（`to: "/settings/integrity"` / `status: "active"` の 2 field 変更、Amendment 4、2026-07-15。owner L3 で「サイドバー導線が disabled のまま = 利用者が画面に到達できない」Goal Invariant 違反として発覚。`docs/function-design/75-ui-integrity-check.md` §75.13 の navigation 除外記述の訂正、navigation.test.ts の同期が必要な場合はそれも含む）
 - `docs/function-design/90-traceability.md`: canonical generator（`cargo run --bin generate_traceability`）による再生成のみ（Amendment 3、2026-07-15。REQ-904 の UI 設計書・frontend test 追加に伴う covered 集計更新。AUTO-GENERATED file につき手動編集は引き続き禁止、diff は REQ-904 関連に限る）
 - `src-tauri/tests/design_compliance_test.rs`: `build_doc_to_modules_map()` へ `75-ui-integrity-check.md` → `cmd::integrity_cmd` / `biz::integrity_service` の登録 1 entry 追加（Amendment 2、2026-07-15。新設 function-design doc の compliance test 登録義務。`74-ui-operation-logs.md` の既存 entry（同ファイル :258）と同型の機械的追加。既存テストの変更・削除は禁止のまま）
 - `src-tauri/src/cmd/integrity_cmd.rs`: 上記 2 command への `#[specta::specta]` 属性追加 2 行のみ（Amendment 1、2026-07-15。collect_commands 登録後の再生成で顕在化した属性欠落。他 cmd 群は全て `#[tauri::command]` + `#[specta::specta]` の対で定義済みであることを実コード比較で確認。関数本体の変更は引き続き禁止）
@@ -253,4 +254,4 @@ Do not transcribe exact-HEAD SHA or test counts here (D-035/D-038 Evidence Owner
 - 裁定（Fable）: P1 = 0 / P2 = 0 / P3 = 1
 - P3-1（backlog、本 PR 対象外）: `src-tauri/src/cmd/integrity_cmd.rs` の `test_fix_integrity_req904_empty_codes_validation` が `fix_integrity` 本体を呼ばず検証ロジックをテスト内で再実装している tautological test。本 PR の diff（specta 属性 2 行）に含まれず Amendment 許容範囲外のため修正しない。次に同ファイルへ手を入れる PR で `super::fix_integrity` 実呼び化する
 - visual polish 由来の follow-up 候補（owner visual confirmation で判断材料に）: 差異一覧の「DB在庫」列名・「DB在庫が多い」文言は operator に IT 略語を露出している。変更には 75-ui doc（§75.6 正本）+ テスト同期が必要なため polish では見送り
-- Findings Freeze: frozen after Broad Audit（2026-07-15、independent Final Review 完了時点）; post-freeze exceptions: none.
+- Findings Freeze: frozen after Broad Audit（2026-07-15、independent Final Review 完了時点）; post-freeze exceptions: 1 件 — owner L3 で navigation 導線の disabled 残置（Goal Invariant「利用者が画面から実行できる」違反）を発見（2026-07-15）。freeze 後例外として許容する理由: owner の実機確認は freeze 対象外の検証面であり、かつ Goal Invariant 直撃のため defer 不可。Amendment 4 で gate し implementing へ backtrack して是正。**なお本 finding は plan 段階の登録義務列挙漏れ 4 件目（specta 属性 / compliance test / traceability / navigation）であり、Ledger にも「operator が画面に到達できる」導線契約の行が欠けていた（review が実装と doc の整合のみ検証し到達性を検証しない盲点）。WER の中心 lesson とする
