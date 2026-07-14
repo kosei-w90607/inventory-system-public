@@ -2,10 +2,10 @@
 
 ## Workflow State
 
-- Phase: plan-draft
+- Phase: implementing
 - Risk: R3
 - Execution Mode: fable-window
-- Plan Commit: pending
+- Plan Commit: 0251412
 - Amendments: none
 - Coordinator: Fable
 - Writer: Codex（発注 relay、owner がコピペ実行）
@@ -201,5 +201,5 @@ Fill after implementation.
 
 - Plan review R1（independent Sonnet context、2026-07-15）: P1=3 / P2=2、revise。全件 accept — P1-1 Goal Invariant を6項目へ拡張（D-046-5/6 は次の行動1名指しの優先実装であり Goal の書き漏れと裁定）/ P1-2 backtrack 判定機構を明記（phase 配列複製 + T8 parity drift test）/ P1-3 WER 日付判定の偽前例を撤回し新規機構（ファイル名日付 prefix 辞書順比較）と明示 / P2-1 `state-backtrack` を単一 backward 遷移限定としチェーン ERROR / P2-2 「blocker lane」を「finding classification」へ改名。
 - Plan review R2（同 context、2026-07-15）: R1 5件すべて解消 confirmed。新規 P2=1（AC が P2-1 拡張後の ERROR 条件に未追随）/ P3=1（Design Intent Audit が2機構を「日付 prefix」と一括り）、revise。両件 accept — AC を単一 backward 限定 + 不正形式 ERROR へ同期、Design Intent Audit を機構別記述へ修正。
-- Plan review R3: fill after re-review.
+- Plan review R3（同 context、2026-07-15）: P2-3 / P3-1 解消 confirmed、新規 finding 0、approve。Plan Gate 収束（R1: P1×3/P2×2 → R2: P2×1/P3×1 → R3: 0）。plan-gate → plan-approved → implementing は canonical 圧縮規則で state-only commit に記録、Plan Commit = 0251412（approved plan 状態、全実装 commit に先行）。
 - Findings Freeze: not yet frozen; post-freeze exceptions: none.
