@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: human-confirm
+- Phase: archive
 - Risk: R2
 - Execution Mode: fable-window
 - Plan Commit: 50b62f3
