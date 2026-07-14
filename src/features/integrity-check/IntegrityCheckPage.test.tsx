@@ -337,7 +337,7 @@ describe("UI-13 REQ-904 在庫整合性検証", () => {
     runIntegrityCheck.mockResolvedValue(checkResult([mismatch("SYN-001")]));
     renderPage();
     await runCheck();
-    for (const heading of ["商品コード", "名前", "DB在庫", "移動合計", "差異"]) {
+    for (const heading of ["商品コード", "名前", "システム在庫", "入出庫の合計", "差異"]) {
       expect(screen.getByRole("columnheader", { name: heading })).toBeInTheDocument();
     }
   });
@@ -352,8 +352,8 @@ describe("UI-13 REQ-904 在庫整合性検証", () => {
     renderPage();
     await runCheck();
     expect(await screen.findByText("差異が見つかりました")).toBeInTheDocument();
-    expect(screen.getByText("DB在庫が多い")).toBeInTheDocument();
-    expect(screen.getByText("移動合計が多い")).toBeInTheDocument();
+    expect(screen.getByText("システム在庫が多い")).toBeInTheDocument();
+    expect(screen.getByText("入出庫の合計が多い")).toBeInTheDocument();
     await selectForFix("SYN-PLUS");
     await openFixDialog();
     await confirmFix();

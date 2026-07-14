@@ -57,8 +57,8 @@ function formatCheckedAt(value: string): string {
 }
 
 function differenceLabel(difference: number): string {
-  if (difference > 0) return "DB在庫が多い";
-  if (difference < 0) return "移動合計が多い";
+  if (difference > 0) return "システム在庫が多い";
+  if (difference < 0) return "入出庫の合計が多い";
   return "差異なし";
 }
 
@@ -303,8 +303,8 @@ export function IntegrityCheckPage() {
                     <TableRow>
                       <TableHead className="w-32">商品コード</TableHead>
                       <TableHead className="min-w-56">名前</TableHead>
-                      <TableHead className="w-28 text-right">DB在庫</TableHead>
-                      <TableHead className="w-28 text-right">移動合計</TableHead>
+                      <TableHead className="w-28 text-right">システム在庫</TableHead>
+                      <TableHead className="w-28 text-right">入出庫の合計</TableHead>
                       <TableHead className="min-w-40 text-right">差異</TableHead>
                       <TableHead className="w-32 text-center">操作</TableHead>
                     </TableRow>

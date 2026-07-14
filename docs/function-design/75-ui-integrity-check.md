@@ -41,7 +41,7 @@ export function IntegrityCheckPage(): JSX.Element;
 | UI-13-D5 | fix成功後は自動再チェックしない。`fixed_count` / `adjustments` summaryと「補正済み」Badgeを表示し、「再度チェック」でのみ新checkを始める。 | checkは重い処理であり、利用者の意図なく暗黙実行しない。 |
 | UI-13-D6 | `skipped_count > 0`は独立warningで表示する。CmdErrorは日本語messageとretryを表示し、fix失敗時の選択を保持する。 | 部分未補正と再選択負担を成功表示へ埋没させない。 |
 | UI-13-D7 | frontendは生成済み`commands.*`と`unwrapResult`のみを使う。手書き`invoke`とfrontend独自DTOを禁止する。 | Rust型をwire contractのSSOTにする。 |
-| UI-13-D8 | 「差異なし」「差異あり」「DB在庫が多い」「移動合計が多い」「補正済み」「一部未補正」を日本語で示し、icon/Badge/Alert/位置とsemantic色を併用する。 | 非IT・高齢operatorが色識別に依存せず状態を言い分けられることを機能要件とする。 |
+| UI-13-D8 | 「差異なし」「差異あり」「システム在庫が多い」「入出庫の合計が多い」「補正済み」「一部未補正」を日本語で示し、icon/Badge/Alert/位置とsemantic色を併用する。 | 非IT・高齢operatorが色識別に依存せず状態を言い分けられることを機能要件とする。 |
 
 ### 75.3 State / Lifecycle
 
@@ -93,12 +93,13 @@ type IntegrityPhase = "idle" | "running" | "completed";
 
 ### 75.6 Difference Table / Pagination
 
-業務値5列は、商品コード、名前、DB在庫、移動合計、差異。行ごとのcheckboxは別の操作列とする。
+業務値5列は、商品コード、名前、システム在庫、入出庫の合計、差異。行ごとのcheckboxは別の操作列とする。
 
 - client-side pagingは100件固定。101件ならpage 1に100件、page 2に1件。check再実行時はpage 1へ戻る。
 - `ProductPagination`を`totalCount=mismatches.length`、`perPage=100`で再利用する。
 - tableは横overflow可能なwrapperと安定した列幅を持つ。商品名は回復不能なtruncateをしない。
-- `difference > 0`は「DB在庫が多い」、`difference < 0`は「移動合計が多い」。0は防御的に「差異なし」。
+- `difference > 0`は「システム在庫が多い」、`difference < 0`は「入出庫の合計が多い」。0は防御的に「差異なし」。
+- UI-10棚卸し（73-ui-stocktake.md UI-10-D10）の列名「現在在庫」とは意図的に語彙を分ける。本画面はシステムに記録された数字自体の正しさを疑う場であり、「現在」と断言する語を使うと検証対象の数字を無条件に信頼しているように読める。「システム在庫」は検証対象であることを示し、「入出庫の合計」はsidebarで既習の「入出庫」語彙に寄せて計算根拠を伝える。
 
 ### 75.7 Selection / Confirmation / Fix Result
 
