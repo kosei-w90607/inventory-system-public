@@ -1,6 +1,6 @@
 # CI
 
-この文書は CI / merge evidence の source of truth。判断理由は `docs/decision-log.md` D-026 / D-033、PR ごとの証跡は Plan Packet と PR 本文に置く。
+この文書は CI / merge evidence の source of truth。判断理由は `docs/decision-log.md` D-026 / D-033 / D-043、PR ごとの証跡は Plan Packet と PR 本文に置く。
 
 ## 移行状態
 
@@ -25,10 +25,10 @@ L0 green は PR 全差分 green を意味しない。merge evidence は L1 `full
 
 `CI` workflow は次だけを trigger とする。
 
-- `pull_request` の `opened` と `ready_for_review`
+- `pull_request` の `opened`、`ready_for_review`、`synchronize`
 - `workflow_dispatch`
 
-`push: main` と `pull_request.synchronize` は使用しない。Draft PR の push では起動しない。
+`push: main` は使用しない。`synchronize` は public repository で Ready PR の更新後 HEAD に current check を作るために使用する。Draft PR の `synchronize` は event 対象だが、job-level guard により runner job を開始しない。通常の修正経路は引き続き `Draftへ戻す -> push -> local full -> Ready` とし、Ready のままの通常 push は pre-push が拒否する。
 
 `npm security monitor` は product/merge CI とは別の standing security workflow で、weekly schedule + manual dispatch を維持する。daily schedule には戻さない。
 
@@ -128,7 +128,7 @@ HEAD_SHA="$(git rev-parse HEAD)"
 gh run list --workflow ci.yml --commit "$HEAD_SHA" --status success
 ```
 
-Ready 直作成は `opened` event で、Draft からの Ready 化は `ready_for_review` event で検出する。Ready PRをclose後にreopenしても`reopened` eventでは自動実行しないため、HEADに対応するfinal runがなければ`workflow_dispatch`を使う。自動 run が存在しない、失敗した、cancel された場合も同様とする。
+Ready 直作成は `opened` event で、Draft からの Ready 化は `ready_for_review` event で検出する。Ready PR の head 更新は `synchronize` event で検出するが、通常経路では先に Draft へ戻す。Ready PRをclose後にreopenしても`reopened` eventでは自動実行しないため、HEADに対応するfinal runがなければ`workflow_dispatch`を使う。自動 run が存在しない、失敗した、cancel された場合も同様とする。
 
 ## Cache Policy
 
@@ -143,7 +143,7 @@ Ready 直作成は `opened` event で、Draft からの Ready 化は `ready_for_
 
 job 名と aggregate `Rust (fmt + clippy + test)` は D-026 互換のため維持する。2026-07-10 の read-only 確認では Free private repository の branch protection / ruleset は利用できず、required check は設定されていない。
 
-将来 public 化または GitHub Pro 化して required checks を導入する前に、pure docs-only R0/R1の0 run、`Hosted CI: skip`、hosted-required workflow/release docs-onlyのexplicit dispatch、Actions-unavailable closed route、final-only event と required context の整合を再設計する。現状は branch protection を変更しない。
+public 化後も branch protection / ruleset は未設定である。required checks を導入する前に、pure docs-only R0/R1の0 run、`Hosted CI: skip`、hosted-required workflow/release docs-onlyのexplicit dispatch、Actions-unavailable closed route、final-only event と required context の整合を再設計する。GitHub公式仕様では path filter で workflow 自体が skip されると required check が Pending のままになるため、現行 `paths-ignore` を残したまま required context を有効化してはならない。本変更の `synchronize` 復旧はその前提整備だが、required-check設計の完了ではない。
 
 ## Disabled Migration
 

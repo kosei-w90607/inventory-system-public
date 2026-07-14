@@ -278,7 +278,7 @@ Use targeted gates first while iterating, then run the relevant full gate set be
 CI routing:
 
 - CI routing details live in [ci.md](ci.md). Keep this section as the workflow-facing summary only.
-- GitHub Actions does not run on `push: main` or Draft PR pushes. It runs on a Ready PR's `opened` / `ready_for_review` event or explicit `workflow_dispatch`.
+- GitHub Actions does not run on `push: main`. It is triggered by a PR's `opened` / `ready_for_review` / `synchronize` event or explicit `workflow_dispatch`; Draft events start no runner jobs because the job-level guard skips them.
 - Pure docs-only R0/R1 changes are excluded at event level. Eligible non-doc R0/R1 may use the PR-body `Hosted CI: skip` token together with `Risk: R0` / `Risk: R1`; it is honored only when the repository owner triggers Ready. R2+ and workflow/release changes must not use it. A workflow/release contract change that is docs-only still receives its required final through owner-directed `workflow_dispatch` unless `ci.md` classifies the exact change under a closed Actions-unavailable `not-required` route.
 - A manual dispatch always runs the full gate set, including a zero-diff dispatch on `main`.
 - Draft / `Hosted CI: skip` guards must skip every runner job, including jobs that otherwise use `if: always()` such as the Rust aggregate.
