@@ -1,0 +1,240 @@
+# UI-13: 在庫整合性検証画面（REQ-904 / BIZ-07 / CMD-11）
+
+## Workflow State
+
+- Phase: plan-approved
+- Risk: R3
+- Execution Mode: fable-window
+- Plan Commit: pending
+- Amendments: none
+- Coordinator: Fable
+- Writer: Codex（機能実装。発注 relay、owner がコピペ実行）/ Claude Sonnet subagent（visual polish pass、owner 指示 2026-07-15。非重複 ownership: `IntegrityCheckPage.tsx` の表示層に限定し、polish writer は Final Review の承認者にならない。実施タイミング: `implementing` 内で機能実装完了・local テスト green 後、independent-review **前**に一次実施。independent-review 後に visual finding が出た場合は通常規則どおり `implementing` へ戻して修正し再レビューする）
+- Plan Reviewer: independent Sonnet review context
+- Final Reviewer: independent Sonnet review context + Fable 裁定（P1/P2/P3）
+- Reviewed Content HEAD: pending
+- Final Exact-HEAD Evidence: PR body
+- Hosted CI Requirement: required
+- Human Gate: Codex 発注 relay、Windows native L3 + owner visual confirmation、Ready/merge approval（Plan Gate approval は 2026-07-15 消化済み、介入 1 回目 / 予算 4 回）
+
+Plan Gate record（append-only、plan-draft → plan-gate → plan-approved をこの commit で materialize）:
+
+- plan-draft → plan-gate: independent Sonnet plan review rally。round 1（P1×2 / P2×1 / P3×2、全件 accept・反映: polish pass の Phase 整合、L3 差異注入の fault-injection 疑義は `create_product` の初期在庫 movement 記録を実証して確定、remount/restart テスト追加、Impact Review Lenses 文言）/ round 2（P2×1 / P3×1、反映: Budget 超過理由の記録、D-043 の Design Sources 追記）/ round 3（新規指摘なし、Plan Gate 可）
+- plan-gate → plan-approved: owner 承認（2026-07-15、介入 1 回目 / 予算 4 回、「承認、実装発注へ」）
+
+## Owner Effort Budget
+
+- 介入回数上限: 4
+- 実働時間上限: 45分
+- relay 往復上限: 2
+
+既定値（介入 ≤3 / 30分）からの超過理由: Codex 機能実装 + Claude visual polish の二重 writer 体制で owner 承認接点が 1 回分増える（Plan Gate / Codex relay / L3 + visual confirmation / Ready・merge の 4 接点）。operator 向け新画面のため L3 目視は省略しない。
+
+既定値と超過時の Coordinator 責務は `docs/DEV_WORKFLOW.md` `Owner Effort Budget` 参照。
+承認依頼フォーマット: `この change での介入 N 回目 / 予算 M 回` + `承認すると利用者から見て何が完了するか1文`。
+
+## Risk
+
+Risk: R3
+
+Reason:
+operator workflow の新画面（在庫補正という不可逆な業務操作を含む）+ 新 route + generated bindings（`src/lib/bindings.ts`）再生成による Tauri command wire shape の変動。DB/BIZ/CMD の Rust 側変更はなし（CMD-11 integrity は実装済み）。
+
+## Goal
+
+Goal Invariant:
+
+### 最小完了条件
+
+- 利用者が画面から「整合性チェック実行」を押し、差異なし（緑の成功表示 + 直近確認日時）/ 差異あり（商品別の差異一覧）を日本語で確認できる。
+- 差異あり時、利用者が補正対象の行を個別に選択し、確認ダイアログを経て「棚卸し補正として確定」でき、確定後に補正結果（補正件数・内訳）が画面に表示される。
+- 実行中は画面内オーバーレイで他操作が抑止され、完了で自動的に結果表示へ遷移する。
+
+### 失敗定義
+
+- チェック実行はできるが補正 flow が最後（confirm → fix_integrity → 結果表示）まで完結しない。
+- 全差異の一括補正が 1 操作でできてしまう、または確認ダイアログなしで補正が走る（誤操作防御の欠落）。
+- bindings 再生成を回避した手書き `invoke` 呼び出しが frontend に入る。
+
+### 非目的
+
+- REQ-403 / SP-403 の POS 部門別売上照合（別 deferred task、ui-task-specs UI-13 節で明示除外）。
+- 整合性チェックの自動実行・スケジュール実行・自動修正。
+- backend（CMD/BIZ/DB）のロジック変更。許容するのは `lib.rs` の specta 登録漏れ是正 2 行のみ。それ以外の不足が発覚した場合は Amendment で gate してから着手する。
+
+Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
+
+## Scope
+
+- `docs/function-design/75-ui-integrity-check.md` 新設（UI-13 の設計正本。UI-13-D1〜D8 を記録）+ `docs/FUNCTION_DESIGN.md` 目次の「UI-13 未記載」記述更新
+- `src-tauri/src/lib.rs`: specta `collect_commands` へ `run_integrity_check` / `fix_integrity` の 2 行追加（登録漏れ是正、Contract Probe で発覚。ロジック変更なし）
+- `src/lib/bindings.ts` 再生成（`runIntegrityCheck` / `fixIntegrity` / `IntegrityFixResult` / `StockAdjustment` 追加）
+- `src/routes/settings/integrity.tsx` 新 route
+- `src/features/integrity-check/IntegrityCheckPage.tsx` + `IntegrityCheckPage.test.tsx`
+- `docs/Plans.md` 進行状態 sync
+- workflow dogfood: D-038（Findings Freeze / Owner Effort Budget 実測 / L3 Eligibility）、D-046（承認カウンタ interface / Goal H3 形式）、CI `synchronize` + `cancel-in-progress` の実動作確認（Ready 後 head 更新で初検証、PR #4 積み残し）
+
+## Non-scope
+
+- POS 部門別売上照合（REQ-403 / SP-403）
+- Rust 側（CMD / BIZ / IO / DB schema / migration）のロジック変更（`lib.rs` specta 登録 2 行の是正を除く）
+- 操作ログ画面（UI-11c）側の変更（直近確認日時の導出は既存 `list_logs` 呼び出しのみ）
+- 一括補正 UI（select-all）、チェックのスケジュール実行
+
+## Acceptance Criteria
+
+- `npm test` で `IntegrityCheckPage.test.tsx` が green。状態遷移 idle → running → completed のテスト名に `REQ-904` を含む。
+- 差異あり mock で「行選択 → 確定ボタン → 確認ダイアログ → confirm」で `fixIntegrity` が選択した `product_codes` のみを引数に 1 回発火するテストが存在する（evidence: テスト名 + mock assertion）。
+- select-all 相当の操作が存在しないこと、未選択時に確定ボタンが disabled であることのテストが存在する。
+- 差異一覧が 100 件/ページで client-side paging されるテストが存在する（101 件 mock で 2 ページ）。
+- 差異なし時に成功表示と「直近の確認日時」（`list_logs` operation_type=`integrity_check` 由来）が表示されるテストが存在する。
+- `run_integrity_check` / `fix_integrity` の CmdError 時に日本語 error 表示 + retry 導線が状態を破壊しないテストが存在する。
+- `rg "invoke\(" src/features/integrity-check/` が 0 件（bindings 経由のみ、exit code 1）。再生成後の `rg "runIntegrityCheck|fixIntegrity" src/lib/bindings.ts` が command wrapper を含む。
+- specta `collect_commands` と `invoke_handler` の登録差分が空（plan 段階の突合手順を PR で再実行、evidence: diff 出力）。
+- hosted CI green + 三点 SHA 一致（live PR HEAD = local full evidence HEAD = hosted headSha）。
+- Ready 後の head 更新 push で `synchronize` トリガー起動と旧 run の cancellation を PR body に証跡記録（workflow dogfood AC）。
+
+## Design Sources
+
+- Requirements / spec: `docs/SCREEN_DESIGN.md` 画面16（REQ-904）、`docs/architecture/ui-task-specs.md` UI-13 節
+- Architecture: `docs/ARCHITECTURE.md`（UI → CMD 一方向）
+- Function / command / DTO: `docs/function-design/42-cmd-sales-stocktake.md` §22.7（CMD-11 integrity）、`docs/function-design/36-biz-integrity-check.md` §21.3/21.4（INV-2/INV-4）
+- DB: 変更なし（`inventory_movements` へは既存 BIZ 経由でのみ書込み）
+- Screen / UI: `docs/architecture/ui-task-specs.md` UI-13 節 → 本 PR で `docs/function-design/75-ui-integrity-check.md` に詳細化
+- Decision log / ADR: D-038 / D-039 / D-046（本タスクは dogfood target）、D-043（CI `synchronize` / cancellation。Ready 後 head 更新の実測対象）
+
+## Required Design Artifacts
+
+| Area touched by upcoming work | Required source doc / artifact | Status |
+|---|---|---|
+| Backend function / command / repository / validation / error | 42-cmd §22.7 / 36-biz §21.3-21.4 | existing sufficient（実装・テスト済み、変更なし） |
+| Command / DTO / generated binding / wire shape | `bindings.ts` 再生成（specta 生成物） | updated in this PR |
+| DB / transaction / audit / rollback / migration | 変更なし | existing sufficient |
+| Screen / UI / route state / Japanese wording | `function-design/75-ui-integrity-check.md` | updated in this PR（新設） |
+| CSV / TSV / report / import / export format | 該当なし | — |
+| Durable decision / ADR | UI-13-D1〜D8 は 75-ui doc に記録 | updated in this PR |
+
+## Design Intent Trace
+
+| Spec / requirement ID | Source design doc section | Decision ID | Why / rejected alternatives | Implementation target | Test target |
+|---|---|---|---|---|---|
+| REQ-904 | ui-task-specs UI-13 | UI-13-D1 | route は `/settings/integrity`（保守系画面として UI-11c logs と同区画）。URL search state なし: チェック結果は実行セッション限りの ephemeral で、リロード後は spec 通り idle に戻る。rejected: URL に page/結果を持つ（再現不能な状態を URL 化する矛盾） | `src/routes/settings/integrity.tsx` | route 存在 + 初期 idle テスト |
+| REQ-904 | ui-task-specs UI-13 flow 3 | UI-13-D2 | 直近確認日時は operation_logs から導出（`list_logs` type=`integrity_check` 最新1件）。rejected: 専用 settings key 追加（backend 変更が必要でスコープ超過、log と二重管理） | `IntegrityCheckPage.tsx` | 直近確認日時表示テスト |
+| REQ-904 | ui-task-specs UI-13 flow 5-7 / 制御構造 | UI-13-D3 | 行ごと「補正する」checkbox + select-all なし + 確認ダイアログに選択行の内訳（product_code / stock_quantity → movements_sum）列挙。spec「全差異を一括補正させない。1件ずつ確認させる」は「盲目的一括補正の防止」が意図であり、明示列挙付き複数選択で満たす。rejected: 1行ずつ modal 連鎖（操作者の反復負担で確認が形骸化） | `IntegrityCheckPage.tsx` | 選択→confirm→`fixIntegrity` 引数テスト、select-all 不在テスト |
+| REQ-904 | ui-task-specs UI-13 制御構造 | UI-13-D4 | running 中は画面内オーバーレイ + Progress。mutation pending 中は実行/確定ボタン無効（二重実行防止） | `IntegrityCheckPage.tsx` | running 中操作抑止テスト |
+| REQ-904 | ui-task-specs UI-13 flow 7 | UI-13-D5 | fix 成功後は自動再チェックしない（spec が「重い処理」と明記）。`IntegrityFixResult` の summary（fixed_count / adjustments）を表示し、補正済み行に badge、再確認は手動の「再度チェック」導線。rejected: 自動再実行（重い処理の暗黙起動） | `IntegrityCheckPage.tsx` | fix 後表示テスト |
+| REQ-904 | 36-biz §21.4（部分失敗時 skipped） | UI-13-D6 | `skipped_count > 0` を成功 message に埋没させず警告表示（非色依存の文言 + badge）。error 時は日本語 message + retry で選択状態を保持 | `IntegrityCheckPage.tsx` | skipped 警告テスト、error/retry テスト |
+| REQ-904 | 42-cmd §22.7 | UI-13-D7 | frontend からの呼び出しは再生成 bindings 経由のみ。手書き `invoke` 禁止 | `bindings.ts` 再生成 | `rg "invoke\(" src/features/integrity-check/` 0 件 |
+| REQ-904 | inventory-operator-ui 制約 | UI-13-D8 | 差異/補正済み等の状態は色 + 文言で表現（color-only 禁止）、非 IT 高齢 operator 向け日本語文言、visual polish pass は Claude 陣営が実施 | `IntegrityCheckPage.tsx` | 状態文言存在テスト + L3 目視 |
+
+## Design Intent Audit
+
+- Source docs can answer what is being built and why without chat history or archived Plan Packets: 75-ui doc 新設後に成立（UI-13-D1〜D8 を本 PR で source doc 化）
+- Plan-only durable decisions found and promoted to source docs / decision-log / ADR: UI-13-D1〜D8 → `function-design/75-ui-integrity-check.md`
+- Assumptions and constraints: CMD-11 の Rust 実装・テストは完備で変更不要（36-biz / 42-cmd と `integrity_service.rs` の突合済み）
+- Deferred design gaps, risk, and follow-up target: POS 照合（REQ-403）は将来設計として ui-task-specs に記載済み、本 PR で扱わない
+- Test Design Matrix can cite design decision IDs or source doc sections: UI-13-D1〜D8 を cite
+
+## Impact Review Lenses
+
+not applicable — 本タスクは field investigation / 実機発見 / 外部ツール挙動 / POS 連携 / フォーマット変更のいずれも起点とせず、既存設計（ui-task-specs UI-13）からの計画的実装のため本節のトリガー条件に該当しない。操作者の誤操作防御・非色状態表示は Design Intent Trace の UI-13-D3 / UI-13-D8 で扱う。
+
+## Design Readiness
+
+- Existing design docs are sufficient because: 状態機械・flow・制御構造は ui-task-specs UI-13 節に、CMD/BIZ contract は 42-cmd §22.7 / 36-biz §21.3-21.4 に既存。UI 詳細（route、文言、選択 UX）のみ不足
+- Source docs updated in this PR: `docs/function-design/75-ui-integrity-check.md` 新設、`docs/FUNCTION_DESIGN.md` 目次更新
+- Design gaps intentionally deferred: POS 照合（REQ-403）
+- Durable decisions discovered in this plan and promoted to source docs: UI-13-D1〜D8
+
+Minimum design checks for business-app work:
+
+- Layer ownership (`UI -> CMD -> BIZ -> IO/MNT`): UI 層のみ追加、CMD 以下変更なし
+- Backend function design: 変更なし（36-biz / 42-cmd 既存）
+- Command / DTO / data contract: `IntegrityResult` / `IntegrityMismatch` / `IntegrityFixResult` / `StockAdjustment`（specta 生成、snake_case field）
+- Persistence / transaction / audit impact: fix は既存 BIZ の TX + operation_log 記録に委譲、frontend 起点の新規書込みなし
+- Operator workflow / Japanese UI wording: UI-13-D3/D8、75-ui doc に文言表を置く
+- Error, empty, retry, and recovery behavior: UI-13-D6（error/retry/skipped 警告）、差異 0 件 = 成功表示（empty とは区別しない: 差異なしが正常）
+- Testability and traceability IDs: テスト名に REQ-904、Matrix が UI-13-D* を cite
+
+## Contract Probe
+
+- 前提: bindings 再生成経路（`cargo run --bin generate_bindings`）が integrity commands を `bindings.ts` に出力する: probe（2026-07-15 plan 段階で実行）-> **前提否定**。再生成は成功するが diff ゼロ。原因は `lib.rs` の specta `collect_commands` に integrity 2 command が未登録（`invoke_handler` のみ登録）。両リストの機械突合で他の登録漏れなし（specta 55 / handler 57、差分は integrity 2 件のみ）。是正（`collect_commands` へ 2 行追加 + 再生成）を Scope に反映済み
+
+## Contract Coverage Ledger
+
+| Design contract / decision ID | Implementation target | Automated test | L3 or non-scope |
+|---|---|---|---|
+| UI-13-D1（route / ephemeral state） | `src/routes/settings/integrity.tsx` | route 初期 idle テスト | — |
+| UI-13-D2（直近確認日時導出） | `IntegrityCheckPage.tsx` | 直近確認日時表示テスト | — |
+| UI-13-D3（個別選択 + 確認ダイアログ） | `IntegrityCheckPage.tsx` | 選択→confirm→引数一致、select-all 不在、未選択 disabled | non-scope for L3: 差異注入は DB 直接操作（fault-injection 級）を要するため L3 対象外。component test + 既存 BIZ 統合テスト（`test_fix_integrity_*`）で担保 |
+| UI-13-D4（running overlay / 二重実行防止） | `IntegrityCheckPage.tsx` | running 中操作抑止テスト | L3: 実機での overlay 表示 |
+| UI-13-D5（fix 後の手動再チェック導線） | `IntegrityCheckPage.tsx` | fix 後 summary + badge テスト | — |
+| UI-13-D6（error / retry / skipped 警告） | `IntegrityCheckPage.tsx` | CmdError 表示、retry 状態保持、skipped>0 警告 | — |
+| UI-13-D7（bindings 経由のみ + specta 登録是正） | `src-tauri/src/lib.rs` + `src/lib/bindings.ts` | `rg "invoke\("` 0 件検査 + 登録差分空の突合 | — |
+| UI-13-D8（非色状態表示 / operator 文言） | `IntegrityCheckPage.tsx` | 状態文言存在テスト | L3: owner visual confirmation |
+| spec: 差異一覧 100 件/ページ paging | `IntegrityCheckPage.tsx` | 101 件 mock 2 ページテスト | — |
+| spec: 差異表示列（code/名前/DB値/SUM/差異） | `IntegrityCheckPage.tsx` | 一覧列表示テスト | non-scope for L3（同上の理由。可読性は polish pass + owner visual confirmation を差異なし画面と component テスト描画で実施） |
+
+## Test Plan
+
+Test Design Matrix: [test-matrices/2026-07-15-ui13-integrity-check.md](test-matrices/2026-07-15-ui13-integrity-check.md)
+
+- targeted tests: 状態遷移（idle/running/completed）、選択→補正 flow、paging、直近確認日時
+- negative tests: CmdError（run/fix 双方）、skipped_count>0、未選択 confirm 不可、巨大差異件数
+- compatibility checks: bindings 再生成 diff が integrity 追加のみで既存 command 型を壊さない（PR diff レビュー）
+- data safety checks: 実 DB を CI テストで使わない（mock のみ）、補正実行は L3 で synthetic データ
+- main wiring/integration checks: route 登録、`npm run build` green、hosted CI 三点一致
+
+## Boundary / Wire Contract
+
+- producer: `cmd::integrity_cmd`（Rust, specta 生成）
+- consumer: `IntegrityCheckPage.tsx`（`commands.runIntegrityCheck` / `commands.fixIntegrity`）
+- wire type: `IntegrityResult { mismatches, mismatch_count, checked_count }` / `IntegrityMismatch { product_code, name, stock_quantity, movements_sum, difference }` / `fixIntegrity(productCodes: string[]) -> IntegrityFixResult { fixed_count, skipped_count, adjustments }`
+- internal type: bindings 生成型をそのまま使用（frontend 側の再定義禁止）
+- precision/range: 在庫数は i64 → TS number（本業務の在庫数量域では安全、既存画面と同判断）
+- round-trip path: なし（読取 + 補正 command のみ、frontend からの型往復なし）
+- invalid input: 空 `product_codes` は UI で防止（未選択 disabled）+ BIZ 側 validation に委譲
+- compatibility: bindings 再生成は追加のみであること（PR diff で既存型の変更なしを確認）
+
+## Review Focus
+
+- 補正 flow の誤操作防御（UI-13-D3: select-all 不在、確認ダイアログの内訳列挙、未選択 disabled）
+- fix_integrity 呼び出し引数が「選択した行のみ」であること
+- running 中の操作抑止と二重実行防止（UI-13-D4）
+- skipped_count / error の非埋没表示（UI-13-D6）
+- bindings 再生成 diff の妥当性（追加のみか）
+
+## Spec Contract
+
+Contract ID: SPEC-UI13-INTEGRITY
+
+- 整合性チェックは利用者の明示操作でのみ実行され、実行中は他操作を受け付けない
+- 補正は行単位の明示選択 + 確認ダイアログを経由した場合のみ `fix_integrity` に到達し、引数は選択行の product_code 集合と一致する
+- 補正結果（fixed / skipped）は利用者に日本語で可視化され、skipped は成功に埋没しない
+- frontend は CMD-11 を bindings 経由でのみ呼び出す
+
+## Trace Matrix
+
+| Spec ID | Plan Step | Test | Review Focus | Evidence |
+|---|---|---|---|---|
+| REQ-904 / SPEC-UI13-INTEGRITY | function-design 75 新設 → 実装 → テスト | Matrix 記載の vitest 群（テスト名に REQ-904） | 誤操作防御・引数一致 | `npm test` green + hosted CI 三点一致 |
+| BIZ-07 INV-2/INV-4（既存） | 変更なし（消費のみ） | 既存 Rust テスト（`integrity_service.rs`） | wire 型の消費が契約通りか | 既存 `cargo test` green |
+| D-046 承認カウンタ dogfood | 全 owner 承認接点 | — | 承認依頼フォーマット遵守 | PR body / packet 記録 |
+| D-043 synchronize/cancellation | Ready 後 head 更新で実測 | — | CI run の trigger/cancel 証跡 | PR body に run ID 記録 |
+
+## Data Safety
+
+- 実店舗 DB・実データを commit / テスト固定資産に含めない（mock / synthetic のみ）
+- L3 は synthetic データ（アプリ内正規操作で構築）のみで行い、実店舗 DB での補正実行はしない。差異あり flow の実機確認は L3 対象外（Matrix「L3 対象外の明示」参照）
+- スクリーンショット等の証跡に実商品名・実在庫数を含めない
+
+## Implementation Results
+
+Fill after implementation.
+
+Do not transcribe exact-HEAD SHA or test counts here (D-035/D-038 Evidence Ownership). Record a qualitative summary and the PR link only.
+
+## Review Response
+
+Fill after review.
+If R3 review-only sub-agent is skipped, record an explicit line beginning with `Review-only skipped because:` and the reason.
+- Findings Freeze: not yet frozen; post-freeze exceptions: none.
