@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: implementing
+- Phase: human-confirm
 - Risk: R2
 - Execution Mode: fable-window
 - Plan Commit: 50b62f3
@@ -11,7 +11,7 @@
 - Writer: Fable
 - Plan Reviewer: independent Sonnet review context
 - Final Reviewer: independent Sonnet review context
-- Reviewed Content HEAD: pending
+- Reviewed Content HEAD: 7a1f38948068840706f15500c8ca40b142a74b16
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: not-required
 - Human Gate: Ready/merge approval
@@ -143,7 +143,9 @@ not applicable（R2）。
 
 ## Implementation Results
 
-Fill after implementation.
+- WER へ Addendum 2 節（Owner Primary Testimony / Analysis Delta）を append-only 追記、`docs/Plans.md` 次の行動 0（active packet リンク）追加と 1 の再スコープを実施。
+- targeted checks（doc-consistency / public-sanitization / `git diff --check`）全 PASS。hosted CI は docs-only paths-ignore につき not-required。
+- implementing → local-verified → independent-review → human-confirm は本 state-only commit に圧縮記録。各遷移の証跡（checks PASS、独立 plan/final review 結果）は Review Response と PR body を参照。
 
 ## Review Response
 
