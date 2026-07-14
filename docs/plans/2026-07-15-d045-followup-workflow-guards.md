@@ -71,7 +71,7 @@ Goal Invariant（最小完了条件、利用者可視 outcome。6項目すべて
 - `docs/templates/plan-packet.md` の Goal 節に「最小完了条件」「失敗定義」「非目的」の必須構造が存在する（`rg '最小完了条件' docs/templates/plan-packet.md` が hit）。
 - `docs/DEV_WORKFLOW.md` Owner Effort Budget 節に承認依頼フォーマット（カウンタ + 完了1文）と超過見込み時の停止手順、owner 違和感 = goal-drift signal の停止手順が存在する。
 - Review Rules に三分類（candidate safety / mutation authority / evidence quality）と、不可逆 finding の4項目（actual harm path / affected candidate or mutation / non-destructive revalidation / blocker reason）必須要件が存在する（`rg 'actual harm path' docs/DEV_WORKFLOW.md` が hit）。
-- `scripts/check-workflow-git.sh` が `state-backtrack` subject を STATECAP cap から除外し、forward 遷移のみを含む backtrack subject を ERROR にする。drift test が両方向（正当 backtrack = PASS / cap 回避 = ERROR）で検証する。
+- `scripts/check-workflow-git.sh` が `state-backtrack` subject（単一 backward 遷移のみ許容）を STATECAP cap から除外し、forward 遷移のみ・複数遷移チェーン・未知 phase・遷移0個・同一 phase の backtrack subject を ERROR にする。drift test が両方向（正当 backtrack = PASS / cap 回避・不正形式 = ERROR）と phase 配列の両 script 一致（T8）を検証する。
 - `docs/templates/workflow-effectiveness-review.md` に `## Retired / Consolidated Rules` 節があり、checker が新規 WER の節欠落を WARN する。
 - `docs/AGENT_OPERATING_MANUAL.md` に one-shot irreversible 様式が存在し、`docs/DEV_WORKFLOW.md` から参照される。
 - `docs/decision-log.md` に D-046 が存在する。
@@ -112,7 +112,7 @@ Goal Invariant（最小完了条件、利用者可視 outcome。6項目すべて
 
 - Source docs can answer what is being built and why without chat history or archived Plan Packets: yes（D-046 + DEV_WORKFLOW 改訂で自己完結）
 - Plan-only durable decisions found and promoted to source docs / decision-log / ADR: D-046 として起票予定（8 sub-decision）
-- Assumptions and constraints: PK checker は bash / rg のみ（network・gh 非依存）。新 WARN check は既存 archived 文書に遡及しない（日付 prefix で判定）。
+- Assumptions and constraints: PK checker は bash / rg のみ（network・gh 非依存）。新 WARN check は既存文書に遡及しない — Goal Invariant 検査は active packet のディレクトリ分離（`docs/plans/` のみ）、WER Retired 検査はファイル名日付 prefix の辞書順比較（`2026-07-15` 以降のみ、新規機構）でそれぞれ判定する。
 - Deferred design gaps, risk, and follow-up target: hook 実装は sandbox 制約解消後の別 change。PR body 機械検査は非採用（理由は Non-scope 記載）。
 - Test Design Matrix can cite design decision IDs or source doc sections: yes（D-046-1〜6 を参照）
 
@@ -200,5 +200,6 @@ Fill after implementation.
 ## Review Response
 
 - Plan review R1（independent Sonnet context、2026-07-15）: P1=3 / P2=2、revise。全件 accept — P1-1 Goal Invariant を6項目へ拡張（D-046-5/6 は次の行動1名指しの優先実装であり Goal の書き漏れと裁定）/ P1-2 backtrack 判定機構を明記（phase 配列複製 + T8 parity drift test）/ P1-3 WER 日付判定の偽前例を撤回し新規機構（ファイル名日付 prefix 辞書順比較）と明示 / P2-1 `state-backtrack` を単一 backward 遷移限定としチェーン ERROR / P2-2 「blocker lane」を「finding classification」へ改名。
-- Plan review R2: fill after re-review.
+- Plan review R2（同 context、2026-07-15）: R1 5件すべて解消 confirmed。新規 P2=1（AC が P2-1 拡張後の ERROR 条件に未追随）/ P3=1（Design Intent Audit が2機構を「日付 prefix」と一括り）、revise。両件 accept — AC を単一 backward 限定 + 不正形式 ERROR へ同期、Design Intent Audit を機構別記述へ修正。
+- Plan review R3: fill after re-review.
 - Findings Freeze: not yet frozen; post-freeze exceptions: none.
