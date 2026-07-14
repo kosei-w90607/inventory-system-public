@@ -186,6 +186,7 @@ Minimum design checks for business-app work:
 | UI-13-D8（非色状態表示 / operator 文言） | `IntegrityCheckPage.tsx` | 状態文言存在テスト | L3: owner visual confirmation |
 | spec: 差異一覧 100 件/ページ paging | `IntegrityCheckPage.tsx` | 101 件 mock 2 ページテスト | — |
 | spec: 差異表示列（code/名前/DB値/SUM/差異） | `IntegrityCheckPage.tsx` | 一覧列表示テスト | non-scope for L3（同上の理由。可読性は polish pass + owner visual confirmation を差異なし画面と component テスト描画で実施） |
+| spec: operator 到達導線（navigation ui-13 active、Amendment 4 で追加。route 直 render テストは到達性を検証しない盲点の是正） | `src/config/navigation.ts` | `test_navigation_req904_ui13_active_at_settings_integrity` | L3: サイドバーから実際に画面へ遷移できること |
 
 ## Test Plan
 
