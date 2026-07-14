@@ -1,6 +1,6 @@
 # Agent Operating Manual
 
-この文書は、どのモデル・ハーネスの組み合わせでもこの repository の workflow が停止しないための **availability mode / role mapping / 追加 prompt の正本**。workflow の中身（phase、Risk、Plan、CI、review）は [DEV_WORKFLOW.md](DEV_WORKFLOW.md) が正本であり、本書は「誰がどの役割を担うか」だけを扱う（D-034）。
+この文書は、どのモデル・ハーネスの組み合わせでもこの repository の workflow が停止しないための **availability mode / role mapping / task-shape / 追加 prompt の正本**。workflow の中身（phase、Risk、Plan、CI、review）は [DEV_WORKFLOW.md](DEV_WORKFLOW.md) が正本であり、本書は「誰がどの役割を担うか」と、役割割当だけでは表せない限定的な実行形態を扱う（D-034 / D-046）。
 
 ## 1. 入口
 
@@ -14,7 +14,7 @@
 
 | 役割 | 責務 |
 |---|---|
-| Coordinator | thread を薄く保ち、委譲・統合・phase 遷移を管理する。実作業は原則しない。[DEV_WORKFLOW.md](DEV_WORKFLOW.md) の `Owner Effort Budget` を監視し、超過が見込まれる場合は工程を簡略化する（owner が吸収しない） |
+| Coordinator | thread を薄く保ち、委譲・統合・phase 遷移を管理する。実作業は原則しない。[DEV_WORKFLOW.md](DEV_WORKFLOW.md) の `Owner Effort Budget` を承認インターフェースで可視化し、超過見込みまたは `goal-drift signal` で hard stop する |
 | Plan Reviewer（Plan Gate 担当） | plan-draft を独立レビューし P1/P2 = 0 まで差し戻す。Writer と兼任不可。phase 名 plan-gate はこの役割の審査 phase を指す |
 | Writer | 実装・docs 編集の書き手。one-writer rule（DEV_WORKFLOW `Subagent Budget`）に従う |
 | Final Reviewer | independent-review phase の担当。R3/R4 は Contract Audit（DEV_WORKFLOW）を source docs 直読みで実施 |
@@ -80,6 +80,15 @@ informational only（非規範。archive 文書の slot 名解読用）。本節
 | Sonnet | Claude Sonnet 5（subagent または単独セッション） |
 
 モデル更改時はこの表だけを更新する。owner をモデル間の伝書鳩にしない: 各役割への発注は Plan Packet / PR body / review packet という repository 証跡経由で渡し、owner の手作業転送を前提にしない。
+
+### 3.5 Task Shape: one-shot irreversible
+
+`一回きり × 不可逆 × owner gate 必須` の task shape では、非同期自律実行ではなく owner 同席の time-boxed 同期セッションを選べる。この task-shape 軸は Risk と、vendor 可用性を示す Execution Mode（§3.2）の双方に直交する。Execution Mode の enum は変更しない。
+
+- セッション前に Goal Invariant、利用者可視の完了1文、time-box、正確な mutation target、停止条件、利用可能な rollback / containment を固定する。
+- owner は不可逆 mutation の直前 gate に同席し、Coordinator は承認依頼に `この change での介入 N 回目 / 予算 M 回` を表示する。runbook 実行と最小証跡の記録は agent が担い、owner に証跡編集や relay を求めない。
+- time-box、Owner Effort Budget、または `goal-drift signal` に達したら mutation 前に停止する。同期セッション中に自由な証跡拡張へ切り替えない。
+- 新規スクリプトは「どの具体的な failure path を防ぐか」を1文で説明でき、Goal Invariant の最小完了経路に必要な場合だけ作る。説明できない一回限りの補助スクリプトは作らない。
 
 ## 4. 既存資産 router 表
 

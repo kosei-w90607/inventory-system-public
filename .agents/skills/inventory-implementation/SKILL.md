@@ -64,6 +64,7 @@ Start from the canonical reading order in `AGENTS.md` `Session Start`, then load
    - Keep the PR Draft while Windows native L3, human visual confirmation, or owner manual checks remain pending.
    - Record pending manual checks, validation, review-only result, and dashboard/archive follow-up in the PR body and `Plans.md`.
    - Do not mark Ready or merge without explicit owner direction.
+   - Put the canonical `Human Gate` approval counter and user-visible completion sentence from `docs/DEV_WORKFLOW.md` `Owner Effort Budget` in the PR body before asking for owner action.
 
 ## Plan-first Rule
 

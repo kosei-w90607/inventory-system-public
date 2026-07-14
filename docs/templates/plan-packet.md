@@ -27,6 +27,7 @@ If a state-only commit materializes multiple phases, list the complete adjacent 
 - relay 往復上限: <N>
 
 既定値と超過時の Coordinator 責務は `docs/DEV_WORKFLOW.md` `Owner Effort Budget` 参照。
+承認依頼フォーマット: `この change での介入 N 回目 / 予算 M 回` + `承認すると利用者から見て何が完了するか1文`。
 
 ## Risk
 
@@ -37,7 +38,21 @@ Reason:
 
 ## Goal
 
-<What this change accomplishes.>
+Goal Invariant:
+
+### 最小完了条件
+
+- <user-visible minimum completion condition>
+
+### 失敗定義
+
+- <what outcome means this change failed>
+
+### 非目的
+
+- <what this change must not optimize or expand into>
+
+Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。AC や証跡作業が Goal Invariant を前進させない場合は、Goal を置き換えず簡略化・defer・削除する。
 
 ## Scope
 

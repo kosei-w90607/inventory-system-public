@@ -836,6 +836,18 @@ extract_markdown_section() {
     ' "$file"
 }
 
+# level-2 section の配下にある level-3+ 小見出しも含めて抽出する。
+# Goal Invariant の構造検査専用。既存 PK helpers の境界挙動は変更しない。
+extract_markdown_h2_section() {
+    local file="$1"
+    local section="$2"
+    awk -v section="$section" '
+        $0 ~ "^##[[:space:]]+" section "([[:space:]].*)?$" { in_section=1; next }
+        in_section && $0 ~ "^##[[:space:]]+" { exit }
+        in_section { print }
+    ' "$file"
+}
+
 extract_prose() {
     local file="$1"
     awk '
@@ -1173,6 +1185,87 @@ check_plan_packet_workflow_state() {
 
     if [ "$ERRORS" -eq "$before" ]; then
         info "PK4: Workflow State machine 整合 OK"
+    fi
+}
+
+# --- D-046: active Plan Packet の Goal Invariant 構造（WARN 導入） ---
+check_active_plan_goal_invariant() {
+    header "D-046: Goal Invariant 構造"
+
+    local before=$WARNINGS
+    local file goal_section
+
+    while IFS= read -r file; do
+        [ -n "$file" ] || continue
+        goal_section=$(extract_markdown_h2_section "$file" "Goal")
+
+        if ! printf '%s\n' "$goal_section" | grep -qE '^Goal Invariant([[:space:]]|[:（(])'; then
+            warn "D-046: $file の Goal Invariant 構造に 'Goal Invariant' marker がありません"
+        fi
+        if ! printf '%s\n' "$goal_section" | grep -qE '^###[[:space:]]+最小完了条件([[:space:]].*)?$|^Goal Invariant.*最小完了条件'; then
+            warn "D-046: $file の Goal Invariant 構造に '最小完了条件' 小見出しがありません"
+        fi
+        if ! printf '%s\n' "$goal_section" | grep -qE '^###[[:space:]]+失敗定義([[:space:]].*)?$|^失敗定義[：:]'; then
+            warn "D-046: $file の Goal Invariant 構造に '失敗定義' 小見出しがありません"
+        fi
+        if ! printf '%s\n' "$goal_section" | grep -qE '^###[[:space:]]+非目的([[:space:]].*)?$|^非目的[：:]'; then
+            warn "D-046: $file の Goal Invariant 構造に '非目的' 小見出しがありません"
+        fi
+    done < <(iter_active_dated_plans)
+
+    if [ "$WARNINGS" -eq "$before" ]; then
+        info "D-046: active Plan Packet Goal Invariant 構造 OK"
+    fi
+}
+
+# --- D-046: 2026-07-15 以降の WER は retire / consolidate を明示（WARN 導入） ---
+check_new_wer_retired_rules() {
+    header "D-046: WER Retired / Consolidated Rules"
+
+    local before=$WARNINGS
+    local file base date_prefix section bullets item valid_item
+    local cutoff="2026-07-15"
+
+    while IFS= read -r file; do
+        [ -n "$file" ] || continue
+        base=$(basename "$file")
+        date_prefix="${base:0:10}"
+        [[ "$date_prefix" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]] || continue
+        [[ "$date_prefix" < "$cutoff" ]] && continue
+
+        if ! grep -qE '^##[[:space:]]+Retired / Consolidated Rules([[:space:]].*)?$' "$file"; then
+            warn "D-046: $file は '## Retired / Consolidated Rules' を欠いています"
+            continue
+        fi
+
+        section=$(extract_markdown_h2_section "$file" "Retired / Consolidated Rules")
+        if ! printf '%s\n' "$section" | grep -q '[^[:space:]]'; then
+            warn "D-046: $file の '## Retired / Consolidated Rules' が空です"
+            continue
+        fi
+
+        bullets=$(printf '%s\n' "$section" | grep -E '^[[:space:]]*[-*][[:space:]]+' || true)
+        valid_item=false
+        while IFS= read -r item; do
+            [ -n "$item" ] || continue
+            item=$(printf '%s\n' "$item" | sed -E 's/^[[:space:]]*[-*][[:space:]]+//; s/[[:space:]]+$//')
+            case "$item" in
+                "..."|"<"*">") continue ;;
+            esac
+            if [[ "$item" =~ ^none([[:space:][:punct:]]*)$ ]]; then
+                continue
+            fi
+            valid_item=true
+            break
+        done <<< "$bullets"
+
+        if [ "$valid_item" != true ]; then
+            warn "D-046: $file の '## Retired / Consolidated Rules' に具体的な item または理由付き none がありません"
+        fi
+    done < <(find "docs/archive/plans" -maxdepth 1 -name '*-workflow-effectiveness-review.md' -type f 2>/dev/null | sort)
+
+    if [ "$WARNINGS" -eq "$before" ]; then
+        info "D-046: 新規 WER Retired / Consolidated Rules OK"
     fi
 }
 
@@ -1681,6 +1774,8 @@ if [ "$TARGET_MODE" = "plan" ]; then
     check_plan_packet_substance "${PLAN_FILES[@]}"
     check_plan_packet_heuristic_warnings "${PLAN_FILES[@]}"
     check_plan_packet_workflow_state "${PLAN_FILES[@]}"
+    check_active_plan_goal_invariant
+    check_new_wer_retired_rules
 
     # 参照整合性チェック（3項目、プランモードでも実行）
     check_stale_parent_doc_references
@@ -1733,6 +1828,8 @@ else
     check_plan_packet_substance
     check_plan_packet_heuristic_warnings
     check_plan_packet_workflow_state
+    check_active_plan_goal_invariant
+    check_new_wer_retired_rules
 fi
 
 echo ""
