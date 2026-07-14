@@ -39,8 +39,9 @@ When available:
 10. Evaluate signal/noise.
 11. Evaluate cost/friction.
 12. Recommend workflow adjustments.
-13. Apply actionable adjustments to the relevant workflow docs, templates, Skills, or PR evidence in the same PR when the change is small and well-supported.
-14. If an adjustment is not applied immediately, record why and name the follow-up target.
+13. Identify at least one rule/check/artifact to retire or consolidate; if none, explain why net rule growth is justified.
+14. Apply actionable adjustments to the relevant workflow docs, templates, Skills, or PR evidence in the same PR when the change is small and well-supported.
+15. If an adjustment is not applied immediately, record why and name the follow-up target.
 
 ## Output
 

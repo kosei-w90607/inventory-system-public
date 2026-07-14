@@ -78,6 +78,7 @@ reset_packet_defaults() {
     PKT_INCLUDE_R3_SECTIONS=1
     PKT_INCLUDE_CONTRACT_PROBE=1
     PKT_INCLUDE_FINDINGS_FREEZE=1
+    PKT_INCLUDE_GOAL_INVARIANT=1
 }
 
 write_packet() {
@@ -109,7 +110,23 @@ write_packet() {
         echo ""
         echo "## Goal"
         echo ""
-        echo "fixture goal line"
+        if [ "$PKT_INCLUDE_GOAL_INVARIANT" = "1" ]; then
+            echo "Goal Invariant:"
+            echo ""
+            echo "### 最小完了条件"
+            echo ""
+            echo "- fixture outcome"
+            echo ""
+            echo "### 失敗定義"
+            echo ""
+            echo "- fixture failure"
+            echo ""
+            echo "### 非目的"
+            echo ""
+            echo "- fixture non-goal"
+        else
+            echo "fixture goal line"
+        fi
         echo ""
         echo "## Scope"
         echo ""
@@ -187,6 +204,7 @@ if ! run_check "docs/plans/2026-01-01-fixture.md"; then
     fail "valid fixture packet was unexpectedly rejected"
 fi
 assert_contains "$out" "PK4: Workflow State machine 整合 OK"
+assert_not_contains "$out" "Goal Invariant 構造に"
 
 # --- 2. '## Workflow State' セクション自体が欠落 ---
 setup_repo_dirs
@@ -365,5 +383,116 @@ for mode in fable-window dual-vendor-no-fable codex-only; do
         fail "valid execution mode enum value '$mode' was rejected"
     fi
 done
+
+# --- 15. D-046 T1: active packet の Goal Invariant 構造欠落は WARN、archive は遡及対象外 ---
+setup_repo_dirs
+reset_packet_defaults
+PKT_INCLUDE_GOAL_INVARIANT=0
+write_packet "$repo/docs/plans/2026-07-15-goal-invariant-missing.md"
+write_plans_md_linking "2026-07-15-goal-invariant-missing.md"
+if ! run_check "docs/plans/2026-07-15-goal-invariant-missing.md"; then
+    cat "$out" >&2
+    fail "Goal Invariant 欠落 WARN fixture が ERROR になった"
+fi
+assert_contains "$out" "D-046: docs/plans/2026-07-15-goal-invariant-missing.md の Goal Invariant 構造に"
+
+setup_repo_dirs
+reset_packet_defaults
+PKT_INCLUDE_GOAL_INVARIANT=0
+mkdir -p "$repo/docs/archive/plans"
+write_plans_md_no_link
+write_packet "$repo/docs/archive/plans/2026-07-15-archived-goal-invariant-missing.md"
+if ! run_check "docs/archive/plans/2026-07-15-archived-goal-invariant-missing.md"; then
+    cat "$out" >&2
+    fail "archived Goal Invariant compatibility fixture が ERROR になった"
+fi
+assert_not_contains "$out" "D-046: docs/archive/plans/2026-07-15-archived-goal-invariant-missing.md"
+
+# --- 16. D-046 T5: 2026-07-15 以降の WER は Retired 節必須（WARN）、既存日付は遡及対象外 ---
+setup_repo_dirs
+reset_packet_defaults
+write_packet "$repo/docs/plans/2026-07-15-wer-retired-fixture.md"
+write_plans_md_linking "2026-07-15-wer-retired-fixture.md"
+mkdir -p "$repo/docs/archive/plans"
+printf '# Workflow Effectiveness Review\n' > "$repo/docs/archive/plans/2026-07-15-fixture-workflow-effectiveness-review.md"
+if ! run_check "docs/plans/2026-07-15-wer-retired-fixture.md"; then
+    cat "$out" >&2
+    fail "Retired 節欠落 WARN fixture が ERROR になった"
+fi
+assert_contains "$out" "D-046: docs/archive/plans/2026-07-15-fixture-workflow-effectiveness-review.md は '## Retired / Consolidated Rules' を欠いています"
+
+printf '# Workflow Effectiveness Review\n\n## Retired / Consolidated Rules\n' > "$repo/docs/archive/plans/2026-07-15-fixture-workflow-effectiveness-review.md"
+if ! run_check "docs/plans/2026-07-15-wer-retired-fixture.md"; then
+    cat "$out" >&2
+    fail "空 Retired 節 WARN fixture が ERROR になった"
+fi
+assert_contains "$out" "Retired / Consolidated Rules' が空です"
+
+printf '# Workflow Effectiveness Review\n\n## Retired / Consolidated Rules\n\nTemplate guidance.\n\n- ...\n' > "$repo/docs/archive/plans/2026-07-15-fixture-workflow-effectiveness-review.md"
+if ! run_check "docs/plans/2026-07-15-wer-retired-fixture.md"; then
+    cat "$out" >&2
+    fail "Retired placeholder WARN fixture が ERROR になった"
+fi
+assert_contains "$out" "具体的な item または理由付き none がありません"
+
+printf '# Workflow Effectiveness Review\n\n## Retired / Consolidated Rules\n\n- none\n' > "$repo/docs/archive/plans/2026-07-15-fixture-workflow-effectiveness-review.md"
+if ! run_check "docs/plans/2026-07-15-wer-retired-fixture.md"; then
+    cat "$out" >&2
+    fail "理由なし none WARN fixture が ERROR になった"
+fi
+assert_contains "$out" "具体的な item または理由付き none がありません"
+
+printf '# Workflow Effectiveness Review\n\n## Retired / Consolidated Rules\n\n- none: fixture では net rule growth なし\n' > "$repo/docs/archive/plans/2026-07-15-fixture-workflow-effectiveness-review.md"
+if ! run_check "docs/plans/2026-07-15-wer-retired-fixture.md"; then
+    cat "$out" >&2
+    fail "有効な Retired 節 fixture が ERROR になった"
+fi
+assert_not_contains "$out" "Retired / Consolidated Rules' が空です"
+assert_not_contains "$out" "具体的な item または理由付き none がありません"
+
+rm "$repo/docs/archive/plans/2026-07-15-fixture-workflow-effectiveness-review.md"
+printf '# Workflow Effectiveness Review\n' > "$repo/docs/archive/plans/2026-07-14-fixture-workflow-effectiveness-review.md"
+if ! run_check "docs/plans/2026-07-15-wer-retired-fixture.md"; then
+    cat "$out" >&2
+    fail "既存日付 WER compatibility fixture が ERROR になった"
+fi
+assert_not_contains "$out" "D-046: docs/archive/plans/2026-07-14-fixture-workflow-effectiveness-review.md"
+
+# --- 17. D-046 T2/T6: template と source docs の規範 token drift ---
+assert_contains "$SOURCE_ROOT/docs/templates/plan-packet.md" "介入 N"
+assert_contains "$SOURCE_ROOT/docs/templates/plan-packet.md" "予算 M"
+draft_pr_section="$(awk '
+    /^## Draft PR Checkpoint$/ { in_section=1 }
+    in_section && /^## / && $0 != "## Draft PR Checkpoint" { exit }
+    in_section { print }
+' "$SOURCE_ROOT/docs/DEV_WORKFLOW.md")"
+printf '%s\n' "$draft_pr_section" | grep -Fq "Human Gate" || fail "Draft PR Checkpoint に Human Gate 欄がない"
+printf '%s\n' "$draft_pr_section" | grep -Fq "この change での介入 N 回目 / 予算 M 回" ||
+    fail "Draft PR Checkpoint に承認依頼カウンタがない"
+assert_contains "$SOURCE_ROOT/docs/DEV_WORKFLOW.md" "candidate safety"
+assert_contains "$SOURCE_ROOT/docs/DEV_WORKFLOW.md" "mutation authority"
+assert_contains "$SOURCE_ROOT/docs/DEV_WORKFLOW.md" "evidence quality"
+assert_contains "$SOURCE_ROOT/docs/DEV_WORKFLOW.md" "actual harm path"
+assert_contains "$SOURCE_ROOT/docs/DEV_WORKFLOW.md" "affected candidate or mutation"
+assert_contains "$SOURCE_ROOT/docs/DEV_WORKFLOW.md" "non-destructive revalidation"
+assert_contains "$SOURCE_ROOT/docs/DEV_WORKFLOW.md" "blocker reason"
+assert_contains "$SOURCE_ROOT/docs/DEV_WORKFLOW.md" "goal-drift signal"
+assert_contains "$SOURCE_ROOT/docs/DEV_WORKFLOW.md" "one-shot irreversible"
+assert_contains "$SOURCE_ROOT/docs/AGENT_OPERATING_MANUAL.md" "one-shot irreversible"
+assert_contains "$SOURCE_ROOT/docs/AGENT_OPERATING_MANUAL.md" "task-shape"
+assert_contains "$SOURCE_ROOT/docs/decision-log.md" "## D-046"
+
+# --- 18. D-046 T8: 両 script の順序付き phase 配列 parity ---
+doc_phases="$(sed -n 's/^WORKFLOW_STATE_PHASES="\([^"]*\)"/\1/p' "$SOURCE_ROOT/scripts/doc-consistency-check.sh")"
+git_phases="$(sed -n 's/^WORKFLOW_STATE_PHASES="\([^"]*\)"/\1/p' "$SOURCE_ROOT/scripts/check-workflow-git.sh")"
+[[ -n "$doc_phases" ]] || fail "doc-consistency-check.sh の WORKFLOW_STATE_PHASES を抽出できない"
+[[ -n "$git_phases" ]] || fail "check-workflow-git.sh の WORKFLOW_STATE_PHASES を抽出できない"
+[[ "$doc_phases" = "$git_phases" ]] || fail "WORKFLOW_STATE_PHASES が両 script で不一致"
+
+# --- 19. D-046 T7: 実 repository の checker self-pass ---
+if ! (cd "$SOURCE_ROOT" && bash scripts/doc-consistency-check.sh > "$tmp/self-pass.log" 2>&1); then
+    cat "$tmp/self-pass.log" >&2
+    fail "実 repository の doc-consistency-check.sh が ERROR"
+fi
 
 echo "PASS: doc-consistency-plan-packet"

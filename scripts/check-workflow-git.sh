@@ -14,9 +14,11 @@
 #     (b) `Amendments` 行の各 SHA が `Plan Commit` の descendant かつ HEAD の ancestor であること
 #     (c) `Plan Commit` の値が過去に書き換えられていないこと（初回 non-pending 値と現在値の比較）
 #   STATECAP: `$(git merge-base origin/main HEAD)..HEAD` の範囲で
-#     - `docs(plans): state-only遷移` prefix の commit が 3 件超で ERROR
+#     - forward `docs(plans): state-only遷移` prefix の commit が 3 件超で ERROR
 #     - そのうち post-implementation 相当（subject に local-verified / independent-review /
 #       human-confirm / ready-hosted-final / merge のいずれかの token を含む）が 2 件超で ERROR
+#     - `docs(plans): state-backtrack <from>-><to>` は単一 backward 遷移だけを許容し、
+#       forward cap の対象外。forward / chain / unknown / zero / same-phase は ERROR
 #     - docs/plans/ 配下のみを変更していながら prefix を持たない commit は WARN（ラベル逃れ捕捉網）
 #
 # 「active plan なし」自体は本スクリプトの対象外（doc-consistency-check.sh PK1 が担当、
@@ -30,6 +32,19 @@ cd "$REPO_ROOT"
 
 FAIL=0
 PLAN_DIR="docs/plans"
+WORKFLOW_STATE_PHASES="kickoff spec-check design plan-draft plan-gate plan-approved implementing local-verified independent-review human-confirm ready-hosted-final merge archive"
+
+workflow_phase_index() {
+    local needle="$1" phase index=0
+    for phase in $WORKFLOW_STATE_PHASES; do
+        if [[ "$phase" == "$needle" ]]; then
+            printf '%s' "$index"
+            return 0
+        fi
+        index=$((index + 1))
+    done
+    return 1
+}
 
 # ----------------------------------------------------------------------------
 # PK5: 単一 packet ファイルの Plan Commit ancestry 検査
@@ -111,10 +126,11 @@ resolve_main_merge_base() {
 }
 
 check_state_only_commit_cap() {
-    local base commits sha subject files
+    local base commits sha subject files from_phase to_phase from_index to_index
     local state_only_count=0
     local post_impl_count=0
     local post_impl_regex='local-verified|independent-review|human-confirm|ready-hosted-final|merge'
+    local backtrack_regex='^docs\(plans\):[[:space:]]state-backtrack[[:space:]]([a-z0-9-]+)->([a-z0-9-]+)$'
 
     base="$(resolve_main_merge_base)"
     if [[ -z "$base" ]]; then
@@ -128,6 +144,28 @@ check_state_only_commit_cap() {
     while IFS= read -r sha; do
         [[ -z "$sha" ]] && continue
         subject="$(git log -1 --format=%s "$sha")"
+
+        if [[ "$subject" =~ ^docs\(plans\):[[:space:]]state-backtrack ]]; then
+            if [[ ! "$subject" =~ $backtrack_regex ]]; then
+                echo "❌ [workflow-git] STATECAP: state-backtrack は単一の '<from>-><to>' 遷移で記録してください（subject: $subject）"
+                FAIL=1
+                continue
+            fi
+
+            from_phase="${BASH_REMATCH[1]}"
+            to_phase="${BASH_REMATCH[2]}"
+            if ! from_index="$(workflow_phase_index "$from_phase")" ||
+                ! to_index="$(workflow_phase_index "$to_phase")"; then
+                echo "❌ [workflow-git] STATECAP: state-backtrack に未知の phase があります（subject: $subject）"
+                FAIL=1
+                continue
+            fi
+            if [[ "$from_index" -le "$to_index" ]]; then
+                echo "❌ [workflow-git] STATECAP: state-backtrack は backward 遷移のみ許容します（subject: $subject）"
+                FAIL=1
+            fi
+            continue
+        fi
 
         if [[ "$subject" =~ ^docs\(plans\):[[:space:]]state-only遷移 ]]; then
             state_only_count=$((state_only_count + 1))

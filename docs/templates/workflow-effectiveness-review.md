@@ -84,6 +84,12 @@ Change:
 Follow-up:
 - ...
 
+## Retired / Consolidated Rules
+
+List at least one rule, check, artifact, or duplicated instruction retired or consolidated by this review. If none, write `none` and explain why net rule growth is still justified.
+
+- ...
+
 ## Applied / Deferred Workflow Changes
 
 Applied:

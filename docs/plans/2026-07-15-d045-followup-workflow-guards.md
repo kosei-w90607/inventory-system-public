@@ -195,7 +195,10 @@ Contract ID: SPEC-WF-D046
 
 ## Implementation Results
 
-Fill after implementation.
+- D-046 の Goal Invariant、approval interface、finding adjudication、state-backtrack、WER rule-reduction、one-shot irreversible task-shape を source docs / templates / repository Skills に反映した。
+- active packet Goal 構造と新規 WER Retired 節の non-retroactive WARN、単一 backward 遷移だけを許可する STATECAP 検査、両 script の phase 配列 parity を drift test で固定した。
+- T1〜T8 は要求された failure mode で Red を確認してから Green 化し、repo 全体の Owner Effort Budget / 承認依頼 / WER template 参照を sweep して active 規範を同期した。
+- pre-implementation state evidence を非破壊で再検証した。plan-first packet / Matrix と独立 Plan Review P1/P2 = 0 は state commit より前に成立しており、同 commit が materialize した完全な隣接 sequence は `plan-draft -> plan-gate -> plan-approved -> implementing`。既存 subject / narrative が先頭 transition を省略した evidence-quality defect は、この append-only record で補正し、Plan Commit や履歴は書き換えない。
 
 ## Review Response
 

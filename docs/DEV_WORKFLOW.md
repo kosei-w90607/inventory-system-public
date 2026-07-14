@@ -54,6 +54,7 @@ If uncertain between R2 and R3, choose R3 when the change touches a stable contr
 ## Plan Packet Rules
 
 - Plan Packets are implementation planning artifacts, not durable design source of truth.
+- Every R2+ Plan Packet `Goal` defines a **Goal Invariant** with three parts: the user-visible minimum completion condition, the failure definition, and explicit non-goals. Adjudication priority is `Goal Invariant > Acceptance Criteria > supporting evidence`; an AC or evidence task that no longer advances the Goal Invariant must be simplified, deferred, or removed rather than becoming a substitute goal.
 - Before writing or updating a Plan Packet for R2+ work, run Design Phase: confirm whether the source design docs are sufficient for implementation.
 - R2+ active plans live under `docs/plans/` and use [templates/plan-packet.md](templates/plan-packet.md).
 - R3/R4 plans must include `Spec Contract`, `Trace Matrix`, `Data Safety`, and a Test Design Matrix.
@@ -100,6 +101,7 @@ Transition table — every transition requires the listed evidence. Phases move 
 | merge → archive | Post-Merge Closeout: packet and matrix moved to `docs/archive/plans/`; `Plans.md` synced |
 
 - Every transition not in this table is invalid. A correction returns explicitly to the earliest affected phase and re-walks the table from there. Concretely: a plan-gate rejection corrected in place stays at plan-gate for re-review; a rejection that invalidates Scope or design returns to plan-draft or design; an independent-review finding that needs a code fix returns to implementing; a fix after Ready returns the PR to Draft and the Phase to implementing.
+- A correction that moves to an earlier phase is a D-035 state-only transition commit and uses the canonical subject `docs(plans): state-backtrack <from>-><to>`. It records exactly one backward transition to the earliest affected phase, is excluded from the forward STATECAP count, and cannot contain a forward transition, same-phase transition, unknown phase, or transition chain. The state-only file allowlist and zero-context hunk audit still apply. After the backtrack, re-walk forward transitions under the normal evidence rules. Preserve the original `Plan Commit`; if the correction changes a gated packet contract, record the reviewed change as an append-only `Amendments` SHA instead of rewriting the original plan identity.
 - A state-only commit may materialize multiple **adjacent forward transitions** from the table when every transition's required evidence already exists before that commit. The packet's append-only narrative must name the complete sequence and evidence. This is recording compression, not a phase skip: implementation content remains forbidden until the `plan-gate -> plan-approved` evidence exists, and every intermediate transition must be reconstructable. For example, after a fresh Plan Reviewer reports P1/P2 = 0 and the plan-first commit is known to precede implementation, one state-only commit may materialize `plan-gate -> plan-approved -> implementing` immediately before implementation begins.
 - Fail-closed rule: any reader — a resume procedure, reviewer, or implementer — that finds the `## Workflow State` section missing, incomplete, or holding a value outside the enums must treat the packet as still pre-plan-gate: no implementation, no phase progression, no Ready. Report the defect to the owner instead of repairing it silently. This rule applies from day one, independent of whether the mechanical PK4 check has landed.
 - Packet selection rule for resume: start from the single active packet linked from the current-work section of `Plans.md`. If `docs/plans/` holds multiple active packets for the task, the packet disagrees with `Plans.md`, the linked packet is missing, or the packet's branch/PR no longer matches the work being resumed, stop and report to the owner instead of picking one (same fail-closed posture).
@@ -246,7 +248,12 @@ Risk-tiered ceiling for delegated sub-agents, regardless of harness (D-034):
 
 ## Owner Effort Budget
 
-R2+ Plan Packets carry a default owner-effort ceiling (D-038): interventions ≤3, hands-on time ≤30 minutes, relay round-trips ≤2. A packet may adjust these with a recorded reason. When the ceiling is likely to be exceeded, the Coordinator simplifies the workflow steps; the owner does not absorb the overrun. For example, the Coordinator may skip the Contract Audit section's recommended second pass, batch adjacent transitions into one state-only commit, or narrow the L3 checklist to only the items that pass L3 Eligibility.
+R2+ Plan Packets carry a default owner-effort ceiling (D-038): interventions ≤3, hands-on time ≤30 minutes, relay round-trips ≤2. A packet may adjust these with a recorded reason. This ceiling is a hard stop, not a target that the owner absorbs.
+
+- Every owner approval request must state `この change での介入 N 回目 / 予算 M 回` and one sentence explaining what becomes complete from the user's point of view if approved. Include the approximate elapsed hands-on time when known.
+- When any ceiling is likely to be exceeded, stop before requesting another approval or generating more evidence, scripts, or ceremony. Restate the Goal Invariant and return to its minimal sufficient completion route; defer optional evidence and follow-ups. If the remaining route cannot fit, report the blocker instead of silently widening the budget.
+- An owner's qualitative discomfort such as “this is taking too long” or “I cannot tell what is being built” is a `goal-drift signal`. Stop immediately, compare the current outcome state with the Goal Invariant, classify candidate-safety work separately from supporting evidence, and do not resume until the next step visibly advances the minimum completion condition within the remaining budget.
+- For the one-time, irreversible, owner-gated task shape, use the `one-shot irreversible` owner-attended time-boxed session in [AGENT_OPERATING_MANUAL.md](AGENT_OPERATING_MANUAL.md) §3.5. This task-shape choice is separate from the vendor-oriented Execution Mode.
 
 ## Verification Gates
 
@@ -304,6 +311,8 @@ CI routing:
 
 - Use [code_review.md](code_review.md) and [quality/review-checklist.md](quality/review-checklist.md).
 - Review against source design docs first, then the Plan Packet. If they disagree, fix the source docs or the plan before merging.
+- Classify findings by decision purpose, without creating another review lane: `candidate safety` (the current candidate can cause actual harm), `mutation authority` (the intended state change lacks current authorization or exceeds its boundary), or `evidence quality` (a receipt, narrative, or historical proof is incomplete). Evidence quality supports the first two classifications but is not an independent deliverable and cannot alone justify destructive repair.
+- Before an irreversible finding can authorize deletion, recreation, forceful repair, or another destructive mutation, it must state all four items: `actual harm path`, `affected candidate or mutation`, `non-destructive revalidation`, and `blocker reason`. Run the cheapest safe revalidation first; a missing item keeps the finding non-authoritative for destructive action.
 - When the Plan Packet includes `Impact Review Lenses`, pass those lenses into the review-only sub-agent packet and ask the reviewer to use them as prompts for missing design, evidence, tests, manual checks, or replacement-boundary risks.
 - For R3, run review-only sub-agent by default; if skipped, record `Review-only skipped because:` in the Plan Packet or PR body.
 - For narrow docs-only PRs where review-only is skipped, the PR body must state why local verification is enough.
@@ -340,6 +349,7 @@ Definition of first implementation pass complete:
 Default behavior:
 
 - Open a Draft PR after Verify + Review when the branch is ready for external review, Windows native L3, or owner handoff.
+- The PR body includes a `Human Gate` field for each pending owner approval: `この change での介入 N 回目 / 予算 M 回` plus one user-visible completion sentence. This field is the approval interface; do not hide the counter in review logs or tracked evidence.
 - Keep the PR Draft while required Windows native L3, human visual confirmation, or owner manual checks are still pending.
 - Record pending manual checks in the PR body and `Plans.md`.
 - Keep the Plan Packet `Workflow State` Phase in sync with the PR state: a Draft PR opens during implementing / local-verified, Ready happens only at ready-hosted-final, and a Draft return moves the Phase back to implementing.
