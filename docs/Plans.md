@@ -77,6 +77,7 @@
 
 ## 次の行動
 
+0. 進行中: D-045 follow-up workflow guards（R3 workflow gate change、active packet: [2026-07-15-d045-followup-workflow-guards.md](plans/2026-07-15-d045-followup-workflow-guards.md) + [Matrix](plans/test-matrices/2026-07-15-d045-followup-workflow-guards.md)）。merge後はarchiveへ移動しこの行を消す。
 1. D-045 follow-upとして、goal invariant / evidence adjudication / non-destructive revalidation / budget hard stopに加え、正当なbacktrackをSTATECAPが履歴改変へ追い込まない例外・補正契約を別R3 workflow changeで設計する。設計入力として[goal-drift WERのAddendum](archive/plans/2026-07-14-public-repo-phase-b-goal-drift-workflow-effectiveness-review.md)（owner一次証言 + 執行位置 / 頻度×可逆性の実行モード軸 / ルール削減圧力）を必須で読み込み、実装は承認依頼カウンタのinterface強制・一回きり不可逆作業向け実行モード・WER templateのretire欄を優先する。「docs宣言のみの規則追加を是正手段にしない」はAddendumの分析所見（根拠 = D-038の実証失敗、導入2日後のPhase Bで不作動）であり、durable decision化の可否はそのR3で判断する。
 2. UI-13 に着手（Phase 4 残り。D-038/D-039 新規律の app 実装側dogfood target）。その最初のnon-doc PRでReady head更新の`synchronize`とcancellationを実動作確認する。
 3. PLU-24（JAN なし独自コード商品のレジでの売り方）を次回店舗接点で確認（issue #135 残項目）。
