@@ -4,7 +4,7 @@
 >
 > **更新ルール**: 会話で進展があるたびにこのファイルを更新する。各セクションは最新の状態を反映し、過去の経緯は「経緯ログ」セクションに蓄積する。
 >
-> **最終更新**: 2026-07-14 / public 化 Phase B runbook 安全設計補強 PR #168 squash merge完了（`d298f76`）。次は別 R4 Plan Packet の Plan Gate と owner contract approval（現在状態は `Plans.md` を優先）
+> **最終更新**: 2026-07-14 / public 化・初回 hosted CI green・学びのPublic同期まで完了。Public PR #1 squash merge（`713bdfc`）。次はCI `synchronize` trigger修正を独立R3 changeとして扱う（現在状態は `Plans.md` を優先）
 
 ---
 
@@ -33,9 +33,9 @@
 ### 直近の作業状態
 - **バックエンド**: 18テーブル DB / 5層分割（UI/CMD/BIZ/IO/MNT）/ Tauri Commands / 業務ロジック / バックアップ / 操作ログ / 診断ログ全て実装完了。テスト 561 本通過、clippy 警告ゼロ、fmt 準拠
 - **フロントエンド基盤**: React 19 + TypeScript + Tauri 2 + TanStack Router + TanStack Query + Tailwind CSS 4 + shadcn/ui + lefthook + ESLint 9 + tauri-specta 採用、UI-12 共通レイアウト + invoke ラッパ完成。Phase 1 残 follow-up: 7-6 Storybook / 7-7b axe or hooks coverage / 7-8a Error Boundary / 7-8b 横断UI / 7-8c unsaved changes
-- **直近 PR**: #167（public 化 Phase A、merge `6af7de7`）/ #168（Phase B runbook 安全設計補強、merge `d298f76`）
+- **直近 PR**: Public #1（Phase B goal-drift WER / D-045 / dashboard同期、merge `713bdfc`）
 - **現在の参照先**: このファイルには Phase 2 初期の詳細が残っている。最新の進行状態、次アクション、ブロッカーは [Plans.md](../Plans.md) を優先する。
-- **直近完了**: public 化 Phase A は PR #167 squash merge済み（`6af7de7`）。続く Phase B runbook 安全設計補強は PR #168 squash merge済み（`d298f76`、2026-07-14 JST）で、private control plane / public payload 分離、immutable audit epoch、actual empty destination gate、isolated builder、destination 全再作成、public surface / closeout schema を D-041 と [PUBLIC_REPO_MIGRATION.md](PUBLIC_REPO_MIGRATION.md) に固定した。実際の Phase B は別 R4 Packet で、Plan Gate と owner contract approval より前に新 repository を作成しない。
+- **直近完了**: public 化 Phase AとPhase Bを完了した。sanitized parentless snapshotをPublic repositoryへ移行し、public-writer cloneを通常開発用、旧private cloneをhistory-view専用として分離した。Public visibilityと初回hosted CI greenを確認済み。実行中のgoal driftと再発防止判断はPublic PR #1 squash merge（`713bdfc`）で [D-045](decision-log.md)、[WER](archive/plans/2026-07-14-public-repo-phase-b-goal-drift-workflow-effectiveness-review.md)、[archived Packet](archive/plans/2026-07-14-public-migration-learning-sync.md)へ同期した。次はCI `synchronize` trigger修正を独立R3 changeとして扱う。
 - **直近完了**: UI-03 返品・交換 implementation は PR #107 squash merge 済み（`1c8ff66`、2026-06-27 JST）。`/inventory/return` route、generated `createReturn` / `listReturns` / `saveReceiptImage`、返品/交換 BIZ validation、商品検索、レシート画像 preview/drop/delete、冪等 retry、recent list、query invalidation、Windows native L3 feedback 対応まで完了した。
 - **直近完了**: Post UI-03 warning cleanup は PR #108 squash merge 済み（`a3e775a`、2026-06-27 JST）。`npm run build` の 500kB chunk warning と traceability `REQ-403` no-test WARN は既存系の修正として片付け済み。
 - **直近完了**: UI-05 廃棄・破損 implementation は PR #110 squash merge 済み（`0794342`、2026-06-27 JST）。`/inventory/disposal` route、generated `createDisposal` / `listDisposals`、商品検索、明細入力、保存結果、recent list、query invalidation、review-only sub-agent、Windows native L3 feedback 対応まで完了。理由入力 focus loss は L3 で発見し同 PR で修正済み。
