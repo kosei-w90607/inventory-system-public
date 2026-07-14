@@ -25,7 +25,7 @@
 
 ## 進行中・直近完了した作業
 
-- [ ] public migration learning sync（R2、plan-first）: active [Plan Packet](plans/2026-07-14-public-migration-learning-sync.md)。Phase B goal-drift WER、D-045、public化・初回 hosted CI green 後のdashboard状態をpublic repositoryへ同期する。CI `synchronize` trigger修正とgeneric workflow guard実装は別変更。
+- [x] public migration learning sync（R2、Public PR #1、squash merge `713bdfc`）: [archived Plan Packet](archive/plans/2026-07-14-public-migration-learning-sync.md)。Phase B goal-drift WER、D-045、public化・初回 hosted CI green 後のdashboard状態をpublic repositoryへ同期した。CI `synchronize` trigger修正とgeneric workflow guard実装は別変更。
 - [x] public 化 Phase B runbook安全設計とmigration実行: private control plane / public payload、parentless snapshot、public-writer / history-view分離を実施し、public visibilityと初回hosted CI greenまで完了。安全設計の証跡は[packet](archive/plans/2026-07-14-public-repo-phase-b-design-hardening.md) / [Matrix](archive/plans/test-matrices/2026-07-14-public-repo-phase-b-design-hardening.md) / [WER](archive/plans/2026-07-14-public-repo-phase-b-design-hardening-workflow-effectiveness-review.md)、実行時のgoal driftは[D-045](decision-log.md) / [WER](archive/plans/2026-07-14-public-repo-phase-b-goal-drift-workflow-effectiveness-review.md)を参照。
 - [x] PR #164 WER起点のworkflow手順硬化（R3、PR #165 (private archive) squash merge `c0dd65f`）: [WER](archive/plans/2026-07-12-ui11c-pr164-workflow-effectiveness-review.md)の指摘を D-038 として記録し、Findings Freeze / Owner Effort Budget / L3 Eligibility / Evidence Ownership拡張 / drift-fix sweep / Contract Probe を `docs/DEV_WORKFLOW.md` に正本化、`docs/AGENT_OPERATING_MANUAL.md` §3 のモデル固定役割表を独立性制約リストへ置換、テンプレ2件更新、`check-plan-on-exit.sh` fallback修正。hosted final run 29192090291 (private archive Actions evidence 29192090291) success・三点SHA一致。Double Audit 2本+closureで P1/P2=0、owner実働は承認3接点のみ（新規律の自主dogfood成功）。archived packet: [archive/plans/2026-07-12-pr164-wer-workflow-hardening.md](archive/plans/2026-07-12-pr164-wer-workflow-hardening.md)、[Test Matrix](archive/plans/test-matrices/2026-07-12-pr164-wer-workflow-hardening.md)。機械強制（PK4/PK5/hook）は D-034 slice 2 が D-038 新語彙込みで引き継ぎ。
 - [x] UI-11c 操作ログ画面（R3、PR #164 (private archive) squash merge `94421a7`）: 期間・種別filter、URL search state、operation type registry、detail JSON安全表示、関連記録リンク、pagination/empty/error/retryを実装。Finding Closure P1=0 / P2=0、Windows native L3-1〜6 PASS、L3-7 / L3-8 manual waiver、owner visual confirmation PASS、owner residual-risk acceptanceを記録。final HEAD `d7fe410`でlocal full / hosted run 29168080505 (private archive Actions evidence 29168080505) success・三点SHA一致。archived packet: [archive/plans/2026-07-11-ui11c-operation-logs.md](archive/plans/2026-07-11-ui11c-operation-logs.md)、[Test Matrix](archive/plans/test-matrices/2026-07-11-ui11c-operation-logs.md)。振り返りは [WER](archive/plans/2026-07-12-ui11c-pr164-workflow-effectiveness-review.md) 参照。次のR3 operator workflow `UI-13` を D-038 の新規律（Findings Freeze / Owner Effort Budget / L3 Eligibility 等）のdogfood targetとする。
@@ -75,11 +75,10 @@
 
 ## 次の行動
 
-1. **public migration learning sync**: active [Plan Packet](plans/2026-07-14-public-migration-learning-sync.md) に従い、Phase B goal-drift WER、D-045、public化・初回 hosted CI green 後のdashboard状態をpublic repositoryへ同期する。
-2. CI `synchronize` trigger修正を別R3 changeとして完了する。
-3. D-045 follow-upとして、goal invariant / evidence adjudication / non-destructive revalidation / budget hard stopを`DEV_WORKFLOW.md`、Plan Packet template、`inventory-workflow-start`へ反映する別R3 workflow changeを計画する。
-4. UI-13 に着手（Phase 4残り。D-038/D-039新規律のapp実装側dogfood target）。
-5. PLU-24（JANなし独自コード商品のレジでの売り方）を次回店舗接点で確認（issue #135残項目）。
+1. CI `synchronize` trigger修正を別R3 changeとして完了する。
+2. D-045 follow-upとして、goal invariant / evidence adjudication / non-destructive revalidation / budget hard stopを`DEV_WORKFLOW.md`、Plan Packet template、`inventory-workflow-start`へ反映する別R3 workflow changeを計画する。
+3. UI-13 に着手（Phase 4残り。D-038/D-039新規律のapp実装側dogfood target）。
+4. PLU-24（JANなし独自コード商品のレジでの売り方）を次回店舗接点で確認（issue #135残項目）。
 
 ## 後回し Backlog の参照先
 
@@ -126,6 +125,7 @@
 ## 最近の archive
 
 - 完了 PR / archived plan / test matrix / WER の全一覧は `docs/archive/plans/` ディレクトリと GitHub PR 履歴を参照。2026-07-04 以前の詳細エントリとリンク集は [2026-07-04 dashboard snapshot](archive/plans/2026-07-04-plans-dashboard-cleanup.md) に保存。
+- [2026-07-14 public migration learning sync packet](archive/plans/2026-07-14-public-migration-learning-sync.md)
 - [2026-07-14 public 化 Phase B goal-drift WER](archive/plans/2026-07-14-public-repo-phase-b-goal-drift-workflow-effectiveness-review.md)
 - [2026-07-13 public 化 Phase A packet](archive/plans/2026-07-13-public-repo-phase-a-sanitization.md)（+ [test matrix](archive/plans/test-matrices/2026-07-13-public-repo-phase-a-sanitization.md) / [WER](archive/plans/2026-07-14-public-repo-phase-a-sanitization-workflow-effectiveness-review.md)）
 - [2026-07-06 UI-11b 実効保存先常時表示 packet](archive/plans/2026-07-06-ui11b-effective-backup-dir.md)
