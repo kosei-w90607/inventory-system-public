@@ -259,6 +259,19 @@ export const commands = {
 	 *  確定後に整合性チェック（D-2統合）を自動実行し、結果を含めて返す。
 	 */
 	completeStocktake: (stocktakeId: number, forceFill: boolean) => typedError<StocktakeResult, CmdError>(__TAURI_INVOKE("complete_stocktake", { stocktakeId, forceFill })),
+	/**
+	 *  在庫整合性チェックを実行する
+	 *
+	 *  全商品の products.stock_quantity と SUM(inventory_movements.quantity) を突合。
+	 *  読み取り専用。
+	 */
+	runIntegrityCheck: () => typedError<IntegrityResult, CmdError>(__TAURI_INVOKE("run_integrity_check")),
+	/**
+	 *  指定商品の在庫を整合性チェック結果に基づいて補正する
+	 *
+	 *  stock_quantity を movements 合計値に補正し、操作ログに記録する。
+	 */
+	fixIntegrity: (productCodes: string[]) => typedError<IntegrityFixResult, CmdError>(__TAURI_INVOKE("fix_integrity", { productCodes })),
 	// 全設定を取得する（§43.3）
 	getSettings: () => typedError<AppSetting[], CmdError>(__TAURI_INVOKE("get_settings")),
 	// 設定値を更新する（§43.4）
@@ -674,6 +687,13 @@ export type ImportRow = {
 	maker_code: string | null,
 	supplier_id: number | null,
 	pos_stock_sync: boolean | null,
+};
+
+// 整合性補正結果
+export type IntegrityFixResult = {
+	fixed_count: number,
+	skipped_count: number,
+	adjustments: StockAdjustment[],
 };
 
 // 不整合アイテム
@@ -1303,6 +1323,14 @@ export type StartStocktakeResult = {
 	stocktake_id: number,
 	item_count: number,
 	auto_filled_count: number,
+};
+
+// 在庫補正詳細
+export type StockAdjustment = {
+	product_code: string,
+	old_stock: number,
+	new_stock: number,
+	adjustment: number,
 };
 
 // 在庫補正の詳細（rollback結果に含まれる）

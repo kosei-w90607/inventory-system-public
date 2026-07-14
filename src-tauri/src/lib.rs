@@ -110,6 +110,8 @@ pub fn export_specta_bindings() {
         cmd::stocktake_cmd::get_last_completed_stocktake,
         cmd::stocktake_cmd::update_count,
         cmd::stocktake_cmd::complete_stocktake,
+        cmd::integrity_cmd::run_integrity_check,
+        cmd::integrity_cmd::fix_integrity,
         // CMD-11: 設定・ログ・バックアップ・画像
         cmd::settings_cmd::get_settings,
         cmd::settings_cmd::update_setting,
