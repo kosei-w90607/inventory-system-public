@@ -60,7 +60,7 @@ Goal Invariant:
 
 - REQ-403 / SP-403 の POS 部門別売上照合（別 deferred task、ui-task-specs UI-13 節で明示除外）。
 - 整合性チェックの自動実行・スケジュール実行・自動修正。
-- backend（CMD/BIZ/DB）のロジック変更。許容するのは `lib.rs` の specta 登録漏れ是正 2 行のみ。それ以外の不足が発覚した場合は Amendment で gate してから着手する。
+- backend（CMD/BIZ/DB）のロジック変更。許容するのは `lib.rs` の specta 登録漏れ是正 2 行 + `integrity_cmd.rs` の `#[specta::specta]` 属性 2 行（Amendment 1）のみ。それ以外の不足が発覚した場合は Amendment で gate してから着手する。
 
 Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 
@@ -68,6 +68,7 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 
 - `docs/function-design/75-ui-integrity-check.md` 新設（UI-13 の設計正本。UI-13-D1〜D8 を記録）+ `docs/FUNCTION_DESIGN.md` 目次の「UI-13 未記載」記述更新
 - `src-tauri/src/lib.rs`: specta `collect_commands` へ `run_integrity_check` / `fix_integrity` の 2 行追加（登録漏れ是正、Contract Probe で発覚。ロジック変更なし）
+- `src-tauri/src/cmd/integrity_cmd.rs`: 上記 2 command への `#[specta::specta]` 属性追加 2 行のみ（Amendment 1、2026-07-15。collect_commands 登録後の再生成で顕在化した属性欠落。他 cmd 群は全て `#[tauri::command]` + `#[specta::specta]` の対で定義済みであることを実コード比較で確認。関数本体の変更は引き続き禁止）
 - `src/lib/bindings.ts` 再生成（`runIntegrityCheck` / `fixIntegrity` / `IntegrityFixResult` / `StockAdjustment` 追加）
 - `src/routes/settings/integrity.tsx` 新 route
 - `src/features/integrity-check/IntegrityCheckPage.tsx` + `IntegrityCheckPage.test.tsx`
@@ -159,6 +160,7 @@ Minimum design checks for business-app work:
 ## Contract Probe
 
 - 前提: bindings 再生成経路（`cargo run --bin generate_bindings`）が integrity commands を `bindings.ts` に出力する: probe（2026-07-15 plan 段階で実行）-> **前提否定**。再生成は成功するが diff ゼロ。原因は `lib.rs` の specta `collect_commands` に integrity 2 command が未登録（`invoke_handler` のみ登録）。両リストの機械突合で他の登録漏れなし（specta 55 / handler 57、差分は integrity 2 件のみ）。是正（`collect_commands` へ 2 行追加 + 再生成）を Scope に反映済み
+- probe 限界の追記（2026-07-15、Amendment 1 起因）: 上記 probe は「collect_commands 未登録状態」で再生成を回したため、登録後に初めて顕在化する `#[specta::specta]` 属性欠落（`integrity_cmd.rs`）は検出できなかった。実装フェーズで Codex の generate_bindings 失敗により発覚（fail-closed 停止、正しい挙動）。lesson: 登録漏れ是正を含む probe は「是正を仮適用した状態」で end-to-end に回すこと
 
 ## Contract Coverage Ledger
 
@@ -170,7 +172,7 @@ Minimum design checks for business-app work:
 | UI-13-D4（running overlay / 二重実行防止） | `IntegrityCheckPage.tsx` | running 中操作抑止テスト | L3: 実機での overlay 表示 |
 | UI-13-D5（fix 後の手動再チェック導線） | `IntegrityCheckPage.tsx` | fix 後 summary + badge テスト | — |
 | UI-13-D6（error / retry / skipped 警告） | `IntegrityCheckPage.tsx` | CmdError 表示、retry 状態保持、skipped>0 警告 | — |
-| UI-13-D7（bindings 経由のみ + specta 登録是正） | `src-tauri/src/lib.rs` + `src/lib/bindings.ts` | `rg "invoke\("` 0 件検査 + 登録差分空の突合 | — |
+| UI-13-D7（bindings 経由のみ + specta 登録是正） | `src-tauri/src/lib.rs` + `src-tauri/src/cmd/integrity_cmd.rs`（属性 2 行、Amendment 1）+ `src/lib/bindings.ts` | `rg "invoke\("` 0 件検査 + 登録差分空の突合 + generate_bindings 成功 | — |
 | UI-13-D8（非色状態表示 / operator 文言） | `IntegrityCheckPage.tsx` | 状態文言存在テスト | L3: owner visual confirmation |
 | spec: 差異一覧 100 件/ページ paging | `IntegrityCheckPage.tsx` | 101 件 mock 2 ページテスト | — |
 | spec: 差異表示列（code/名前/DB値/SUM/差異） | `IntegrityCheckPage.tsx` | 一覧列表示テスト | non-scope for L3（同上の理由。可読性は polish pass + owner visual confirmation を差異なし画面と component テスト描画で実施） |
