@@ -332,6 +332,37 @@ capture_check "$repo" output
 assert_not_contains "$output" "上限 3 件を超えています" "backtrack が forward STATECAP に算入された"
 
 # ============================================================================
+# D-046 Double Audit A-P2: 連続 state-backtrack はチェーン分割回避として ERROR、
+# 実作業 commit を挟んだ複数回補正は PASS
+# ============================================================================
+repo="$tmp/statecap-backtrack-consecutive"
+init_repo "$repo"
+printf 'base\n' > "$repo/README.md"
+base_sha="$(commit_all "$repo" "base")"
+git -C "$repo" update-ref refs/remotes/origin/main "$base_sha"
+
+state_only_commit "$repo" "docs(plans): state-backtrack merge->ready-hosted-final"
+state_only_commit "$repo" "docs(plans): state-backtrack ready-hosted-final->implementing"
+
+capture_check "$repo" output
+[[ "$CHECK_STATUS" -ne 0 ]] || fail "連続 state-backtrack が ERROR にならなかった（チェーン分割による cap 回避が素通り）:\n$output"
+assert_contains "$output" "連続で記録できません" "連続 backtrack の ERROR が識別できない"
+
+repo="$tmp/statecap-backtrack-separated"
+init_repo "$repo"
+printf 'base\n' > "$repo/README.md"
+base_sha="$(commit_all "$repo" "base")"
+git -C "$repo" update-ref refs/remotes/origin/main "$base_sha"
+
+state_only_commit "$repo" "docs(plans): state-backtrack merge->ready-hosted-final"
+printf 'work\n' > "$repo/README.md"
+commit_all "$repo" "fix: 補正間の実作業" > /dev/null
+state_only_commit "$repo" "docs(plans): state-backtrack ready-hosted-final->implementing"
+
+capture_check "$repo" output
+[[ "$CHECK_STATUS" -eq 0 ]] || fail "実作業 commit を挟んだ複数回 state-backtrack が誤って ERROR になった:\n$output"
+
+# ============================================================================
 # D-046 T4: state-backtrack は単一 backward 遷移だけを許容
 # ============================================================================
 assert_invalid_backtrack() {

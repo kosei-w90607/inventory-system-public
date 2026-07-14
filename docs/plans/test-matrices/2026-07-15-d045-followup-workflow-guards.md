@@ -30,6 +30,7 @@ Risk: R3
 | D-046-3 | 正当 backtrack が cap で ERROR | CLI (drift test) | T3 statecap-backtrack-exempt | forward 3 + `state-backtrack` 1 の履歴で check-workflow-git.sh が fail する |
 | D-046-3 | cap 回避 / 混在チェーン | CLI (drift test) | T4 statecap-backtrack-evasion | forward 遷移のみ・複数遷移チェーン・未知 phase を含む `state-backtrack` subject のいずれかが ERROR にならない |
 | D-046-3 | phase 配列 drift | CLI (drift test) | T8 phase-array-parity | check-workflow-git.sh と doc-consistency-check.sh の順序付き phase 配列が不一致でも検知されない |
+| D-046-3 | cross-commit チェーン分割（Double Audit A-P2 起源） | CLI (drift test) | T4b statecap-backtrack-consecutive | 隣接する state-backtrack 2 commit（多段 backward の分割）が ERROR にならない、または実作業 commit を挟んだ正当な複数回補正が ERROR になる |
 | D-046-4 | Retired 節欠落を見逃す / 遡及偽陽性 | CLI (drift test) | T5 wer-retired-warn 両方向 | 新規日付 WER の欠落で WARN が出ない、または既存 WER に WARN が出る |
 | 規範 token | 規範 drift | CLI (drift test) | T6 d046-norm-tokens | DEV_WORKFLOW の三分類 / 4項目 / goal-drift signal / one-shot 参照、decision-log の D-046 のいずれかの token が消える |
 | 既存互換 | 既存検査の破壊 | integration | T7 checker-self-pass | `bash scripts/doc-consistency-check.sh` が本 PR の tree で ERROR 0 で通らない |

@@ -129,6 +129,7 @@ check_state_only_commit_cap() {
     local base commits sha subject files from_phase to_phase from_index to_index
     local state_only_count=0
     local post_impl_count=0
+    local prev_was_backtrack=0
     local post_impl_regex='local-verified|independent-review|human-confirm|ready-hosted-final|merge'
     local backtrack_regex='^docs\(plans\):[[:space:]]state-backtrack[[:space:]]([a-z0-9-]+)->([a-z0-9-]+)$'
 
@@ -146,6 +147,13 @@ check_state_only_commit_cap() {
         subject="$(git log -1 --format=%s "$sha")"
 
         if [[ "$subject" =~ ^docs\(plans\):[[:space:]]state-backtrack ]]; then
+            # 隣接する state-backtrack はチェーン分割による多段 backtrack（cap 回避）と
+            # みなして ERROR。正当な複数回補正は間に実作業 commit を挟む。
+            if [[ "$prev_was_backtrack" -eq 1 ]]; then
+                echo "❌ [workflow-git] STATECAP: state-backtrack を連続で記録できません。補正は最早影響 phase へ単一遷移で戻してください（subject: $subject）"
+                FAIL=1
+            fi
+            prev_was_backtrack=1
             if [[ ! "$subject" =~ $backtrack_regex ]]; then
                 echo "❌ [workflow-git] STATECAP: state-backtrack は単一の '<from>-><to>' 遷移で記録してください（subject: $subject）"
                 FAIL=1
@@ -166,6 +174,7 @@ check_state_only_commit_cap() {
             fi
             continue
         fi
+        prev_was_backtrack=0
 
         if [[ "$subject" =~ ^docs\(plans\):[[:space:]]state-only遷移 ]]; then
             state_only_count=$((state_only_count + 1))
