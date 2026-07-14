@@ -25,6 +25,7 @@
 
 ## 進行中・直近完了した作業
 
+- [x] D-045 follow-up workflow guards（R3 workflow gate change、Public PR #4、squash merge `ef357e1`）: D-046として承認依頼カウンタのinterface強制（Human Gate欄 = 介入N/予算M + 利用者可視の完了1文）、finding classification三分類 + 不可逆finding 4項目、Goal Invariant構造と優先順位、`state-backtrack`補正契約（単一backward遷移 + 連続禁止、STATECAP forward限定）、WER `Retired / Consolidated Rules`必須欄、one-shot irreversible様式（AGENT_OPERATING_MANUAL §3.5）を規範 + checker WARN + git検査として実装。実装はCodex発注、Plan Gate 3 round収束、独立Double Audit 2 pass（A: cross-commit backtrackチェーン回避を実証 → 是正・差し戻し再検証blocked確認 / B: 規範整合クリーン）、hosted CI green。証跡: [archived Packet](archive/plans/2026-07-15-d045-followup-workflow-guards.md) / [Matrix](archive/plans/test-matrices/2026-07-15-d045-followup-workflow-guards.md) / [WER](archive/plans/2026-07-15-d045-followup-workflow-guards-workflow-effectiveness-review.md)。follow-up: UI-13でGoal節H3形式dogfood、`.codex/bin/read-safe-file.sh`のhistory-view clone参照修正（backlog）。
 - [x] Public移行 retro owner一次証言・分析差分の保存（R2 docs-only、Public PR #3、squash merge `bfb3213`）: goal-drift WERへowner一次証言（約12時間、承認多発、用途不明スクリプト、勘停止）と検知ギャップ、Analysis Delta（執行位置 / 頻度×可逆性の実行モード軸 / ルール削減圧力）をappend-only追記し、次の行動1のD-045 follow-upをAddendum必須読込へ再スコープした。独立plan/final review各P1/P2=0。証跡: [archived Packet](archive/plans/2026-07-14-public-migration-retro-owner-testimony.md)。
 - [x] CI synchronize trigger correction（R3、Public PR #2、squash merge `f63397c`）: D-043として`pull_request.synchronize`を復旧し、Draft runner 0、`push: main`なし、exact-HEAD evidenceを維持した。構造/mutation test、fresh Double Audit P1/P2=0、CLEAN L1、Ready hosted finalはgreen。Draft更新のsynchronize eventとrunner skipは実動作確認済み。証跡: [archived Packet](archive/plans/2026-07-14-ci-synchronize-trigger.md) / [Matrix](archive/plans/test-matrices/2026-07-14-ci-synchronize-trigger.md) / [WER](archive/plans/2026-07-14-ci-synchronize-trigger-workflow-effectiveness-review.md)。required context、`paths-ignore`再設計、merge queueは別R3。
 - [x] public migration learning sync（R2、Public PR #1、squash merge `713bdfc`）: [archived Plan Packet](archive/plans/2026-07-14-public-migration-learning-sync.md)。Phase B goal-drift WER、D-045、public化・初回 hosted CI green 後のdashboard状態をpublic repositoryへ同期した。CI `synchronize` trigger修正とgeneric workflow guard実装は別変更。
@@ -77,11 +78,9 @@
 
 ## 次の行動
 
-0. 進行中: D-045 follow-up workflow guards（R3 workflow gate change、active packet: [2026-07-15-d045-followup-workflow-guards.md](plans/2026-07-15-d045-followup-workflow-guards.md) + [Matrix](plans/test-matrices/2026-07-15-d045-followup-workflow-guards.md)）。merge後はarchiveへ移動しこの行を消す。
-1. D-045 follow-upとして、goal invariant / evidence adjudication / non-destructive revalidation / budget hard stopに加え、正当なbacktrackをSTATECAPが履歴改変へ追い込まない例外・補正契約を別R3 workflow changeで設計する。設計入力として[goal-drift WERのAddendum](archive/plans/2026-07-14-public-repo-phase-b-goal-drift-workflow-effectiveness-review.md)（owner一次証言 + 執行位置 / 頻度×可逆性の実行モード軸 / ルール削減圧力）を必須で読み込み、実装は承認依頼カウンタのinterface強制・一回きり不可逆作業向け実行モード・WER templateのretire欄を優先する。「docs宣言のみの規則追加を是正手段にしない」はAddendumの分析所見（根拠 = D-038の実証失敗、導入2日後のPhase Bで不作動）であり、durable decision化の可否はそのR3で判断する。
-2. UI-13 に着手（Phase 4 残り。D-038/D-039 新規律の app 実装側dogfood target）。その最初のnon-doc PRでReady head更新の`synchronize`とcancellationを実動作確認する。
-3. PLU-24（JAN なし独自コード商品のレジでの売り方）を次回店舗接点で確認（issue #135 残項目）。
-4. slice 2 follow-up 群（軽量、単独 PR 可）: hook 統合導入（`.claude/hooks/` + settings.json、sandbox 書込み制約の外での作業が前提）/ `Amendments:` SHA 抽出の strict 化 / `check_plan_commit_ancestry` の section-scoped 抽出 / `check_signature_cross_reference` の pipefail 潜在バグ / no-active-plan check の導入（WARN から）。詳細は [archive/plans/2026-07-12-mechanical-workflow-slice2.md](archive/plans/2026-07-12-mechanical-workflow-slice2.md) Review Response と decision-log D-039。
+1. UI-13 に着手（Phase 4 残り。D-038/D-039/D-046 新規律の app 実装側dogfood target）。Plan Packet の Goal 節は新テンプレの H3 形式（`### 最小完了条件` 等）で書く（PR #4 Double Audit B-P2-2 follow-up）。Ready head更新の`synchronize`とcancellationの実動作確認も UI-13 の non-doc PR で行う（PR #4 では Ready 後の head 更新が発生せず未検証のまま）。
+2. PLU-24（JAN なし独自コード商品のレジでの売り方）を次回店舗接点で確認（issue #135 残項目）。
+3. slice 2 follow-up 群（軽量、単独 PR 可）: hook 統合導入（`.claude/hooks/` + settings.json、sandbox 書込み制約の外での作業が前提）/ `Amendments:` SHA 抽出の strict 化 / `check_plan_commit_ancestry` の section-scoped 抽出 / `check_signature_cross_reference` の pipefail 潜在バグ / no-active-plan check の導入（WARN から）。詳細は [archive/plans/2026-07-12-mechanical-workflow-slice2.md](archive/plans/2026-07-12-mechanical-workflow-slice2.md) Review Response と decision-log D-039。
 
 ## 後回し Backlog の参照先
 
@@ -128,6 +127,7 @@
 ## 最近の archive
 
 - 完了 PR / archived plan / test matrix / WER の全一覧は `docs/archive/plans/` ディレクトリと GitHub PR 履歴を参照。2026-07-04 以前の詳細エントリとリンク集は [2026-07-04 dashboard snapshot](archive/plans/2026-07-04-plans-dashboard-cleanup.md) に保存。
+- [2026-07-15 D-045 follow-up workflow guards packet](archive/plans/2026-07-15-d045-followup-workflow-guards.md)（+ [test matrix](archive/plans/test-matrices/2026-07-15-d045-followup-workflow-guards.md) / [WER](archive/plans/2026-07-15-d045-followup-workflow-guards-workflow-effectiveness-review.md)）
 - [2026-07-14 Public移行 retro owner一次証言 packet](archive/plans/2026-07-14-public-migration-retro-owner-testimony.md)
 - [2026-07-14 CI synchronize trigger correction packet](archive/plans/2026-07-14-ci-synchronize-trigger.md)（+ [test matrix](archive/plans/test-matrices/2026-07-14-ci-synchronize-trigger.md) / [WER](archive/plans/2026-07-14-ci-synchronize-trigger-workflow-effectiveness-review.md)）
 - [2026-07-14 public migration learning sync packet](archive/plans/2026-07-14-public-migration-learning-sync.md)

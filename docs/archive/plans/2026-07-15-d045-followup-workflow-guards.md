@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: human-confirm
+- Phase: archive
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: 0251412
@@ -79,7 +79,7 @@ Goal Invariant（最小完了条件、利用者可視 outcome。6項目すべて
 
 ## Design Sources
 
-- Requirements / spec: [goal-drift WER + Addendum](../archive/plans/2026-07-14-public-repo-phase-b-goal-drift-workflow-effectiveness-review.md)（必須設計入力）
+- Requirements / spec: [goal-drift WER + Addendum](2026-07-14-public-repo-phase-b-goal-drift-workflow-effectiveness-review.md)（必須設計入力）
 - Architecture: `docs/DEV_WORKFLOW.md`（Workflow State / Owner Effort Budget / Review Rules / Contract Audit）
 - Function / command / DTO: not applicable
 - DB: not applicable
