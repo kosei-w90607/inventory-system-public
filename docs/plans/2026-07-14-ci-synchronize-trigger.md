@@ -51,7 +51,7 @@ public repository で `pull_request.synchronize` を復旧し、Ready PR の hea
 
 ## Acceptance Criteria
 
-- `scripts/tests/ci-workflow.test.sh` が `types: [opened, ready_for_review, synchronize]` を必須として exit 0 になる。
+- `scripts/tests/ci-workflow.test.sh` が実効YAMLの `on.pull_request.types` を構造的に読み、集合が `opened` / `ready_for_review` / `synchronize` と完全一致することを検証して exit 0 になる。
 - `.github/workflows/ci.yml` が `pull_request.synchronize` を含み、`push: main` を含まない。
 - Draft PR は既存 job-level guard により runner job を開始せず、Ready PR の `synchronize` は changed-area classification へ到達する契約が source docs と静的 test で一致する。
 - `concurrency.cancel-in-progress: true` と `github.event.pull_request.head.sha` による current-head routing が維持される。
@@ -143,8 +143,8 @@ public repository で `pull_request.synchronize` を復旧し、Ready PR の hea
 ## Test Plan
 
 - Test Design Matrix: [2026-07-14-ci-synchronize-trigger.md](test-matrices/2026-07-14-ci-synchronize-trigger.md)
-- targeted tests: `bash scripts/tests/ci-workflow.test.sh`
-- negative tests: missing `synchronize`、Draft guard欠落、`push: main`再追加、concurrency/head-sha drift
+- targeted tests: `bash scripts/tests/ci-workflow.test.sh`; Ruby YAML parserで `on.pull_request.types` の位置と3値完全一致を検証
+- negative tests: `synchronize` 削除、余分なevent追加のmutation、Draft guard欠落、`push: main`再追加、concurrency/head-sha drift
 - compatibility checks: opened / ready_for_review / workflow_dispatch と既存check名を維持
 - data safety checks: tracked diffにcredential、private clone path、private control evidenceがないこと
 - main wiring/integration checks: `bash scripts/local-ci.sh full` とReady後hosted final
@@ -165,7 +165,7 @@ public repository で `pull_request.synchronize` を復旧し、Ready PR の hea
 - `synchronize` 追加がDraft runner抑止とstale-green防止を弱めていないか。
 - D-033のprivate-repository前提をpublic契約で正しくsupersedeしているか。
 - `paths-ignore`とrequired-checkの未解決問題を完了扱いしていないか。
-- testが単なる文字列存在ではなく、拒否契約の反転と周辺guard維持を検証するか。
+- testが単なる文字列存在ではなく、実効YAMLのevent位置・3値完全一致と、削除/余分event mutationの拒否を検証するか。
 
 ## Spec Contract
 
@@ -180,7 +180,7 @@ Contract ID: SPEC-CI-SYNC-2026-07-14
 
 | Spec ID | Plan Step | Test | Review Focus | Evidence |
 |---|---|---|---|---|
-| SPEC-CI-SYNC-01 | workflow types更新 | TDS-CI-SYNC-01 | event set | ci workflow test |
+| SPEC-CI-SYNC-01 | workflow types更新 + 構造parse/mutation test | TDS-CI-SYNC-01 | event setの位置と完全一致 | ci workflow test |
 | SPEC-CI-SYNC-02 | Draft guard維持 | TDS-CI-SYNC-02 / 04 | runner 0 | ci workflow test |
 | SPEC-CI-SYNC-03 | required-check defer | TDS-CI-SYNC-03 / 08 | scope control | docs check + review |
 | SPEC-CI-SYNC-04 | stale-green契約維持 | TDS-CI-SYNC-05 / 06 / 07 | exact HEAD | local full + hosted final |

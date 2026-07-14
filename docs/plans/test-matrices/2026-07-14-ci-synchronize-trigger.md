@@ -26,7 +26,7 @@ Risk: R3
 
 | Contract | Failure Mode | Test Type | Test Name | Would fail if... |
 |---|---|---|---|---|
-| SPEC-CI-SYNC-01 | synchronize欠落 | regression / CLI | TDS-CI-SYNC-01 `require synchronize trigger` | workflow typesが旧2値のまま |
+| SPEC-CI-SYNC-01 | synchronize欠落または余分event | regression / CLI | TDS-CI-SYNC-01 `validate exact pull_request type set` | 実効YAMLの `on.pull_request.types` が3値完全一致でない、または文字列が別位置/コメントにしかない |
 | SPEC-CI-SYNC-02 | Draft runner起動 | policy / CLI | TDS-CI-SYNC-02 `draft guards cover all jobs` | changesまたはalways jobのguardが外れる |
 | SPEC-CI-SYNC-03 | required-check scope誤認 | contract / docs | TDS-CI-SYNC-03 `required-check defer is explicit` | protection有効化やpaths-ignore解決済みと記載する |
 | SPEC-CI-SYNC-02 | skip token拡大 | negative / CLI | TDS-CI-SYNC-04 `skip remains owner R0/R1 only` | actor/Risk guardが弱まる |
@@ -57,8 +57,8 @@ Risk: R3
 
 ## Negative Paths
 
-- missing input: event set lacks `synchronize` -> static test fails。
-- invalid input: unknown event or `push` section -> review/static rejection。
+- missing input: event set lacks `synchronize` -> structural YAML test and deletion mutation fail。
+- invalid input: extra/unknown event or `push` section -> exact-set/addition mutation or negative test fails。
 - duplicate/ambiguous input: duplicate trigger or conflicting docs -> drift grep/review failure。
 - unknown reference: classifier cannot resolve base/head -> existing all-gates fail-safe。
 - dependency missing: Actions unavailable -> hosted-required change blocks。
@@ -98,12 +98,12 @@ Risk: R3
 
 - helper connected to main path: `ci-workflow.test.sh` is invoked by local full workflow tests。
 - output reaches manifest/report: YAML event reaches GitHub Actions parser after merge。
-- effective config reaches runtime: hosted final validates the changed workflow; synchronize runtime is next-PR dogfood。
+- effective config reaches runtime: Ruby parser validates the effective `on.pull_request.types` node; hosted final validates the changed workflow; synchronize runtime is next-PR dogfood。
 - CLI arg reaches implementation: not applicable。
 
 ## Mutation-style Adequacy Questions
 
-- If `synchronize` is removed again, does TDS-CI-SYNC-01 fail?
+- If `synchronize` is removed, an extra event is added, or the expected string exists only in a comment/wrong node, does TDS-CI-SYNC-01 fail?
 - If the Draft guard is inverted or removed, does TDS-CI-SYNC-02 fail?
 - If owner/R0/R1 skip conditions are weakened, does TDS-CI-SYNC-04 fail?
 - If `cancel-in-progress` becomes false, does TDS-CI-SYNC-05 fail?

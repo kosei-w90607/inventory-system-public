@@ -171,5 +171,5 @@ workflow syntax / event / job graph は Ruby YAML parser、Prettier、repo-owned
 ## Related Records
 
 - Workflow index: `docs/DEV_WORKFLOW.md`
-- Decisions: `docs/decision-log.md` D-026 / D-030 / D-033
+- Decisions: `docs/decision-log.md` D-026 / D-030 / D-033 / D-043
 - Previous CI evidence: `docs/archive/plans/2026-07-01-ci-gate-optimization.md`
