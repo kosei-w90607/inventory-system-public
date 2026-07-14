@@ -279,7 +279,7 @@ export function IntegrityCheckPage() {
             <section aria-labelledby="integrity-difference-heading" className="space-y-4">
               <div className="flex flex-wrap items-end justify-between gap-3">
                 <div>
-                  <h2 id="integrity-difference-heading" className="text-lg font-semibold">
+                  <h2 id="integrity-difference-heading" className="text-xl font-semibold">
                     差異のある商品
                   </h2>
                   <p className="text-sm text-muted-foreground">
@@ -381,22 +381,36 @@ export function IntegrityCheckPage() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>棚卸し補正として記録します</AlertDialogTitle>
-            <AlertDialogDescription>
-              現在の在庫数と移動記録の差異を、選択した商品だけ棚卸し補正として記録します。
+            <AlertDialogDescription className="sr-only">
+              補正すると元に戻せません。選択した商品だけ、現在の在庫数を移動記録の合計に合わせて棚卸し補正として記録します。
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <div className="max-h-72 overflow-y-auto rounded-md border">
-            <ul className="divide-y">
-              {selectedMismatches.map((item) => (
-                <li key={item.product_code} className="space-y-1 px-3 py-2">
-                  <p className="font-mono font-medium">{item.product_code}</p>
-                  <p className="text-sm text-muted-foreground">{item.name}</p>
-                  <p className="font-medium tabular-nums">
-                    {item.stock_quantity} → {item.movements_sum}
-                  </p>
-                </li>
-              ))}
-            </ul>
+          <Alert className="border-warning bg-warning-soft text-warning-strong">
+            <AlertTriangle aria-hidden="true" />
+            <AlertTitle>補正すると元に戻せません</AlertTitle>
+            <AlertDescription>
+              選択した商品だけ、現在の在庫数を移動記録の合計に合わせて記録します。
+            </AlertDescription>
+          </Alert>
+          <div className="space-y-2">
+            <p className="text-sm text-muted-foreground">
+              補正する商品（現在の在庫数 → 補正後の在庫数）
+            </p>
+            <div className="max-h-72 overflow-y-auto rounded-md border">
+              <ul className="divide-y">
+                {selectedMismatches.map((item) => (
+                  <li key={item.product_code} className="space-y-1 px-3 py-2">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <span className="font-mono font-medium">{item.product_code}</span>
+                      <span className="font-medium tabular-nums">
+                        {item.stock_quantity} → {item.movements_sum}
+                      </span>
+                    </div>
+                    <p className="text-sm text-muted-foreground">{item.name}</p>
+                  </li>
+                ))}
+              </ul>
+            </div>
           </div>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={isBusy}>キャンセル</AlertDialogCancel>
