@@ -86,7 +86,7 @@ public repository で `pull_request.synchronize` を復旧し、Ready PR の hea
 | SPEC-CI-SYNC-01 | `PUBLIC_REPO_MIGRATION.md` CI and branch protection | SPEC-CI-SYNC-2026-07-14-D1 | public repository の更新後 HEAD に event を作る。全 push 復活は予算とDraft契約を壊す | `.github/workflows/ci.yml` | TDS-CI-SYNC-01 |
 | SPEC-CI-SYNC-02 | `docs/ci.md` Hosted Trigger Model | SPEC-CI-SYNC-2026-07-14-D2 | Draft runner 0 と Ready current-head を両立。job guard撤去は不採用 | workflow job guards | TDS-CI-SYNC-02 |
 | SPEC-CI-SYNC-03 | `docs/ci.md` Required Check Impact | SPEC-CI-SYNC-2026-07-14-D3 | path-filter skip はrequired checkをPendingにするため protection有効化を本PRに混ぜない | docs/non-scope | TDS-CI-SYNC-03 |
-| SPEC-CI-SYNC-04 | `docs/ci.md` Stale Green Prevention | SPEC-CI-SYNC-2026-07-14-D4 | Ready push blockを主経路、synchronizeを外部更新/bypass時の防御にする | pre-push unchanged + CI trigger | TDS-CI-SYNC-04 |
+| SPEC-CI-SYNC-04 | `docs/ci.md` Stale Green Prevention | SPEC-CI-SYNC-2026-07-14-D4 | Ready push blockを主経路、synchronizeを外部更新/bypass時の防御にする | pre-push unchanged + CI trigger | TDS-CI-SYNC-05 / 07 / 09 |
 
 ## Design Intent Audit
 
@@ -134,17 +134,18 @@ public repository で `pull_request.synchronize` を復旧し、Ready PR の hea
 
 | Design contract / decision ID | Implementation target | Automated test | L3 or non-scope |
 |---|---|---|---|
-| SPEC-CI-SYNC-2026-07-14-D1 | `.github/workflows/ci.yml` types | TDS-CI-SYNC-01 | hosted runtime dogfoodは次PR |
+| SPEC-CI-SYNC-2026-07-14-D1 | `.github/workflows/ci.yml` trigger map / types | TDS-CI-SYNC-01 / 06 / 10 | hosted runtime dogfoodは次PR |
 | SPEC-CI-SYNC-2026-07-14-D2 | `jobs.changes.if` と全job依存guard | TDS-CI-SYNC-02 / 04 | no L3 |
-| SPEC-CI-SYNC-2026-07-14-D3 | `paths-ignore`維持 + required-check defer明記 | TDS-CI-SYNC-03 / 08 | branch protectionはnon-scope |
-| SPEC-CI-SYNC-2026-07-14-D4 | pre-push契約維持、concurrency維持 | TDS-CI-SYNC-05 / 06 | no L3 |
-| D-033 final-only evidence | `push: main` absent、head SHA routing | TDS-CI-SYNC-06 / 07 | no L3 |
+| SPEC-CI-SYNC-2026-07-14-D3 | `paths-ignore`維持 + required-check defer明記 | automated: none。TDS-CI-SYNC-03 / 08 はContract Probe + independent review | branch protection / required contextはnon-scope |
+| SPEC-CI-SYNC-2026-07-14-D4 | Ready-push block、concurrency、current-head classifier | TDS-CI-SYNC-05 / 07 / 09（`pre-push.test.sh` Ready cases） | external update/bypassのhosted runtimeは次PR dogfood |
+| D-043 compatibility: `workflow_dispatch`、check名、shared classifier、owner-only R0/R1 skip | workflow trigger / job names / `jobs.changes.if` / filter step | TDS-CI-SYNC-04 / 07 / 10 | no L3 |
+| D-033 final-only evidence | `push: main` absent、PR base/head SHA routing | TDS-CI-SYNC-06 / 07 | three-point exact-HEADはPR body + owner Ready後のhosted final |
 
 ## Test Plan
 
 - Test Design Matrix: [2026-07-14-ci-synchronize-trigger.md](test-matrices/2026-07-14-ci-synchronize-trigger.md)
-- targeted tests: `bash scripts/tests/ci-workflow.test.sh`; Ruby YAML parserで `on.pull_request.types` の位置と3値完全一致を検証
-- negative tests: `synchronize` 削除、余分なevent追加のmutation、Draft guard欠落、`push: main`再追加、concurrency/head-sha drift
+- targeted tests: `bash scripts/tests/ci-workflow.test.sh`; Ruby YAML parserでroot trigger map、`on.pull_request`、guard式、concurrency、classifier run node、check名を実効構造として検証
+- negative tests: `synchronize` 削除、余分なevent追加、Draft/owner guard弱体化、quoted `push` / `merge_group`追加、cancellation無効化、head-sha decoyのmutation
 - compatibility checks: opened / ready_for_review / workflow_dispatch と既存check名を維持
 - data safety checks: tracked diffにcredential、private clone path、private control evidenceがないこと
 - main wiring/integration checks: `bash scripts/local-ci.sh full` とReady後hosted final
@@ -183,7 +184,7 @@ Contract ID: SPEC-CI-SYNC-2026-07-14
 | SPEC-CI-SYNC-01 | workflow types更新 + 構造parse/mutation test | TDS-CI-SYNC-01 | event setの位置と完全一致 | ci workflow test |
 | SPEC-CI-SYNC-02 | Draft guard維持 | TDS-CI-SYNC-02 / 04 | runner 0 | ci workflow test |
 | SPEC-CI-SYNC-03 | required-check defer | TDS-CI-SYNC-03 / 08 | scope control | docs check + review |
-| SPEC-CI-SYNC-04 | stale-green契約維持 | TDS-CI-SYNC-05 / 06 / 07 | exact HEAD | local full + hosted final |
+| SPEC-CI-SYNC-04 | stale-green契約維持 | TDS-CI-SYNC-05 / 06 / 07 / 09 | exact HEAD | ci workflow + pre-push tests、local full + hosted final |
 
 ## Data Safety
 
@@ -195,11 +196,15 @@ Contract ID: SPEC-CI-SYNC-2026-07-14
 
 - `scripts/tests/ci-workflow.test.sh` に実効YAMLの `on.pull_request.types` 構造検証を先行追加し、旧2-event workflowでREDを確認した。
 - `.github/workflows/ci.yml` のevent listだけを `opened` / `ready_for_review` / `synchronize` の3値へ変更した。Draft runner-zero guard、`push: main`不在、exact-head routing、concurrency、既存check名は変更していない。
-- event validatorは3値完全一致に加え、`synchronize` 削除と余分な`reopened`追加の両mutationを拒否する。targeted testはGREEN。
+- workflow contract validatorは3値完全一致に加え、root trigger完全一致、Draft/owner guard、concurrency、PR base/head classifier、check名を実効YAML nodeへ結び付ける。削除・余分event・guard弱体化・quoted push・cancellation/head-SHA decoyのmutationを拒否し、targeted testはGREEN。
 - required-check / path-filter再設計と実eventのdogfoodは計画どおり別境界に残す。後者は本変更merge後の最初のnon-doc PRで確認する。
 
 ## Review Response
 
-- Findings Freeze: not yet frozen; post-freeze exceptions: none.
+- Findings Freeze: 2026-07-14、content HEAD `8c0db4a` に対する独立Double Audit 2本のunionを P1=0 / P2=3 / P3=1 でfreeze。post-freeze exceptions: none.
 - 2026-07-14 Plan Gate broad review: P1=0 / P2=1 / P3=1。P2はevent typesの文字列検査がwrong node/commentを受理し得る構造検証不足、P3は`docs/ci.md` Related RecordsのD-043欠落。
 - 2026-07-14 Plan Gate closure: commit `28476a0` で実効YAMLの構造parse、3値完全一致、削除/余分event mutation計画とD-043参照を同期し、P1=0 / P2=0。`plan-gate -> plan-approved -> implementing` の全遷移条件が揃った。
+- Double Audit P2（accepted）: event set以外のDraft/owner guard、top-level trigger、concurrency、classifier SHAがraw substring検査で、コメントdecoyや`|| true`を受理した。mutationをtestへ先行追加してREDを再現し、実効YAML nodeの完全契約validatorへ拡張した。
+- Double Audit P2（accepted）: Contract Coverage LedgerのD-043 compatibility列挙不足、pre-push test未参照、TDS-03/08のautomated誤分類を確認。実装・自動test・manual/non-scope dispositionを契約単位で修正した。
+- Double Audit P2（accepted）: `Plans.md`の次の行動がPlan Gate前のままだった。closure、human-confirm、owner Ready/hosted finalの現段階へ同期した。
+- Double Audit P3（accepted）: `PROJECT_HANDOFF.md`のCI現況がpublic初回dispatchとD-043を反映していなかった。現在状態と次PR dogfood境界を同期した。

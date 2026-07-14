@@ -27,13 +27,15 @@ Risk: R3
 | Contract | Failure Mode | Test Type | Test Name | Would fail if... |
 |---|---|---|---|---|
 | SPEC-CI-SYNC-01 | synchronize欠落または余分event | regression / CLI | TDS-CI-SYNC-01 `validate exact pull_request type set` | 実効YAMLの `on.pull_request.types` が3値完全一致でない、または文字列が別位置/コメントにしかない |
-| SPEC-CI-SYNC-02 | Draft runner起動 | policy / CLI | TDS-CI-SYNC-02 `draft guards cover all jobs` | changesまたはalways jobのguardが外れる |
+| SPEC-CI-SYNC-02 | Draft runner起動 | policy / CLI | TDS-CI-SYNC-02 `draft guards cover all jobs` | `changes.if`が完全契約からdriftする、jobがchanges依存を外す、always guardが弱まる |
 | SPEC-CI-SYNC-03 | required-check scope誤認 | contract / docs | TDS-CI-SYNC-03 `required-check defer is explicit` | protection有効化やpaths-ignore解決済みと記載する |
-| SPEC-CI-SYNC-02 | skip token拡大 | negative / CLI | TDS-CI-SYNC-04 `skip remains owner R0/R1 only` | actor/Risk guardが弱まる |
-| SPEC-CI-SYNC-04 | stale run残存 | policy / CLI | TDS-CI-SYNC-05 `concurrency cancels superseded runs` | cancel-in-progressがfalse/欠落 |
-| SPEC-CI-SYNC-04 | main重複run | negative / CLI | TDS-CI-SYNC-06 `push main remains absent` | push triggerが追加される |
-| SPEC-CI-SYNC-04 | wrong SHA classification | integration / CLI | TDS-CI-SYNC-07 `classifier uses PR base/head SHA` | github.shaや古い固定refへ変わる |
+| SPEC-CI-SYNC-02 | skip token拡大 | negative / CLI | TDS-CI-SYNC-04 `skip remains owner R0/R1 only` | 構造parseした`changes.if`のactor/Risk guardが弱まる |
+| SPEC-CI-SYNC-04 | stale run残存 | policy / CLI | TDS-CI-SYNC-05 `concurrency cancels superseded runs` | 実効`concurrency.cancel-in-progress`がtrueでない |
+| SPEC-CI-SYNC-04 | main重複run | negative / CLI | TDS-CI-SYNC-06 `automatic trigger set remains closed` | root triggerにquoted push、merge_group、その他eventが追加される |
+| SPEC-CI-SYNC-04 | wrong SHA classification | integration / CLI | TDS-CI-SYNC-07 `classifier uses PR base/head SHA` | filter stepの実run nodeがgithub.shaや古い固定refへ変わる |
 | SPEC-CI-SYNC-03 | docs-only required deadlockを見逃す | contract probe / review | TDS-CI-SYNC-08 `path-filter risk remains deferred` | required checksを本PRで有効化する |
+| SPEC-CI-SYNC-04 | Ready pushがstale greenを許す | regression / CLI | TDS-CI-SYNC-09 `pre-push blocks Ready refs` | `pre-push.test.sh`のReady/current-target casesがpushを許す |
+| D-043 compatibility | manual trigger/check名drift | regression / CLI | TDS-CI-SYNC-10 `workflow_dispatch and check names remain stable` | root trigger完全一致またはjob name mappingが変わる |
 
 ## State Lifecycle Matrix
 
@@ -58,7 +60,7 @@ Risk: R3
 ## Negative Paths
 
 - missing input: event set lacks `synchronize` -> structural YAML test and deletion mutation fail。
-- invalid input: extra/unknown event or `push` section -> exact-set/addition mutation or negative test fails。
+- invalid input: extra/unknown event、quoted `push`、`merge_group` -> root trigger exact-set mutationがfail。
 - duplicate/ambiguous input: duplicate trigger or conflicting docs -> drift grep/review failure。
 - unknown reference: classifier cannot resolve base/head -> existing all-gates fail-safe。
 - dependency missing: Actions unavailable -> hosted-required change blocks。
@@ -98,17 +100,19 @@ Risk: R3
 
 - helper connected to main path: `ci-workflow.test.sh` is invoked by local full workflow tests。
 - output reaches manifest/report: YAML event reaches GitHub Actions parser after merge。
-- effective config reaches runtime: Ruby parser validates the effective `on.pull_request.types` node; hosted final validates the changed workflow; synchronize runtime is next-PR dogfood。
+- effective config reaches runtime: Ruby parser validates the effective root trigger、`pull_request`、guard、concurrency、classifier、job-name nodes; hosted final validates the changed workflow; synchronize runtime is next-PR dogfood。
 - CLI arg reaches implementation: not applicable。
 
 ## Mutation-style Adequacy Questions
 
 - If `synchronize` is removed, an extra event is added, or the expected string exists only in a comment/wrong node, does TDS-CI-SYNC-01 fail?
-- If the Draft guard is inverted or removed, does TDS-CI-SYNC-02 fail?
-- If owner/R0/R1 skip conditions are weakened, does TDS-CI-SYNC-04 fail?
-- If `cancel-in-progress` becomes false, does TDS-CI-SYNC-05 fail?
-- If `push: main` returns, does TDS-CI-SYNC-06 fail?
-- If classifier head changes from `pull_request.head.sha` to another SHA, does TDS-CI-SYNC-07 fail?
+- If the Draft guard gains `|| true`, is inverted, or removed, does TDS-CI-SYNC-02 fail?
+- If owner/R0/R1 skip conditions gain a decoy expected string but are weakened, does TDS-CI-SYNC-04 fail?
+- If `cancel-in-progress` becomes false while the old text remains in a comment, does TDS-CI-SYNC-05 fail?
+- If quoted `push` or `merge_group` enters the root trigger map, does TDS-CI-SYNC-06 fail?
+- If classifier head changes from `pull_request.head.sha` to another SHA while a comment keeps the old string, does TDS-CI-SYNC-07 fail?
+- If Ready/current-target push blocking is removed, does TDS-CI-SYNC-09 fail?
+- If `workflow_dispatch` or an established check name drifts, does TDS-CI-SYNC-10 fail?
 - If required checks are enabled while `paths-ignore` remains, does TDS-CI-SYNC-08 block scope completion?
 - If docs retain the old two-event contract, does drift grep/review fail?
 - If tracked Workflow State stores the current PR HEAD, does state transition review reject it?

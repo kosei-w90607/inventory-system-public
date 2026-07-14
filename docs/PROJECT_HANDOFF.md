@@ -127,7 +127,7 @@
 | バックエンド | `src-tauri/src/{db,biz,cmd,mnt}` 全層実装完了。リポジトリ 5 種（product / inventory / sales / stocktake / system）+ BIZ-01〜08 + CMD-01〜12 + MNT-01〜04。REQ-401 第1スライスとして日報取込み `daily_report_*` 系を追加中 |
 | フロントエンド基盤 | `src/` に config/navigation / components/layout / lib/{invoke,utils,env} / styles/globals.css / routes/__root.tsx + index.tsx |
 | Tauri capability | `src-tauri/capabilities/default.json` で `core:window:allow-set-title` 等を許可 |
-| CI / 静的検査 | D-033 の L0 pre-push / L1 `scripts/local-ci.sh` / L2 hosted final。shared classifier と shell fixtures、`scripts/{doc-consistency-check,check-env-safety}.sh`、lefthook。CI workflow は owner Enable 済み、main初回dispatch success。Draft/Ready eventのdogfoodと2026-08-01再評価がfollow-up |
+| CI / 静的検査 | D-033/D-043 の L0 pre-push / L1 `scripts/local-ci.sh` / L2 hosted final。shared classifier と shell fixtures、`scripts/{doc-consistency-check,check-env-safety}.sh`、lefthook。CI workflow は public repository で owner Enable 済み、main初回dispatch success、Draft/Ready event dogfood済み。`synchronize`復旧はFinal Review/Human Gate中で、実eventはmerge後最初のnon-doc PR、予算再評価は2026-08-01がfollow-up |
 | デモデータ | `src-tauri/src/bin/seed_demo_data.rs` + `src-tauri/src/seed_demo.rs`（rand seed 固定 `StdRng::seed_from_u64(42)`、冪等 `ON CONFLICT DO NOTHING` + `--reset` flag） |
 
 ### ヒアリングシートの構造

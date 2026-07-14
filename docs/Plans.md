@@ -75,7 +75,7 @@
 
 ## 次の行動
 
-1. active [CI synchronize trigger correction Plan Packet](plans/2026-07-14-ci-synchronize-trigger.md) を Plan Gate し、workflow/test実装、local full、Double Audit、hosted finalへ進める。
+1. active [CI synchronize trigger correction Plan Packet](plans/2026-07-14-ci-synchronize-trigger.md) のDouble Audit finding closure、clean L1、`human-confirm`を完了し、Draft PR checkpointからowner Ready / exact-HEAD hosted finalへ進める。
 2. UI-13 に着手（Phase 4 残り。D-038/D-039 新規律の app 実装側 dogfood target — D-038 Revisit 指定の次回 WER 突合対象）。
 3. PLU-24（JAN なし独自コード商品のレジでの売り方）を次回店舗接点で確認（issue #135 残項目）。
 4. slice 2 follow-up 群（軽量、単独 PR 可）: hook 統合導入（`.claude/hooks/` + settings.json、sandbox 書込み制約の外での作業が前提）/ `Amendments:` SHA 抽出の strict 化 / `check_plan_commit_ancestry` の section-scoped 抽出 / `check_signature_cross_reference` の pipefail 潜在バグ / no-active-plan check の導入（WARN から）。詳細は [archive/plans/2026-07-12-mechanical-workflow-slice2.md](archive/plans/2026-07-12-mechanical-workflow-slice2.md) Review Response と decision-log D-039。
