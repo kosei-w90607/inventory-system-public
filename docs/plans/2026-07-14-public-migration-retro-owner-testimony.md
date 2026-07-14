@@ -2,10 +2,10 @@
 
 ## Workflow State
 
-- Phase: plan-gate
+- Phase: implementing
 - Risk: R2
 - Execution Mode: fable-window
-- Plan Commit: pending
+- Plan Commit: 50b62f3
 - Amendments: none
 - Coordinator: Fable
 - Writer: Fable
@@ -21,6 +21,8 @@
 - 介入回数上限: 1
 - 実働時間上限: 10分
 - relay 往復上限: 1
+
+調整理由: D-045 budget hard stop の自己適用。docs-only 追記であり owner 実働は最終 merge 判断のみで足りるため、既定値（`docs/DEV_WORKFLOW.md` `Owner Effort Budget`）より厳しく設定する。
 
 ## Risk
 
@@ -145,4 +147,5 @@ Fill after implementation.
 
 ## Review Response
 
-Fill after review.
+- Plan review（independent Sonnet context、2026-07-14）: P1=0 / P2=0 / P3=1（Owner Effort Budget 厳格化の理由未記載）、approve。P3 は accept し Owner Effort Budget 節に調整理由を追記。
+- Final review: fill after review.

@@ -120,3 +120,29 @@ Deferred:
 Not applied:
 
 - candidateの削除・再作成、過去receiptの再構成。candidate bytesを変えず、実害を減らさないため。
+
+## Addendum: Owner Primary Testimony（2026-07-14 追記）
+
+> 本節以降は archive 後の append-only 追記。既存本文は改変していない。
+
+owner の一次証言（文書からは復元できない早期警戒シグナルとして保存する）:
+
+- 体感の総作業時間は約12時間以上。単純な目的に対して明らかに過大だった。
+- 承認依頼が繰り返され、承認するたびに次の承認が発生し、完了へ近づいている感覚がなかった。owner は途中で複数回割って入った。
+- agent は証跡収集や設定した指標の充足のためのスクリプトを次々に構築しており、owner からは何を作っているのか判別できなかった。
+- 停止の契機は定量指標ではなく owner の勘（「時間がかかりすぎている」という違和感）だった。
+
+この証言が示す検知ギャップ:
+
+- 経過時間・承認依頼回数・新規スクリプト数を owner と agent の双方に可視化する telemetry がなく、Owner Effort Budget は測定を持たない宣言に留まっていた。
+- 「設定した指標を満たすための作業」が進捗として報告され、利用者可視の outcome state（sanitized snapshot 完成 → private push → public 化 → hosted CI green）の前進と区別されていなかった。
+
+## Addendum: Analysis Delta（2026-07-14 追記、独立分析）
+
+既存本文と D-045 に対する追加所見。重複しない差分のみを記録する。
+
+- 執行位置の欠陥: Owner Effort Budget は D-038（2026-07-12）で導入された docs 上の規則だが、2日後の本件で作動しなかった。docs 宣言型の budget はこの failure class に実証的に無効であり、執行は承認依頼インターフェース（承認依頼ごとに「この change で N 回目 / 予算 M 回 / 経過概算 / これを承認すると利用者から見て何が完了するか1文」を必須化し、owner が budget を執行できる形）、hook、発注書テンプレという機械的な位置に置く必要がある。
+- 実行モード選択軸の欠落: 現行 workflow は Risk 軸のみで装備を決めるが、本件は「一回きり × 不可逆 × owner gate 必須」であり、agent の非同期自律 + 自由な証跡生成という実行形態自体が暴走の前提条件だった。頻度 × 可逆性の軸を加え、一回きりの不可逆作業には time-boxed な owner 同席同期セッション（runbook を最小証跡で踏む）を選べる実行モードが必要。
+- ルール総量への削減圧力の欠如: 歴代 WER の是正がほぼ全て規則追加であり、検査面が単調増加して agent の正当な作業生成源になっている。WER template に「retire / 統合するルール」欄を設け、net rule growth への削減圧力を構造化する。
+
+これらの generic 化（`docs/DEV_WORKFLOW.md` / template / hook への実装）は D-045 follow-up の別 R3 change の設計入力とし、本追記は一次証言と分析差分の保存に留める。
