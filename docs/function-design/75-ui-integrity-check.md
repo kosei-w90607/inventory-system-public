@@ -168,6 +168,8 @@ type IntegrityPhase = "idle" | "running" | "completed";
 | URL/localStorageへのresult保存 | ephemeral lifecycleに反する |
 | CMD/BIZ/IO/DBロジック変更 | 既存contractで完結。不足時はDesign/Planへ戻す |
 
+navigation（`src/config/navigation.ts`）の ui-13 entry は `/settings/integrity` で active 化済み（Amendment 4、2026-07-15）。owner の実機確認で `to: null` / `status: "pending"` のまま = 利用者が本画面に到達できない Goal Invariant 違反が発覚したため是正した。navigation からの除外は非目的ではない。
+
 ### 75.14 Adjacent Pattern Audit
 
 | 観点 | 参照元 | UI-13採用 |
