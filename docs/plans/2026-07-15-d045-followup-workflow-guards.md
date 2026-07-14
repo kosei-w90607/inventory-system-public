@@ -33,12 +33,14 @@ workflow gate change（`docs/DEV_WORKFLOW.md` の gate 規範、Plan Packet / WE
 
 ## Goal
 
-Goal Invariant（最小完了条件、利用者可視 outcome）:
+Goal Invariant（最小完了条件、利用者可視 outcome。6項目すべて Plans.md 次の行動1 と WER Addendum が名指しする優先実装に対応）:
 
 1. owner 承認接点に「介入カウンタ + 利用者可視の完了1文」が必須欄として存在し、owner が budget を承認インターフェース上で執行できる。
 2. 不可逆作業の finding が D-045 の4項目なしに destructive repair を正当化できない裁定規則が Review Rules に存在する。
 3. 正当な backtrack が STATECAP に阻まれて履歴改変へ追い込まれない補正契約が存在し、機械検査が対応する。
 4. WER が「retire するルール」を明示しないと通らない削減圧力が template + checker に存在する。
+5. 一回きり × 不可逆 × owner gate の作業に owner 同席 time-boxed 様式を選べる規範が AGENT_OPERATING_MANUAL に存在する。
+6. Plan Packet の Goal が「最小完了条件 / 失敗定義 / 非目的」構造を持ち、Goal Invariant > AC > supporting evidence の優先順位が規範化されている。
 
 失敗定義: 上記が docs 宣言のみ（template 必須欄・機械チェックの裏付けなし）で着地すること。または本 change 自体が新規 ledger / 儀式 / 検査面を Goal Invariant の範囲を超えて増やすこと。
 
@@ -46,12 +48,12 @@ Goal Invariant（最小完了条件、利用者可視 outcome）:
 
 ## Scope
 
-- `docs/DEV_WORKFLOW.md`: Owner Effort Budget 節を hard stop + 承認依頼フォーマット + goal-drift signal 停止手順へ改訂。Review Rules に blocker lane 三分類と不可逆 finding 4項目要件を追加。Plan Packet Rules に Goal Invariant 構造（最小完了条件 / 失敗定義 / 非目的、優先順位 Goal Invariant > AC > supporting evidence）を追加。Workflow State に backtrack 補正契約（`state-backtrack` canonical subject、STATECAP forward cap 対象外、Amendments 追記型）を追加。Draft PR Checkpoint の PR body 要素に Human Gate 欄（カウンタ + 完了1文）を追加。
+- `docs/DEV_WORKFLOW.md`: Owner Effort Budget 節を hard stop + 承認依頼フォーマット + goal-drift signal 停止手順へ改訂。Review Rules に finding classification 三分類（既存「review lane」語彙との衝突を避けるため lane と呼ばない）と不可逆 finding 4項目要件を追加。Plan Packet Rules に Goal Invariant 構造（最小完了条件 / 失敗定義 / 非目的、優先順位 Goal Invariant > AC > supporting evidence）を追加。Workflow State に backtrack 補正契約（`state-backtrack` canonical subject、STATECAP forward cap 対象外、Amendments 追記型）を追加。Draft PR Checkpoint の PR body 要素に Human Gate 欄（カウンタ + 完了1文）を追加。
 - `docs/templates/plan-packet.md`: Goal 節を Goal Invariant 構造へ、Owner Effort Budget 節に承認依頼フォーマット1行。
 - `docs/templates/workflow-effectiveness-review.md`: `## Retired / Consolidated Rules` 節を新設（最低1件、なければ `none` + 理由）。
 - `docs/AGENT_OPERATING_MANUAL.md` §3: 一回きり × 不可逆 × owner gate 作業向けの owner 同席 time-boxed 同期セッション様式を新設（vendor 軸の Execution Mode と直交する task-shape 軸として）。新規スクリプトは「防ぐ具体的経路1文」を条件とする。
-- `scripts/doc-consistency-check.sh`: active packet の Goal Invariant 構造存在チェック（WARN、新規 packet のみ）、新規 WER（2026-07-15 以降）の Retired 節存在チェック（WARN）。
-- `scripts/check-workflow-git.sh`: STATECAP を forward 遷移のみ対象へ限定し、`state-backtrack` subject を別扱い（forward 遷移のみを含む backtrack subject は ERROR = cap 回避防止）。
+- `scripts/doc-consistency-check.sh`: active packet（`docs/plans/` 直下、既存 `iter_active_dated_plans` のディレクトリ分離で遡及なし）の Goal Invariant 構造存在チェック（WARN）。新規 WER の Retired 節存在チェック（WARN）は、`docs/archive/plans/*-workflow-effectiveness-review.md` のファイル名日付 prefix を `2026-07-15` と辞書順比較する**新規機構**（ISO 日付は文字列比較で順序が保存される。前例なしを明示、既存 WER は対象外）。
+- `scripts/check-workflow-git.sh`: STATECAP を forward 遷移のみ対象へ限定し、`docs(plans): state-backtrack <from>-><to>` subject を別扱いにする。判定機構: 順序付き phase 配列を本 script 内にも定義し（`doc-consistency-check.sh` の `WORKFLOW_STATE_PHASES` と同内容。意図的な script 分離を維持するため source せず複製し、両配列の一致を drift test T8 で担保）、`index(from) > index(to)` を backward と判定する。`state-backtrack` subject は**単一の backward 遷移のみ**を許容し、forward 遷移・複数遷移チェーン・未知 phase は ERROR（cap 回避と混在チェーンの曖昧さを排除。correction は最早影響 phase へ1手で戻り、以後の forward は通常規則で進む）。
 - `scripts/tests/`: 上記 checker / git 検査変更の drift test。
 - `docs/decision-log.md`: D-046 起票（8 sub-decision、「docs 宣言のみの規則追加は暴走系 failure class の是正手段として単独不十分」の durable 化を含む）。
 - 実装時に repo 全体で `Owner Effort Budget` / 承認依頼 / WER template 参照の drift-fix sweep（`.agents/skills/` 含む）。
@@ -101,7 +103,7 @@ Goal Invariant（最小完了条件、利用者可視 outcome）:
 |---|---|---|---|---|---|
 | WER Addendum「執行位置の欠陥」 | goal-drift WER Addendum | D-046-1 | budget を承認インターフェース必須欄で執行（docs 宣言は D-038 で実証失敗。hook は sandbox 制約で non-scope） | DEV_WORKFLOW Owner Effort Budget / Draft PR Checkpoint / plan-packet template | T2 / T6 |
 | D-045 evidence adjudication | decision-log D-045 | D-046-2 | 三分類 + 不可逆4項目を Review Rules に正本化（WER 記載のみでは次 change に届かない） | DEV_WORKFLOW Review Rules | T6 |
-| Plans.md 次の行動1 backtrack 契約 | DEV_WORKFLOW Workflow State 102行 correction 規則 | D-046-3 | `state-backtrack` subject 新設 + forward cap 限定（cap 全廃は state spam を許すため不採用、backtrack cap 追加は正当補正を再度阻むため不採用） | check-workflow-git.sh / DEV_WORKFLOW Workflow State | T3 / T4 |
+| Plans.md 次の行動1 backtrack 契約 | DEV_WORKFLOW Workflow State 102行 correction 規則 | D-046-3 | `state-backtrack` subject 新設（単一 backward 遷移のみ、順序付き phase 配列で index 比較）+ forward cap 限定（cap 全廃は state spam を許すため不採用、backtrack cap 追加は正当補正を再度阻むため不採用、混在チェーン許容は判定曖昧のため不採用） | check-workflow-git.sh / DEV_WORKFLOW Workflow State | T3 / T4 / T8 |
 | WER Addendum「削減圧力の欠如」 | goal-drift WER Addendum | D-046-4 | WER template 必須欄 + checker WARN（強制なしの努力目標は既存 WER で機能しなかった） | WER template / doc-consistency-check.sh | T5 |
 | WER Addendum「実行モード軸の欠落」 | goal-drift WER Addendum | D-046-5 | AGENT_OPERATING_MANUAL に task-shape 軸として新設（Execution Mode の vendor 軸と混ぜると既存3値 enum と PK4 を壊すため直交させる） | AGENT_OPERATING_MANUAL §3 | T6 |
 | Goal Invariant | goal-drift WER「完了条件から目的が外れた」 | D-046-6 | packet Goal 節の構造化 + 優先順位明文化 + WARN check（ERROR 開始は既存 active packet を壊すため WARN 開始 = slice 2 前例踏襲） | plan-packet template / doc-consistency-check.sh | T1 |
@@ -137,7 +139,7 @@ N/A — 外部 library / OS 挙動の未検証前提なし。bash / rg の挙動
 |---|---|---|---|
 | D-046-1 承認依頼カウンタ interface | DEV_WORKFLOW Owner Effort Budget / Draft PR Checkpoint / plan-packet template | T2（template token）+ T6（規範 token） | 本 PR の Human Gate 欄で手動 dogfood |
 | D-046-2 三分類 + 不可逆4項目 | DEV_WORKFLOW Review Rules | T6 | non-scope（裁定運用は次 R3 dogfood） |
-| D-046-3 backtrack 補正契約 | check-workflow-git.sh + DEV_WORKFLOW Workflow State | T3 / T4（drift test 両方向） | non-scope |
+| D-046-3 backtrack 補正契約 | check-workflow-git.sh + DEV_WORKFLOW Workflow State | T3 / T4（drift test 両方向）+ T8（phase 配列の両 script 一致） | non-scope |
 | D-046-4 WER retire 欄 | WER template + doc-consistency-check.sh | T5 | non-scope |
 | D-046-5 one-shot irreversible 様式 | AGENT_OPERATING_MANUAL §3 + DEV_WORKFLOW 参照 | T6（token 存在） | non-scope（次回不可逆作業で dogfood） |
 | D-046-6 Goal Invariant | plan-packet template + doc-consistency-check.sh | T1（WARN 両方向） | 本 packet 自身が構造を先行適用 |
@@ -197,6 +199,6 @@ Fill after implementation.
 
 ## Review Response
 
-Fill after review.
-
+- Plan review R1（independent Sonnet context、2026-07-15）: P1=3 / P2=2、revise。全件 accept — P1-1 Goal Invariant を6項目へ拡張（D-046-5/6 は次の行動1名指しの優先実装であり Goal の書き漏れと裁定）/ P1-2 backtrack 判定機構を明記（phase 配列複製 + T8 parity drift test）/ P1-3 WER 日付判定の偽前例を撤回し新規機構（ファイル名日付 prefix 辞書順比較）と明示 / P2-1 `state-backtrack` を単一 backward 遷移限定としチェーン ERROR / P2-2 「blocker lane」を「finding classification」へ改名。
+- Plan review R2: fill after re-review.
 - Findings Freeze: not yet frozen; post-freeze exceptions: none.

@@ -7,7 +7,7 @@ Risk: R3
 ## Contracts Under Test
 
 - D-046-1: 承認接点のカウンタ + 利用者可視完了1文（template / 規範 token）
-- D-046-3: STATECAP forward 限定 + `state-backtrack` subject 除外 + cap 回避防止
+- D-046-3: STATECAP forward 限定 + `state-backtrack` subject 除外（単一 backward 遷移のみ）+ cap 回避防止 + 両 script の phase 配列一致
 - D-046-4: WER `## Retired / Consolidated Rules` 必須（新規 WER のみ、WARN）
 - D-046-6: packet Goal Invariant 構造（最小完了条件 / 失敗定義 / 非目的、WARN）
 - 既存互換: 既存 archived 文書・既存 STATECAP forward 挙動の不変
@@ -28,7 +28,8 @@ Risk: R3
 | D-046-6 | Goal Invariant 欠落を見逃す / 遡及偽陽性 | CLI (drift test) | T1 goal-invariant-warn 両方向 | 新規 packet の欠落で WARN が出ない、または既存 archived packet に WARN が出る |
 | D-046-1 | template から カウンタ欄が欠落 | schema (token) | T2 approval-counter-token | plan-packet template / DEV_WORKFLOW Draft PR Checkpoint から「介入」「予算」token が消える |
 | D-046-3 | 正当 backtrack が cap で ERROR | CLI (drift test) | T3 statecap-backtrack-exempt | forward 3 + `state-backtrack` 1 の履歴で check-workflow-git.sh が fail する |
-| D-046-3 | cap 回避 | CLI (drift test) | T4 statecap-backtrack-evasion | forward 遷移のみを含む `state-backtrack` subject が ERROR にならない |
+| D-046-3 | cap 回避 / 混在チェーン | CLI (drift test) | T4 statecap-backtrack-evasion | forward 遷移のみ・複数遷移チェーン・未知 phase を含む `state-backtrack` subject のいずれかが ERROR にならない |
+| D-046-3 | phase 配列 drift | CLI (drift test) | T8 phase-array-parity | check-workflow-git.sh と doc-consistency-check.sh の順序付き phase 配列が不一致でも検知されない |
 | D-046-4 | Retired 節欠落を見逃す / 遡及偽陽性 | CLI (drift test) | T5 wer-retired-warn 両方向 | 新規日付 WER の欠落で WARN が出ない、または既存 WER に WARN が出る |
 | 規範 token | 規範 drift | CLI (drift test) | T6 d046-norm-tokens | DEV_WORKFLOW の三分類 / 4項目 / goal-drift signal / one-shot 参照、decision-log の D-046 のいずれかの token が消える |
 | 既存互換 | 既存検査の破壊 | integration | T7 checker-self-pass | `bash scripts/doc-consistency-check.sh` が本 PR の tree で ERROR 0 で通らない |
@@ -50,13 +51,14 @@ workflow-state changes 該当分のみ。UI / data / cache 非接触のため他
 | Source pattern / contract | Repository sites inspected | Ported sites | Explicit exclusions and reason | Test / evidence |
 |---|---|---|---|---|
 | canonical state-only subject（`docs(plans): state-only遷移 <from>-><to>`）の token 判定 | scripts/check-workflow-git.sh `check_state_only_commit_cap` / DEV_WORKFLOW 118行 / templates | `state-backtrack` subject を同形式で追加 | pre-push / local-ci の呼出し口は変更しない（検査本体のみ改訂） | T3 / T4 |
-| 新規文書のみ対象の日付 prefix 判定 | doc-consistency-check.sh の Evidence Ownership 系日付判定（2026-07-12 以降限定の前例） | WER Retired 検査（2026-07-15 以降）/ Goal Invariant 検査（新規 packet） | archived ディレクトリは対象外 | T1 / T5 |
+| active packet のみ対象のディレクトリ分離 | doc-consistency-check.sh `iter_active_dated_plans`（`docs/plans/` vs `docs/archive/plans/`） | Goal Invariant 検査（active packet のみ、遡及なし） | archived packet は対象外 | T1 |
+| WER の新規のみ対象判定 | **前例なし（新規機構）**: WER は最初から `docs/archive/plans/` に作られるためディレクトリ分離が使えない。ファイル名日付 prefix（ISO 形式）の `2026-07-15` との辞書順比較で判定する | WER Retired 検査 | 日付 prefix を持たないファイル・既存日付の WER は対象外 | T5（両方向） |
 | WARN 開始で導入し運用後に ERROR 昇格を検討 | slice 2「no-active-plan check（WARN から）」前例 | T1 / T5 の両 check | — | drift test で WARN 文字列を検証 |
 
 ## Negative Paths
 
 - missing input: Goal 節はあるが「最小完了条件」小見出しがない packet → T1 WARN
-- invalid input: `state-backtrack` subject に forward 遷移 token のみ → T4 ERROR
+- invalid input: `state-backtrack` subject に forward 遷移 token のみ / 複数遷移チェーン / 未知 phase 名 → T4 ERROR（単一 backward 遷移のみ許容）
 - duplicate/ambiguous input: active packet 複数の既存 fail-closed は不変（T7 で既存検査が生きていることを確認）
 - unknown reference: not applicable
 - dependency missing: rg / bash のみ使用、新規依存なし
@@ -65,7 +67,9 @@ workflow-state changes 該当分のみ。UI / data / cache 非接触のため他
 
 ## Boundary Checks
 
-- threshold: STATECAP forward cap = 3 は不変。backtrack は cap 非対象（0 でも n 個でも PASS、ただし T4 の偽装は ERROR）
+- threshold: STATECAP forward cap = 3 は不変。backtrack は cap 非対象（0 でも n 個でも PASS、ただし T4 の偽装・チェーン・未知 phase は ERROR）
+- 遷移数境界: `state-backtrack` subject は遷移ちょうど1個（0個 = 形式不正 ERROR、2個以上 = チェーン ERROR）
+- phase index 境界: 同一 phase（index 等しい）は backward でも forward でもなく ERROR
 - null/default: `Amendments: none` の既存挙動不変
 - empty/non-empty: Retired 節が存在するが空 → WARN（placeholder 検出は PK2 前例に合わせる）
 - status/policy enum: Phase enum / Execution Mode 3値は不変（PK4 非接触を T7 で確認）
