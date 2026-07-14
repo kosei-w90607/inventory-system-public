@@ -6,7 +6,7 @@
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: e5776ab
-- Amendments: 7af126c（Amendment 1: integrity_cmd.rs への `#[specta::specta]` 属性 2 行を Scope に追加）, 40200a2（Amendment 2: design_compliance_test.rs への 75-ui doc 登録 1 entry を Scope に追加）, f0812b7（Amendment 3: 90-traceability.md の generator 再生成を Scope に追加）, 0b0fcfb（Amendment 4: navigation ui-13 有効化を Scope に追加）
+- Amendments: 7af126c（Amendment 1: integrity_cmd.rs への `#[specta::specta]` 属性 2 行を Scope に追加）, 40200a2（Amendment 2: design_compliance_test.rs への 75-ui doc 登録 1 entry を Scope に追加）, f0812b7（Amendment 3: 90-traceability.md の generator 再生成を Scope に追加）, 0b0fcfb（Amendment 4: navigation ui-13 有効化を Scope に追加）, 52b47b2（Amendment 4 補遺: Ledger に到達導線契約行を追加）
 - Coordinator: Fable
 - Writer: Codex（機能実装。発注 relay、owner がコピペ実行）/ Claude Sonnet subagent（visual polish pass、owner 指示 2026-07-15。非重複 ownership: `IntegrityCheckPage.tsx` の表示層に限定し、polish writer は Final Review の承認者にならない。実施タイミング: `implementing` 内で機能実装完了・local テスト green 後、independent-review **前**に一次実施。independent-review 後に visual finding が出た場合は通常規則どおり `implementing` へ戻して修正し再レビューする）
 - Plan Reviewer: independent Sonnet review context
