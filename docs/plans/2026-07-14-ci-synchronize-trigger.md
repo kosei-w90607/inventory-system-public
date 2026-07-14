@@ -193,7 +193,10 @@ Contract ID: SPEC-CI-SYNC-2026-07-14
 
 ## Implementation Results
 
-Pending Plan Gate approval.
+- `scripts/tests/ci-workflow.test.sh` に実効YAMLの `on.pull_request.types` 構造検証を先行追加し、旧2-event workflowでREDを確認した。
+- `.github/workflows/ci.yml` のevent listだけを `opened` / `ready_for_review` / `synchronize` の3値へ変更した。Draft runner-zero guard、`push: main`不在、exact-head routing、concurrency、既存check名は変更していない。
+- event validatorは3値完全一致に加え、`synchronize` 削除と余分な`reopened`追加の両mutationを拒否する。targeted testはGREEN。
+- required-check / path-filter再設計と実eventのdogfoodは計画どおり別境界に残す。後者は本変更merge後の最初のnon-doc PRで確認する。
 
 ## Review Response
 

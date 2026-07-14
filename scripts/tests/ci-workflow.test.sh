@@ -41,26 +41,58 @@ end
 RUBY
 }
 
-validate_job_graph "$WORKFLOW"
+validate_pr_event_types() {
+    ruby - "$1" <<'RUBY'
+require "yaml"
+workflow = YAML.safe_load(File.read(ARGV.fetch(0)), aliases: true)
+triggers = workflow["on"] || workflow[true]
+abort "workflow trigger map is missing" unless triggers.is_a?(Hash)
+pull_request = triggers.fetch("pull_request")
+types = pull_request.fetch("types")
+abort "pull_request.types is not an array" unless types.is_a?(Array)
 
-mutation="$(mktemp)"
-trap 'rm -f "$mutation"' EXIT
-cp "$WORKFLOW" "$mutation"
-cat >> "$mutation" <<'YAML'
+# D-043: Final-only CI must react to every non-Draft PR head update.
+expected = %w[opened ready_for_review synchronize]
+actual = types.map(&:to_s)
+unless actual.length == expected.length && actual.uniq.length == actual.length && actual.sort == expected.sort
+  abort "pull_request.types must be exactly #{expected.inspect}; got #{actual.inspect}"
+end
+RUBY
+}
+
+validate_job_graph "$WORKFLOW"
+validate_pr_event_types "$WORKFLOW"
+
+mutation_dir="$(mktemp -d)"
+trap 'rm -rf "$mutation_dir"' EXIT
+
+job_graph_mutation="$mutation_dir/unguarded-job.yml"
+cp "$WORKFLOW" "$job_graph_mutation"
+cat >> "$job_graph_mutation" <<'YAML'
   unguarded_probe:
     runs-on: ubuntu-latest
     steps:
       - run: echo unsafe
 YAML
-if validate_job_graph "$mutation" >/dev/null 2>&1; then
+if validate_job_graph "$job_graph_mutation" >/dev/null 2>&1; then
     fail "job graph validator accepted an unguarded runner job"
 fi
 
+missing_event_mutation="$mutation_dir/missing-synchronize.yml"
+sed 's/, synchronize//' "$WORKFLOW" > "$missing_event_mutation"
+if validate_pr_event_types "$missing_event_mutation" >/dev/null 2>&1; then
+    fail "pull_request event validator accepted missing synchronize"
+fi
+
+extra_event_mutation="$mutation_dir/extra-event.yml"
+sed 's/synchronize/synchronize, reopened/' "$WORKFLOW" > "$extra_event_mutation"
+if validate_pr_event_types "$extra_event_mutation" >/dev/null 2>&1; then
+    fail "pull_request event validator accepted an extra event"
+fi
+
 reject_fixed "  push:"
-reject_fixed "synchronize"
 reject_fixed '      - "**/*.md"'
 require_fixed "  workflow_dispatch:"
-require_fixed "types: [opened, ready_for_review]"
 require_fixed "paths-ignore:"
 require_fixed '      - "*.md"'
 require_fixed "github.event.pull_request.draft == false"
