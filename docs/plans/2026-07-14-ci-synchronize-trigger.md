@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: human-confirm
+- Phase: implementing
 - Risk: R3
 - Execution Mode: codex-only
 - Plan Commit: 28476a0
@@ -209,3 +209,4 @@ Contract ID: SPEC-CI-SYNC-2026-07-14
 - Double Audit P2（accepted）: `Plans.md`の次の行動がPlan Gate前のままだった。closure、human-confirm、owner Ready/hosted finalの現段階へ同期した。
 - Double Audit P3（accepted）: `PROJECT_HANDOFF.md`のCI現況がpublic初回dispatchとD-043を反映していなかった。現在状態と次PR dogfood境界を同期した。
 - Finding Closure: gated amendment `3c22dfb` を同じ独立reviewer 2名が凍結findingだけ再確認し、全件closed、P1=0 / P2=0。targeted、pre-push、Plan/full docs、clean `local-ci changed` が通過したため、`implementing -> local-verified -> independent-review -> human-confirm` の隣接遷移条件が揃った。
+- 2026-07-14 owner が Ready / merge / closeout を承認したが、先行して merge された public migration learning PR により live `main` と本PRが競合状態になった。新しい統合contentを未レビューのままReadyにしないため、`human-confirm -> implementing` に戻し、`main` 統合、検証、独立review、exact-HEAD evidenceを新HEADで再実施する。
