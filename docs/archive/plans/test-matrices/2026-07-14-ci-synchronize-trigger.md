@@ -123,3 +123,4 @@ Risk: R3
 - This PR cannot prove its own new `synchronize` trigger before the changed workflow exists on default branch; first post-merge non-doc PR is the runtime dogfood target。
 - GitHub-hosted event scheduling and cancellation cannot be fully simulated locally; exact-head hosted evidence covers the final Ready path only。
 - Required-check/docs-only behavior remains deliberately unresolved until a separate R3 design removes the path-filter deadlock risk。
+- Closeout observation: Draft branch更新では`synchronize` event生成とrunner jobs skipを実動作確認した。Ready head更新とcancellationは最初のpost-merge non-doc PRに残る。

@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: implementing
+- Phase: archive
 - Risk: R3
 - Execution Mode: codex-only
 - Plan Commit: 28476a0
@@ -14,7 +14,7 @@
 - Reviewed Content HEAD: 3c22dfb
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
-- Human Gate: owner Ready authorization, exact-HEAD hosted final, and merge
+- Human Gate: none
 
 ## Owner Effort Budget
 
@@ -94,7 +94,7 @@ public repository で `pull_request.synchronize` を復旧し、Ready PR の hea
 - Plan-only durable decisions found and promoted to source docs / decision-log / ADR: D-043 に昇格する。
 - Assumptions and constraints: Actions は有効、初回 manual dispatch は green、branch protection/ruleset は未設定、public writer と history-view は分離済み。
 - Deferred design gaps, risk, and follow-up target: required check を有効にする前に `paths-ignore` と stable aggregate context を別R3で設計する。
-- Test Design Matrix can cite design decision IDs or source doc sections: yes; `docs/plans/test-matrices/2026-07-14-ci-synchronize-trigger.md`。
+- Test Design Matrix can cite design decision IDs or source doc sections: yes; `docs/archive/plans/test-matrices/2026-07-14-ci-synchronize-trigger.md`。
 
 ## Impact Review Lenses
 
@@ -210,3 +210,6 @@ Contract ID: SPEC-CI-SYNC-2026-07-14
 - Double Audit P3（accepted）: `PROJECT_HANDOFF.md`のCI現況がpublic初回dispatchとD-043を反映していなかった。現在状態と次PR dogfood境界を同期した。
 - Finding Closure: gated amendment `3c22dfb` を同じ独立reviewer 2名が凍結findingだけ再確認し、全件closed、P1=0 / P2=0。targeted、pre-push、Plan/full docs、clean `local-ci changed` が通過したため、`implementing -> local-verified -> independent-review -> human-confirm` の隣接遷移条件が揃った。
 - 2026-07-14 owner が Ready / merge / closeout を承認したが、先行して merge された public migration learning PR により live `main` と本PRが競合状態になった。新しい統合contentを未レビューのままReadyにしないため、`human-confirm -> implementing` に戻し、`main` 統合、検証、独立review、exact-HEAD evidenceを新HEADで再実施する。
+- main統合後のcontentをfresh independent Double Audit 2本で再確認し、P1/P2=0。CLEAN L1とReady後のexact-HEAD hosted finalもgreenとなり、PR #2をsquash mergeした。
+- 正当なmain競合復旧でSTATECAP上限に達した際、形式を満たすためのローカル履歴再構成を提案してしまった。owner指摘後、検証済みcontentを壊すreset/force updateを撤回し、手続例外と実質merge gateをPR本文へ明記して非破壊で完了した。詳細は同日WERを参照する。
+- Draft中のbranch更新では`pull_request.synchronize` eventが生成され、job-level guardによりrunner jobsがskipされた。Ready PR更新とcancellationの実eventは、次のnon-doc PRで継続dogfoodする。

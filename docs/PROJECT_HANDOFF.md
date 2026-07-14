@@ -4,7 +4,7 @@
 >
 > **更新ルール**: 会話で進展があるたびにこのファイルを更新する。各セクションは最新の状態を反映し、過去の経緯は「経緯ログ」セクションに蓄積する。
 >
-> **最終更新**: 2026-07-14 / public 化・初回 hosted CI green・学びのPublic同期まで完了。Public PR #1 squash merge（`713bdfc`）。次はCI `synchronize` trigger修正を独立R3 changeとして扱う（現在状態は `Plans.md` を優先）
+> **最終更新**: 2026-07-14 / CI `synchronize` trigger修正をPublic PR #2で完了。次はUI-13と、最初のnon-doc PRでのReady `synchronize` / cancellation dogfood（現在状態は `Plans.md` を優先）
 
 ---
 
@@ -33,9 +33,9 @@
 ### 直近の作業状態
 - **バックエンド**: 18テーブル DB / 5層分割（UI/CMD/BIZ/IO/MNT）/ Tauri Commands / 業務ロジック / バックアップ / 操作ログ / 診断ログ全て実装完了。テスト 561 本通過、clippy 警告ゼロ、fmt 準拠
 - **フロントエンド基盤**: React 19 + TypeScript + Tauri 2 + TanStack Router + TanStack Query + Tailwind CSS 4 + shadcn/ui + lefthook + ESLint 9 + tauri-specta 採用、UI-12 共通レイアウト + invoke ラッパ完成。Phase 1 残 follow-up: 7-6 Storybook / 7-7b axe or hooks coverage / 7-8a Error Boundary / 7-8b 横断UI / 7-8c unsaved changes
-- **直近 PR**: Public #1（Phase B goal-drift WER / D-045 / dashboard同期、merge `713bdfc`）
+- **直近 PR**: Public #2（CI `synchronize` trigger修正、merge `f63397c`）
 - **現在の参照先**: このファイルには Phase 2 初期の詳細が残っている。最新の進行状態、次アクション、ブロッカーは [Plans.md](../Plans.md) を優先する。
-- **直近完了**: public 化 Phase AとPhase Bを完了した。sanitized parentless snapshotをPublic repositoryへ移行し、public-writer cloneを通常開発用、旧private cloneをhistory-view専用として分離した。Public visibilityと初回hosted CI greenを確認済み。実行中のgoal driftと再発防止判断はPublic PR #1 squash merge（`713bdfc`）で [D-045](decision-log.md)、[WER](archive/plans/2026-07-14-public-repo-phase-b-goal-drift-workflow-effectiveness-review.md)、[archived Packet](archive/plans/2026-07-14-public-migration-learning-sync.md)へ同期した。次はCI `synchronize` trigger修正を独立R3 changeとして扱う。
+- **直近完了**: public 化 Phase A/Bと学びのPublic同期に続き、Public PR #2でCI `synchronize` trigger修正を完了した。Draft更新のevent生成とrunner skip、Ready exact-HEAD hosted finalを実動作確認済み。main競合復旧でSTATECAPが目的化した点は[WER](archive/plans/2026-07-14-ci-synchronize-trigger-workflow-effectiveness-review.md)へ記録し、generic補正契約は別R3へ送る。public-writer cloneを通常開発用、旧private cloneをhistory-view専用とする分離は継続する。
 - **直近完了**: UI-03 返品・交換 implementation は PR #107 squash merge 済み（`1c8ff66`、2026-06-27 JST）。`/inventory/return` route、generated `createReturn` / `listReturns` / `saveReceiptImage`、返品/交換 BIZ validation、商品検索、レシート画像 preview/drop/delete、冪等 retry、recent list、query invalidation、Windows native L3 feedback 対応まで完了した。
 - **直近完了**: Post UI-03 warning cleanup は PR #108 squash merge 済み（`a3e775a`、2026-06-27 JST）。`npm run build` の 500kB chunk warning と traceability `REQ-403` no-test WARN は既存系の修正として片付け済み。
 - **直近完了**: UI-05 廃棄・破損 implementation は PR #110 squash merge 済み（`0794342`、2026-06-27 JST）。`/inventory/disposal` route、generated `createDisposal` / `listDisposals`、商品検索、明細入力、保存結果、recent list、query invalidation、review-only sub-agent、Windows native L3 feedback 対応まで完了。理由入力 focus loss は L3 で発見し同 PR で修正済み。
@@ -127,7 +127,7 @@
 | バックエンド | `src-tauri/src/{db,biz,cmd,mnt}` 全層実装完了。リポジトリ 5 種（product / inventory / sales / stocktake / system）+ BIZ-01〜08 + CMD-01〜12 + MNT-01〜04。REQ-401 第1スライスとして日報取込み `daily_report_*` 系を追加中 |
 | フロントエンド基盤 | `src/` に config/navigation / components/layout / lib/{invoke,utils,env} / styles/globals.css / routes/__root.tsx + index.tsx |
 | Tauri capability | `src-tauri/capabilities/default.json` で `core:window:allow-set-title` 等を許可 |
-| CI / 静的検査 | D-033/D-043 の L0 pre-push / L1 `scripts/local-ci.sh` / L2 hosted final。shared classifier と shell fixtures、`scripts/{doc-consistency-check,check-env-safety}.sh`、lefthook。CI workflow は public repository で owner Enable 済み、main初回dispatch success、Draft/Ready event dogfood済み。`synchronize`復旧はFinal Review/Human Gate中で、実eventはmerge後最初のnon-doc PR、予算再評価は2026-08-01がfollow-up |
+| CI / 静的検査 | D-033/D-043 の L0 pre-push / L1 `scripts/local-ci.sh` / L2 hosted final。shared classifier と shell fixtures、`scripts/{doc-consistency-check,check-env-safety}.sh`、lefthook。CI workflow は public repository で owner Enable 済み、main初回dispatch success、Draft/Ready event dogfood済み。`synchronize`復旧済みでDraft更新のevent/runner skipも確認済み。Ready head更新/cancellationは最初のnon-doc PR、予算再評価は2026-08-01がfollow-up |
 | デモデータ | `src-tauri/src/bin/seed_demo_data.rs` + `src-tauri/src/seed_demo.rs`（rand seed 固定 `StdRng::seed_from_u64(42)`、冪等 `ON CONFLICT DO NOTHING` + `--reset` flag） |
 
 ### ヒアリングシートの構造
