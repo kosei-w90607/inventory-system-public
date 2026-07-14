@@ -194,7 +194,7 @@ navigation（`src/config/navigation.ts`）の ui-13 entry は `/settings/integri
 ### 75.16 Negative-space Audit
 
 - Q40の全アプリ共通Error Boundaryは本scope外。本画面固有のCmdError/retryを実装する。
-- `src/config/navigation.ts`変更は本scopeに含まれない。route自体だけを新設する。
+- `src/config/navigation.ts`のui-13 entry有効化はAmendment 4で追加scope化済み（§75.13参照。原scopeはroute新設のみだったが、owner実機確認で到達導線の欠落がGoal Invariant違反と判明し是正）。
 - fix成功と整合性再確認を同一視せず、「再チェック済み」を自動で主張しない。
 - 差異0件はempty dataではなく正常な成功結果として表示する。
 
