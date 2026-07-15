@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: implementing
+- Phase: ready-hosted-final
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: e5776ab
@@ -11,15 +11,18 @@
 - Writer: Codex（機能実装。発注 relay、owner がコピペ実行）/ Claude Sonnet subagent（visual polish pass、owner 指示 2026-07-15。非重複 ownership: `IntegrityCheckPage.tsx` の表示層に限定し、polish writer は Final Review の承認者にならない。実施タイミング: `implementing` 内で機能実装完了・local テスト green 後、independent-review **前**に一次実施。independent-review 後に visual finding が出た場合は通常規則どおり `implementing` へ戻して修正し再レビューする）
 - Plan Reviewer: independent Sonnet review context
 - Final Reviewer: independent Sonnet review context + Fable 裁定（P1/P2/P3）
-- Reviewed Content HEAD: 2299e853067466391f42fee3c263255ae95f72ab
+- Reviewed Content HEAD: ac2b6b9a6bc2381df449bd620bae396dbce03a32
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
-- Human Gate: Codex 発注 relay、Windows native L3 + owner visual confirmation、Ready/merge approval（Plan Gate approval は 2026-07-15 消化済み、介入 1 回目 / 予算 4 回）
+- Human Gate: none（全接点消化済み・いずれも 2026-07-15: Plan Gate approval = 介入 1 回目、relay 上限延長 = 介入 2 回目、L3 + owner visual confirmation + Amendment 5 是正指示 = 介入 3 回目、Ready/merge approval = 介入 4 回目 / 予算 4 回）
 
 Plan Gate record（append-only、plan-draft → plan-gate → plan-approved をこの commit で materialize）:
 
 - plan-draft → plan-gate: independent Sonnet plan review rally。round 1（P1×2 / P2×1 / P3×2、全件 accept・反映: polish pass の Phase 整合、L3 差異注入の fault-injection 疑義は `create_product` の初期在庫 movement 記録を実証して確定、remount/restart テスト追加、Impact Review Lenses 文言）/ round 2（P2×1 / P3×1、反映: Budget 超過理由の記録、D-043 の Design Sources 追記）/ round 3（新規指摘なし、Plan Gate 可）
 - plan-gate → plan-approved: owner 承認（2026-07-15、介入 1 回目 / 予算 4 回、「承認、実装発注へ」）
+- STATECAP 是正（2026-07-15、Coordinator、ready-hosted-final 遷移前の L1 full で検出）: Amendment 5 再走行の materialize を state-only 単独 commit（旧 60062e7、4 件目の forward state-only遷移）にしていたため、workflow-git gate が forward STATECAP 超過（4 > 3 / post-implementation 3 > 2）で FAIL。DEV_WORKFLOW compression 規則どおり当該遷移を本承認記録 commit（content 隣接）へ相乗りに再構成。対象は Reviewed Content HEAD `ac2b6b9` より後の docs 遷移 commit 2 件のみで、audited content・評価済み証跡の SHA は全て不変。下記「Amendment 5 是正後の再走行」entry の「単一 state-only commit で materialize」は本 commit への相乗りに読み替える（entry 本文は append-only のため改変しない）
+- human-confirm → ready-hosted-final（2026-07-15、owner 承認 = 介入 4 回目 / 予算 4 回、「承認で良いかな」）: Human Gate の Ready/merge 承認を消化。承認時に owner が「システム在庫/入出庫の合計」→「DB在庫/在庫」への簡略化を検討したが、実 operator 検証（「DB在庫」が意味を運ばなかった L3-3 実証）+ StocktakePage 既存列名「システム在庫」との画面間一貫性 + 2 数値比較画面での「在庫」単体の曖昧さを理由に現行語彙維持を実判断。この遷移は本承認記録 commit（content 隣接）に相乗りし forward STATECAP を消費しない
+- implementing → local-verified → independent-review → human-confirm（2026-07-15、Amendment 5 是正後の再走行、単一 state-only commit で materialize）: ① local-verified 証跡 = content candidate `ac2b6b9` での L1 full PASS / CLEAN / MERGE_EVIDENCE_VALID=true、② independent-review 証跡 = targeted re-reviewer（新規独立 context）が語彙変更の範囲・ロジック不変・旧語彙残置 0 件・73-ui UI-10-D10 との論理整合・テスト強度維持を確認、新規指摘なし、③ 裁定 = Fable、P1/P2/P3 = 0
 - human-confirm → implementing（2026-07-15、state-backtrack 2 回目、前回 backtrack とは複数の実作業 commit を挟み非隣接）: owner L3-3 の実 operator 検証で語彙 finding が確定し、owner 指示で本 PR 内是正（Amendment 5）。是正後、通常規則で forward を再走行する
 - implementing → local-verified → independent-review → human-confirm（2026-07-15、backtrack 後の再走行、単一 state-only commit で materialize、全遷移の証跡は commit 前に存在）: ① local-verified 証跡 = content candidate `83c57f9` での L1 full PASS / CLEAN / MERGE_EVIDENCE_VALID=true（1 回目の L1 は traceability T1 drift で FAIL → Amendment 3 範囲の generator 再生成で解消）、② independent-review 証跡 = targeted re-reviewer（新規独立 context）が audited content `2299e85` に対し Amendment 4 範囲外混入なし・到達テスト実質性・route 実配線成立を確認、新規 P1/P2 = 0 / P3 = 1（75-ui §75.16 の旧除外記述残置）、③ 裁定 = Fable、P3 を accept し reviewer 処方どおり doc 1 行訂正（`3778b97`）+ 生成物再生成（`45663d8`、diff は REQ-904 行への navigation.test.ts 追記のみを機械確認）。audited 後の content 変更はこの 2 件のみで、いずれも処方済み訂正 / generator 出力
 - human-confirm → implementing（2026-07-15、state-backtrack）: owner L3 で navigation 導線 disabled 残置（Goal Invariant 違反）が発覚。最早影響 phase = implementing へ単一 backward 遷移し、Amendment 4 の scope で是正後、通常規則で forward を再走行する。`Plan Commit` / `Reviewed Content HEAD` は保持（後者は再レビュー後に更新）
@@ -259,7 +262,9 @@ Do not transcribe exact-HEAD SHA or test counts here (D-035/D-038 Evidence Owner
 - 裁定（Fable）: P1 = 0 / P2 = 0 / P3 = 1
 - P3-1（backlog、本 PR 対象外）: `src-tauri/src/cmd/integrity_cmd.rs` の `test_fix_integrity_req904_empty_codes_validation` が `fix_integrity` 本体を呼ばず検証ロジックをテスト内で再実装している tautological test。本 PR の diff（specta 属性 2 行）に含まれず Amendment 許容範囲外のため修正しない。次に同ファイルへ手を入れる PR で `super::fix_integrity` 実呼び化する
 - visual polish 由来の follow-up 候補（owner visual confirmation で判断材料に）: 差異一覧の「DB在庫」列名・「DB在庫が多い」文言は operator に IT 略語を露出している。変更には 75-ui doc（§75.6 正本）+ テスト同期が必要なため polish では見送り
+- Amendment 5 の実 operator 事後検証（2026-07-15、owner の新文言確認中に届いた遅延返信）: 旧語彙「移動合計」への追加証言（「実在庫なのか売れた数なのか分からない」= 旧語彙の不通を再確認）と、新語彙「入出庫」への正しい読み（「仕入れと売れた数だよね」= 意図したメンタルモデルと一致）を同一 operator から取得。Amendment 5 の語彙選択が実 operator で検証されたため追加変更なしと裁定（Fable）
 - owner L3 実施結果（2026-07-15）: L3-0（サイドバー到達）pass / L3-1（差異なし実行 + 直近確認日時）pass / L3-2（running overlay、「在庫データを確認しています」を実機で目視、連打で二重実行なし）pass / L3-3 = 可読性 pass + 文言 finding（下記）。補足: owner 判断で synthetic DB に SQLite 直接操作で差異 2 件を仕込み、差異一覧・badge・補正 flow を非公式に目視（L3 証跡外の文言判断材料。実 operator = 店主の母による検証で「ラベル語彙（DB在庫/移動合計）は意味を運ばず、差異の +/- 数字から意味を構成した」「『チェックデジット不正』への疑問は synthetic テストデータの商品名であり画面文言 finding ではない」を確認）
 - post-freeze exception 2 件目（Amendment 5）: 実 operator 検証による語彙 finding。owner 指示により本 PR 内で是正（follow-up 切り出しより merge 時点完成を優先）
+- targeted re-review（Amendment 5 是正後、新規独立 context）: 語彙変更の範囲一致・differenceLabel 分岐/列順/className/a11y 不変・旧語彙残置 0 件・UI-10-D10「現在在庫」との使い分けは異なるデータモデル/改名理由で論理矛盾なし・assertion 強度維持。新規 P1/P2/P3 = 0
 - targeted re-review（Amendment 4 是正後、新規独立 context）: Amendment 4 範囲外の混入なし、navigation 型適合、到達テストは ui-11c 前例と同強度で tautological でない、route 実配線成立。新規 P1/P2 = 0 / P3 = 1（75-ui §75.16 旧記述残置 → 訂正済み）
 - Findings Freeze: frozen after Broad Audit（2026-07-15、independent Final Review 完了時点）; post-freeze exceptions: 1 件 — owner L3 で navigation 導線の disabled 残置（Goal Invariant「利用者が画面から実行できる」違反）を発見（2026-07-15）。freeze 後例外として許容する理由: owner の実機確認は freeze 対象外の検証面であり、かつ Goal Invariant 直撃のため defer 不可。Amendment 4 で gate し implementing へ backtrack して是正。**なお本 finding は plan 段階の登録義務列挙漏れ 4 件目（specta 属性 / compliance test / traceability / navigation）であり、Ledger にも「operator が画面に到達できる」導線契約の行が欠けていた（review が実装と doc の整合のみ検証し到達性を検証しない盲点）。WER の中心 lesson とする
