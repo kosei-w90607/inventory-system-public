@@ -1,6 +1,6 @@
 > **親文書**: [FUNCTION_DESIGN.md](../FUNCTION_DESIGN.md)
 > **入力ドキュメント**: ARCHITECTURE.md（UI-13 / REQ-904）、SCREEN_DESIGN.md（在庫整合性検証）、36-biz-integrity-check.md（BIZ-07）、42-cmd-sales-stocktake.md §22.7（CMD-11 integrity）、59-ui-shared-patterns.md（共有 UI 部品）
-> **Plan Packet**: [active plan](../plans/2026-07-15-ui13-integrity-check.md)（Design Phase 出典）
+> **Plan Packet**: [archived plan](../archive/plans/2026-07-15-ui13-integrity-check.md)（Design Phase 出典）
 
 ## 75. UI-13: 在庫整合性検証画面
 
