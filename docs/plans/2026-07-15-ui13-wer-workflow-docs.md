@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: human-confirm
+- Phase: ready-hosted-final
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: 1fbeb32
@@ -18,6 +18,7 @@
 
 Plan Gate record（append-only）:
 
+- human-confirm → ready-hosted-final（2026-07-15、state-only 遷移 commit）: Human Gate は owner 事前承認（介入 1 回目）+ round 2 P1-b の owner 再確認（介入 2 回目 / 予算 2）で消化済み。Ready と hosted `workflow_dispatch`（docs-only につき PR event filter、explicit dispatch 経路）は事前承認の範囲内として Coordinator が実行する
 - implementing → local-verified → independent-review → human-confirm（2026-07-15、本承認記録 content commit に相乗り、全遷移の証跡は commit 前に存在）: ① local-verified 証跡 = content candidate `ee2acc7` での L1 full PASS / CLEAN / MERGE_EVIDENCE_VALID=true（evidence は PR body 記載）、② independent-review 証跡 = Double Audit（同一フル Contract Audit を独立 context ×2 で冗長実施）。pass A: P1/P2/P3 = 0、Ledger 4 行全 pass、negative-space / drift / 回帰・迂回 / scope 逸脱すべて clean。pass B: P1/P2 = 0 / P3 = 1（packet 内 3 箇所の「8 項目」表記が round 3 の 9 token 化に未同期）、Ledger 4 行全 pass、③ 裁定 = Fable、P3 accept・処方どおり本 commit で訂正（Test Plan / Review Focus / Spec Contract の表記のみ、実装 diff への影響なし）。Human Gate は owner 事前承認消化済みにつき human-confirm の残項目なし
 - plan-gate → plan-approved → implementing（2026-07-15、単一 state-only commit で materialize、canonical compression）: plan review rally 4 round で収束（round 4: P1/P2/P3 = 0、「Plan Gate 可」）。Plan Commit = 1fbeb32（plan-first、実装 commit なしを ancestry で確認）。owner 事前承認は round 2 P1-b の owner 再確認で維持済み
 - plan review round 4（同 independent context、commit 1fbeb32 の diff に対して）: P1 = 0 / P2 = 0 / P3 = 0、新規指摘なし、Plan Gate 可
