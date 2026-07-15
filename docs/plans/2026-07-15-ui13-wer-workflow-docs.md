@@ -2,10 +2,10 @@
 
 ## Workflow State
 
-- Phase: plan-draft
+- Phase: implementing
 - Risk: R3
 - Execution Mode: fable-window
-- Plan Commit: pending
+- Plan Commit: 1fbeb32
 - Amendments: none
 - Coordinator: Fable
 - Writer: Fable（docs 3 file の軽微修正につき Coordinator 直接実装。自己承認回避のため Plan / Final review は独立 context に出す）
@@ -18,6 +18,8 @@
 
 Plan Gate record（append-only）:
 
+- plan-gate → plan-approved → implementing（2026-07-15、単一 state-only commit で materialize、canonical compression）: plan review rally 4 round で収束（round 4: P1/P2/P3 = 0、「Plan Gate 可」）。Plan Commit = 1fbeb32（plan-first、実装 commit なしを ancestry で確認）。owner 事前承認は round 2 P1-b の owner 再確認で維持済み
+- plan review round 4（同 independent context、commit 1fbeb32 の diff に対して）: P1 = 0 / P2 = 0 / P3 = 0、新規指摘なし、Plan Gate 可
 - plan review round 3（同 independent context）: P1 = 0 / P2 = 1（Matrix 行 2 が AC ⑨ 追随漏れ、Coordinator の round 2 反映時の同期漏れ）→ accept、処方どおり Matrix を AC と 1:1 再同期。⑤ rebut は reviewer が memory 原本と M2 checker 実体で裏取りし異論なしと確定
 - plan review round 2 P1-b の消化（2026-07-15）: owner 確認済み「維持して続行」（介入 2 回目 / 予算 2）。事前承認は維持、予算調整は Owner Effort Budget 調整記録参照
 - plan review round 2（同 independent context、round 1 反映後の commit c357d9e に対して）: P1 = 2 / P2 = 1、裁定 = Fable。P1-a（Double Audit のレンズ分割が正本の冗長設計に反する）→ accept、フル Contract Audit ×2 の冗長実施に修正。P1-b（Human Gate 失効条項を Writer 兼任 Coordinator が自己裁定で狭く再解釈）→ accept、owner に「round 1 P1 発生済みだが事前承認維持でよいか」を確認する（この確認が介入 2 回目になるため予算 1→2 の調整承認も同時に依頼）。P2（AC token の 1:1 対応不備）→ partial accept: ⑨「到達導線」token を追加し token → 表行対応を明記。⑤「必須セクション」の削除処方は rebut — memory checklist の実在義務（新設 function-design doc は compliance checker の必須セクション充足が必要）であり template 表行に文言として存在する
