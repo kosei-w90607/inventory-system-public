@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: ready-hosted-final
+- Phase: archive
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: 1fbeb32
@@ -18,6 +18,7 @@
 
 Plan Gate record（append-only）:
 
+- ready-hosted-final → merge → archive（2026-07-15、Post-Merge Closeout）: PR #7 squash merge（`a75be5d`）。hosted final = workflow_dispatch run success + 三点 SHA 一致（run URL / headSha は PR body）。本 commit で packet / matrix を `docs/archive/plans/` へ移動、WER は同ディレクトリ
 - human-confirm → ready-hosted-final（2026-07-15、state-only 遷移 commit）: Human Gate は owner 事前承認（介入 1 回目）+ round 2 P1-b の owner 再確認（介入 2 回目 / 予算 2）で消化済み。Ready と hosted `workflow_dispatch`（docs-only につき PR event filter、explicit dispatch 経路）は事前承認の範囲内として Coordinator が実行する
 - implementing → local-verified → independent-review → human-confirm（2026-07-15、本承認記録 content commit に相乗り、全遷移の証跡は commit 前に存在）: ① local-verified 証跡 = content candidate `ee2acc7` での L1 full PASS / CLEAN / MERGE_EVIDENCE_VALID=true（evidence は PR body 記載）、② independent-review 証跡 = Double Audit（同一フル Contract Audit を独立 context ×2 で冗長実施）。pass A: P1/P2/P3 = 0、Ledger 4 行全 pass、negative-space / drift / 回帰・迂回 / scope 逸脱すべて clean。pass B: P1/P2 = 0 / P3 = 1（packet 内 3 箇所の「8 項目」表記が round 3 の 9 token 化に未同期）、Ledger 4 行全 pass、③ 裁定 = Fable、P3 accept・処方どおり本 commit で訂正（Test Plan / Review Focus / Spec Contract の表記のみ、実装 diff への影響なし）。Human Gate は owner 事前承認消化済みにつき human-confirm の残項目なし
 - plan-gate → plan-approved → implementing（2026-07-15、単一 state-only commit で materialize、canonical compression）: plan review rally 4 round で収束（round 4: P1/P2/P3 = 0、「Plan Gate 可」）。Plan Commit = 1fbeb32（plan-first、実装 commit なしを ancestry で確認）。owner 事前承認は round 2 P1-b の owner 再確認で維持済み
@@ -88,7 +89,7 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 
 ## Design Sources
 
-- Requirements / spec: [UI-13 WER](../archive/plans/2026-07-15-ui13-integrity-check-workflow-effectiveness-review.md) Recommended Workflow Adjustment（Change 3 点）
+- Requirements / spec: [UI-13 WER](2026-07-15-ui13-integrity-check-workflow-effectiveness-review.md) Recommended Workflow Adjustment（Change 3 点）
 - Architecture: `docs/DEV_WORKFLOW.md`（Plan Packet Rules / Workflow State）
 - Function / command / DTO: 変更なし
 - DB: 変更なし
@@ -199,7 +200,7 @@ Contract ID: SPEC-WF-UI13WER
 
 Do not transcribe exact-HEAD SHA or test counts here (D-035/D-038 Evidence Ownership). Record a qualitative summary and the PR link only.
 
-- PR: （Draft PR open 後に記入）
+- PR: https://github.com/kosei-w90607/inventory-system-public/pull/7
 - 実装: `templates/plan-packet.md` へ Registration / Generation Obligations 節（義務表 5 行 + Ledger 到達導線標準行）と Contract Probe 是正仮適用 1 文、`DEV_WORKFLOW.md` へ probe 規定 1 bullet + materialize 局所検査 1 bullet。全て追加のみ（削除・変更行 0）
 - 新規則の self-dogfood: 本 change 自身の plan-approved materialize 直後に `check-workflow-git.sh` を局所実行し PASS を確認
 
