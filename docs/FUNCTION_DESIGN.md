@@ -1,6 +1,6 @@
 # 在庫管理システム 関数設計書
 
-> **最終更新**: 2026-07-11 / UI-11c 操作ログ画面 Design Phase 追加
+> **最終更新**: 2026-07-15 / UI-13 在庫整合性検証画面 Design Phase 追加
 > **入力ドキュメント**: ARCHITECTURE.md（タスク仕様）、DB_DESIGN.md（テーブル定義書）
 > **対象範囲**: 実装第1〜第4段階 + 第7段階 UI 基盤 (UI-12 共通レイアウト) + 第8段階 Phase 2 8-1 (UI-00 ホーム画面) + 8-2 (UI-07 売上データ取込み画面) + 8-6 (UI-shortcuts ショートカット一覧ダイアログ) + Phase 4 UI-11b バックアップ・復元 / UI-11a 閾値設定 / UI-10 棚卸し / UI-11c 操作ログ画面 Design Phase。後続段階は実装進行に合わせて追記する
 
@@ -51,13 +51,14 @@
 - UI-11a: 閾値設定画面（ThresholdSettingsPage、operator 名称「在庫少の基準」）— Design Phase 追加済み。QR系 / D-4、`/settings/thresholds` route、既存 `getSettings` / `updateSetting` 契約（新規 CMD なし）、在庫少基準 2 key 所有、整数 1〜99999 検証、部分失敗表示、Windows native L3 軽量 2 項目は [function-design/69-ui-threshold-settings.md](function-design/69-ui-threshold-settings.md) を参照
 - UI-10: 棚卸し画面（StocktakePage）— Design Phase 追加済み。REQ-205、`/stocktake` route、既存 CMD-10 4 コマンド（specta 化は実装 PR）+ 新規 `find_stocktake_item` / `get_last_completed_stocktake` 設計、検索/スキャン 1 発解決 + counted 済み上書き再入力常時許可、確定は常時確認ダイアログ（force_fill 文言分岐）+ total_cost 主役の結果画面、前回完了棚卸し比較、10-4a IPC channel 不採用確定、Windows native L3 5 項目は [function-design/73-ui-stocktake.md](function-design/73-ui-stocktake.md) を参照
 - UI-11c: 操作ログ画面（OperationLogsPage）— Design Phase 追加済み。REQ-902 / TRACE-D3、`/settings/logs` route、既存 `listLogs` への `start_date`/`end_date` 拡張（JST 暦日 inclusive/exclusive、row/count predicate 同一性）、新規 `list_log_operation_types` + IO `find_distinct_operation_types`（保持中ログ全体の distinct 種別、現在ページ由来を禁止）、canonical operation_type 日本語ラベル registry、detail_json 既知field要約+折りたたみraw JSON+安全上限、関連業務記録リンクの明示 contract（許可リスト、record_id は既存3 producerが書込み済みだが record_type が未対応のため発火0件、producer側追加はdefer）、範囲外page回復、empty 2系統、retry、REQ-902/905 traceability 是正、Windows native L3 8 項目は [function-design/74-ui-operation-logs.md](function-design/74-ui-operation-logs.md) を参照
+- UI-13: 在庫整合性検証画面（IntegrityCheckPage）— Design Phase 追加済み。REQ-904、`/settings/integrity` route、idle/running/completed lifecycle、generated `runIntegrityCheck` / `fixIntegrity`、operation log由来の直近確認日時、行単位選択 + 確認dialog、100件client-side paging、fix結果・skipped警告・retry選択保持、非色状態表示、Windows native L3 3項目は [function-design/75-ui-integrity-check.md](function-design/75-ui-integrity-check.md) を参照
 - UI-09a: 日次売上レポート画面（DailySalesPage / useDailySalesReport / useExportDailySalesCsv / calculate-unit-price / sort-items / group-items / filter-items / compute-summary / date-nav）+ TanStack Router validateSearch（zod 4 直接渡し）+ 2 useQuery 部分障害許容 + 1 useMutation Blob ダウンロード + 派生 5 純関数 + factory（業務ロジックあり版テンプレ、URL state + 2 useQuery + 派生 5 純関数 + 単価派生 + 部門小計テーブル + 主動線 CTA 配線パターン初適用）
 - UI-09b: 月次売上レポート画面（MonthlySalesPage / useMonthlySalesReport / compute-summary / compute-period-label / compute-comparison / compute-composition / pick-top-ranking / sort-items / format-month-label / month-nav）+ TanStack Router validateSearch（zod 4 mode/sortBy/sortDir）+ **1 useQuery + prev_month_comparison field 派生**（UI-09a 2 useQuery 機械的横展開でなく BIZ 設計前提に従う、Q-5）+ 共通 `useExportFile({ reportType })` 経由 CSV + 派生 6 純関数 + factory 2 種類 + TabsHeader 共通化 (`src/components/sales/`、router-driven) + Progress wrapper 配置（業務ロジックあり版テンプレ、1 useQuery + 失敗 4 状態 + DTO 不在情報 UI 派生回避パターン初適用）
 - 8-7 useExportFile: `src/lib/hooks/useExportFile.ts` 共通化（UI-09a useExportDailySalesCsv を wrapper 化、SalesReportType bindings import = drift 耐性、Sonner id `export-${reportType}-success/error`）
 - UI-06a: 在庫照会画面（StockInquiryPage / useStockInquiry / StockDetailContent / derive-stock-state / format-stock-display / format-last-date / filter-low-stock-list）+ TanStack Router validateSearch（zod 4 q/dept/status/selected）+ **2 useQuery 部分障害許容**（search_products | list_low_stock + get_stock_detail 独立、UI-09a 横展開）+ StockInquiryListResult 正規化型（PaginatedResult vs 配列の形状不一致吸収）+ 色分け契約 H + 検索駆動表示契約 I + toggle/toggle-group 新規 add（collapsible は F1 で未使用化、primitive 残置）+ CSV 取込み invalidation（業務ロジックあり版テンプレ、2 useQuery + 1 件自動展開 + selected 不在 clear + 選択行直下インライン展開 + HID スキャナ前提検索パターン初適用、初 Windows L3 デモ起因 F1/F2 修正済 Codex CLI Round 3-4）
 - UI-06c: 商品別在庫変動履歴（StockMovementsPage / useStockMovements / MovementTable / movement-formatters）+ TanStack Router validateSearch（zod 4 dateFrom/dateTo/type/page）+ **2 useQuery 部分障害許容**（get_stock_detail + list_movements）+ PR #112 `MovementRecord.source` contract による元業務記録リンク + 日本語 movement 種別 / 増減ラベル + Windows native L3
 
-UI 層の残り（UI-06b, UI-13）は未記載。
+UI 層の残り（UI-06b）は未記載。
 
 ---
 
@@ -144,6 +145,7 @@ UI 層の残り（UI-06b, UI-13）は未記載。
 - [UI-11a: 閾値設定（在庫少の基準）](function-design/69-ui-threshold-settings.md) — ThresholdSettingsPage, useThresholdSettings, useSaveThresholds, extract-thresholds（Design Phase 追加済み、QR系 / D-4、既存 getSettings / updateSetting 契約、所有 2 key 限定、整数 1〜99999 検証、dirty key のみ順次保存 + 部分失敗表示、Windows native L3 軽量 2 項目）
 - [UI-10: 棚卸し](function-design/73-ui-stocktake.md) — StocktakePage, useStocktakeStatus, useStocktakeItems, useUpdateCount, useCompleteStocktake, useFindStocktakeItem, useLastCompletedStocktake（Design Phase 追加済み、REQ-205、既存 CMD-10 4 コマンド + 新規 2 CMD 設計、検索/スキャン主動線 + 上書き再入力常時許可、常時確認確定 + force_fill 文言分岐、前回 total_cost 比較、10-4a channel 不採用確定、Windows native L3 5 項目）
 - [UI-11c: 操作ログ画面](function-design/74-ui-operation-logs.md) — OperationLogsPage, useOperationLogs（Design Phase 追加済み、REQ-902 / TRACE-D3、`/settings/logs` route、`listLogs` 期間拡張 + 新規 `list_log_operation_types`、canonical operation_type registry、detail_json 既知field要約+安全上限、関連記録リンク明示 contract、範囲外page回復、empty 2系統、retry、REQ-902/905 traceability 是正、Windows native L3 8 項目）
+- [UI-13: 在庫整合性検証画面](function-design/75-ui-integrity-check.md) — IntegrityCheckPage（Design Phase 追加済み、REQ-904、`/settings/integrity` route、idle/running/completed、generated integrity commands、直近確認日時、個別選択 + 確認dialog、100件paging、fix summary・skipped警告・retry選択保持、非色状態表示、Windows native L3 3項目）
 - [入出庫記録・在庫変動追跡 完成形](function-design/65-inventory-record-traceability.md) — REQ-206/207/208、入庫/返品・交換/手動販売/廃棄・破損/CSV取込み/棚卸しの一覧・詳細、在庫変動履歴との相互リンク、取消/訂正、操作ログとの役割分担
 
 ### トレーサビリティ

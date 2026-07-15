@@ -12,6 +12,7 @@ use tauri::State;
 /// 全商品の products.stock_quantity と SUM(inventory_movements.quantity) を突合。
 /// 読み取り専用。
 #[tauri::command]
+#[specta::specta]
 pub fn run_integrity_check(
     state: State<AppState>,
 ) -> Result<integrity_service::IntegrityResult, CmdError> {
@@ -26,6 +27,7 @@ pub fn run_integrity_check(
 ///
 /// stock_quantity を movements 合計値に補正し、操作ログに記録する。
 #[tauri::command]
+#[specta::specta]
 pub fn fix_integrity(
     state: State<AppState>,
     product_codes: Vec<String>,

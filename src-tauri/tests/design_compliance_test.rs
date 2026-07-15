@@ -259,6 +259,11 @@ fn build_doc_to_modules_map() -> HashMap<&'static str, Vec<&'static str>> {
         vec!["cmd::settings_cmd", "db::system_repo"],
     );
 
+    map.insert(
+        "75-ui-integrity-check.md",
+        vec!["cmd::integrity_cmd", "biz::integrity_service"],
+    );
+
     // Phase 6: 保守＋仕上げ（設計書作成済み、実装はPR-2以降）
     map.insert(
         "27-io-report-csv-exporter.md",
