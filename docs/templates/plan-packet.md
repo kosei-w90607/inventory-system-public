@@ -92,6 +92,20 @@ Use `docs/DEV_WORKFLOW.md` Design artifact selection to decide what must exist b
 | CSV / TSV / report / import / export format |  |  |
 | Durable decision / ADR |  |  |
 
+## Registration / Generation Obligations
+
+新規追加物に付随する登録・生成義務の checklist（UI-13 Amendment 1〜4 の failure class「plan 段階の列挙漏れ」対策）。該当する行の義務を Scope に明記し、R3/R4 では Contract Coverage Ledger にも契約行として反映してから Plan Gate に出す。該当なしなら `該当なし` と 1 行残す（節の削除はしない）。
+
+| 新規追加物 | 登録・生成義務 |
+|---|---|
+| Tauri command（frontend から呼ぶ） | `lib.rs` の specta `collect_commands` 登録 / command 関数への `#[tauri::command]` + `#[specta::specta]` 属性の対 / `cargo run --bin generate_bindings` での `bindings.ts` 再生成 |
+| function-design doc 新設 | `src-tauri/tests/design_compliance_test.rs` の `build_doc_to_modules_map()` へ entry 追加 / checker が要求する必須セクション（シグネチャ / 処理ステップ / エラーハンドリング）の充足 |
+| REQ coverage 追加（設計書・テスト追加） | `cargo run --bin generate_traceability` で `90-traceability.md` 再生成（AUTO-GENERATED、手動編集は禁止のまま） |
+| route 新設 | `npm run generate:routes`（routeTree 生成） |
+| operator 画面新設 | `src/config/navigation.ts` の entry 有効化（`to` + `status: "active"`）+ `navigation.test.ts` に REQ 番号入り到達テスト（ui-11c パターン）。「operator が画面に到達できる」到達導線契約を Contract Coverage Ledger の標準行として必ず立てる — route 直 render テストと doc 整合レビューは到達性を検証しない（UI-13 Amendment 4 の実例） |
+
+L1 full の生成系検査は bindings / frontend routes / traceability の 3 種。これらの義務を probe で検証する場合は Contract Probe の「是正を仮適用した状態で end-to-end」に従う。
+
 ## Design Intent Trace
 
 Use spec/requirement IDs as the root. Use child decision IDs such as `UI-01a-D1`, `BIZ-08-D2`, or `SPEC-WF-...-D1` when a design choice needs rationale.
@@ -145,6 +159,8 @@ Minimum design checks for business-app work:
 ## Contract Probe
 
 Required for R3/R4 plans that rely on an unverified external premise (external library behavior, OS/hardware behavior, etc.). Record the minimal experiment and its result as one line per premise. If not applicable, state N/A and the reason in one line instead of deleting the section.
+
+登録漏れ是正を含む probe は、是正を仮適用した状態で end-to-end に実行する — 未登録状態のままの probe は、登録後に初めて顕在化する義務（specta 属性欠落等）を検出できない（UI-13 Amendment 1 の教訓）。
 
 - <unverified external premise>: <experiment> -> <result>
 
