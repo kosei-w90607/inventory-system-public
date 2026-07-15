@@ -79,7 +79,7 @@
 
 ## 次の行動
 
-1. UI-13 WER 起源の workflow docs PR（軽量）: Plan Packet template へ登録・生成義務 checklist 常設 / Contract Probe「是正仮適用で end-to-end」明文化 / forward materialize commit 直後の `check-workflow-git.sh` 局所実行。詳細は [UI-13 WER](archive/plans/2026-07-15-ui13-integrity-check-workflow-effectiveness-review.md) Recommended Workflow Adjustment
+1. UI-13 WER 起源の workflow docs PR（R2、着手中。active packet: [plans/2026-07-15-ui13-wer-workflow-docs.md](plans/2026-07-15-ui13-wer-workflow-docs.md)）: Plan Packet template へ登録・生成義務 checklist 常設 / Contract Probe「是正仮適用で end-to-end」明文化 / forward materialize commit 直後の `check-workflow-git.sh` 局所実行。詳細は [UI-13 WER](archive/plans/2026-07-15-ui13-integrity-check-workflow-effectiveness-review.md) Recommended Workflow Adjustment
 2. PLU-24（JAN なし独自コード商品のレジでの売り方）を次回店舗接点で確認（issue #135 残項目）。
 3. slice 2 follow-up 群（軽量、単独 PR 可）: hook 統合導入（`.claude/hooks/` + settings.json、sandbox 書込み制約の外での作業が前提）/ `Amendments:` SHA 抽出の strict 化 / `check_plan_commit_ancestry` の section-scoped 抽出 / `check_signature_cross_reference` の pipefail 潜在バグ / no-active-plan check の導入（WARN から）。詳細は [archive/plans/2026-07-12-mechanical-workflow-slice2.md](archive/plans/2026-07-12-mechanical-workflow-slice2.md) Review Response と decision-log D-039。
 
