@@ -223,7 +223,7 @@ spike branch: `spike/invoke-specta`。
 | 商品一覧 / 検索（UI-01a） | 30s | 5min | CRUD 頻度中、数秒のキャッシュで十分 |
 | 商品詳細（UI-01b） | 0 | 5min | 編集画面から戻った時は即時再取得 |
 | 在庫照会（UI-00 ホーム / UI-06a） | 10s | 5min | CSV 取込み直後に即時反映したい |
-| 在庫少一覧（UI-06b） | 30s | 5min | 閾値表示、頻繁には変わらない |
+| 在庫少一覧（UI-06b） | 在庫照会（UI-06a）行と同一 | 同左 | 独立画面ではなく UI-06a `/stock` の `status=low_stock` フィルタへの deep-link（D-047）。`useStockInquiry` の同一クエリを使うため専用の staleTime/gcTime は持たない |
 | 変動履歴（UI-06c） | 1min | 10min | 過去データ中心、鮮度低優先 |
 | 日次売上（UI-09a） | 5min | 30min | 集計結果、頻繁には変わらない |
 | 月次売上（UI-09b） | 5min | 30min | 同上 |

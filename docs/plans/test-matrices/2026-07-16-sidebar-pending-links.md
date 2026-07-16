@@ -11,8 +11,8 @@ Risk: R3
 
 - REQ-101: サイドバー「商品登録」が `/products/new` で到達可能・active
 - REQ-302: サイドバー「在庫少一覧」が `/stock` + `search: { status: "low_stock" }` の deep-link で到達可能・active
-- UI-12-D1: `/stock` を指す 2 nav 項目（在庫照会・在庫少一覧）の排他 active 判定。「在庫少一覧」は `pathname === "/stock" && search.status === "low_stock"` のときのみ active、「在庫照会」は `pathname === "/stock"` かつ `search.status !== "low_stock"` のときのみ active
-- D-047: `navigation.ts` に `status: "pending"` の項目が 0 件（全 19 項目 active）
+- UI-12-D1: `/stock` を指す 2 nav 項目（在庫照会・在庫少一覧）の排他 active 判定。`NavItem.activeMatch?: { searchKey: string; is?: string; isNot?: string }` により、「在庫少一覧」は `activeMatch: { searchKey: "status", is: "low_stock" }`（`pathname === "/stock" && search.status === "low_stock"` のときのみ active）、「在庫照会」は `activeMatch: { searchKey: "status", isNot: "low_stock" }`（`pathname === "/stock"` かつ `search.status !== "low_stock"`。`status` 未指定（`undefined`）も `isNot` 成立扱いで active）のときのみ active。`status` が `"low_stock"` 以外の値（`"all"`/`"stockout"`/未知値）でも同様に「在庫照会」のみ active。判定対象の `searchKey` 以外の search param（`q`/`dept`/`selected` 等）は判定に影響しない
+- D-047: `navigation.ts` に `status: "pending"` の項目が 0 件（全 20 項目 active）
 - 既存契約（無変更）: `58-ui-stock-inquiry.md` §58.4 `validateSearch` zod schema、既存 17 active nav 項目の active/pending 判定
 
 ## Failure Modes
@@ -22,8 +22,11 @@ Risk: R3
 - `/stock`（search なし、または `status` が `low_stock` 以外）で「在庫照会」と「在庫少一覧」が両方非 active、または両方 active になる
 - 「在庫少一覧」クリックが `status=low_stock` 以外の search を付与してしまう、または既存 `q`/`dept`/`selected` 等の他 search key を意図せず上書き・混入する
 - `navigation.ts` の他 17 active 項目が本変更で誤って pending 化する、または既存 `to` が変わる
-- `NavItem.search` を optional にしたことで `search` を持たない既存項目の型・実行時挙動が変わる（regression）
+- `NavItem.search` / `NavItem.activeMatch` を optional にしたことで、どちらも持たない既存項目の型・実行時挙動が変わる（regression）
 - 排他判定が `includeSearch` 意味論（library 側デフォルト）に暗黙依存し、TanStack Router のバージョン更新で挙動が変わる
+- `status=stockout`（`"low_stock"` 以外の既知値）で「在庫照会」が active にならない、または「在庫少一覧」が誤って active になる
+- `status=low_stock` に加えて `q`/`dept` 等の他 search param が付くと、`searchKey` 以外を巻き込んで判定が壊れ「在庫少一覧」が active でなくなる、または「在庫照会」が同時に active になる
+- `SidebarLink` コンポーネント内に `"/stock"` 等の route 文字列がハードコードされ、`item.to` 経由の汎用比較になっていない（UI-12-D1 契約違反、レビューで検出すべき）
 
 ## Test Matrix
 
@@ -34,6 +37,8 @@ Risk: R3
 | D-047 | pending 項目の残置 | unit (vitest, `navigation.test.ts`) | `test_navigation_all_items_no_pending_status` | `navigation` 配列を `flatMap` した全項目のうち 1 件でも `status === "pending"` が残る |
 | UI-12-D1 | 在庫少一覧経路での二重 active / 非 active | component (vitest + RTL, `SidebarLink.test.tsx`, router search state mock `/stock?status=low_stock`) | `test_sidebarlink_ui12d1_low_stock_search_only_low_stock_entry_active` | `/stock?status=low_stock` で「在庫少一覧」リンクが active class/aria 相当を持たない、または「在庫照会」リンクが active になる |
 | UI-12-D1 | 在庫照会経路での二重 active / 非 active | component (vitest + RTL, `SidebarLink.test.tsx`, router search state mock `/stock`（search なし）と `/stock?status=all`） | `test_sidebarlink_ui12d1_plain_stock_only_inquiry_entry_active` | `/stock`（search なし、または `status` が `low_stock` 以外）で「在庫照会」リンクが active にならない、または「在庫少一覧」リンクが active になる |
+| UI-12-D1 | `status=stockout` での判定崩れ | component (vitest + RTL, `SidebarLink.test.tsx`, router search state mock `/stock?status=stockout`) | `test_sidebarlink_ui12d1_stockout_search_only_inquiry_entry_active` | `/stock?status=stockout` で「在庫照会」リンクが active にならない、または「在庫少一覧」リンクが active になる |
+| UI-12-D1 | 複合 search param での判定崩れ | component (vitest + RTL, `SidebarLink.test.tsx`, router search state mock `/stock?status=low_stock&q=毛糸`) | `test_sidebarlink_ui12d1_low_stock_with_extra_search_params_only_low_stock_entry_active` | `status=low_stock` に加え `q`（や `dept`/`selected`）等の他 search key が付いた URL で「在庫少一覧」リンクが active でなくなる、または「在庫照会」リンクが active になる（`searchKey` 以外の param が判定を壊してはいけない） |
 | UI-12-D1 | search 混入 / 上書き | component (vitest + RTL, `SidebarLink.test.tsx`) | `test_sidebarlink_ui12d1_navigates_with_status_low_stock_search_only` | 「在庫少一覧」クリックの navigate 呼び出しが `search: { status: "low_stock" }` 以外の key を含む、または `status` 以外の値になる |
 | 既存契約（回帰） | 既存 17 active 項目への副作用 | component (vitest + RTL, `Sidebar.test.tsx`) | 既存 snapshot/構造テストの更新（新規テスト名は実装 PR で既存パターンに追随） | `search` を持たない既存 nav 項目の active/pending 判定・遷移先が本変更前後で変わる |
 | 既存契約（無変更確認） | `/stock` の `validateSearch` schema drift | 検査（レビュー手順、テスト関数ではない） | `58-ui-stock-inquiry.md` §58.4 との対照レビュー | `src/routes/stock/index.tsx` の `searchSchema` を本変更で誤って触ってしまっている |
