@@ -15,6 +15,27 @@
 - [x] **P8 テスト品質**: tautological test（既知: `integrity_cmd.rs`。他にないか）、実配線を通らず手組み fixture だけで通るテスト、REQ トレース(テスト名)の一貫性、カバーの薄い契約
 - [x] **P9 統合**: P1〜P8 の findings を dedupe → 影響 × 労力で優先度付け → `report.md`（監査レポート + 是正リスト）を作成。**新規調査はしない**、統合のみ
 
+## 監査条件記録（2026-07-17 追記）
+
+第 1 パスの thread 設定は途中で意図せず変更されていた（session log で確定、原因は composer 下 model/reasoning control の誤操作と推定。auto-fallback・config 変更の記録なし）:
+
+- P0 / P1 / P2: `gpt-5.6-sol` / `xhigh`（P2 は切替 47 秒後 commit のためほぼ sol 実行）
+- **P3〜P9: `gpt-5.6-luna` / `low`**（23:18〜00:15 JST の 57 分間）
+
+Coordinator 裁定: 第 1 パス findings の精度は独立検証（上位 7/7 CONFIRMED、luna 窓の package 産を含む）で実証済みのため**破棄しない**。未知数なのは取りこぼし（recall）であり、下記「第 2 パス」で補完する。report の「確認できた健全な領域」の clean 宣言は第 2 パス完了まで暫定扱い。
+
+## 第 2 パス work packages（recall sweep、sol / xhigh で実行）
+
+各 package: 対応する第 1 パスの `findings/<pkg>.md` を先に読み、**既出 findings の再確認はせず、第 1 パスが見落としたものだけを狩る**。新規 findings は同ファイルに `### <PKG>b-<連番>` 形式で追記。新規ゼロなら「第 2 パス: 追加なし、確認範囲: …」を追記。00-order.md の全制約（証拠 + 害の経路、件数目標禁止、read-only）は同一に適用。
+
+- [ ] **P3b** error handling 一貫性（第 2 パス）
+- [ ] **P4b** 型・contract 重複(第 2 パス)
+- [ ] **P5b** 状態管理・データ取得(第 2 パス)
+- [ ] **P6b** dead code・残骸(第 2 パス)
+- [ ] **P7b** 可読性・慣用性・命名(第 2 パス。owner 品質観点の本丸、丁寧に)
+- [ ] **P8b** テスト品質(第 2 パス)
+- [ ] **P9b** 差分統合: 第 2 パスの新規 findings を report.md の是正リスト・健全領域・優先度へ反映（新規ゼロなら report に「第 2 パスで clean 宣言を確定」を追記）。adjudication.md は触らない（Coordinator の管轄）
+
 ## 進捗 log（package 完了ごとに 1 行追記）
 
 - 2026-07-16 23:07 JST / P0 / findings 0（台帳）/ frontend・backend・共有部品・層間依存の構造マップを作成

@@ -61,3 +61,4 @@ Goal Invariant: **「5 年間、記憶のない書き手たちが安全に触り
 - `git remote get-url origin` = `https://github.com/kosei-w90607/inventory-system-public.git`（SSH 形式も可、repo 名が `inventory-system-public` であること）
 - ブランチ: `agent/arch-audit-2026-07`
 - 検証コマンドの実行は可（`npm test` / `cargo test` / `rg` / LSP 等の read 系）。install 系・`npm audit fix`・依存変更は禁止
+- **model / effort 自己確認（2026-07-17 追加）**: 各 package の開始時に、自分の実行 model と reasoning effort を確認できる範囲で申告し、`gpt-5.6-sol` / `xhigh` でない・または不明な場合は停止して owner に報告する。背景: 2026-07-16 の第 1 パスで thread 設定が意図せず `gpt-5.6-luna` / `low` に変わったまま P3〜P8 が実行された（manifest の監査条件記録参照）。owner 側も checkpoint ごとに status line 先頭の model 表記を目視すること
