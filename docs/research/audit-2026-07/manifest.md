@@ -32,7 +32,7 @@ Coordinator 裁定: 第 1 パス findings の精度は独立検証（上位 7/7 
 - [x] **P4b** 型・contract 重複(第 2 パス)
 - [x] **P5b** 状態管理・データ取得(第 2 パス)
 - [x] **P6b** dead code・残骸(第 2 パス)
-- [ ] **P7b** 可読性・慣用性・命名(第 2 パス。owner 品質観点の本丸、丁寧に)
+- [x] **P7b** 可読性・慣用性・命名(第 2 パス。owner 品質観点の本丸、丁寧に)
 - [ ] **P8b** テスト品質(第 2 パス)
 - [ ] **P9b** 差分統合: 第 2 パスの新規 findings を report.md の是正リスト・健全領域・優先度へ反映（新規ゼロなら report に「第 2 パスで clean 宣言を確定」を追記）。adjudication.md は触らない（Coordinator の管轄）
 
@@ -52,6 +52,7 @@ Coordinator 裁定: 第 1 パス findings の精度は独立検証（上位 7/7 
 - 2026-07-17 00:36 JST / P4b / findings 2 / generated patch DTOとcross-language file上限contractをrecall sweep
 - 2026-07-17 00:40 JST / P5b / findings 3 / 棚卸し・売上CSV・閾値部分成功の横断cache invalidationをrecall sweep
 - 2026-07-17 00:44 JST / P6b / findings 2 / force-warn再分類とfrontend orphan config・stylesheetをrecall sweep
+- 2026-07-17 00:50 JST / P7b / findings 3 / React render-phase ref・内部route遷移・PLU/CSV語彙をrecall sweep
 
 ## 越境メモ（package scope 外で気づいた事項、1 行ずつ）
 

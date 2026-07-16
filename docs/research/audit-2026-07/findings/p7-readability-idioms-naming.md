@@ -51,3 +51,32 @@
 - 提案方向: lifecycle を再述するコメントを削り、必要な状態説明は navigation SSOT から参照する。
 - 想定労力: S
 - 確度: 確実
+
+## 第 2 パス（recall sweep）
+
+### P7b-1: 画面状態を保持する2つの ref が render 中に読み書きされる
+- 観点: 可読性・慣用性・命名
+- 証拠: `src/features/operation-logs/OperationLogsPage.tsx:141`、`src/features/operation-logs/OperationLogsPage.tsx:143`、`src/features/operation-logs/OperationLogsPage.tsx:145`、`src/features/disposal/DisposalPage.tsx:123`、`src/features/disposal/DisposalPage.tsx:183`、`src/features/disposal/DisposalPage.tsx:209`、`src/features/disposal/DisposalPage.tsx:230`、`package.json:38`
+- 害の経路: 回帰リスク / 状態の不決定性 — 操作ログは render 中に「直前の有効な検索条件」を ref へ書き、その ref を同じ render の query key・表示 pagination に使う。廃棄画面も render 中に form lock を ref へ書き、非同期商品検索の完了後にその値で結果反映を許否する。React が render を再試行・破棄した場合、commit されなかった render の値が共有 ref に残り、表示していない検索条件の一覧を保持したり、実際の画面と異なる lock 判定で候補を反映・破棄したりし得る。
+- repo 規範との対照: 本 repo は React 19 を採用している。React 公式 [`useRef` reference](https://react.dev/reference/react/useRef) は初期化を除く render 中の `ref.current` 読み書きを予測不能として禁止しているが、`eslint-plugin-react-hooks` は `package.json:64` の 5.2.0 で、`eslint.config.js:43` の recommended lint を通ってもこの2箇所は検出されない。
+- 提案方向: 直前の有効な検索条件は state/effect など commit 後に更新されるスナップショットへ、非同期 callback 用の最新 lock は effect/event 境界で同期する ref へ移し、対応可能な hooks lint で render-phase ref access を guard する。
+- 想定労力: M
+- 確度: 確実
+
+### P7b-2: アプリ内遷移が TanStack `Link` と生の `<a href>` に分裂している
+- 観点: 可読性・慣用性・命名
+- 証拠: `src/main.tsx:10`、`src/main.tsx:24`、`src/features/inventory-records/InventoryRecordsPage.tsx:320`、`src/features/inventory-records/ManualSaleRecordDetailPage.tsx:86`、`src/features/inventory-records/ManualSaleRecordDetailPage.tsx:104`、`src/features/operation-logs/OperationLogsPage.tsx:103`、`src/features/stock-movements/StockMovementsPage.tsx:61`、`src/features/receiving/ReceivingPage.tsx:612`、`docs/design-system/02-component-catalog.md:36`
+- 害の経路: 一貫性破壊 / 変更コスト増 — 履歴一覧→詳細、詳細→戻る、在庫照会、操作ログ関連記録などの内部導線が raw anchor で document navigation を起こす一方、同じ `Button asChild` の内部導線は別画面で router `Link` を使う。raw anchor 側では React root・Router・module-scope QueryClient が作り直され、in-memory cache とローカル UI state を失って再取得するため、どの導線だけ full reload になるかを利用側から予測できない。型付き route/search からも外れ、route 変更時の追従点を増やしている。
+- repo 規範との対照: `src/main.tsx:3`、`:43` は TanStack Router をアプリの遷移基盤とし、component catalog もアプリ内 action を `<Link to=...>` で例示する。`ReceivingPage` 等の既存導線はこの慣用に従うが、少なくとも履歴・在庫・日報・操作ログの複数 feature が raw anchor を選んでいる。
+- 提案方向: 外部資源以外の導線を TanStack `Link` / router navigation に統一し、動的 route と search/returnTo も typed builder から生成する。
+- 想定労力: M
+- 確度: 確実
+
+### P7b-3: PLU書出しが内部名と公開エラー分類で CSV取込み語彙を引きずる
+- 観点: 可読性・慣用性・命名
+- 証拠: `src-tauri/src/io/plu_formatter.rs:3`、`src-tauri/src/io/plu_formatter.rs:31`、`src-tauri/src/io/plu_formatter.rs:33`、`src-tauri/src/io/plu_formatter.rs:96`、`src-tauri/src/io/plu_formatter.rs:165`、`src-tauri/src/biz/plu_export_service.rs:40`、`src-tauri/src/biz/plu_export_service.rs:170`、`src-tauri/src/biz/plu_export_service.rs:171`、`src-tauri/src/cmd/plu_export_cmd.rs:18`、`src-tauri/src/cmd/plu_export_cmd.rs:104`、`src-tauri/src/biz/mod.rs:58`、`src-tauri/src/biz/mod.rs:77`
+- 害の経路: 読み手の混乱 / 誤った分岐の誘発 — 実体と MIME は CP932 の tab-separated `.txt` なのに IO 型は `PluCsvOutput`、BIZ field は `csv_output`、CMD comment まで同名を伝播する。さらに formatter 失敗を CSV取込み専用の `BizError::ImportError` へ変換するため、CMD は書出し失敗を機械可読な `kind="import_error"` として返し、ログ表示も「インポートエラー」になる。将来 `import_error` を取込み画面の cache 消失・ファイル再選択分岐として共通化すると、PLU書出しまで誤って同じ recovery に入る。
+- repo 規範との対照: `docs/quality/review-checklist.md:44` は「PLU = CV17向け `.txt` タブ区切り、Z004 = CSV」を固定し、`docs/function-design/41-cmd-pos.md:92` は `import_error` を CSV取込み固有案内のために新設したと説明する。`PluCsvOutput` は serde response ではなく、CMD が `PluExportPrepareResponse` へ詰め替える内部型なので、コメントの「互換維持」は frontend IPC contract の制約になっていない。
+- 提案方向: 内部型・field を `PluFileOutput` / `plu_output` 等の実体語彙へ改名し、formatter failure は取込み専用ではない error variant / kind へ分離する。
+- 想定労力: M
+- 確度: 確実
