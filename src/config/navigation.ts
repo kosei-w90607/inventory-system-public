@@ -35,6 +35,8 @@ export interface NavItem {
   label: string;
   title: string;
   to: string | null;
+  search?: Record<string, string>;
+  activeMatch?: { searchKey: string; is?: string; isNot?: string };
   icon: LucideIcon;
   status: NavStatus;
 }
@@ -46,7 +48,7 @@ export interface NavArea {
   items: readonly NavItem[];
 }
 
-/// 4 エリア × 19 項目。Phase 2 daily 5 画面は route 実装済みで active。
+/// 4 エリア × 20 項目。Phase 2 daily 5 画面は route 実装済みで active。
 /// Phase 3/4 以降で各画面着手時に to を実 path に + status を "active" に切り替える。
 export const navigation: readonly NavArea[] = [
   {
@@ -83,6 +85,7 @@ export const navigation: readonly NavArea[] = [
         label: "在庫照会",
         title: "在庫照会",
         to: "/stock",
+        activeMatch: { searchKey: "status", isNot: "low_stock" },
         icon: Search,
         status: "active",
       },
@@ -113,9 +116,9 @@ export const navigation: readonly NavArea[] = [
         id: "ui-01b-new",
         label: "商品登録",
         title: "商品登録",
-        to: null,
+        to: "/products/new",
         icon: PackagePlus,
-        status: "pending",
+        status: "active",
       },
       {
         id: "ui-01c",
@@ -184,9 +187,11 @@ export const navigation: readonly NavArea[] = [
         id: "ui-06b",
         label: "在庫少一覧",
         title: "在庫少一覧",
-        to: null,
+        to: "/stock",
+        search: { status: "low_stock" },
+        activeMatch: { searchKey: "status", is: "low_stock" },
         icon: AlertTriangle,
-        status: "pending",
+        status: "active",
       },
       {
         id: "ui-10",
