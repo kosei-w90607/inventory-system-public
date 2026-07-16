@@ -42,3 +42,23 @@
 - 提案方向: production で必要な metadata だけを parser contract に残すか、必要な詳細をBIZの診断経路へ接続する。
 - 想定労力: S
 - 確度: 確実
+
+## 第2パス（recall sweep）
+
+### P6b-1: 現役仕様のVite環境フラグがexportだけ残り、production graphに接続されていない
+- 観点: dead code・残骸
+- 証拠: `src/lib/env.ts:12`、`src/lib/env.ts:13`、`src/main.tsx:44`、`src/vite-env.d.ts:4`、`src/vite-env.d.ts:5`、`docs/UI_TECH_STACK.md:595`、`docs/UI_TECH_STACK.md:606`、`scripts/check-env-safety.sh:43`
+- 害の経路: 読み手の混乱 / 一貫性破壊 — `isDebug` / `isMockMode` はどのproduction moduleからもimportされず、devtoolsは別条件 `import.meta.env.DEV` で表示され、mock切替も存在しない。それでも型宣言・正本・production safety guardは両flagを現役contractとして扱うため、書き手は `VITE_DEBUG` / `VITE_MOCK_MODE` を設定すれば挙動が変わると誤認し、効かない診断・mock手段の調査に時間を使う。
+- repo 規範との対照: `docs/UI_TECH_STACK.md:595`〜`:606` は両flagの用途と `src/lib/env.ts` helperを正式採用し、`scripts/check-env-safety.sh:43` もproduction混入をfailureにするが、runtime consumerがない。
+- 提案方向: flagを実際のconsumerへ接続するか、仕様・型・guardとともに退役させる。
+- 想定労力: S
+- 確度: 確実
+
+### P6b-2: 未参照App.cssが旧Viteのglobal selector一式を残している
+- 観点: dead code・残骸
+- 証拠: `src/main.tsx:6`、`src/App.css:8`、`src/App.css:49`、`src/App.css:59`、`src/App.css:63`、`src/App.css:94`、`docs/UI_TECH_STACK.md:79`、`docs/UI_TECH_STACK.md:82`
+- 害の経路: 読み手の混乱 / 回帰リスク — entrypointはtokenベースの `styles/globals.css` だけを読む一方、慣例的な名前の `App.css` は `:root`、全anchor・heading・input・button、独自dark modeを含む旧scaffold stylesheetのまま残る。新しい書き手が通常のVite構成だと思ってimportすると、design-system wrapperの色・余白・focusを全画面で上書きする残骸になっている。
+- repo 規範との対照: `docs/UI_TECH_STACK.md:79`〜`:82` はTailwind 4とshadcn tokenをstyling正本とし、実entrypointも `src/main.tsx:6` でそのglobal CSSだけをimportする。旧global stylesheetの残置方針は規範未定義。
+- 提案方向: 未参照の旧scaffold stylesheetを削除する。
+- 想定労力: S
+- 確度: 確実
