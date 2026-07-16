@@ -42,3 +42,32 @@
 - 提案方向: 意図的な除外 file を名前で allowlist 化し、domain test は対応 ID を保持する検査へ切り替える。
 - 想定労力: M
 - 確度: 確実
+
+## 第 2 パス（recall sweep）
+
+### P8b-1: Z004取込みの中核 hook が test では丸ごと mock され、実配線を一度も通らない
+- 観点: テスト品質
+- 証拠: `src/features/csv-import/CsvImportPage.test.tsx:9`、`src/features/csv-import/CsvImportPage.test.tsx:10`、`src/features/csv-import/CsvImportPage.test.tsx:23`、`src/features/csv-import/hooks/useCsvImportFlow.ts:21`、`src/features/csv-import/hooks/useCsvImportFlow.ts:67`、`src/features/csv-import/hooks/useCsvImportFlow.ts:72`、`src/features/csv-import/hooks/useCsvImportFlow.ts:94`、`src/features/csv-import/hooks/useCsvImportFlow.ts:134`、`src/features/csv-import/hooks/useCsvImportFlow.ts:166`
+- 害の経路: 回帰リスク — page test は `useCsvImportFlow` を常に idle の手組み object に置換して tab label だけを検査し、repository-wide test search に実 hook の import はない。したがって 20MB early reject、File→bytes変換、parse/commit/rollback の command 引数、`import_error` の idle recovery、rollback failure の state 維持、importing 中の `useBlocker`、成功後 invalidation のいずれを削除・反転しても reducer test と page test は green のままになる。
+- repo 規範との対照: `docs/function-design/55-ui-csv-import.md:224`〜`:258` と `:344`〜`:365` は3 mutation・error recovery・navigation block を画面 contract とする。同種の `useDailyReportImportFlow` は `src/features/daily-report-import/hooks/useDailyReportImportFlow.test.tsx:182` 以降で実 hook を QueryClient に接続し、command・state・invalidation まで検査している。
+- 提案方向: daily report の既存 pattern を使って `useCsvImportFlow` 自体を renderHook し、入口 guard、3 mutation の成功/失敗、kind別 recovery、blocker、必要 consumer invalidation を公開挙動として検査する。
+- 想定労力: M
+- 確度: 確実
+
+### P8b-2: ホームの4 query orchestration と日付またぎが手組み表示 fixture の外に残る
+- 観点: テスト品質
+- 証拠: `src/features/home/hooks/useHomeSummary.ts:16`、`src/features/home/hooks/useHomeSummary.ts:19`、`src/features/home/hooks/useHomeSummary.ts:31`、`src/features/home/hooks/useHomeSummary.ts:40`、`src/features/home/hooks/useHomeSummary.ts:49`、`src/features/home/hooks/useHomeSummary.ts:63`、`src/features/home/hooks/useYesterdayDate.ts:19`、`src/features/home/hooks/useYesterdayDate.ts:22`、`src/features/home/HomePage.tsx:30`、`src/features/home/HomePage.tsx:37`、`src/features/home/HomePage.tsx:53`、`src/features/home/components/SummaryCards.test.tsx:24`、`src/features/home/components/SummaryCards.test.tsx:52`
+- 害の経路: 回帰リスク — home の test は `UseQueryResult` と全 derived 値を手で組み立てて `SummaryCards` に渡すため、実際の4 command / query key /引数を通らない。`needsImportWarning` の `< yesterday` を壊す、`listCsvImports(1, 1)` を誤配線する、visibility listener を外して日付またぎ後も前々日の query key を使う、PLU・取込み履歴失敗 toast を削除する、といった operator-facing 回帰が full frontend suite を通過する。
+- repo 規範との対照: `docs/function-design/53-ui-home.md:102`〜`:125` は4 query と24時またぎ再fetchを、`:174`〜`:207` は独立した部分障害表示と前日未取込み警告を contract 化する。一方 `:287` の「Vitest未着手のため後続」は現在も残り、純関数 `count-stock-status` の test だけが追加されて orchestration の後続課題が回収されていない。
+- 提案方向: mock commands + QueryClient で `useHomeSummary` の4 query・派生値・部分障害独立性を、fake Date + `visibilitychange` で日付またぎを、`HomePage` integration で2 toast と未取込み警告を検査する。
+- 想定労力: M
+- 確度: 確実
+
+### P8b-3: DB移行・restore test は成功/早期NotFoundだけを通り、WAL失敗とデータ意味論を検査しない
+- 観点: テスト品質
+- 証拠: `src-tauri/src/db/mod.rs:304`、`src-tauri/src/db/mod.rs:310`、`src-tauri/src/db/mod.rs:314`、`src-tauri/src/db/mod.rs:353`、`src-tauri/src/mnt/backup.rs:696`、`src-tauri/src/mnt/backup.rs:700`、`src-tauri/src/mnt/backup.rs:752`、`src-tauri/src/mnt/backup.rs:771`、`src-tauri/src/cmd/settings_cmd.rs:587`、`src-tauri/src/cmd/settings_cmd.rs:602`、`src-tauri/src/cmd/settings_cmd.rs:607`
+- 害の経路: 回帰リスク — legacy migration の「WAL test」は `main` / `wal` / `shm` という平文ファイルの存在だけを確認し、WAL にのみ commit 済み row がある実 SQLite snapshot を再openしない。restore の3 test は正常置換・存在しないbackup・migration成功だけで、CMDの「recovery after failure」も rename 前に返る NotFound を使う。そのため WAL copy failure を成功扱いする P3b-1 と WAL evacuation failure 後も置換を続ける P3b-2 が、backend全test green のまま残った。
+- repo 規範との対照: `docs/function-design/71-mnt-backup.md:58` は WAL mode 下のデータ整合性を restore contract とし、`src-tauri/src/db/mod.rs:195` も legacy DB を3ファイルセットとして定義する。現 test はファイル名・存在の構造だけを守り、障害時に「元 snapshot または新 snapshot のどちらか一方」という意味的完了条件を固定していない。
+- 提案方向: 未checkpoint commit を含む実 SQLite WAL fixture を新パスで再openして row を検証し、destination collision / rename failure（または注入可能な file-ops）で各段階を失敗させ、部分DBを残さず元 snapshot が再接続可能であることを検査する。
+- 想定労力: M
+- 確度: 確実
