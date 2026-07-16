@@ -171,10 +171,33 @@ fn restore_backup(
 
 **MNT-01-D1: 退避は一式成功が必須、失敗時は置換前に中止**
 
-- 決定: 上記ステップ2/4 のとおり。checkpoint 失敗の非致命扱いは「旧 DB 一式を退避できた場合」に限定し、WAL/SHM の退避失敗を warn 継続にしない
+- 決定: 上記ステップ2/4 のとおり。checkpoint 失敗の非致命扱いは「旧 DB 一式を退避できた場合」に限定し、WAL/SHM の退避失敗を warn 継続にしない。「checkpoint 失敗」には SQL としては成功したが `PRAGMA wal_checkpoint(TRUNCATE)` の戻り行（busy / log / checkpointed の 3 列）が busy = 1 を示す不完全 checkpoint を含む — SQL 実行の成否だけで checkpoint 完了と判定しない
 - Why: checkpoint が失敗し WAL の退避も失敗した状態で本体だけ置換すると、旧 WAL が元の `{db_path}-wal` に残ったまま新 snapshot の `{db_path}` へ接続が開かれ、旧 WAL の再生で選択時点より後の変更が混入するか接続が失敗し得る（監査 P3b-2）。「指定 backup へ安全に復元」の成否を warn で決めてはならない
 - Rejected alternatives: WAL 退避失敗時に WAL を削除して続行（checkpoint 失敗時の WAL は退避対象のデータそのものであり、削除は旧 DB 側の復元可能性を壊す）
 - 見直し契機: restore の実装を接続 API ベース（`rusqlite::backup` 等）へ置き換えるとき
+
+**MNT-01-D4: 失敗時の復旧再接続は no-create、復旧不能は recoverable に偽装しない（PR #14 Codex P1-1）**
+
+- 決定: restore の失敗は「**退避復元済み**（元 DB 一式を元の名前へ戻せた）」と「**状態不明/未復旧**（巻き戻し失敗・二重失敗を含む）」を区別して呼び出し元へ伝える。CMD 層の復旧再接続は次の契約に従う:
+  - 「退避復元済み」の場合のみ再接続を試みる。再接続は **create 能力のない open**（`SQLITE_OPEN_CREATE` を含まない `open_with_flags`）で行い、成功時のみ recoverable（再試行可能エラー）として返す
+  - 「状態不明/未復旧」の場合、または no-create 再接続が失敗した場合は、再接続を試みず unrecoverable（`アプリを再起動してください` を含む既存文言）を返す
+  - 区別の伝搬は message 文字列比較に依存せず型・variant レベルで行う（DbError の variant 追加か戻り値の構造化かは実装 PR1 で確定）
+- Why: 現行 CMD パターンの `db::init_database` による復旧は create 能力を持つため、二重失敗で main が `{db_path}.restore_backup` 側に残ったまま `{db_path}` が不在の状態では**空 DB を新規作成して migration まで成功**し、復旧不能な状態が recoverable として UI（68 §68.7 の `restore_failed_recovered`）に渡る。operator は「現在のデータに戻した」と誤認して空 DB へ入力を続ける — 本設計が塞ぐべき空 DB 隠蔽経路そのもの
+- Rejected alternatives: 現行の create-capable `init_database` による復旧（上記の偽装経路）/ message 文字列での分岐追加のみ（文字列は契約として脆く、監査 P3-4 = 順 8 で是正予定の分裂をさらに深める）
+- 見直し契機: 順 8（error 表示 contract 統一)で CmdError に相関 ID / kind 拡張が入るとき
+
+**MNT-01-D5: restore の中断（process/power interruption）復旧契約（PR #14 Codex P1-2）**
+
+- 決定: 逐次 rename は I/O エラーには MNT-01-D1 で巻き戻せるが、プロセス中断・電源断には原子的でない。次の marker + 起動時 reconcile で「元 snapshot または新 snapshot のどちらか一方が完全な形で残り再接続可能」の不変条件を再起動をまたいで保証する:
+  - restore は最初のファイル mutation より前に durable marker `{db_path}.restore_inprogress` を作成し、**成功時は新接続確立の直後（退避ファイル削除より前）**、失敗時は巻き戻し完了後に削除する。ファイル mutation（退避 rename / 本体コピー / 巻き戻し）は marker 存在下でのみ行う
+  - 起動シーケンス（lib.rs）は `init_database` より前に reconcile を実行する: marker または `.restore_backup` 遺物が存在する場合、**DB を開かず・新規作成もせず**、次の決定論的規則で解消してから通常起動に進む
+    - marker **あり** = 復元は未完 → 退避一式（`.restore_backup`）を正とし、`{db_path}` 一式（部分コピーの可能性）を削除して退避を元の名前へ戻し、marker を削除する
+    - marker **なし** + 退避遺物あり = 復元は完了済みで掃除だけが中断 → `{db_path}` 一式を正とし、退避遺物を削除する
+  - reconcile 自体の失敗は起動中止（MNT-03-D4 と同じ fail-closed + operator 可視化）とし、遺物を残したまま `init_database` に進んで空 DB を作ることを禁止する
+  - reconcile は **legacy 移行判定（22 §12）より前に**実行する。restore 中断で `{db_path}` が不在の間に legacy 移行判定が走ると「新 DB 無し」と誤認して旧 CWD DB を publish し得るため、順序は reconcile → legacy 移行判定 → `init_database` で固定する
+- Why: 退避 rename 後・コピー完了前に中断すると `{db_path}` が不在になり、現行起動は `init_database` が空 DB を新規作成して実データ（退避側に無傷で存在）を隠蔽する。marker の有無を「`{db_path}` を信頼してよいか」の判定基準にすることで、全中断タイミングで解消先が一意に決まる。marker 削除を退避削除より前に置くのは、成功後の掃除中断を「main 優先」で解消するため
+- Rejected alternatives: attempt ごとの一意 staging 名 + manifest（単一 instance のデスクトップ app には過剰で、固定名 + marker で決定論を確保できる。多重 attempt の残骸は reconcile が毎起動で先に解消する）/ reconcile なしで「退避があれば常に戻す」（成功後の掃除中断で完了済みの復元が巻き戻り、operator の操作結果を無効化する）
+- 見直し契機: single-instance ガード（Plans.md backlog）導入時、または restore を接続 API ベースへ置き換えるとき
 5. バックアップファイルを `{db_path}` にコピー
 6. `db::init_database(db_path)` で新しい接続を作成
    - PRAGMA再設定＋マイグレーション実行が含まれる
@@ -192,11 +215,11 @@ fn restore_backup(
    e. 退避からの復元も失敗した場合 → `DbError::QueryFailed` で致命的エラー
 
 **重要: 失敗時の契約**
-- `restore_backup` は失敗時に `Err(DbError)` を返す。この時点でDBファイルは退避から復元済みだが、有効なDbConnectionは返さない
+- `restore_backup` は失敗時に「退避復元済み」か「状態不明/未復旧」かを区別できる `Err` を返す（MNT-01-D4）。有効なDbConnectionは返さない
 - **CMD層が `?` で早期returnすると、Mutex内がdummy接続のまま残り、以降の全コマンドが失敗する**
-- CMD層は必ず `match` で処理し、`Err` パスでも `init_database` で有効な接続を再確立してguardに入れること
+- CMD層は必ず `match` で処理する。`Err` パスの再接続は MNT-01-D4 に従う: 「退避復元済み」の場合のみ **no-create open** で再接続し、それ以外（状態不明/未復旧、または no-create 再接続の失敗）は unrecoverable（再起動誘導文言）を返す。create 能力のある `init_database` を復旧再接続に使ってはならない
 
-**CMD層での呼び出しパターン**:
+**CMD層での呼び出しパターン**（設計レベルの擬似コード。error 型の具体形は実装 PR1 で確定）:
 ```
 let mut guard = state.db.lock().map_err(|_| CmdError::internal(...))?;
 let dummy = rusqlite::Connection::open_in_memory().map_err(...)?;
@@ -208,14 +231,27 @@ match mnt::backup::restore_backup(old_conn, &backup_path, &db_path) {
         *guard = new_conn;
         Ok(())
     }
-    Err(e) => {
-        // restore_backup内で退避からDBファイルは復元済み
-        // dummy接続を有効な接続に差し替える（これを怠ると以降全コマンド死亡）
-        match db::init_database(db_path.to_str().unwrap_or("")) {
-            Ok(recovered) => *guard = recovered,
-            Err(e2) => tracing::error!(error = %e2, "DB接続の復旧にも失敗"),
+    Err(restore_err) if restore_err.is_evacuation_restored() => {
+        // 退避復元済み: no-create open で再接続（空 DB を新規作成しない。MNT-01-D4）
+        match db::open_existing(&db_path) {  // SQLITE_OPEN_CREATE なしの open + PRAGMA 再設定
+            Ok(recovered) => {
+                *guard = recovered;
+                Err(CmdError::internal(&format!("バックアップの復元に失敗: {}", restore_err)))
+            }
+            Err(e2) => {
+                tracing::error!(error = %e2, "DB接続の復旧にも失敗");
+                Err(CmdError::internal(
+                    "バックアップの復元に失敗し、DB接続の復旧もできませんでした。アプリを再起動してください",
+                ))
+            }
         }
-        Err(CmdError::internal(&format!("バックアップの復元に失敗: {}", e)))
+    }
+    Err(restore_err) => {
+        // 状態不明/未復旧: 再接続を試みず unrecoverable（68 §68.7 の terminal 分岐へ）
+        tracing::error!(error = %restore_err, "復元後の DB 状態が確定できません");
+        Err(CmdError::internal(
+            "バックアップの復元に失敗し、DB接続の復旧もできませんでした。アプリを再起動してください",
+        ))
     }
 }
 ```
@@ -339,12 +375,19 @@ pub fn resolve_backup_dir(conn: &DbConnection, app_data: &Path) -> Result<PathBu
 | `test_check_auto_backup_mnt01_already_backed_up` | 今日のバックアップありでスキップ |
 | `test_check_auto_backup_mnt01_scheduled_time` | backup_time到達で2回目のバックアップ実行 |
 
-**失敗注入テスト（実装 PR の完了条件、監査 P8b-3 起源）**: 成功系・早期 NotFound 系だけでは MNT-01-D1〜D3 の契約を検証できない。以下を restore / cleanup / 設定読取の実装変更と同じ PR に含め、ファイル名・存在の構造検査ではなく「障害後に元 snapshot または新 snapshot のどちらか一方が完全な形で残り、再接続可能」という意味的完了条件を検証する。
+**失敗注入テスト（実装 PR の完了条件、監査 P8b-3 起源）**: 成功系・早期 NotFound 系だけでは MNT-01-D1〜D5 の契約を検証できない。以下を restore / cleanup / 設定読取の実装変更と同じ PR に含め、ファイル名・存在の構造検査ではなく「障害後に元 snapshot または新 snapshot のどちらか一方が完全な形で残り、再接続可能」という意味的完了条件を検証する。
+
+**fixture / 注入の必須条件（PR #14 Codex P2-4）**: 偽陽性（旧実装でも green になるテスト）を防ぐため次を必須とする。
+- 実 WAL fixture: SQLite は最後の接続の clean close で WAL を checkpoint して削除するため、「書いて閉じただけ」の DB は WAL frame を持たない。`wal_autocheckpoint=0` を設定するか作成側接続を開いたまま保持し、**テスト実行前に WAL ファイルが非自明なサイズ（frame を含む）で存在することを assert** してから対象処理を実行する
+- ファイル操作の失敗注入: destination collision や権限変更は OS ごとに失敗にならない場合がある（Rust の `rename` は既存 destination を置換し得る）。rename / copy / remove の失敗は **注入可能な file-ops 抽象（failpoint）** で決定論的に起こす
+- checkpoint の成否判定: `PRAGMA wal_checkpoint(TRUNCATE)` は SQL としては成功しても busy を返し得る。テストは戻り行 3 列（busy / log / checkpointed）を検査し、busy = 1 の不完全 checkpoint を明示的に作る系を含める
 
 | テスト | 検証内容 |
 |---------|---------|
-| restore 退避失敗注入（MNT-01-D1） | 未 checkpoint の commit 済み row を WAL に持つ実 SQLite DB で、WAL/SHM の退避 rename を失敗させ（destination collision または注入可能な file-ops）、本体置換が行われず元 DB が WAL 込みで再接続可能なことを検証 |
-| restore 成功系の WAL 意味論（MNT-01-D1） | checkpoint 成功/失敗の両系で、restore 後の DB がバックアップ時点のデータのみを持ち、旧 WAL の変更が混入しないことを再 open + row 検証で確認 |
+| restore 退避失敗注入（MNT-01-D1） | 上記条件を満たす実 WAL fixture で、WAL/SHM の退避 rename を failpoint で失敗させ、本体置換が行われず元 DB が WAL 込みで再接続可能なことを検証 |
+| restore 成功系の WAL 意味論（MNT-01-D1） | checkpoint 完了/busy 両系で、restore 後の DB がバックアップ時点のデータのみを持ち、旧 WAL の変更が混入しないことを再 open + row 検証で確認 |
+| 二重失敗の unrecoverable 化（MNT-01-D4） | 巻き戻し失敗を注入して main 不在の状態を作り、CMD 復旧が空 DB を新規作成せず unrecoverable を返すことを検証（現行の create-capable 復旧では空 DB が作られ recoverable に化けることの回帰固定） |
+| 中断 reconcile（MNT-01-D5） | 各ファイル mutation 直後で処理を打ち切る failpoint で中断状態（marker あり main 不在 / marker あり main 部分 / marker なし退避遺物あり）を作り、起動時 reconcile 後に元 DB 一式（または完了済み restore 結果）が再接続可能で遺物ゼロなことを検証 |
 | retention 読取失敗（MNT-01-D3） | `backup_retention_days` の読取 DB error / 非数値値を注入し、cleanup が実行されず（削除 0 件）warn が記録されることを検証 |
 | retention 未設定（MNT-01-D3） | 設定行なしで既定 3 日が適用されることを検証（既存挙動の固定） |
 | resolve_backup_dir の DB error（MNT-01-D2） | `get_setting` の DB error 注入で `Err` が返ることを検証（未設定/空文字 → 既定 dir と区別） |
