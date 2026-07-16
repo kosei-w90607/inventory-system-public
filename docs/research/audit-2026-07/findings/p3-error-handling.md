@@ -42,3 +42,23 @@
 - 提案方向: internal の利用者向け表現と診断相関情報を共通 error 境界で一元化する。
 - 想定労力: M
 - 確度: 確実
+
+## 第2パス（recall sweep）
+
+### P3b-1: 旧DB移行が WAL コピー失敗後も成功扱いになり、部分DBを確定する
+- 観点: error handling 一貫性
+- 証拠: `src-tauri/src/db/mod.rs:195`、`src-tauri/src/db/mod.rs:207`、`src-tauri/src/db/mod.rs:212`、`src-tauri/src/db/mod.rs:214`、`src-tauri/src/db/mod.rs:219`、`src-tauri/src/db/mod.rs:229`、`src-tauri/src/db/mod.rs:304`
+- 害の経路: 回帰リスク / 一貫性破壊 — 本体を先にコピーした後、存在する WAL のコピー失敗を warn だけで捨てて `Ok(true)` を返すため、WAL にだけ残る commit 済み在庫・売上更新を欠いた新DBが起動対象になる。新DB本体は既に存在するので次回起動も移行を skip し、欠落を自動回復できない。
+- repo 規範との対照: `src-tauri/src/db/mod.rs:195` は移行 contract を WAL/SHM を含む「3ファイルセット」と明記し、`docs/DB_DESIGN.md:169` は SQLite を WAL mode で運用すると定める。`.claude/rules/implementation-quality.md:41` の best-effort 継続は補助ファイル失敗が許容される場合に限るが、この経路は WAL を欠いた部分移行を許容可能とする根拠を持たない。
+- 提案方向: WAL が存在する移行ではそのコピー失敗を致命扱いにし、部分コピーを残さない。
+- 想定労力: M
+- 確度: 確実
+
+### P3b-2: restore が現DBの WAL 退避失敗後も別スナップショットを同じ basename へ開く
+- 観点: error handling 一貫性
+- 証拠: `src-tauri/src/mnt/backup.rs:255`、`src-tauri/src/mnt/backup.rs:279`、`src-tauri/src/mnt/backup.rs:291`、`src-tauri/src/mnt/backup.rs:295`、`docs/function-design/71-mnt-backup.md:58`、`docs/function-design/71-mnt-backup.md:162`、`docs/function-design/71-mnt-backup.md:166`、`docs/function-design/71-mnt-backup.md:303`
+- 害の経路: 回帰リスク / 一貫性破壊 — checkpoint が失敗し、続く WAL rename も失敗しても処理を続け、現DBの WAL を元の `{db_path}-wal` に残したまま選択した backup を `{db_path}` へコピーして接続を開く。旧 WAL の再生で選択時点より後の変更が混入するか接続が失敗し得るため、「指定backupへ安全に復元」の成否を warn だけで決めてしまう。
+- repo 規範との対照: `docs/function-design/71-mnt-backup.md:58` は WAL mode でもデータ整合性を保証するとし、同 `:163` が checkpoint 失敗を非致命とする根拠は旧DBを退避・上書きすることにある。同 `:166` の WAL 退避自体が失敗した場合にもその根拠を適用する仕様はなく、実装は失敗注入テストも持たない。
+- 提案方向: 残存 WAL を退避・除去できない場合は本体置換前に restore を中止する。
+- 想定労力: M
+- 確度: 確実
