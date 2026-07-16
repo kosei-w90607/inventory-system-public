@@ -4,7 +4,7 @@
 
 ## Work packages（実施順）
 
-- [ ] **P0 構造マップ**: frontend（`src/features` / `src/components` / `src/routes` / `src/lib` / `src/config`）と backend（`src-tauri/src` の cmd / biz / io / mnt）のモジュール目録、層間依存の概観、共有部品の目録（どの画面が何を再利用し、何を独自実装しているか）。findings ではなく台帳（`findings/p0-structure-map.md`）を作る — 以降の package が参照する土台
+- [x] **P0 構造マップ**: frontend（`src/features` / `src/components` / `src/routes` / `src/lib` / `src/config`）と backend（`src-tauri/src` の cmd / biz / io / mnt）のモジュール目録、層間依存の概観、共有部品の目録（どの画面が何を再利用し、何を独自実装しているか）。findings ではなく台帳（`findings/p0-structure-map.md`）を作る — 以降の package が参照する土台
 - [ ] **P1 部品重複・再利用逸失（frontend）**: 複数画面で類似実装が独立に存在する箇所（既知: SortableHeader、plain file input。他にないか）。design-system component catalog との突合
 - [ ] **P2 層境界（backend + IPC）**: 機械検査（design compliance test）が捕捉しない違反 — CMD 層のビジネスロジック混入、BIZ 迂回、IO 層からの上位参照、frontend からの command 呼び出し経路の一貫性（bindings.ts 経由の統一性）
 - [ ] **P3 error handling 一貫性**: 層別エラー型規約（DbError/BizError/CmdError）の遵守、握りつぶし・catch-all の残存、frontend 側のエラー表示パターン（toast / インライン / ダイアログ）の画面間一貫性
@@ -17,7 +17,7 @@
 
 ## 進捗 log（package 完了ごとに 1 行追記）
 
-（未着手）
+- 2026-07-16 23:07 JST / P0 / findings 0（台帳）/ frontend・backend・共有部品・層間依存の構造マップを作成
 
 ## 越境メモ（package scope 外で気づいた事項、1 行ずつ）
 
