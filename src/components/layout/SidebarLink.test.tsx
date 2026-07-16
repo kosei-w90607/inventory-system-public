@@ -10,7 +10,8 @@
 // active 判定されることを data-status="active" 属性で検証する (クラス hardcode は脆い)。
 
 import { describe, it, expect } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import {
   createRootRoute,
   createRoute,
@@ -21,9 +22,11 @@ import {
 import { Search } from "lucide-react";
 
 import { SidebarLink } from "./SidebarLink";
+import { SidebarArea } from "./SidebarArea";
+import { navigation } from "@/config/navigation";
 import type { NavItem } from "@/config/navigation";
 
-// navigation.ts の在庫照会 NavItem (to: "/stock") 相当。単一 NavItem で十分 (19 項目は不要)。
+// navigation.ts の在庫照会 NavItem (to: "/stock") 相当。単一 NavItem で十分 (20 項目は不要)。
 const stockItem: NavItem = {
   id: "ui-06a",
   label: "在庫照会",
@@ -33,8 +36,17 @@ const stockItem: NavItem = {
   status: "active",
 };
 
-function renderAt(initialPath: string) {
-  const rootRoute = createRootRoute({ component: () => <SidebarLink item={stockItem} /> });
+const stockNavigationAreas = navigation.filter(
+  (area) => area.id === "daily" || area.id === "inventory",
+);
+if (stockNavigationAreas.length !== 2) {
+  throw new Error("daily and inventory navigation areas are required for SidebarLink tests");
+}
+
+function renderAt(initialPath: string, content = <SidebarLink item={stockItem} />) {
+  const rootRoute = createRootRoute({
+    component: () => content,
+  });
   const indexRoute = createRoute({
     getParentRoute: () => rootRoute,
     path: "/",
@@ -50,7 +62,23 @@ function renderAt(initialPath: string) {
     routeTree,
     history: createMemoryHistory({ initialEntries: [initialPath] }),
   });
-  return render(<RouterProvider router={router} />);
+  return { router, ...render(<RouterProvider router={router} />) };
+}
+
+function renderStockNavigationAt(initialPath: string) {
+  return renderAt(
+    initialPath,
+    <>
+      {stockNavigationAreas.map((area) => (
+        <SidebarArea key={area.id} area={area} />
+      ))}
+    </>,
+  );
+}
+
+function expectOnlyActive(activeLabel: string, inactiveLabel: string) {
+  expect(screen.getByRole("link", { name: activeLabel })).toHaveAttribute("aria-current", "page");
+  expect(screen.getByRole("link", { name: inactiveLabel })).not.toHaveAttribute("aria-current");
 }
 
 describe("SidebarLink (PR-1 B1: search params 付き URL の active 維持)", () => {
@@ -59,5 +87,50 @@ describe("SidebarLink (PR-1 B1: search params 付き URL の active 維持)", ()
 
     const link = await screen.findByRole("link", { name: "在庫照会" });
     expect(link).toHaveAttribute("data-status", "active");
+  });
+});
+
+describe("SidebarLink UI-12-D1: 同一 route の排他 active", () => {
+  it("test_sidebarlink_ui12d1_low_stock_search_only_low_stock_entry_active", async () => {
+    renderStockNavigationAt("/stock?status=low_stock");
+
+    await screen.findByRole("link", { name: "在庫少一覧" });
+    expectOnlyActive("在庫少一覧", "在庫照会");
+  });
+
+  it.each(["/stock", "/stock?status=all"])(
+    "test_sidebarlink_ui12d1_plain_stock_only_inquiry_entry_active: %s",
+    async (initialPath) => {
+      renderStockNavigationAt(initialPath);
+
+      await screen.findByRole("link", { name: "在庫照会" });
+      expectOnlyActive("在庫照会", "在庫少一覧");
+    },
+  );
+
+  it("test_sidebarlink_ui12d1_stockout_search_only_inquiry_entry_active", async () => {
+    renderStockNavigationAt("/stock?status=stockout");
+
+    await screen.findByRole("link", { name: "在庫照会" });
+    expectOnlyActive("在庫照会", "在庫少一覧");
+  });
+
+  it("test_sidebarlink_ui12d1_low_stock_with_extra_search_params_only_low_stock_entry_active", async () => {
+    renderStockNavigationAt("/stock?status=low_stock&q=%E6%AF%9B%E7%B3%B8");
+
+    await screen.findByRole("link", { name: "在庫少一覧" });
+    expectOnlyActive("在庫少一覧", "在庫照会");
+  });
+
+  it("test_sidebarlink_ui12d1_navigates_with_status_low_stock_search_only", async () => {
+    const user = userEvent.setup();
+    const { router } = renderStockNavigationAt("/");
+
+    await user.click(await screen.findByRole("link", { name: "在庫少一覧" }));
+
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe("/stock");
+      expect(router.state.location.search).toEqual({ status: "low_stock" });
+    });
   });
 });

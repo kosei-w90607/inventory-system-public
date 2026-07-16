@@ -52,7 +52,7 @@
 
 > **2026-04-21 注記**: 下記の緑/青/オレンジ/黄は初期モックアップ作成時の色分け表記。**色分け廃止が確定**（正典: [design-system/00-foundations.md](design-system/00-foundations.md)「4色エリアモデルの扱い」）したため、実装ではエリアラベルの識別はアイコン + 区切り線で行う（色は使わない）。色情報はモックアップアーカイブとして残す。詳細は [docs/archive/plans/2026-04-21-ui-12-design-agreement.md §1.2](archive/plans/2026-04-21-ui-12-design-agreement.md) 参照。
 >
-> **2026-05-08 注記**: 4 エリア × 19 項目の最終確定形は `src/config/navigation.ts`（`NavStatus` / `NavItem` / `NavArea` 型 + `navigation` 定数）として実装済み。SCREEN_DESIGN は意図ドキュメント、`navigation.ts` が実装の正ソース。新規画面追加時は `navigation.ts` も更新する（[docs/function-design/52-ui-shared-layout.md §52.3](function-design/52-ui-shared-layout.md) 参照）。
+> **2026-05-08 注記**: 4 エリア navigation の最終確定形（項目数は `navigation.ts` を正とし、本書には転記しない）は `src/config/navigation.ts`（`NavStatus` / `NavItem` / `NavArea` 型 + `navigation` 定数）として実装済み。SCREEN_DESIGN は意図ドキュメント、`navigation.ts` が実装の正ソース。新規画面追加時は `navigation.ts` も更新する（[docs/function-design/52-ui-shared-layout.md §52.3](function-design/52-ui-shared-layout.md) 参照）。
 
 - **緑（毎日の業務）**: 売上データ取込み → 日次売上レポート → 在庫照会 → 月次売上レポート
 - **青（商品管理）**: 商品検索・一覧 → 商品登録 / 商品修正 / 一括インポート、PLU書出し
@@ -203,7 +203,7 @@
 - **レイアウト判断**:
   - REQ-301（商品別照会）とREQ-302（在庫切れ/少一覧）を統合した1画面
   - 検索バー（商品コード / 商品名 / JAN。バーコードスキャナは HID キーボード入力として検索欄に入る前提、Phase 2 では専用スキャンボタンなし）＋部門フィルタ＋状態チップ（すべて / 在庫切れ / 在庫少）
-  - チップのワンクリックで在庫切れ一覧、在庫少一覧に切替可能。Phase 2 ではチップ上の件数バッジは表示しない（件数 contract は Phase 4 UI-06b/c または count API 設計時に再評価）
+  - チップのワンクリックで在庫切れ一覧、在庫少一覧に切替可能。Phase 2 ではチップ上の件数バッジは表示しない（件数 contract は Phase 4 UI-06c または count API 設計時に再評価。在庫少一覧は独立画面ではなく本画面の `status=low_stock` フィルタへのサイドバー deep-link として D-047 で確定済み）
   - 商品クリックで詳細カードが展開。在庫数/売価/原価/最終入庫日/最終販売日を表示
   - 詳細カードから「商品修正」「在庫変動履歴」「入庫記録」へ直接遷移
 - **利用者配慮**:
@@ -358,7 +358,7 @@
 
 ### UI-06a Phase 2 実装前スコープ調整（2026-05-20）
 - **専用スキャンボタンは Phase 2 では実装しない**: バーコードスキャナは HID キーボードとして検索欄に入力される前提（UI_TECH_STACK.md §5.3）。Phase 2 は検索欄 focus + Enter 検索 + 1 件なら自動展開までに限定し、専用スキャン UX / 連続スキャン検知は Phase 3 UI-01a/UI-02 の HW 連携時に再評価する
-- **状態チップは件数なしの単純ラベル**: `すべて / 在庫切れ / 在庫少` のフィルタ操作に限定する。件数バッジは検索条件・部門フィルタ・count contract の意味が絡むため、Phase 4 UI-06b/c または count API 設計時に再評価する
+- **状態チップは件数なしの単純ラベル**: `すべて / 在庫切れ / 在庫少` のフィルタ操作に限定する。件数バッジは検索条件・部門フィルタ・count contract の意味が絡むため、Phase 4 UI-06c または count API 設計時に再評価する
 - **在庫少判定は BIZ を正とする**: `list_low_stock` が BIZ 側で `stock_low_threshold` / `stock_low_threshold_fabric` を適用した集合を返す。frontend は閾値を持たず、その集合を `stock_quantity <= 0`（在庫切れ）/ `stock_quantity > 0`（在庫少）に分ける
 - **変更理由**: 古いモックアップの「スキャン」ボタン / 「在庫少 12件」チップをそのまま実装すると、未着手 HW 連携や件数 contract が実装済みに見える。Phase 2 では scope と UX honesty を優先する
 
@@ -395,7 +395,7 @@ UI-04 は `/inventory/manual-sale` で、レジCSVに入らない販売を手入
 UI-05 は `/inventory/disposal` で、廃棄・破損による在庫減算とロス記録を残す。保存結果や保存系エラーはページ先頭側に出るため、保存成功または command 失敗時はページ先頭へスクロールする。詳細な route / command / validation / L3 確認項目は `docs/function-design/64-ui-disposal.md` を正とする。
 
 **Phase 4: 在庫特殊 + システム管理7画面（`v1.0.0` タグ目標）**
-- UI-06b/c 在庫少一覧 / 変動履歴（REQ-302/303）
+- UI-06c 在庫変動履歴（REQ-303）。在庫少一覧（REQ-302）は D-047 により UI-06a `status=low_stock` フィルタへの deep-link で完了済み、独立画面なし
 - UI-08 PLU書出し（REQ-402、SD カード経由実機確認は Phase 4 着手時）
 - UI-10 棚卸し（REQ-205、Design Phase 追加済み。中断再開は status 自動判別、IPC channel は 10-4a 判定で不採用確定）
 - UI-11a/b/c 設定 / バックアップ / 操作ログ

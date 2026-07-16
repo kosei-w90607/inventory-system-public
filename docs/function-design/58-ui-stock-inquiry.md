@@ -19,6 +19,7 @@
 ### 58.1 概要
 
 - **対応 REQ**: REQ-301（SP-301-01〜03、商品別在庫照会）+ REQ-302（SP-302-01〜04、在庫切れ/少一覧）。REQ-303（在庫変動履歴）は UI-06c `/stock/$code/movements` への active link で接続する
+- **サイドバー「在庫少一覧」との関係（D-047、2026-07-16）**: UI-06b「在庫少一覧」は独立画面 `/stock/low` を作らず、サイドバーから本画面 `/stock` への `search: { status: "low_stock" }` deep-link として提供する。既存の `status` StatusChips フィルタ（§58.4/§58.10）をそのまま再利用し、REQ-302 の常設到達導線を担う。`/stock` を指すサイドバー 2 項目（在庫照会・在庫少一覧）の排他 active 判定は `docs/function-design/52-ui-shared-layout.md` §52.6 UI-12-D1 を参照
 - **対応 task**: UI-06a（[ARCHITECTURE.md §UI-06a](../architecture/ui-task-specs.md)）
 - **呼び出す CMD**:
   - list query: `search_products(query: ProductSearchQuery)`（status === "all"）または `list_low_stock(includeDiscontinued: boolean)`（status === "stockout" | "low_stock"）
@@ -120,7 +121,7 @@ export type PaginatedResult<T> = {
 
 | 配置 | ファイル | 責務 | 規模 |
 |---|---|---|---|
-| 新規 | `src/components/ui/collapsible.tsx` | Radix Collapsible wrapper（`accordion.tsx` パターン踏襲、`@radix-ui/react-collapsible` は `radix-ui: ^1.4.3` umbrella transitive 既存）。※ F1 で StockDetailCard がインライン展開化したため現在未使用（primitive 残置、Phase 4 UI-06b/c 等で再利用余地） | 20-30 |
+| 新規 | `src/components/ui/collapsible.tsx` | Radix Collapsible wrapper（`accordion.tsx` パターン踏襲、`@radix-ui/react-collapsible` は `radix-ui: ^1.4.3` umbrella transitive 既存）。※ F1 で StockDetailCard がインライン展開化したため現在未使用（primitive 残置、UI-06c 等で再利用余地。UI-06b は D-047 により独立画面化しないため対象外） | 20-30 |
 | 新規 | `src/components/ui/toggle.tsx` | Radix Toggle wrapper（StatusChips の ToggleGroup item 基盤、`@radix-ui/react-toggle` 既存） | 30-45 |
 | 新規 | `src/components/ui/toggle-group.tsx` | Radix ToggleGroup wrapper（StatusChips の 3 チップ用、`@radix-ui/react-toggle-group` 既存） | 40-60 |
 
@@ -524,7 +525,7 @@ function StockInquiryPage() {
 | やらないこと | 理由 | 責務を持つモジュール |
 |---|---|---|
 | 専用スキャンボタン実装 | Phase 2 では専用スキャンボタンは実装しない。バーコードスキャナは HID キーボード入力として検索欄に入る前提で、検索欄 focus + Enter 検索まで対応する。専用スキャン UX / 連続スキャン検知は Phase 3 UI-01a/UI-02 の HW 連携時に再設計する | Phase 3 UI-01a / UI-02（HW 連携） |
-| 状態チップ件数バッジ | Phase 2 では状態チップに件数バッジを表示しない。理由: 件数の意味が検索条件・部門フィルタ・在庫少閾値 contract と結合し、追加 query / count contract が必要になるため。在庫切れ・在庫少件数の常時把握はホームサマリ（UI-00）で提供し、UI-06a ではチップをフィルタ操作に限定する | Phase 4 UI-06b/c または count API 設計時に再評価 |
+| 状態チップ件数バッジ | Phase 2 では状態チップに件数バッジを表示しない。理由: 件数の意味が検索条件・部門フィルタ・在庫少閾値 contract と結合し、追加 query / count contract が必要になるため。在庫切れ・在庫少件数の常時把握はホームサマリ（UI-00）で提供し、UI-06a ではチップをフィルタ操作に限定する | Phase 4 UI-06c または count API 設計時に再評価（UI-06b は独立画面ではないため対象外、D-047） |
 | 在庫変動履歴の本体実装 | UI-06c で `/stock/$code/movements` として実装。UI-06a は詳細カードから active link で接続する | 画面本体の正典は [66-ui-stock-movements.md](66-ui-stock-movements.md) |
 | `list_movements` specta 化 | PR #112 で generated `commands.listMovements` / `MovementRecord.source` contract を追加済み。UI-06c はその consumer として実装する | 画面本体の正典は [66-ui-stock-movements.md](66-ui-stock-movements.md) |
 | 詳細カード CSV 出力 / 印刷 | SCREEN_DESIGN.md L120-133 に言及なし | scope 外 |
@@ -546,3 +547,4 @@ function StockInquiryPage() {
 | 2026-06-08 | display-scale follow-up | Windows native L3 feedback 対応として、個別部門選択中も DepartmentFilter が他部門候補を維持するよう `useStockInquiry` に dept 未指定の候補用 query を追加し、`useStockInquiry.test.tsx` で回帰を防止 |
 | 2026-06-08 | selection-tone follow-up | `StatusChips` active tone を shared selection-tone 定数参照に移し、Sidebar / TabsHeader と同じ stone selection 言語へ同期 |
 | 2026-06-27 | UI-06c | `StockDetailContent` の「在庫変動履歴」を disabled placeholder から `/stock/$code/movements` active link へ変更。UI-06c 画面本体と `listMovements` consumer contract は [66-ui-stock-movements.md](66-ui-stock-movements.md) に分離 |
+| 2026-07-16 | sidebar pending links follow-up | サイドバー「在庫少一覧」（UI-06b）の独立画面 `/stock/low` 予約を廃止し、本画面 `status=low_stock` フィルタへの deep-link に統合（D-047）。既存フィルタ contract（§58.4/§58.10）・useStockInquiry 実装は無変更 |

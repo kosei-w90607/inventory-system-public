@@ -173,8 +173,8 @@ UI層の仕様は画面設計書（SCREEN_DESIGN.md）とモックアップ（sc
 - 商品検索→選択→在庫数・売価・原価・最終入庫日・最終販売日を表示
 
 **UI-06b 在庫少一覧:**
-- CMD-06 list_low_stock で閾値以下の商品を一覧取得
-- 廃番除外チェックボックス
+- 独立画面ではなく、UI-06a `/stock` への `status=low_stock` deep-link（D-047、2026-07-16、詳細は [52-ui-shared-layout.md](../function-design/52-ui-shared-layout.md) UI-12-D1）
+- CMD-06 list_low_stock で閾値以下の商品を一覧取得（UI-06a 内の既存フィルタ contract を再利用、廃番除外は固定 false）
 
 **UI-06c 在庫変動履歴:**
 - CMD-06 list_movements で商品別の変動一覧取得

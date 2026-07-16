@@ -58,7 +58,7 @@
 - UI-06a: 在庫照会画面（StockInquiryPage / useStockInquiry / StockDetailContent / derive-stock-state / format-stock-display / format-last-date / filter-low-stock-list）+ TanStack Router validateSearch（zod 4 q/dept/status/selected）+ **2 useQuery 部分障害許容**（search_products | list_low_stock + get_stock_detail 独立、UI-09a 横展開）+ StockInquiryListResult 正規化型（PaginatedResult vs 配列の形状不一致吸収）+ 色分け契約 H + 検索駆動表示契約 I + toggle/toggle-group 新規 add（collapsible は F1 で未使用化、primitive 残置）+ CSV 取込み invalidation（業務ロジックあり版テンプレ、2 useQuery + 1 件自動展開 + selected 不在 clear + 選択行直下インライン展開 + HID スキャナ前提検索パターン初適用、初 Windows L3 デモ起因 F1/F2 修正済 Codex CLI Round 3-4）
 - UI-06c: 商品別在庫変動履歴（StockMovementsPage / useStockMovements / MovementTable / movement-formatters）+ TanStack Router validateSearch（zod 4 dateFrom/dateTo/type/page）+ **2 useQuery 部分障害許容**（get_stock_detail + list_movements）+ PR #112 `MovementRecord.source` contract による元業務記録リンク + 日本語 movement 種別 / 増減ラベル + Windows native L3
 
-UI 層の残り（UI-06b）は未記載。
+UI-06b は独立画面ではなく UI-06a への deep-link のため、専用の関数設計書は作らない（D-047、詳細は [function-design/58-ui-stock-inquiry.md](function-design/58-ui-stock-inquiry.md) と [function-design/52-ui-shared-layout.md](function-design/52-ui-shared-layout.md) UI-12-D1）。
 
 ---
 
