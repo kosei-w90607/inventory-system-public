@@ -30,7 +30,7 @@ Coordinator 裁定: 第 1 パス findings の精度は独立検証（上位 7/7 
 
 - [x] **P3b** error handling 一貫性（第 2 パス）
 - [x] **P4b** 型・contract 重複(第 2 パス)
-- [ ] **P5b** 状態管理・データ取得(第 2 パス)
+- [x] **P5b** 状態管理・データ取得(第 2 パス)
 - [ ] **P6b** dead code・残骸(第 2 パス)
 - [ ] **P7b** 可読性・慣用性・命名(第 2 パス。owner 品質観点の本丸、丁寧に)
 - [ ] **P8b** テスト品質(第 2 パス)
@@ -50,6 +50,7 @@ Coordinator 裁定: 第 1 パス findings の精度は独立検証（上位 7/7 
 - 2026-07-16 23:54 JST / P9 / 統合 / P1〜P8 findingsを原因・完了条件でdedupeし、影響×労力の実行順と依存関係をreport.mdに集約
 - 2026-07-17 00:31 JST / P3b / findings 2 / WALを含む旧DB移行・backup restoreの失敗時継続をrecall sweep
 - 2026-07-17 00:36 JST / P4b / findings 2 / generated patch DTOとcross-language file上限contractをrecall sweep
+- 2026-07-17 00:40 JST / P5b / findings 3 / 棚卸し・売上CSV・閾値部分成功の横断cache invalidationをrecall sweep
 
 ## 越境メモ（package scope 外で気づいた事項、1 行ずつ）
 
