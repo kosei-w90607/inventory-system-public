@@ -81,7 +81,14 @@
 
 ## 次の行動
 
-1. 次期 milestone の選定（owner 判断）: Phase 4 完了により UI 群は全完了。候補 = v1.0 gate（Windows MSI 配布手順 docs 化）/ backlog 群（UNC バックアップ対応、FilePicker 共通化等）/ PLU-24 店舗確認後の Post-PLU track
+1. 中期 roadmap（owner 裁定 2026-07-16、実施順。backlog は系統ごとに 1 PR ずつ束ねる）:
+   1. **workflow docs PR**（小、既指定）: 登録・生成義務 checklist の template 昇格 + Contract Probe 手順明文化 + materialize 局所 workflow-git 検査（UI-13 WER）+ 可変 count の prose 転記禁止の D-038 拡張検討（PR #9 WER）+ `read-safe-file.sh` history-view clone 参照修正
+   2. **横断アーキテクチャ + コード品質監査**（read-only、成果物 = 監査レポート + 優先度付き是正リスト）: 部品重複 / 層違反残渣 / error handling 一貫性 / 型重複 / 状態管理パターンのばらつき / dead code に加え、**可読性・慣用性・命名などコード品質そのもの**を観点に含める（owner 意向: 「良いとされるコードになっているか」を製品価値の一部として見る）。監査結果が 3 の優先度と 4 の重点箇所の入力になる
+   3. **コード品質・整合性系の是正 PR 群**: 監査 findings + 既存 backlog（SortableHeader 共通化 / `low_stock` SSOT 定数 / focus-visible / `integrity_cmd.rs` tautological test 実呼び化 / docs drift 系）を優先度順に統合
+   4. **業務シナリオ受入テスト**: CSV 取込み → 在庫反映 → 在庫少検知 → 棚卸し → 整合性検証 → バックアップ/復元 の一気通貫をシナリオ台本化し、Windows native で owner が operator 役で 1 周。自動 E2E はここで穴が出た箇所のみ最小 smoke を後付け評価
+   5. **v1.0 gate**: Windows MSI 配布手順 docs 化 + 配布判定（4 の受入テスト pass が入口条件）
+
+   UI 部品・UX 系（FilePicker 共通化 / 復元成功表示強調）と ツールチェーン系（audit 消化 / Node 22 / command drift detection）は独立 track として隙間で消化。PLU スロット永続割当 / UI-09a/b 将来設計は店舗確認（下記 2）待ち。
 2. PLU-24（JAN なし独自コード商品のレジでの売り方）を次回店舗接点で確認（issue #135 残項目）。
 3. slice 2 follow-up 群（軽量、単独 PR 可）: hook 統合導入（`.claude/hooks/` + settings.json、sandbox 書込み制約の外での作業が前提）/ `Amendments:` SHA 抽出の strict 化 / `check_plan_commit_ancestry` の section-scoped 抽出 / `check_signature_cross_reference` の pipefail 潜在バグ / no-active-plan check の導入（WARN から）。詳細は [archive/plans/2026-07-12-mechanical-workflow-slice2.md](archive/plans/2026-07-12-mechanical-workflow-slice2.md) Review Response と decision-log D-039。
 
