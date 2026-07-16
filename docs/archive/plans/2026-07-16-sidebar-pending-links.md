@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: ready-hosted-final
+- Phase: archive
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: 330628d
@@ -259,6 +259,8 @@ Fill after implementation.
 
 Do not transcribe exact-HEAD SHA or test counts here (D-035/D-038 Evidence Ownership). Record a qualitative summary and the PR link only.
 
+実装は Codex 発注 relay 1 往復で完了。Scope どおり `navigation.ts`（2 項目 active 化 + `search`/`activeMatch` field）、`SidebarLink.tsx`（`ActiveMatchSidebarLink` 分岐、`useLinkProps` で SPA 遷移維持、route 文字列ハードコードなし）、テスト 3 file（REQ-101/REQ-302 到達・排他 active 正逆・stockout/複合 param・pending 0 回帰、実 navigation 配線経由）、`stock/index.tsx` コメント是正、traceability 再生成。レビュー起因の実装手戻りなし。L1/L3/hosted CI 証跡は PR body 参照: https://github.com/kosei-w90607/inventory-system-public/pull/9
+
 ## Review Response
 
 Fill after review.
@@ -277,3 +279,4 @@ independent Final Review（Sonnet 独立 context、Writer / Plan Reviewer と別
 - 2026-07-16 implementing->local-verified（本 content commit に riding）。実装は Codex 発注 relay（content candidate `13aa31f`、変更 file は packet Scope と一致、packet / Workflow State 不可侵遵守）。L1 `local-ci.sh full` CLEAN evidence は candidate SHA とともに PR body に記録（Evidence Ownership、tracked doc には転記しない）。本 commit は受け入れ検分で発見した残存 drift 2 箇所（52 §52.3 冒頭の「19 ナビ表示 = 21 route」表記 / SCREEN_DESIGN 2026-05-08 注記の項目数転記）の是正を含む。
 - 2026-07-16 state-only遷移 local-verified->independent-review->human-confirm（compression 規則、post-implementation state-only 1/2）。各遷移の既存証跡: local-verified->independent-review = independent Final Reviewer（Sonnet 独立 context）engage 済み / independent-review->human-confirm = Final Review + R3 Contract Audit 完了（Ledger 4/4 verified、P1/P2 = 0、P3 = 2 は Review Response の裁定どおり non-blocker・backlog 化）。`Reviewed Content HEAD` = `4b489ab`（実装 `13aa31f` + 受け入れ検分 docs 是正を含む audited content commit）。残る Human Gate = owner L3（サイドバー到達 2 件 + active 表示一意性の目視）。
 - 2026-07-16 state-only遷移 human-confirm->ready-hosted-final（post-implementation state-only 2/2、forward STATECAP 3/3 到達 = 以後の遷移は content commit riding のみ）。証跡: owner L3 全 PASS（商品登録 到達・active / 在庫照会 単独 active / 在庫少一覧 low_stock 反映・単独 active / 往復切替、Windows native、介入 2 回目/予算 3 回の束ね承認で Ready 承認込み）。本遷移後、この exact HEAD で L1 full を実行し PR body を全面更新してから owner が Ready をトリガーする。
+- 2026-07-16 ready-hosted-final->merge->archive（Post-Merge Closeout）: Public PR #9 squash merge（`6867fbf`）。hosted CI green + 三点 SHA 一致（live PR HEAD = local full evidence HEAD = hosted `headSha`）は PR body に証跡。本 commit で packet / matrix を `docs/archive/plans/` へ移動、WER は同ディレクトリの `2026-07-16-sidebar-pending-links-workflow-effectiveness-review.md`。

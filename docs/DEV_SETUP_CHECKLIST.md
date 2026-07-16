@@ -249,6 +249,7 @@ Phase 2 以降の L3 利用者デモ（8-0 gate）は WSL2 とは別の Windows 
 
 ```powershell
 cd C:\Users\Owner\projects\inventory-system
+git remote get-url origin                # public repo（inventory-system-public）を指しているか必ず確認
 git fetch origin
 git restore package-lock.json            # ローカル変更で出る、捨ててOK（reset --hard で origin 版に揃う）
 git checkout <feature-branch>
@@ -256,6 +257,8 @@ git reset --hard origin/<feature-branch> # git log -1 で期待 SHA と一致確
 npm ci --ignore-scripts                  # 環境再構築の標準（D-030 常設ガード、install script 実行なし）
 npm run tauri dev                        # ウィンドウ起動 = 取り込み成功
 ```
+
+origin が旧 private repo（`inventory-system`）のままだと `git fetch` は成功するのに feature ブランチが見つからず取り込みが止まる。旧 private のままなら public repo へ張り替える: `git remote set-url origin git@github.com:kosei-w90607/inventory-system-public.git`。
 
 **毎回ハマる落とし穴（判断は固定）**:
 
@@ -521,7 +524,7 @@ ARCHITECTURE.md の 5 層分割（UI / CMD / BIZ / IO / MNT）に従い、`src-t
 
 **着手前判定**: Q40（障害時の対応）の具体化を UI-13 整合性検証画面とエラーバウンダリ実装と合わせて確定（[Plans.md](../Plans.md) Backlog 参照）。
 
-- [ ] 10-1 UI-06b 在庫少一覧（REQ-302 個別）: D-047 により本行の独立画面実装タスクとしては解消。`/stock/low` は作らず UI-06a `status=low_stock` フィルタへの deep-link で対応する。サイドバー nav 変更（`navigation.ts` の `search`/`activeMatch` field）は [2026-07-16-sidebar-pending-links.md](plans/2026-07-16-sidebar-pending-links.md) の scope
+- [x] 10-1 UI-06b 在庫少一覧（REQ-302 個別）: D-047 により本行の独立画面実装タスクとしては解消。`/stock/low` は作らず UI-06a `status=low_stock` フィルタへの deep-link で対応する。サイドバー nav 変更（`navigation.ts` の `search`/`activeMatch` field）は Public PR #9（squash merge `6867fbf`）で実装済み、詳細は [archive/plans/2026-07-16-sidebar-pending-links.md](archive/plans/2026-07-16-sidebar-pending-links.md) の scope
 - [ ] 10-2 UI-06c 在庫変動履歴（REQ-303）
 - [ ] 10-3 UI-08 PLU 書出し（REQ-402）
   - [ ] 10-3a 実機動作確認（CV17 `.txt` 取込み → PCツールSD書込み → SR-S4000設定読み → レジ呼出し）
