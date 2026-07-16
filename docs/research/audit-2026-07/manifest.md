@@ -13,7 +13,7 @@
 - [x] **P6 dead code・残骸**: 未使用 export / 未使用部品（既知: `collapsible.tsx` は 58 §表で「現在未使用」と記録済み — 記録どおりか確認）/ 到達不能コード / 使われていない型
 - [x] **P7 可読性・慣用性・命名**: owner 品質観点。React 19 / TS strict / Rust の慣用からの逸脱、命名が実態と一致しているか、コメントの質（why を語るか、drift していないか）、「読み手の驚き」が大きい箇所
 - [x] **P8 テスト品質**: tautological test（既知: `integrity_cmd.rs`。他にないか）、実配線を通らず手組み fixture だけで通るテスト、REQ トレース(テスト名)の一貫性、カバーの薄い契約
-- [ ] **P9 統合**: P1〜P8 の findings を dedupe → 影響 × 労力で優先度付け → `report.md`（監査レポート + 是正リスト）を作成。**新規調査はしない**、統合のみ
+- [x] **P9 統合**: P1〜P8 の findings を dedupe → 影響 × 労力で優先度付け → `report.md`（監査レポート + 是正リスト）を作成。**新規調査はしない**、統合のみ
 
 ## 進捗 log（package 完了ごとに 1 行追記）
 
@@ -26,6 +26,7 @@
 - 2026-07-16 23:39 JST / P6 / findings 4 / frontend import graph・dependency・Rust lint抑止内のproduction reachabilityを監査、既知collapsible残置は設計どおりと確認
 - 2026-07-16 23:43 JST / P7 / findings 5 / 設計内矛盾・Rust SQL構築・TS literal型・動的title・lifecycleコメントをowner品質観点で監査
 - 2026-07-16 23:50 JST / P8 / findings 4 / CMD本番分岐・mutation invalidation・navigation利用側・FE traceability gateを監査、frontend/backend全testとtraceability check pass
+- 2026-07-16 23:54 JST / P9 / 統合 / P1〜P8 findingsを原因・完了条件でdedupeし、影響×労力の実行順と依存関係をreport.mdに集約
 
 ## 越境メモ（package scope 外で気づいた事項、1 行ずつ）
 
