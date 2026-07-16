@@ -2,10 +2,10 @@
 
 ## Workflow State
 
-- Phase: plan-draft
+- Phase: implementing
 - Risk: R3
 - Execution Mode: fable-window
-- Plan Commit: pending
+- Plan Commit: 330628d
 - Amendments: none
 - Coordinator: Fable
 - Writer: Codex（発注 relay、owner がコピペ実行）
@@ -264,3 +264,7 @@ Do not transcribe exact-HEAD SHA or test counts here (D-035/D-038 Evidence Owner
 Fill after review.
 If R3 review-only sub-agent is skipped, record an explicit line beginning with `Review-only skipped because:` and the reason.
 - Findings Freeze: not yet frozen; post-freeze exceptions: none.
+
+## Workflow Narrative（append-only）
+
+- 2026-07-16 state-only遷移 plan-draft->plan-gate->plan-approved->implementing（compression 規則、STATECAP forward 1/3）。各遷移の既存証跡: plan-draft->plan-gate = packet + Test Design Matrix commit 済み（plan-first `330628d` + Plan Gate 是正 `08fb05b`、`doc-consistency-check.sh --target plan` green）/ plan-gate->plan-approved = 独立 Plan Reviewer（Sonnet 独立 context、Writer と別）が一巡目 P1: 0 / P2: 5 / P3: 3 を報告、Coordinator 全件 accept・是正適用（`08fb05b`）後の targeted 再レビューで 8/8 resolved・新規 P1/P2 なし・P1/P2 残 = 0、`Plan Commit` = `330628d`（実装 commit は本遷移時点で 0 件、先行性成立）/ plan-approved->implementing = 実装（Codex 発注 relay）開始のための entry。Plan Reviewer の P3 未満メモ（`search` と `activeMatch` の `"low_stock"` 値重複が将来ズレるリスク）は Review Focus の既存観点で実装レビュー時に確認する。
