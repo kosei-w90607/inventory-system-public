@@ -13,8 +13,8 @@
 - Final Reviewer: Sonnet subagent（Plan Reviewer とは別 context）
 - Reviewed Content HEAD: pending
 - Final Exact-HEAD Evidence: PR body
-- Hosted CI Requirement: not-required
-- Human Gate: Draft PR の owner 確認 + merge
+- Hosted CI Requirement: required
+- Human Gate: Draft PR の owner 確認 + Ready 承認 + Ready 後の explicit `workflow_dispatch` 1 run（docs-only は paths-ignore で自動 event 対象外のため、ci.md R3 経路の hosted final は owner 指示の dispatch で満たす）+ merge
 
 ## Owner Effort Budget
 
@@ -168,7 +168,7 @@ R3 必須。本 design PR の「実装」は設計書改訂そのものなので
 |---|---|---|---|
 | MNT-03-D1 ROLLBACK 失敗の記録 + 併合 | 実装 PR2 | rollback 失敗注入 | non-scope（自動化） |
 | MNT-03-D2/D3 legacy 移行の VACUUM INTO + 完成品不変条件 | 実装 PR1 | 実 WAL fixture + 失敗注入 | non-scope（自動化） |
-| MNT-03-D4 移行失敗時の起動中止 | 実装 PR1 | lib.rs 経路（可能な範囲で自動化、残りは実装 packet で判断） | 実装 packet で判断 |
+| MNT-03-D4 移行失敗時の起動中止 | 実装 PR1 | lib.rs 経路（可能な範囲で自動化、残りは実装 packet で判断） | 実装 packet で判断。blocking dialog の pre-window（setup hook 内、webview マウント前）呼び出しが Windows 実機で動作するかの確認を実装 PR1 の完了条件に含める |
 | MNT-01-D1 退避失敗での restore 中止 | 実装 PR1 | 退避 rename 失敗注入 | non-scope（自動化） |
 | MNT-01-D2 resolve_backup_dir Result 化 | 実装 PR2 | DB error 時の Err 伝搬 | non-scope（自動化） |
 | MNT-01-D3 cleanup 確定条件 | 実装 PR2 | 読取失敗時 削除 0 件 | non-scope（自動化） |
@@ -224,4 +224,7 @@ Fill after implementation.
   - P2-3（退避巻き戻しの二重失敗が未規定）: accept。MNT-01-D1 に致命的エラー契約（既存ステップ 8e と同等）を追記。
   - P3-1（Contract Probe の理由づけ）: accept。read-write 稼働実績と新規接続の前提差を明記し、通常モード open + 実装 PR1 の実 WAL fixture テストを empirical validation として必須化。
   - P3-2（D-032 break-glass との接続明記）: accept。§71.9 改訂項目に一行追加。
+- Plan Gate round 2（同 Plan Reviewer、差分再レビュー、2026-07-17）: round 1 P2×3 / P3×2 の対応は全件解消と判定。新規 P2 = 1 / P3 = 1、verdict「再差し戻し」。裁定と対応:
+  - 新規 P2（Hosted CI Requirement: not-required と R3 の不整合）: accept（Coordinator が ci.md 39〜66 行を再読して誤読を確認 — R3/R4 は「原則 1 run」で、pure docs-only 0 run は R0/R1 対の規定）。`required` へ訂正し、docs-only の hosted final は owner Ready 後の explicit `workflow_dispatch` 1 run と Human Gate に明記。
+  - 新規 P3（blocking dialog の pre-window 動作未検証）: accept。Ledger MNT-03-D4 行に Windows 実機での pre-window 呼び出し動作確認を実装 PR1 完了条件として追記。
 - Findings Freeze: not yet frozen; post-freeze exceptions: none.
