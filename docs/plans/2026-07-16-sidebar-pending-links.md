@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: local-verified
+- Phase: human-confirm
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: 330628d
@@ -11,7 +11,7 @@
 - Writer: Codex（発注 relay、owner がコピペ実行）
 - Plan Reviewer: independent Sonnet review context
 - Final Reviewer: independent Sonnet review context + Fable 裁定（P1/P2/P3）
-- Reviewed Content HEAD: pending
+- Reviewed Content HEAD: 4b489ab
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
 - Human Gate: pending L3（画面変更の Human Visual Confirmation）
@@ -263,9 +263,16 @@ Do not transcribe exact-HEAD SHA or test counts here (D-035/D-038 Evidence Owner
 
 Fill after review.
 If R3 review-only sub-agent is skipped, record an explicit line beginning with `Review-only skipped because:` and the reason.
-- Findings Freeze: not yet frozen; post-freeze exceptions: none.
+
+independent Final Review（Sonnet 独立 context、Writer / Plan Reviewer と別）+ Contract Audit 実施済み。Contract Coverage Ledger 全 4 行 verified（実装・テスト・source docs 突合、AC 機械検証 pass）。findings は P1 = 0 / P2 = 0 / P3 = 2 で、Coordinator 裁定は両方 accept・non-blocker:
+
+- P3-1: `navigation.ts` の `"low_stock"` が `search.status` と `activeMatch.is` に二重記述（SSOT 定数なし）。`navigation.test.ts` の `toMatchObject` が両 field を固定しており回帰は CI 検出可能。恒久対処（`LOW_STOCK_FILTER_VALUE` 定数化）は follow-up として Plans.md backlog へ。
+- P3-2: sidebar リンクの focus-visible styling 不足は本 PR 以前からの既存 gap（回帰ではない）。a11y polish として Plans.md backlog へ。
+
+- Findings Freeze: frozen after Final Review; post-freeze exceptions: none.
 
 ## Workflow Narrative（append-only）
 
 - 2026-07-16 state-only遷移 plan-draft->plan-gate->plan-approved->implementing（compression 規則、STATECAP forward 1/3）。各遷移の既存証跡: plan-draft->plan-gate = packet + Test Design Matrix commit 済み（plan-first `330628d` + Plan Gate 是正 `08fb05b`、`doc-consistency-check.sh --target plan` green）/ plan-gate->plan-approved = 独立 Plan Reviewer（Sonnet 独立 context、Writer と別）が一巡目 P1: 0 / P2: 5 / P3: 3 を報告、Coordinator 全件 accept・是正適用（`08fb05b`）後の targeted 再レビューで 8/8 resolved・新規 P1/P2 なし・P1/P2 残 = 0、`Plan Commit` = `330628d`（実装 commit は本遷移時点で 0 件、先行性成立）/ plan-approved->implementing = 実装（Codex 発注 relay）開始のための entry。Plan Reviewer の P3 未満メモ（`search` と `activeMatch` の `"low_stock"` 値重複が将来ズレるリスク）は Review Focus の既存観点で実装レビュー時に確認する。
 - 2026-07-16 implementing->local-verified（本 content commit に riding）。実装は Codex 発注 relay（content candidate `13aa31f`、変更 file は packet Scope と一致、packet / Workflow State 不可侵遵守）。L1 `local-ci.sh full` CLEAN evidence は candidate SHA とともに PR body に記録（Evidence Ownership、tracked doc には転記しない）。本 commit は受け入れ検分で発見した残存 drift 2 箇所（52 §52.3 冒頭の「19 ナビ表示 = 21 route」表記 / SCREEN_DESIGN 2026-05-08 注記の項目数転記）の是正を含む。
+- 2026-07-16 state-only遷移 local-verified->independent-review->human-confirm（compression 規則、post-implementation state-only 1/2）。各遷移の既存証跡: local-verified->independent-review = independent Final Reviewer（Sonnet 独立 context）engage 済み / independent-review->human-confirm = Final Review + R3 Contract Audit 完了（Ledger 4/4 verified、P1/P2 = 0、P3 = 2 は Review Response の裁定どおり non-blocker・backlog 化）。`Reviewed Content HEAD` = `4b489ab`（実装 `13aa31f` + 受け入れ検分 docs 是正を含む audited content commit）。残る Human Gate = owner L3（サイドバー到達 2 件 + active 表示一意性の目視）。
