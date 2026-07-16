@@ -12,7 +12,7 @@
 - [x] **P5 状態管理・データ取得パターン**: TanStack Query の使い方（key 設計 / staleTime / invalidation）の画面間ばらつき、hooks の粒度と再利用、URL search state の扱いの一貫性
 - [x] **P6 dead code・残骸**: 未使用 export / 未使用部品（既知: `collapsible.tsx` は 58 §表で「現在未使用」と記録済み — 記録どおりか確認）/ 到達不能コード / 使われていない型
 - [x] **P7 可読性・慣用性・命名**: owner 品質観点。React 19 / TS strict / Rust の慣用からの逸脱、命名が実態と一致しているか、コメントの質（why を語るか、drift していないか）、「読み手の驚き」が大きい箇所
-- [ ] **P8 テスト品質**: tautological test（既知: `integrity_cmd.rs`。他にないか）、実配線を通らず手組み fixture だけで通るテスト、REQ トレース(テスト名)の一貫性、カバーの薄い契約
+- [x] **P8 テスト品質**: tautological test（既知: `integrity_cmd.rs`。他にないか）、実配線を通らず手組み fixture だけで通るテスト、REQ トレース(テスト名)の一貫性、カバーの薄い契約
 - [ ] **P9 統合**: P1〜P8 の findings を dedupe → 影響 × 労力で優先度付け → `report.md`（監査レポート + 是正リスト）を作成。**新規調査はしない**、統合のみ
 
 ## 進捗 log（package 完了ごとに 1 行追記）
@@ -25,8 +25,8 @@
 - 2026-07-16 23:31 JST / P5 / findings 4 / query key・staleTime・mutation invalidation・URL/local stateを横断監査
 - 2026-07-16 23:39 JST / P6 / findings 4 / frontend import graph・dependency・Rust lint抑止内のproduction reachabilityを監査、既知collapsible残置は設計どおりと確認
 - 2026-07-16 23:43 JST / P7 / findings 5 / 設計内矛盾・Rust SQL構築・TS literal型・動的title・lifecycleコメントをowner品質観点で監査
+- 2026-07-16 23:50 JST / P8 / findings 4 / CMD本番分岐・mutation invalidation・navigation利用側・FE traceability gateを監査、frontend/backend全testとtraceability check pass
 
 ## 越境メモ（package scope 外で気づいた事項、1 行ずつ）
 
-- P8 候補: CMD validation test が実 command を呼ばず同じ分岐をテスト内で再実装している箇所を、tautological test として横断確認する。
-- P8 候補: mutation component tests は実装済み invalidation の列挙を検査するが、変更 entity から必要 consumer key を導く網羅性を検査していないため、P5 の欠落を通している。
+- （なし）
