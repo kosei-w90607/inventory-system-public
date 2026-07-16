@@ -29,7 +29,7 @@ Coordinator 裁定: 第 1 パス findings の精度は独立検証（上位 7/7 
 各 package: 対応する第 1 パスの `findings/<pkg>.md` を先に読み、**既出 findings の再確認はせず、第 1 パスが見落としたものだけを狩る**。新規 findings は同ファイルに `### <PKG>b-<連番>` 形式で追記。新規ゼロなら「第 2 パス: 追加なし、確認範囲: …」を追記。00-order.md の全制約（証拠 + 害の経路、件数目標禁止、read-only）は同一に適用。
 
 - [x] **P3b** error handling 一貫性（第 2 パス）
-- [ ] **P4b** 型・contract 重複(第 2 パス)
+- [x] **P4b** 型・contract 重複(第 2 パス)
 - [ ] **P5b** 状態管理・データ取得(第 2 パス)
 - [ ] **P6b** dead code・残骸(第 2 パス)
 - [ ] **P7b** 可読性・慣用性・命名(第 2 パス。owner 品質観点の本丸、丁寧に)
@@ -49,6 +49,7 @@ Coordinator 裁定: 第 1 パス findings の精度は独立検証（上位 7/7 
 - 2026-07-16 23:50 JST / P8 / findings 4 / CMD本番分岐・mutation invalidation・navigation利用側・FE traceability gateを監査、frontend/backend全testとtraceability check pass
 - 2026-07-16 23:54 JST / P9 / 統合 / P1〜P8 findingsを原因・完了条件でdedupeし、影響×労力の実行順と依存関係をreport.mdに集約
 - 2026-07-17 00:31 JST / P3b / findings 2 / WALを含む旧DB移行・backup restoreの失敗時継続をrecall sweep
+- 2026-07-17 00:36 JST / P4b / findings 2 / generated patch DTOとcross-language file上限contractをrecall sweep
 
 ## 越境メモ（package scope 外で気づいた事項、1 行ずつ）
 

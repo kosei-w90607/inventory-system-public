@@ -33,3 +33,23 @@
 - 提案方向: Zod schema の key または単一 field descriptor から field 型・順序・map を導出する。
 - 想定労力: S
 - 確度: 確実
+
+## 第2パス（recall sweep）
+
+### P4b-1: generated 更新DTOと実際の partial patch contract が型 assertion で分断されている
+- 観点: 型・contract 重複
+- 証拠: `src-tauri/src/biz/product_service.rs:45`、`src-tauri/src/biz/product_service.rs:46`、`src/lib/bindings.ts:10`、`src/lib/bindings.ts:1093`、`src/features/products/lib/product-form-request.ts:35`、`src/features/products/lib/product-form-request.ts:140`、`src/features/products/ProductFormPage.tsx:126`
+- 害の経路: 回帰リスク / 読み手の混乱 — Rust の更新 request は全fieldを `Option` とする patch だが、generated deserialize 型は大半を必須 nullable field として出力する。frontend は別名の `Partial` を作り最後に assertion で必須型へ偽装するため、field の追加・optional semantics の変更が builder と食い違っても compiler が検出せず、生成型をSSOTとして読む書き手には wire上の省略可否も判断できない。
+- repo 規範との対照: `docs/function-design/30-biz-product-service.md:127` は全fieldを Option とする更新 contract を定め、`docs/UI_TECH_STACK.md:191` は Option を含む生成型が正確であることを tauri-specta 採用条件とする。現状は generated command signature を手書き `Partial` と assertion が迂回している。
+- 提案方向: generated deserialize 型に patch の省略可能性を正しく表現し、手書き `Partial` と assertion を外す。
+- 想定労力: M
+- 確度: 確実
+
+### P4b-2: 20MB file contract が3つのUIに複製され、商品importだけbackend境界に存在しない
+- 観点: 型・contract 重複
+- 証拠: `src-tauri/src/constants.rs:39`、`src/features/csv-import/hooks/useCsvImportFlow.ts:21`、`src/features/daily-report-import/hooks/useDailyReportImportFlow.ts:14`、`src/features/products/import/useProductImportFlow.ts:11`、`src/features/products/import/useProductImportFlow.ts:106`、`src-tauri/src/cmd/csv_import_cmd.rs:42`、`src-tauri/src/cmd/daily_report_import_cmd.rs:180`、`src-tauri/src/cmd/product_cmd.rs:122`、`docs/function-design/42-cmd-sales-stocktake.md:252`
+- 害の経路: 一貫性破壊 / 回帰リスク — 同じ20MB値を3つのfrontendが独立所有する一方、共通Rust定数を使うのは売上CSVと日報だけで、商品importのCMDは空fileしか拒否しない。現在でもUIは仕様化されていない上限で商品fileを拒否するのに直接IPCは巨大fileを受理し、将来backend上限を変更しても3つのUIとの不一致を型検査できない。
+- repo 規範との対照: `src-tauri/src/constants.rs:1` は docs・BIZ・CMDで同一値を一元管理する目的を掲げるがfrontendは対象外で、商品importの正本 `docs/function-design/42-cmd-sales-stocktake.md:252` には空file検査だけが定義される。cross-language validation定数の同期規範は未定義。
+- 提案方向: file上限を単一contractから各境界へ供給し、商品importでの適用有無も正本に確定する。
+- 想定労力: M
+- 確度: 確実
