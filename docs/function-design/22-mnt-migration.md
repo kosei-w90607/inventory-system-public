@@ -223,3 +223,5 @@ fn migrate_legacy_db(
 | 既存 skip 判定の回帰 | 新 DB 既存 / 旧 DB 無しの `Ok(false)` 経路（既存テスト維持） |
 
 blocking dialog の pre-window（setup hook 内、webview マウント前）呼び出しが Windows 実機で動作することの確認も実装 PR1 の完了条件に含める（自動化不能なら L3 相当の手動確認として実装 packet に記録）。
+
+実 WAL fixture 移行テストは MNT-03-D2 の前提（新規接続で開いた旧 DB への `VACUUM INTO` が WAL 内 commit を取り込む）の経験的検証を兼ねる。このテストが fail する場合は実装の不具合と決めつけず、MNT-03-D2 の設計自体を再検討する。

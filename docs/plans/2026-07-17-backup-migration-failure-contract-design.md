@@ -229,4 +229,7 @@ Fill after implementation.
 - Plan Gate round 2（同 Plan Reviewer、差分再レビュー、2026-07-17）: round 1 P2×3 / P3×2 の対応は全件解消と判定。新規 P2 = 1 / P3 = 1、verdict「再差し戻し」。裁定と対応:
   - 新規 P2（Hosted CI Requirement: not-required と R3 の不整合）: accept（Coordinator が ci.md 39〜66 行を再読して誤読を確認 — R3/R4 は「原則 1 run」で、pure docs-only 0 run は R0/R1 対の規定）。`required` へ訂正し、docs-only の hosted final は owner Ready 後の explicit `workflow_dispatch` 1 run と Human Gate に明記。
   - 新規 P3（blocking dialog の pre-window 動作未検証）: accept。Ledger MNT-03-D4 行に Windows 実機での pre-window 呼び出し動作確認を実装 PR1 完了条件として追記。
-- Findings Freeze: not yet frozen; post-freeze exceptions: none.
+- 独立 Final Review（Contract Audit、Sonnet subagent = Plan Reviewer と別 context、2026-07-17、audited content = `5f7ee60`）: P1 = 0 / P2 = 0 / P3 = 2、verdict「human-confirm へ進行可」。Matrix #8 の 5 findings × 対応節の被覆を確認、Matrix #12 の既存契約非破壊（CMD 再接続 / v2 foreign_keys 復元 / D-032 / 68-ui）を実装現物と突合済み。裁定:
+  - Final P3-1（§71.7 ステップ 7a の削除失敗記録の欠落）: 監査 P3-2 = 順 7 の既知ギャップで本 packet の Non-scope に明記済み。記録のみ、対応なし。
+  - Final P3-2（実 WAL fixture テスト fail 時の設計再検討の明文化）: accept。22 §12.5 に一行追加（audited content 後の P3-only 差分、reviewer 再エンゲージなし）。
+- Findings Freeze: frozen after Broad Audit（Plan Gate 3 round + 独立 Final Review 完了、2026-07-17）; post-freeze exceptions: none.
