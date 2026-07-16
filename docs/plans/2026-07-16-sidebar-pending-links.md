@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: human-confirm
+- Phase: ready-hosted-final
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: 330628d
@@ -14,7 +14,7 @@
 - Reviewed Content HEAD: 4b489ab
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
-- Human Gate: pending L3（画面変更の Human Visual Confirmation）
+- Human Gate: none（L3 全 PASS・Ready 承認済み 2026-07-16、詳細証跡は PR body。残る owner 操作は Ready 化クリックと merge のみ）
 
 ## Owner Effort Budget
 
@@ -276,3 +276,4 @@ independent Final Review（Sonnet 独立 context、Writer / Plan Reviewer と別
 - 2026-07-16 state-only遷移 plan-draft->plan-gate->plan-approved->implementing（compression 規則、STATECAP forward 1/3）。各遷移の既存証跡: plan-draft->plan-gate = packet + Test Design Matrix commit 済み（plan-first `330628d` + Plan Gate 是正 `08fb05b`、`doc-consistency-check.sh --target plan` green）/ plan-gate->plan-approved = 独立 Plan Reviewer（Sonnet 独立 context、Writer と別）が一巡目 P1: 0 / P2: 5 / P3: 3 を報告、Coordinator 全件 accept・是正適用（`08fb05b`）後の targeted 再レビューで 8/8 resolved・新規 P1/P2 なし・P1/P2 残 = 0、`Plan Commit` = `330628d`（実装 commit は本遷移時点で 0 件、先行性成立）/ plan-approved->implementing = 実装（Codex 発注 relay）開始のための entry。Plan Reviewer の P3 未満メモ（`search` と `activeMatch` の `"low_stock"` 値重複が将来ズレるリスク）は Review Focus の既存観点で実装レビュー時に確認する。
 - 2026-07-16 implementing->local-verified（本 content commit に riding）。実装は Codex 発注 relay（content candidate `13aa31f`、変更 file は packet Scope と一致、packet / Workflow State 不可侵遵守）。L1 `local-ci.sh full` CLEAN evidence は candidate SHA とともに PR body に記録（Evidence Ownership、tracked doc には転記しない）。本 commit は受け入れ検分で発見した残存 drift 2 箇所（52 §52.3 冒頭の「19 ナビ表示 = 21 route」表記 / SCREEN_DESIGN 2026-05-08 注記の項目数転記）の是正を含む。
 - 2026-07-16 state-only遷移 local-verified->independent-review->human-confirm（compression 規則、post-implementation state-only 1/2）。各遷移の既存証跡: local-verified->independent-review = independent Final Reviewer（Sonnet 独立 context）engage 済み / independent-review->human-confirm = Final Review + R3 Contract Audit 完了（Ledger 4/4 verified、P1/P2 = 0、P3 = 2 は Review Response の裁定どおり non-blocker・backlog 化）。`Reviewed Content HEAD` = `4b489ab`（実装 `13aa31f` + 受け入れ検分 docs 是正を含む audited content commit）。残る Human Gate = owner L3（サイドバー到達 2 件 + active 表示一意性の目視）。
+- 2026-07-16 state-only遷移 human-confirm->ready-hosted-final（post-implementation state-only 2/2、forward STATECAP 3/3 到達 = 以後の遷移は content commit riding のみ）。証跡: owner L3 全 PASS（商品登録 到達・active / 在庫照会 単独 active / 在庫少一覧 low_stock 反映・単独 active / 往復切替、Windows native、介入 2 回目/予算 3 回の束ね承認で Ready 承認込み）。本遷移後、この exact HEAD で L1 full を実行し PR body を全面更新してから owner が Ready をトリガーする。
