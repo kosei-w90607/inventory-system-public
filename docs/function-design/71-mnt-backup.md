@@ -160,12 +160,21 @@ fn restore_backup(
 **処理ステップ**:
 1. バックアップファイルの存在確認。存在しなければ `DbError::NotFound` を返す
 2. 現在の接続でWALをフラッシュ: `PRAGMA wal_checkpoint(TRUNCATE)`
-   - 失敗 → `tracing::warn!` で警告して続行（リストア処理では旧DBを退避・上書きするため、WALフラッシュ失敗は致命的ではない）
+   - 失敗 → `tracing::warn!` で警告して続行。**この非致命扱いの根拠は、ステップ4で旧DB一式（WAL含む）を退避することにある。したがってステップ4の退避が成功する場合に限り有効**（MNT-01-D1）
 3. `current_conn` をdrop（ファイルロック解放）
-4. 現在のDBファイルを退避: `{db_path}` → `{db_path}.restore_backup`
-   - WAL/SHMファイルも退避（存在する場合）:
-     - `{db_path}-wal` → `{db_path}-wal.restore_backup`
-     - `{db_path}-shm` → `{db_path}-shm.restore_backup`
+4. 現在のDBファイル一式を退避する。**main / 存在する WAL / 存在する SHM のすべてで退避（rename）成功が必須**:
+   - `{db_path}` → `{db_path}.restore_backup`
+   - `{db_path}-wal` → `{db_path}-wal.restore_backup`（存在する場合）
+   - `{db_path}-shm` → `{db_path}-shm.restore_backup`（存在する場合）
+   - いずれかの rename が失敗 → 退避済みファイルを元の名前へ巻き戻し、**本体置換に進まず** `DbError::QueryFailed` で restore を中止する（MNT-01-D1）
+   - 巻き戻し自体がさらに失敗した場合 → ステップ 8e と同等の致命的エラーとして扱う（`tracing::error!` 記録、`DbError::QueryFailed`、アプリ再起動が必要）
+
+**MNT-01-D1: 退避は一式成功が必須、失敗時は置換前に中止**
+
+- 決定: 上記ステップ2/4 のとおり。checkpoint 失敗の非致命扱いは「旧 DB 一式を退避できた場合」に限定し、WAL/SHM の退避失敗を warn 継続にしない
+- Why: checkpoint が失敗し WAL の退避も失敗した状態で本体だけ置換すると、旧 WAL が元の `{db_path}-wal` に残ったまま新 snapshot の `{db_path}` へ接続が開かれ、旧 WAL の再生で選択時点より後の変更が混入するか接続が失敗し得る（監査 P3b-2）。「指定 backup へ安全に復元」の成否を warn で決めてはならない
+- Rejected alternatives: WAL 退避失敗時に WAL を削除して続行（checkpoint 失敗時の WAL は退避対象のデータそのものであり、削除は旧 DB 側の復元可能性を壊す）
+- 見直し契機: restore の実装を接続 API ベース（`rusqlite::backup` 等）へ置き換えるとき
 5. バックアップファイルを `{db_path}` にコピー
 6. `db::init_database(db_path)` で新しい接続を作成
    - PRAGMA再設定＋マイグレーション実行が含まれる
@@ -241,7 +250,7 @@ fn check_auto_backup(
    - ファイル名が `inventory_backup_{今日のYYYYMMDD}_` で始まるものがあるか
 4. 今日のバックアップが1件もない場合:
    - `create_backup(conn, backup_dir)` を実行
-   - `cleanup_old_backups` を実行（`backup_retention_days`設定を読む、デフォルト3日）
+   - `cleanup_old_backups` を実行（保持日数は **MNT-01-D3** の確定条件を満たす場合のみ）
    - `Ok(true)` を返す
 5. 今日のバックアップがある場合:
    a. `system_repo::get_setting(conn, "backup_time")` を取得
@@ -257,6 +266,14 @@ fn check_auto_backup(
 - `backup_dir` の読み取り失敗 → `DbError::QueryFailed` に変換
 - `backup_time` のパース失敗 → 定時バックアップをスキップ（`tracing::warn!` で警告）
 - `create_backup` 失敗 → エラーをそのまま返す
+- `backup_retention_days` の読取失敗・parse 失敗 → **MNT-01-D3** に従い cleanup をスキップ
+
+**MNT-01-D3: 破壊的 cleanup は保持日数を確定できた場合のみ実行**
+
+- 決定: `cleanup_old_backups`（ファイル削除）を駆動する保持日数は、(a) `backup_retention_days` の読取が成功しかつ数値として parse できた、または (b) 設定行が存在しない（未設定 = 初期状態、既定 3 日を適用）、のどちらかの場合のみ確定とする。**DB error での読取失敗、および設定値はあるが数値として parse できない場合は、既定値へ fallback せず cleanup 自体をスキップ**して `tracing::warn!` を記録する（バックアップ作成の成否には影響させない）
+- Why: 読取失敗を既定 3 日へ潰すと、例えば 90 日保持を設定済みの利用者の設定読取だけが失敗したとき、4 日目以降のバックアップを誤って削除する（監査 P3-1 の中核経路）。cleanup の skip は「バックアップが溜まる」方向の安全な失敗であり、次回成功時に自然回復する
+- Rejected alternatives: 現行の `.ok().flatten().unwrap_or(3日)`（destructive fallback そのもの）/ parse 失敗も既定適用（未設定と設定破損を区別できず、破損時に削除が走る）
+- 見直し契機: 設定値の書込み時 validation（数値以外を保存不能にする）が導入され、parse 失敗経路が構造的に消えたとき
 
 ---
 
@@ -267,24 +284,38 @@ fn check_auto_backup(
 ```
 // 7. 自動バックアップチェック（起動時）
 // backup_dir は設定値を優先、未設定/空ならデフォルト（app_data/backups）
-let backup_dir = mnt::backup::resolve_backup_dir(&conn, &app_data);
-if let Err(e) = mnt::backup::check_auto_backup(&conn, &backup_dir) {
-    tracing::warn!(error = %e, "自動バックアップチェックに失敗");
+// 設定読取の DB error 時はチェックをスキップして起動継続（MNT-01-D2）
+match mnt::backup::resolve_backup_dir(&conn, &app_data) {
+    Ok(backup_dir) => {
+        if let Err(e) = mnt::backup::check_auto_backup(&conn, &backup_dir) {
+            tracing::warn!(error = %e, "自動バックアップチェックに失敗");
+        }
+    }
+    Err(e) => tracing::warn!(error = %e, "バックアップ保存先の設定読取に失敗（自動バックアップをスキップ）"),
 }
 ```
 
 **resolve_backup_dir（共通ヘルパー）**:
 ```
-pub fn resolve_backup_dir(conn: &DbConnection, app_data: &Path) -> PathBuf {
-    system_repo::get_setting(conn, "backup_path")
-        .ok()
-        .flatten()
+pub fn resolve_backup_dir(conn: &DbConnection, app_data: &Path) -> Result<PathBuf, DbError> {
+    let setting = system_repo::get_setting(conn, "backup_path")?; // DB error は握りつぶさず返す
+    Ok(setting
         .filter(|p| !p.is_empty())
         .map(PathBuf::from)
-        .unwrap_or_else(|| app_data.join("backups"))
+        .unwrap_or_else(|| app_data.join("backups")))
 }
 ```
 全てのバックアップ操作（create/list/check/restore）はこのヘルパーで統一的にbackup_dirを決定する。
+
+**MNT-01-D2: resolve_backup_dir は DB error と未設定を区別する（Result 化）**
+
+- 決定: `get_setting` の DB error は `Err` として呼び出し元へ返し、既定ディレクトリへの fallback は「未設定または空文字」の場合に限る。本節の旧コード例（`.ok().flatten()` で両者を潰す形）は設計自体の欠陥だったため書き換えた（監査 P3-1 補強）。呼び出し元の契約:
+  - lib.rs 起動時チェック: `Err` → `tracing::warn!` を記録して自動バックアップチェックをスキップし、起動は継続する
+  - CMD 層（settings_cmd）: `Err` → internal error として返す（既存の error 変換規約どおり）
+- Why: 設定済みの外部 backup path を DB error で読めないとき、無言で app data 配下へ fallback すると、バックアップの保存先誤認と、誤ったディレクトリに対する cleanup 実行につながる。「設定が無い」と「設定を読めない」は破壊的操作の前提として同値ではない
+- D-032（復元前強制バックアップ、break-glass 含む）との整合: 当該経路は `create_backup` 呼び出し時に DB error が internal error として伝搬する既存挙動のままで矛盾しない
+- Rejected alternatives: 現行どおり PathBuf を直接返し内部で warn だけ残す（呼び出し元が失敗を分岐できず、cleanup skip 等の安全側判断につなげられない）
+- 見直し契機: backup 設定の保存構造を app_settings 以外へ移すとき
 
 ---
 
@@ -307,3 +338,13 @@ pub fn resolve_backup_dir(conn: &DbConnection, app_data: &Path) -> PathBuf {
 | `test_check_auto_backup_mnt01_no_backup_today` | 今日のバックアップなしで即実行 |
 | `test_check_auto_backup_mnt01_already_backed_up` | 今日のバックアップありでスキップ |
 | `test_check_auto_backup_mnt01_scheduled_time` | backup_time到達で2回目のバックアップ実行 |
+
+**失敗注入テスト（実装 PR の完了条件、監査 P8b-3 起源）**: 成功系・早期 NotFound 系だけでは MNT-01-D1〜D3 の契約を検証できない。以下を restore / cleanup / 設定読取の実装変更と同じ PR に含め、ファイル名・存在の構造検査ではなく「障害後に元 snapshot または新 snapshot のどちらか一方が完全な形で残り、再接続可能」という意味的完了条件を検証する。
+
+| テスト | 検証内容 |
+|---------|---------|
+| restore 退避失敗注入（MNT-01-D1） | 未 checkpoint の commit 済み row を WAL に持つ実 SQLite DB で、WAL/SHM の退避 rename を失敗させ（destination collision または注入可能な file-ops）、本体置換が行われず元 DB が WAL 込みで再接続可能なことを検証 |
+| restore 成功系の WAL 意味論（MNT-01-D1） | checkpoint 成功/失敗の両系で、restore 後の DB がバックアップ時点のデータのみを持ち、旧 WAL の変更が混入しないことを再 open + row 検証で確認 |
+| retention 読取失敗（MNT-01-D3） | `backup_retention_days` の読取 DB error / 非数値値を注入し、cleanup が実行されず（削除 0 件）warn が記録されることを検証 |
+| retention 未設定（MNT-01-D3） | 設定行なしで既定 3 日が適用されることを検証（既存挙動の固定） |
+| resolve_backup_dir の DB error（MNT-01-D2） | `get_setting` の DB error 注入で `Err` が返ることを検証（未設定/空文字 → 既定 dir と区別） |
