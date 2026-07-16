@@ -8,7 +8,7 @@
 - [x] **P1 部品重複・再利用逸失（frontend）**: 複数画面で類似実装が独立に存在する箇所（既知: SortableHeader、plain file input。他にないか）。design-system component catalog との突合
 - [x] **P2 層境界（backend + IPC）**: 機械検査（design compliance test）が捕捉しない違反 — CMD 層のビジネスロジック混入、BIZ 迂回、IO 層からの上位参照、frontend からの command 呼び出し経路の一貫性（bindings.ts 経由の統一性）
 - [x] **P3 error handling 一貫性**: 層別エラー型規約（DbError/BizError/CmdError）の遵守、握りつぶし・catch-all の残存、frontend 側のエラー表示パターン（toast / インライン / ダイアログ）の画面間一貫性
-- [ ] **P4 型・contract 重複**: TS 手書き型 vs `bindings.ts` 生成型の二重定義、zod schema と型の重複、Rust DTO との不整合リスク、literal union の散在
+- [x] **P4 型・contract 重複**: TS 手書き型 vs `bindings.ts` 生成型の二重定義、zod schema と型の重複、Rust DTO との不整合リスク、literal union の散在
 - [ ] **P5 状態管理・データ取得パターン**: TanStack Query の使い方（key 設計 / staleTime / invalidation）の画面間ばらつき、hooks の粒度と再利用、URL search state の扱いの一貫性
 - [ ] **P6 dead code・残骸**: 未使用 export / 未使用部品（既知: `collapsible.tsx` は 58 §表で「現在未使用」と記録済み — 記録どおりか確認）/ 到達不能コード / 使われていない型
 - [ ] **P7 可読性・慣用性・命名**: owner 品質観点。React 19 / TS strict / Rust の慣用からの逸脱、命名が実態と一致しているか、コメントの質（why を語るか、drift していないか）、「読み手の驚き」が大きい箇所
@@ -21,6 +21,7 @@
 - 2026-07-16 23:12 JST / P1 / findings 4 / component catalog と production source の再利用境界を突合
 - 2026-07-16 23:17 JST / P2 / findings 2 / CMD body・Rust import graph・frontend IPC経路を監査、design compliance test pass
 - 2026-07-16 23:22 JST / P3 / findings 4 / 層別エラー変換・Result握りつぶし・filesystem catch-all・frontend表示契約を監査
+- 2026-07-16 23:27 JST / P4 / findings 3 / generated IPC型・URL Zod schema・form field集合の二重管理を監査、typecheck pass
 
 ## 越境メモ（package scope 外で気づいた事項、1 行ずつ）
 
