@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: implementing
+- Phase: human-confirm
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: 3f7fc18
@@ -11,7 +11,7 @@
 - Writer: Fable 5（design docs 改訂）
 - Plan Reviewer: Sonnet subagent（独立 context）
 - Final Reviewer: Sonnet subagent（Plan Reviewer とは別 context）
-- Reviewed Content HEAD: pending
+- Reviewed Content HEAD: 5025386
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
 - Human Gate: Draft PR の owner 確認 + Ready 承認 + Ready 後の explicit `workflow_dispatch` 1 run（docs-only は paths-ignore で自動 event 対象外のため、ci.md R3 経路の hosted final は owner 指示の dispatch で満たす）+ merge
@@ -232,4 +232,5 @@ Fill after implementation.
 - 独立 Final Review（Contract Audit、Sonnet subagent = Plan Reviewer と別 context、2026-07-17、audited content = `5f7ee60`）: P1 = 0 / P2 = 0 / P3 = 2、verdict「human-confirm へ進行可」。Matrix #8 の 5 findings × 対応節の被覆を確認、Matrix #12 の既存契約非破壊（CMD 再接続 / v2 foreign_keys 復元 / D-032 / 68-ui）を実装現物と突合済み。裁定:
   - Final P3-1（§71.7 ステップ 7a の削除失敗記録の欠落）: 監査 P3-2 = 順 7 の既知ギャップで本 packet の Non-scope に明記済み。記録のみ、対応なし。
   - Final P3-2（実 WAL fixture テスト fail 時の設計再検討の明文化）: accept。22 §12.5 に一行追加（audited content 後の P3-only 差分、reviewer 再エンゲージなし）。
+- state-only 遷移記録（2026-07-17、第 2）: `local-verified -> independent-review -> human-confirm` を単一 state-only commit で materialize。根拠 = content candidate `5025386` に対する L1 `local-ci.sh full` PASS/CLEAN（implementing -> local-verified、evidence は PR body）、独立 Final Reviewer の P1/P2 = 0 報告（independent-review -> human-confirm。audited content は `5f7ee60`、以降の差分は accept 済み Final P3-2 の一行追記のみ）。`Reviewed Content HEAD` は P3 反映後の content candidate `5025386` を指す。
 - Findings Freeze: frozen after Broad Audit（Plan Gate 3 round + 独立 Final Review 完了、2026-07-17）; post-freeze exceptions: none.
