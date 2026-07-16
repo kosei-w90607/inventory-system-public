@@ -27,6 +27,16 @@
 - 順 3 は「query key 追加だけで終えない」（P8-2 の mutation impact test を同一変更に含める）を Goal Invariant に組み込む
 - 既知 backlog との重複（FilePicker = 順 11、`.codex` 参照は監査 scope 外で別 backlog）は着手時に backlog 側を統合し二重管理しない
 
+## 第 2 パス delta 裁定（2026-07-17）
+
+第 1 パス P3〜P9 の luna/low 実行判明を受けた recall sweep（P3b〜P9b、sol/xhigh + model 自己確認ガード）で新規 15 findings、是正リストは 18 → 22 単位に再編された。新規上位 5 findings（P3b-1 / P3b-2 / P8b-3 / P7b-1 / P4b-1）を第 1 パス検証とも別の第 3 の独立 context が検証し、**5/5 CONFIRMED**。
+
+- **新順 1（WAL/SHM 原子性）は R4**: 部分 snapshot の成功扱い（migration 再実行経路なし）と旧 WAL への別 snapshot 接続は、SQLite の実挙動に基づく具体的なデータ破損・誤復元経路。restore/migration = destructive data lifecycle
+- **裁定注記 1（P7b-1）**: 同一 finding 内の 2 instance に確度差がある。`OperationLogsPage` は TanStack Router 内部の `startTransition` 経由で concurrent render 破棄に実到達し得る（是正必須）。`DisposalPage` は「latest ref」慣用形で実害再現性が弱い（是正時に同時に直すが、優先根拠は前者に置く）
+- **裁定注記 2（P4b-1）**: 現行の実行時挙動は正常で、実体は「型契約の穴」（generated 型が wire の省略可能性を誤表現 + 強制 cast が検査をバイパス）。将来 risk として accept、順 13 の位置づけどおり
+- **risk 付与の更新**: 順 1 = R4 / 順 2 = R4（旧順 1）/ 順 3 = R3 design-first（整合性補正、旧順 2）/ 順 4 = R3（mutation contract、旧順 3）。順 1 と順 2 は同じ backup/migration failure contract 領域のため、**design phase は 71-mnt-backup + 22-mnt-migration の failure contract 全体で 1 回にまとめ、実装は R4 の可監査性を保つため別 PR に分ける**
+- luna/low 事故の帰結: recall sweep が新順 1 を含む 15 件を追加回収したことで、「取りこぼしリスク」は仮説でなく実証となった。model 自己確認ガードは 00-order.md に恒久化済み
+
 ## 監査 workflow 自体の振り返りメモ（次回のため）
 
 - checkpoint 方式（1 package = 1 commit）は session 切れ耐性として機能し、10 checkpoint が計画どおり積まれた
