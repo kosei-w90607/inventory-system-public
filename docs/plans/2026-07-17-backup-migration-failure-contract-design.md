@@ -2,10 +2,10 @@
 
 ## Workflow State
 
-- Phase: plan-gate
+- Phase: implementing
 - Risk: R3
 - Execution Mode: fable-window
-- Plan Commit: pending
+- Plan Commit: 3f7fc18
 - Amendments: none
 - Coordinator: Fable 5（本 session）
 - Writer: Fable 5（design docs 改訂）
@@ -224,6 +224,8 @@ Fill after implementation.
   - P2-3（退避巻き戻しの二重失敗が未規定）: accept。MNT-01-D1 に致命的エラー契約（既存ステップ 8e と同等）を追記。
   - P3-1（Contract Probe の理由づけ）: accept。read-write 稼働実績と新規接続の前提差を明記し、通常モード open + 実装 PR1 の実 WAL fixture テストを empirical validation として必須化。
   - P3-2（D-032 break-glass との接続明記）: accept。§71.9 改訂項目に一行追加。
+- Plan Gate round 3（同 Plan Reviewer、差分最終確認、2026-07-17）: round 2 対応 3 箇所（Workflow State / Ledger MNT-03-D4 行 / Review Response）を確認、残存参照・新規矛盾なし、verdict「plan-gate 通過可（P1/P2 = 0）」。
+- state-only 遷移記録（2026-07-17）: `plan-gate -> plan-approved -> implementing` を単一 state-only commit で materialize。根拠 = Plan Reviewer round 3 の P1/P2 = 0 報告（plan-gate -> plan-approved）、Plan Commit `3f7fc18` が全実装（設計書改訂）commit に先行すること（plan-approved -> implementing）。
 - Plan Gate round 2（同 Plan Reviewer、差分再レビュー、2026-07-17）: round 1 P2×3 / P3×2 の対応は全件解消と判定。新規 P2 = 1 / P3 = 1、verdict「再差し戻し」。裁定と対応:
   - 新規 P2（Hosted CI Requirement: not-required と R3 の不整合）: accept（Coordinator が ci.md 39〜66 行を再読して誤読を確認 — R3/R4 は「原則 1 run」で、pure docs-only 0 run は R0/R1 対の規定）。`required` へ訂正し、docs-only の hosted final は owner Ready 後の explicit `workflow_dispatch` 1 run と Human Gate に明記。
   - 新規 P3（blocking dialog の pre-window 動作未検証）: accept。Ledger MNT-03-D4 行に Windows 実機での pre-window 呼び出し動作確認を実装 PR1 完了条件として追記。
