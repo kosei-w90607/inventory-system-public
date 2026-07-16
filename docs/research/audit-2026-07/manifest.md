@@ -34,7 +34,7 @@ Coordinator 裁定: 第 1 パス findings の精度は独立検証（上位 7/7 
 - [x] **P6b** dead code・残骸(第 2 パス)
 - [x] **P7b** 可読性・慣用性・命名(第 2 パス。owner 品質観点の本丸、丁寧に)
 - [x] **P8b** テスト品質(第 2 パス)
-- [ ] **P9b** 差分統合: 第 2 パスの新規 findings を report.md の是正リスト・健全領域・優先度へ反映（新規ゼロなら report に「第 2 パスで clean 宣言を確定」を追記）。adjudication.md は触らない（Coordinator の管轄）
+- [x] **P9b** 差分統合: 第 2 パスの新規 findings を report.md の是正リスト・健全領域・優先度へ反映（新規ゼロなら report に「第 2 パスで clean 宣言を確定」を追記）。adjudication.md は触らない（Coordinator の管轄）
 
 ## 進捗 log（package 完了ごとに 1 行追記）
 
@@ -54,6 +54,7 @@ Coordinator 裁定: 第 1 パス findings の精度は独立検証（上位 7/7 
 - 2026-07-17 00:44 JST / P6b / findings 2 / force-warn再分類とfrontend orphan config・stylesheetをrecall sweep
 - 2026-07-17 00:50 JST / P7b / findings 3 / React render-phase ref・内部route遷移・PLU/CSV語彙をrecall sweep
 - 2026-07-17 01:21 JST / P8b / findings 3 / Z004 flow・home orchestration・WAL障害fixtureのtest blind spotをrecall sweep
+- 2026-07-17 01:27 JST / P9b / 統合 / 第2パス findings 15件を原因・完了条件でdedupeし、report.mdの是正順・依存関係・健全領域へ反映
 
 ## 越境メモ（package scope 外で気づいた事項、1 行ずつ）
 
