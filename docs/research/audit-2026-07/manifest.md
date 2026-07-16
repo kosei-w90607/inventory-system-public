@@ -1,0 +1,24 @@
+# 監査 manifest（work packages + 進捗 log）
+
+> 固定仕様は [00-order.md](00-order.md)。**session 開始時は必ず 00-order.md → 本ファイルの順で読み、未消化 package を上から 1 つ取る。**
+
+## Work packages（実施順）
+
+- [ ] **P0 構造マップ**: frontend（`src/features` / `src/components` / `src/routes` / `src/lib` / `src/config`）と backend（`src-tauri/src` の cmd / biz / io / mnt）のモジュール目録、層間依存の概観、共有部品の目録（どの画面が何を再利用し、何を独自実装しているか）。findings ではなく台帳（`findings/p0-structure-map.md`）を作る — 以降の package が参照する土台
+- [ ] **P1 部品重複・再利用逸失（frontend）**: 複数画面で類似実装が独立に存在する箇所（既知: SortableHeader、plain file input。他にないか）。design-system component catalog との突合
+- [ ] **P2 層境界（backend + IPC）**: 機械検査（design compliance test）が捕捉しない違反 — CMD 層のビジネスロジック混入、BIZ 迂回、IO 層からの上位参照、frontend からの command 呼び出し経路の一貫性（bindings.ts 経由の統一性）
+- [ ] **P3 error handling 一貫性**: 層別エラー型規約（DbError/BizError/CmdError）の遵守、握りつぶし・catch-all の残存、frontend 側のエラー表示パターン（toast / インライン / ダイアログ）の画面間一貫性
+- [ ] **P4 型・contract 重複**: TS 手書き型 vs `bindings.ts` 生成型の二重定義、zod schema と型の重複、Rust DTO との不整合リスク、literal union の散在
+- [ ] **P5 状態管理・データ取得パターン**: TanStack Query の使い方（key 設計 / staleTime / invalidation）の画面間ばらつき、hooks の粒度と再利用、URL search state の扱いの一貫性
+- [ ] **P6 dead code・残骸**: 未使用 export / 未使用部品（既知: `collapsible.tsx` は 58 §表で「現在未使用」と記録済み — 記録どおりか確認）/ 到達不能コード / 使われていない型
+- [ ] **P7 可読性・慣用性・命名**: owner 品質観点。React 19 / TS strict / Rust の慣用からの逸脱、命名が実態と一致しているか、コメントの質（why を語るか、drift していないか）、「読み手の驚き」が大きい箇所
+- [ ] **P8 テスト品質**: tautological test（既知: `integrity_cmd.rs`。他にないか）、実配線を通らず手組み fixture だけで通るテスト、REQ トレース(テスト名)の一貫性、カバーの薄い契約
+- [ ] **P9 統合**: P1〜P8 の findings を dedupe → 影響 × 労力で優先度付け → `report.md`（監査レポート + 是正リスト）を作成。**新規調査はしない**、統合のみ
+
+## 進捗 log（package 完了ごとに 1 行追記）
+
+（未着手）
+
+## 越境メモ（package scope 外で気づいた事項、1 行ずつ）
+
+（なし）
