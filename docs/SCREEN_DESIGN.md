@@ -52,7 +52,7 @@
 
 > **2026-04-21 注記**: 下記の緑/青/オレンジ/黄は初期モックアップ作成時の色分け表記。**色分け廃止が確定**（正典: [design-system/00-foundations.md](design-system/00-foundations.md)「4色エリアモデルの扱い」）したため、実装ではエリアラベルの識別はアイコン + 区切り線で行う（色は使わない）。色情報はモックアップアーカイブとして残す。詳細は [docs/archive/plans/2026-04-21-ui-12-design-agreement.md §1.2](archive/plans/2026-04-21-ui-12-design-agreement.md) 参照。
 >
-> **2026-05-08 注記**: 4 エリア × 19 項目の最終確定形は `src/config/navigation.ts`（`NavStatus` / `NavItem` / `NavArea` 型 + `navigation` 定数）として実装済み。SCREEN_DESIGN は意図ドキュメント、`navigation.ts` が実装の正ソース。新規画面追加時は `navigation.ts` も更新する（[docs/function-design/52-ui-shared-layout.md §52.3](function-design/52-ui-shared-layout.md) 参照）。
+> **2026-05-08 注記**: 4 エリア navigation の最終確定形（項目数は `navigation.ts` を正とし、本書には転記しない）は `src/config/navigation.ts`（`NavStatus` / `NavItem` / `NavArea` 型 + `navigation` 定数）として実装済み。SCREEN_DESIGN は意図ドキュメント、`navigation.ts` が実装の正ソース。新規画面追加時は `navigation.ts` も更新する（[docs/function-design/52-ui-shared-layout.md §52.3](function-design/52-ui-shared-layout.md) 参照）。
 
 - **緑（毎日の業務）**: 売上データ取込み → 日次売上レポート → 在庫照会 → 月次売上レポート
 - **青（商品管理）**: 商品検索・一覧 → 商品登録 / 商品修正 / 一括インポート、PLU書出し
