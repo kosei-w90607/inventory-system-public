@@ -39,9 +39,9 @@ When the task touches this project, read in this order:
 
 ## Workspace Access
 
-- This repo lives in WSL at `/home/kosei/Projects/inventory-system`.
+- This repo lives in WSL at `/home/kosei/Projects/inventory-system-public`.
 - From Windows PowerShell or Codex Desktop, prefer WSL execution with `--cd` and repo-owned wrappers for routine inspection:
-  `wsl.exe -d Ubuntu-22.04 --cd /home/kosei/Projects/inventory-system --exec /home/kosei/Projects/inventory-system/.codex/bin/read-safe-file.sh AGENTS.md`
+  `wsl.exe -d Ubuntu-22.04 --cd /home/kosei/Projects/inventory-system-public --exec /home/kosei/Projects/inventory-system-public/.codex/bin/read-safe-file.sh AGENTS.md`
 - For allowlisted safe reads/searches, use `.codex/bin/read-safe-file.sh`, `.codex/bin/search-safe-files.sh`, and `.codex/bin/list-safe-files.sh`. Project policy allows these repo-relative wrappers from a trusted project session, plus the absolute WSL forms documented in `.codex/README.md`.
 - Safe wrappers may read repository instructions and non-secret skill/procedure docs such as `.agents/skills/**/SKILL.md` and `.claude/skills/**/SKILL.md`.
 - Do not broadly allow `wsl.exe ... bash -lc ...`, raw `cat`, raw `sed`, raw `rg`, or raw `find` from Codex Desktop. Keep them in ask/deny unless a narrow task-specific approval is given.

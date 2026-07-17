@@ -23,7 +23,7 @@ if echo "$CMD" | grep -qE 'git[[:space:]]+tag[[:space:]]+(-a[[:space:]]+)?v[0-9]
   jq -n '{
     "hookSpecificOutput": {
       "hookEventName": "PostToolUse",
-      "additionalContext": "段階完了検出（git tag v*）。次の自然な区切りで memory/ 監査を実施せよ。実施完了時は必ず `touch /home/kosei/.claude/projects/-home-kosei-Projects-inventory-system/memory/.last_audit` で sentinel 更新（Phase 4.6 safety-net リセット）。監査チェックリスト: MEMORY.md 180行超の分割判断 / 90日超ファイルのレビュー / docs 昇格候補抽出 / hook パターン漏れ確認。"
+      "additionalContext": "段階完了検出（git tag v*）。次の自然な区切りで memory/ 監査を実施せよ。実施完了時は必ず `touch /home/kosei/.claude/projects/-home-kosei-Projects-inventory-system-public/memory/.last_audit` で sentinel 更新（Phase 4.6 safety-net リセット）。監査チェックリスト: MEMORY.md 180行超の分割判断 / 90日超ファイルのレビュー / docs 昇格候補抽出 / hook パターン漏れ確認。"
     }
   }' 2>/dev/null || exit 0
 

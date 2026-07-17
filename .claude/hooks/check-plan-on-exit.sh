@@ -184,7 +184,7 @@ fi
 # memory feedback-plan-rally-required-before-exit.md / feedback-claude-self-bias-blind-spot.md
 # Claude 自主判断は信頼しない設計 → 独立 context の subagent log を機械的に強制
 if [ "$HAS_EXEMPTION" -eq 0 ]; then
-  AGENT_LOG_DIR="/tmp/claude-1000/-home-kosei-Projects-inventory-system"
+  AGENT_LOG_DIR="/tmp/claude-1000/-home-kosei-Projects-inventory-system-public"
   RECENT_LOGS=""
   if [ -d "$AGENT_LOG_DIR" ]; then
     RECENT_LOGS=$(find -L "$AGENT_LOG_DIR" -path '*/tasks/*.output' -mmin -30 -type f 2>/dev/null)

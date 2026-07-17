@@ -1,8 +1,17 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-REPO="${CODEX_INVENTORY_REPO:-/home/kosei/Projects/inventory-system}"
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+script_parent="$(dirname -- "${BASH_SOURCE[0]}")"
+if ! SCRIPT_DIR="$(cd -- "$script_parent" 2>/dev/null && pwd -P)"; then
+  echo "codex-inventory: cannot resolve script directory: $script_parent" >&2
+  exit 1
+fi
+if [[ -n "${CODEX_INVENTORY_REPO:-}" ]]; then
+  REPO="$CODEX_INVENTORY_REPO"
+elif ! REPO="$(git -C "$SCRIPT_DIR" rev-parse --show-toplevel 2>/dev/null)"; then
+  echo "codex-inventory: cannot resolve repository root from script directory: $SCRIPT_DIR" >&2
+  exit 1
+fi
 BAR="${CODEX_INVENTORY_BAR:-$SCRIPT_DIR/codex-inventory-bar}"
 REAL_CODEX="${REAL_CODEX:-/home/kosei/.npm-global/bin/codex}"
 SESSION_PREFIX="${CODEX_INVENTORY_SESSION_PREFIX:-codex-inventory}"
@@ -24,10 +33,6 @@ debug=false
 if [[ "${1:-}" == "--debug" ]]; then
   debug=true
   shift
-fi
-
-if [[ ! -x "$REAL_CODEX" ]]; then
-  REAL_CODEX="$(command -v codex)"
 fi
 
 if [[ "$debug" == true ]]; then
@@ -53,6 +58,10 @@ if [[ "$debug" == true ]]; then
     printf '  launch_mode: split tmux pane\n'
   fi
   exit 0
+fi
+
+if [[ ! -x "$REAL_CODEX" ]]; then
+  REAL_CODEX="$(command -v codex)"
 fi
 
 start_alt_scroll_suppressor() {

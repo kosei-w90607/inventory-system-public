@@ -27,7 +27,7 @@ memory `feedback-claude-self-bias-blind-spot.md` + `feedback-plan-rally-required
    ```bash
    # find ベース (fd は WSL に未 install のため、依存最小化、Codex PR #56 P3-1 反映)
    # xargs -r で no-input 時の ls -t fallback (cwd 列挙) を抑止 (Codex PR #56 Round 2 P2 反映)
-   PLAN_DOCS=$(find /home/kosei/Projects/inventory-system/docs/plans -name '*.md' -type f -mmin -120 2>/dev/null | xargs -r ls -t 2>/dev/null | head -1)
+   PLAN_DOCS=$(find /home/kosei/Projects/inventory-system-public/docs/plans -name '*.md' -type f -mmin -120 2>/dev/null | xargs -r ls -t 2>/dev/null | head -1)
    PLAN_TMP=$(find /home/kosei/.claude/plans -name '*.md' -type f -mmin -60 2>/dev/null | xargs -r ls -t 2>/dev/null | head -1)
    echo "対象: docs=$PLAN_DOCS / tmp=$PLAN_TMP"
    ```

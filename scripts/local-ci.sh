@@ -205,6 +205,7 @@ if [[ "$(classification_value workflow)" == "true" ]]; then
     run_required classifier-tests "$REPO_ROOT" bash scripts/tests/classify-changes.test.sh
     run_required pre-push-tests "$REPO_ROOT" bash scripts/tests/pre-push.test.sh
     run_required local-ci-tests "$REPO_ROOT" bash scripts/tests/local-ci.test.sh
+    run_required codex-safe-wrappers-tests "$REPO_ROOT" bash scripts/tests/codex-safe-wrappers.test.sh
     run_required public-sanitization-tests "$REPO_ROOT" bash scripts/tests/public-sanitization.test.sh
     run_required doc-consistency-plan-packet-tests "$REPO_ROOT" bash scripts/tests/doc-consistency-plan-packet.test.sh
     run_required workflow-git-checks-tests "$REPO_ROOT" bash scripts/tests/workflow-git-checks.test.sh

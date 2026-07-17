@@ -22,7 +22,7 @@ if echo "$USER_MSG" | grep -qE "$PATTERN"; then
   jq -n --arg match "$MATCH" '{
     "hookSpecificOutput": {
       "hookEventName": "UserPromptSubmit",
-      "additionalContext": ("feedback-worthy 発言検出: 『" + $match + "』。この turn の終了前に memory/ への保存可否を判断し、該当するなら /home/kosei/.claude/projects/-home-kosei-Projects-inventory-system/memory/ 配下に Write せよ。feedback型なら『Why:』と『How to apply:』を含める。MEMORY.md の索引も更新すること。")
+      "additionalContext": ("feedback-worthy 発言検出: 『" + $match + "』。この turn の終了前に memory/ への保存可否を判断し、該当するなら /home/kosei/.claude/projects/-home-kosei-Projects-inventory-system-public/memory/ 配下に Write せよ。feedback型なら『Why:』と『How to apply:』を含める。MEMORY.md の索引も更新すること。")
     }
   }' 2>/dev/null || exit 0
 

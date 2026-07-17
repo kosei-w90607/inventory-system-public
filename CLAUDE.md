@@ -24,7 +24,7 @@ Claude 固有の `ExitPlanMode` hook は `check-plan-on-exit.sh` と `suggest-su
 
 Claude Code 純正の auto-memory を主記憶。詳細方針は `~/.claude/CLAUDE.md` の「記憶システム優先順位」参照。
 
-- 格納場所: `/home/kosei/.claude/projects/-home-kosei-Projects-inventory-system/memory/`
+- 格納場所: `/home/kosei/.claude/projects/-home-kosei-Projects-inventory-system-public/memory/`
 - 明示保存トリガー（例外なく Write）: `覚えておいて` / `記憶して` / `残しておいて` / `feedback残す` / `save this` / `remember this`
 - 暗黙保存: 俺の提案を**否定** → feedback型（Why:に理由）、**採用** → project型、**好み/判断軸** → feedback型、**未ドキュメント情報** → project or user型
 - hook: `.claude/hooks/memory-capture-feedback.sh` がトリガー語検知して additionalContext 注入

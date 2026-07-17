@@ -317,6 +317,9 @@ jobs:
       - name: Install ripgrep
         run: sudo apt-get update && sudo apt-get install -y ripgrep
 
+      - name: Run Codex safe wrapper regression tests
+        run: bash scripts/tests/codex-safe-wrappers.test.sh
+
       - name: Run doc consistency check
         run: bash scripts/doc-consistency-check.sh
 

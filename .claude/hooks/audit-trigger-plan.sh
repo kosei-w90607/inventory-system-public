@@ -22,7 +22,7 @@ if echo "$FILE_PATH" | grep -qE '(\.claude/plans|docs/plans)/[^/]+\.md$'; then
   jq -n '{
     "hookSpecificOutput": {
       "hookEventName": "PostToolUse",
-      "additionalContext": "プランファイル作成・更新検出。次の自然な区切りで memory/ 軽量監査を検討。実施時は `touch /home/kosei/.claude/projects/-home-kosei-Projects-inventory-system/memory/.last_audit` で sentinel 更新。軽量監査: 直近セッションの feedback / 判断軸が memory/ に反映されているかの確認で十分。"
+      "additionalContext": "プランファイル作成・更新検出。次の自然な区切りで memory/ 軽量監査を検討。実施時は `touch /home/kosei/.claude/projects/-home-kosei-Projects-inventory-system-public/memory/.last_audit` で sentinel 更新。軽量監査: 直近セッションの feedback / 判断軸が memory/ に反映されているかの確認で十分。"
     }
   }' 2>/dev/null || exit 0
 

@@ -211,6 +211,7 @@ require_fixed "cancel-in-progress: true"
 require_fixed "if: always() && needs.changes.result == 'success'"
 require_fixed "name: Rust (fmt + clippy + test)"
 require_fixed "cache: npm"
+require_fixed "bash scripts/tests/codex-safe-wrappers.test.sh"
 
 if grep -Fq 'Hosted CI: skip' "$PR_TEMPLATE"; then
     fail "PR template contains the opt-in skip token by default"
