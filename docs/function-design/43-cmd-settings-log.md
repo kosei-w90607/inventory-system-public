@@ -203,7 +203,7 @@ fn restore_backup(
 4. `std::mem::replace` で現在の `DbConnection` を取り出す（一時的にin-memory接続を入れる）
 5. `match mnt::backup::restore_backup(old_conn, &backup_path, &db_path)` で分岐:
    - `Ok(new_conn)` → `*guard = new_conn`
-   - `Err(e)` → `db::init_database`で有効な接続を再確立し`*guard`に入れる → `CmdError`を返す
+   - `Err(e)` → 復旧再接続は 71 §71.7 MNT-01-D4 の契約に従う: 「退避復元済み」の場合のみ **create 能力のない open** で再接続して `*guard` に入れ、recoverable な `CmdError` を返す。「状態不明/未復旧」または no-create 再接続失敗は再接続を試みず unrecoverable（再起動誘導文言）を返す。**create 能力のある `db::init_database` を復旧再接続に使ってはならない**（main 不在時に空 DB を作り recoverable に偽装する）
 6. **`?`で早期returnしてはならない**（Mutex内のdummy接続が残るため）
 
 **注意**: リストア中は他のコマンドがブロックされる（Mutexロック中）。単一ユーザーアプリのため問題なし。

@@ -43,7 +43,7 @@ fn migrate(conn: &DbConnection) -> Result<(), DbError>
 
 - 決定: SQL 実行・バージョン記録・FK 検査の失敗後に実行する ROLLBACK が自身も失敗した場合、(1) `tracing::error!` で記録し、(2) 返す `DbError::MigrationFailed` のメッセージへ元エラーと ROLLBACK エラーを併合し、「transaction 状態不明」であることを明示する（例: `v{n} SQL実行失敗: {e}（ROLLBACK も失敗: {e2}、transaction 状態不明）`）。migration.rs / schema_v2.rs / schema_v3.rs（以降の schema_vN も同様）の全 ROLLBACK 箇所に共通ヘルパーで適用し、個別再実装をしない
 - **COMMIT 失敗も本契約の対象とする（PR #14 Codex P2-3）**: SQLite は SQLITE_BUSY での COMMIT 失敗時に transaction を active のまま残す。COMMIT の Err を直接返す現行実装は transaction/lock 状態不明のままエラーを返す。契約: COMMIT 失敗時は `Connection::is_autocommit()` で transaction 状態を確認し、transaction 中なら ROLLBACK を試行して結果を上記の併合規則で報告する
-- **PRAGMA foreign_keys 復元との関係**: `PRAGMA foreign_keys` は transaction 中は no-op のため、v2 の復元保証（scopeguard）は transaction が閉じた後にのみ有効。COMMIT 失敗で transaction が残ったまま復元 PRAGMA を実行しても効かない — 上記の状態確認 + ROLLBACK が復元保証の前提条件であることを明記する。復元 PRAGMA 自体の実行結果も本契約の記録対象とし、失敗を無言で握りつぶさない（現行実装は inner Err 時の復元失敗を無記録で通す）
+- **PRAGMA foreign_keys 復元との関係**: `PRAGMA foreign_keys` は transaction 中は no-op のため、v2 の復元保証（scopeguard）は transaction が閉じた後にのみ有効。COMMIT 失敗で transaction が残ったまま復元 PRAGMA を実行しても効かない — 上記の状態確認 + ROLLBACK が復元保証の前提条件であることを明記する。復元は `is_autocommit()` で transaction が閉じたことを確認してから実行し、**`PRAGMA foreign_keys` の再読取で復元後の値が元値と一致することを検証する** — transaction 中の PRAGMA は成功を返しつつ no-op になり得るため、実行結果の記録だけでは復元を確認できない（PR #14 Codex 再レビュー P2）。transaction を閉じられない（ROLLBACK も失敗した）場合は復元を試みず、**接続の破棄を必須とする**構造化された致命エラーとして返す。復元 PRAGMA・再読取の失敗も本契約の記録対象とし、無言で握りつぶさない（現行実装は inner Err 時の復元失敗を無記録で通す）
 - Why: ROLLBACK 失敗を `.ok()` で破棄すると、呼び出し元は transaction が閉じたと誤認する。接続が transaction 中または lock 保持のままなら後続処理が二次エラーを出し、最初の応答だけでは復旧不能状態を診断できない（監査 P3-1 系列の P3-3）。`.claude/rules/implementation-quality.md` の Result 握りつぶし禁止の適用でもある
 - Rejected alternatives: ROLLBACK 失敗時の自動再試行（lock 起因では悪化するだけで、migration は起動時実行のため再起動が最短復旧）/ ROLLBACK 失敗を独立エラーとして元エラーを差し替える（一次原因を隠す）
 - 見直し契機: migration を起動時以外から呼ぶ経路（例: 実行中の restore 後再初期化）を追加するとき
@@ -95,7 +95,7 @@ PRAGMA foreign_keys = ON
 
 **FK制御の理由**: foreign_keys=ON のまま DROP TABLE すると子テーブル参照が壊れるリスクがある
 
-**foreign_keys=ON の復元保証**: COMMIT 後だけでなく、ROLLBACK やエラー時も必ず PRAGMA foreign_keys=ON を実行する。Rust 実装では Drop トレイトまたは scopeguard で finally 相当の復元を保証する
+**foreign_keys=ON の復元保証**: COMMIT 後だけでなく、ROLLBACK やエラー時も PRAGMA foreign_keys=ON の復元を行う。ただし復元は MNT-03-D1（§3.2）の契約に従う: `is_autocommit()` で transaction が閉じたことを確認してから実行し、再読取で復元値を検証する。transaction を閉じられない場合は復元を試みず接続破棄必須の致命エラーとする — Drop トレイト / scopeguard で finally 相当を実装する場合も、この is_autocommit ゲートと検証を省略した無条件実行にしてはならない（transaction 中の PRAGMA は成功を返す no-op になり得るため）
 
 **完全DDLの構築**: 各テーブルの DDL は schema_v1.rs の定義 + 新カラム2列で構築する。実装時に schema_v1.rs と不整合がないことを確認する
 
@@ -187,7 +187,7 @@ fn migrate_legacy_db(
 3. 旧 DB を **create 能力なしで開く**（`SQLITE_OPEN_READ_WRITE` のみ、`SQLITE_OPEN_CREATE` を含めない `open_with_flags`。read-only にしないのは open 時の WAL recovery を SQLite に委ねるため、CREATE を外すのは存在確認後に旧 DB が消える TOCTOU で空の旧 DB を作らないため）。open 失敗 → `Err`
 4. `VACUUM INTO '{new_dir}/inventory.db.migrating'` を実行（一時ファイル名。パスのシングルクォートは 71 §71.4 と同じ規約でエスケープ）
 5. 旧 DB 接続を閉じる
-6. `{new_dir}/inventory.db.migrating` → `{new_dir}/inventory.db` へ rename。**publish は no-clobber**: rename 直前に destination 不在を再確認し、既存 destination を置換しない手段を用いる（Rust std の `rename` は既存 destination を置換し得て OS 差もある — 実装 PR1 で platform 適合の primitive を確定）。destination が出現していた場合は一時ファイルを削除して `Err`（同時二重起動の直列化自体は Plans.md backlog「single-instance ガード」参照）
+6. `{new_dir}/inventory.db.migrating` → `{new_dir}/inventory.db` へ rename。**publish は no-clobber**: rename 直前に destination 不在を再確認し、既存 destination を置換しない手段を用いる（Rust std の `rename` は既存 destination を置換し得て OS 差もある — 実装 PR1 で platform 適合の primitive を確定）。destination が出現していた場合は一時ファイルを削除して `Err`（同時二重起動の直列化は single-instance ガードが担う — 71 §71.7 MNT-01-D5 の前提条件として実装 PR1 で導入。no-clobber はガード障害時の defense-in-depth）
 7. `Ok(true)` を返す。旧 3 ファイル（main/-wal/-shm）は削除しない（現行どおり手動削除の運用）
 
 **呼び出し元の存在確認契約（PR #14 Codex P1-3）**: lib.rs は `std::env::current_dir()` の失敗を `if let Ok(cwd)` で無言 skip してはならない。ステップ 1 の「新 DB 既存 → skip」は CWD に依存しないため先に判定し、新 DB が無い場合の CWD 解決失敗・存在確認 error・その他の「旧 DB の有無を確定できない」状態はすべて `Err` として MNT-03-D4（fail-closed 起動中止）へ流す。「旧 DB が無い」と「有無を確認できない」を同じ skip に潰すと、P3b-1 の空 DB 隠蔽経路が discovery failure の形で残る
