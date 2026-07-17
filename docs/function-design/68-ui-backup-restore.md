@@ -121,7 +121,7 @@ UI は PR #141 で生成済みの `commands.*` だけを使う。
 | `restore_failed_recovered` | CMD が Err を返し、DB 接続再確立済み | `ready` | 復元失敗を表示し、一覧を再取得して再試行可能にする。 |
 | `restore_failed_unrecoverable` | CMD が「DB接続の復旧もできませんでした。アプリを再起動してください」を返す | terminal | DSR-03 上部帯の full-page destructive Alert、全操作 disabled、「アプリを閉じて、もう一度開いてください」。 |
 
-`restore_backup` の MNT 層は失敗時に DB ファイルを退避から戻すが、有効な接続は返さない。CMD 層は `match` で `db::init_database` を呼び、成功すれば recovered connection を Mutex に戻してから Err を返す。UI はこの recoverable failure を通常の再試行可能エラーとして扱う。再接続にも失敗した double failure だけが restart-required 状態である。
+`restore_backup` の MNT 層は失敗時に DB ファイルを退避から戻すが、有効な接続は返さない。CMD 層は `match` で処理し、「退避復元済み」の失敗に限り **create 能力のない open**（71 §71.7 MNT-01-D4）で再接続を試み、成功すれば recovered connection を Mutex に戻してから Err を返す。UI はこの recoverable failure を通常の再試行可能エラーとして扱う。復元後の状態が確定できない失敗、または no-create 再接続に失敗した double failure が restart-required 状態である（create 能力のある `init_database` を復旧再接続に使うと、main 不在時に空 DB が作られ recoverable に偽装される — MNT-01-D4 参照）。
 
 ## 68.8 Command Contract
 

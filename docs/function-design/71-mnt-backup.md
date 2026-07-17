@@ -190,12 +190,13 @@ fn restore_backup(
 
 - 決定: 逐次 rename は I/O エラーには MNT-01-D1 で巻き戻せるが、プロセス中断・電源断には原子的でない。次の marker + 起動時 reconcile で「元 snapshot または新 snapshot のどちらか一方が完全な形で残り再接続可能」の不変条件を再起動をまたいで保証する:
   - restore は最初のファイル mutation より前に durable marker `{db_path}.restore_inprogress` を作成し、**成功時は新接続確立の直後（退避ファイル削除より前）**、失敗時は巻き戻し完了後に削除する。ファイル mutation（退避 rename / 本体コピー / 巻き戻し）は marker 存在下でのみ行う
-  - 起動シーケンス（lib.rs）は `init_database` より前に reconcile を実行する: marker または `.restore_backup` 遺物が存在する場合、**DB を開かず・新規作成もせず**、次の決定論的規則で解消してから通常起動に進む
-    - marker **あり** = 復元は未完 → 退避一式（`.restore_backup`）を正とし、`{db_path}` 一式（部分コピーの可能性）を削除して退避を元の名前へ戻し、marker を削除する
+  - 起動シーケンス（lib.rs）は `init_database` より前に reconcile を実行する: marker または `.restore_backup` 遺物が存在する場合、**DB を開かず・新規作成もせず**、次の決定論的規則（3 分岐）で解消してから通常起動に進む
+    - marker **あり** + 退避 main（`{db_path}.restore_backup`）**あり** = 復元は未完 → 退避を正とする。巻き戻しは「存在する退避ファイルごとに、対応する元名ファイルを削除してから rename で戻す」単位で行い、**退避側に存在しないファイルの元名は削除しない**。完了後に marker を削除する
+    - marker **あり** + 退避 main **なし** = mutation 未着手のまま中断（marker 作成直後） → `{db_path}` 一式は無傷なのでファイル操作をせず、marker のみ削除する
     - marker **なし** + 退避遺物あり = 復元は完了済みで掃除だけが中断 → `{db_path}` 一式を正とし、退避遺物を削除する
   - reconcile 自体の失敗は起動中止（MNT-03-D4 と同じ fail-closed + operator 可視化）とし、遺物を残したまま `init_database` に進んで空 DB を作ることを禁止する
   - reconcile は **legacy 移行判定（22 §12）より前に**実行する。restore 中断で `{db_path}` が不在の間に legacy 移行判定が走ると「新 DB 無し」と誤認して旧 CWD DB を publish し得るため、順序は reconcile → legacy 移行判定 → `init_database` で固定する
-- Why: 退避 rename 後・コピー完了前に中断すると `{db_path}` が不在になり、現行起動は `init_database` が空 DB を新規作成して実データ（退避側に無傷で存在）を隠蔽する。marker の有無を「`{db_path}` を信頼してよいか」の判定基準にすることで、全中断タイミングで解消先が一意に決まる。marker 削除を退避削除より前に置くのは、成功後の掃除中断を「main 優先」で解消するため
+- Why: 退避 rename 後・コピー完了前に中断すると `{db_path}` が不在になり、現行起動は `init_database` が空 DB を新規作成して実データ（退避側に無傷で存在）を隠蔽する。marker の有無を「`{db_path}` を信頼してよいか」の判定基準にすることで、全中断タイミングで解消先が一意に決まる。marker 削除を退避削除より前に置くのは、成功後の掃除中断を「main 優先」で解消するため。なお「新接続確立直後〜marker 削除前」の中断だけは、完了していた復元が reconcile で旧データへ巻き戻る（不変条件には違反しない安全側の挙動。operator は復元を再実行すればよく、この挙動は受容して文書化する）
 - Rejected alternatives: attempt ごとの一意 staging 名 + manifest（単一 instance のデスクトップ app には過剰で、固定名 + marker で決定論を確保できる。多重 attempt の残骸は reconcile が毎起動で先に解消する）/ reconcile なしで「退避があれば常に戻す」（成功後の掃除中断で完了済みの復元が巻き戻り、operator の操作結果を無効化する）
 - 見直し契機: single-instance ガード（Plans.md backlog）導入時、または restore を接続 API ベースへ置き換えるとき
 5. バックアップファイルを `{db_path}` にコピー

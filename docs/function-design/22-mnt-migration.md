@@ -43,7 +43,7 @@ fn migrate(conn: &DbConnection) -> Result<(), DbError>
 
 - 決定: SQL 実行・バージョン記録・FK 検査の失敗後に実行する ROLLBACK が自身も失敗した場合、(1) `tracing::error!` で記録し、(2) 返す `DbError::MigrationFailed` のメッセージへ元エラーと ROLLBACK エラーを併合し、「transaction 状態不明」であることを明示する（例: `v{n} SQL実行失敗: {e}（ROLLBACK も失敗: {e2}、transaction 状態不明）`）。migration.rs / schema_v2.rs / schema_v3.rs（以降の schema_vN も同様）の全 ROLLBACK 箇所に共通ヘルパーで適用し、個別再実装をしない
 - **COMMIT 失敗も本契約の対象とする（PR #14 Codex P2-3）**: SQLite は SQLITE_BUSY での COMMIT 失敗時に transaction を active のまま残す。COMMIT の Err を直接返す現行実装は transaction/lock 状態不明のままエラーを返す。契約: COMMIT 失敗時は `Connection::is_autocommit()` で transaction 状態を確認し、transaction 中なら ROLLBACK を試行して結果を上記の併合規則で報告する
-- **PRAGMA foreign_keys 復元との関係**: `PRAGMA foreign_keys` は transaction 中は no-op のため、v2 の復元保証（scopeguard）は transaction が閉じた後にのみ有効。COMMIT 失敗で transaction が残ったまま復元 PRAGMA を実行しても効かない — 上記の状態確認 + ROLLBACK が復元保証の前提条件であることを明記する
+- **PRAGMA foreign_keys 復元との関係**: `PRAGMA foreign_keys` は transaction 中は no-op のため、v2 の復元保証（scopeguard）は transaction が閉じた後にのみ有効。COMMIT 失敗で transaction が残ったまま復元 PRAGMA を実行しても効かない — 上記の状態確認 + ROLLBACK が復元保証の前提条件であることを明記する。復元 PRAGMA 自体の実行結果も本契約の記録対象とし、失敗を無言で握りつぶさない（現行実装は inner Err 時の復元失敗を無記録で通す）
 - Why: ROLLBACK 失敗を `.ok()` で破棄すると、呼び出し元は transaction が閉じたと誤認する。接続が transaction 中または lock 保持のままなら後続処理が二次エラーを出し、最初の応答だけでは復旧不能状態を診断できない（監査 P3-1 系列の P3-3）。`.claude/rules/implementation-quality.md` の Result 握りつぶし禁止の適用でもある
 - Rejected alternatives: ROLLBACK 失敗時の自動再試行（lock 起因では悪化するだけで、migration は起動時実行のため再起動が最短復旧）/ ROLLBACK 失敗を独立エラーとして元エラーを差し替える（一次原因を隠す）
 - 見直し契機: migration を起動時以外から呼ぶ経路（例: 実行中の restore 後再初期化）を追加するとき
@@ -182,7 +182,7 @@ fn migrate_legacy_db(
 
 ### 12.2 処理ステップ
 
-1. `new_dir/inventory.db` の存在を確認。**既存なら `Ok(false)`**（この判定に旧 DB 側の情報は不要）
+1. `new_dir/inventory.db` の存在を確認。**既存なら `Ok(false)`**（この判定に旧 DB 側の情報は不要）。存在確認の metadata error はステップ 2 と同じく「無い」に潰さず `Err` として返す
 2. 旧 DB の存在を確認する。**存在判定は metadata error を「無い」に潰さない**（`try_exists` 相当。error は `Err` として返す）。旧 DB が確実に無い → `Ok(false)`
 3. 旧 DB を **create 能力なしで開く**（`SQLITE_OPEN_READ_WRITE` のみ、`SQLITE_OPEN_CREATE` を含めない `open_with_flags`。read-only にしないのは open 時の WAL recovery を SQLite に委ねるため、CREATE を外すのは存在確認後に旧 DB が消える TOCTOU で空の旧 DB を作らないため）。open 失敗 → `Err`
 4. `VACUUM INTO '{new_dir}/inventory.db.migrating'` を実行（一時ファイル名。パスのシングルクォートは 71 §71.4 と同じ規約でエスケープ）
