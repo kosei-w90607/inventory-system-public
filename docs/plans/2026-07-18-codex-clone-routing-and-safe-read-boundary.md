@@ -6,10 +6,10 @@ Use the field definitions, enums, transition evidence, packet-selection rule, an
 
 If a state-only commit materializes multiple phases, list the complete adjacent forward sequence and the pre-existing evidence for every intermediate transition in an append-only review/evidence record. Recording compression never permits a gate skip.
 
-- Phase: plan-gate
+- Phase: implementing
 - Risk: R3
 - Execution Mode: fable-window
-- Plan Commit: pending
+- Plan Commit: 6dbdf1b
 - Amendments: none
 - Coordinator: Fable 5（Claude Code main thread）
 - Writer: Codex（owner 外部端末、public-writer clone に cwd pin）
@@ -23,6 +23,7 @@ If a state-only commit materializes multiple phases, list the complete adjacent 
 ### 遷移記録（append-only）
 
 - plan-first commit が kickoff → spec-check → design → plan-draft → plan-gate を圧縮 materialize する。根拠: task scope と Risk R3 は本 packet `Risk` 節に記録（kickoff → spec-check）。design 更新の要否は Design Phase で判定し、design 出力 = `docs/decision-log.md` D-049 を同一 plan-first change に含める（spec-check → design → plan-draft）。packet + Test Design Matrix は同 commit で committed（plan-draft → plan-gate）。
+- state-only 遷移 commit が plan-gate → plan-approved → implementing を圧縮 materialize する。根拠: 独立 Plan Reviewer（Sonnet subagent、Writer と別）が 3 round（R1: P1×1/P2×5/P3×4 全件是正 → R2: P2×1/P3×1 是正 → R3: 新規 0）で **P1/P2 = 0・収束**を報告（plan-gate → plan-approved。Review Response 節参照）。Plan Commit = 6dbdf1b（初回 plan-first commit、実装 commit ゼロの時点で設定 = 全実装 commit に先行）。実装は Codex 発注で開始（plan-approved → implementing）。
 
 ## Owner Effort Budget
 
@@ -269,5 +270,6 @@ Do not transcribe exact-HEAD SHA or test counts here (D-035/D-038 Evidence Owner
 ## Review Response
 
 - Plan Gate R1（2026-07-18、独立 Plan Reviewer = Sonnet subagent、Coordinator = Fable 5 が現物突合で裁定）: P1 = 1 / P2 = 5 / P3 = 4、**全件 accept・本 commit で是正**。P1-1 = C6「既存挙動維持」が search/list の sensitivity 判定を生引数のままとする解釈を許し、symlink alias（allowlist 適合名 → sensitive 実体）で迂回可能だった → C6 を canonical 相対 path 判定に統一（read-safe-file.sh :53-54 の既存実装を正とする、T14 追加）。P2 = dry-run 出口の Scope 明記（`--debug` 実在確認済み）/ canonicalize 失敗系列の明示拒否 + T15 / rg・find へ渡す値の canonical 統一 / execpolicy 28 参照は全件単純置換と一本化（実読で history-view 専用 rule 非存在を確認）/ T4 に無引数デフォルト一覧の回帰を追加。P3 = 誤字（上復→上限）/ T11 正規表現の明示 / Data Safety と AC の役割分離 / A 群書き分け。
-- Plan Gate R2（2026-07-18、同 Plan Reviewer による収束確認）: R1 全 10 件の反映を確認。新規 P1 = 0 / P2 = 1 / P3 = 1、**両方 accept・本 commit で是正**。P2 = Non-scope の「sensitive path 判定の変更」宣言が C6 是正と矛盾して読める → パターン集合不変・入力正規化のみ Scope と限定注記。P3 = Matrix fixture 導入文に T14/T15 系列を追記。
+- Plan Gate R2（2026-07-18、同 Plan Reviewer による収束確認）: R1 全 10 件の反映を確認。新規 P1 = 0 / P2 = 1 / P3 = 1、**両方 accept・是正済み**（9451a82）。P2 = Non-scope の「sensitive path 判定の変更」宣言が C6 是正と矛盾して読める → パターン集合不変・入力正規化のみ Scope と限定注記。P3 = Matrix fixture 導入文に T14/T15 系列を追記。
+- Plan Gate R3（2026-07-18、同 Plan Reviewer による最終収束確認）: R2 是正 2 箇所の解消を確認、新規 finding なし。**P1 = 0 / P2 = 0 / P3 = 0、収束** → plan-gate 通過。
 - Findings Freeze: not yet frozen; post-freeze exceptions: none.
