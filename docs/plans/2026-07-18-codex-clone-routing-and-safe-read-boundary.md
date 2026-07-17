@@ -6,7 +6,7 @@ Use the field definitions, enums, transition evidence, packet-selection rule, an
 
 If a state-only commit materializes multiple phases, list the complete adjacent forward sequence and the pre-existing evidence for every intermediate transition in an append-only review/evidence record. Recording compression never permits a gate skip.
 
-- Phase: implementing
+- Phase: human-confirm
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: 6dbdf1b
@@ -14,16 +14,18 @@ If a state-only commit materializes multiple phases, list the complete adjacent 
 - Coordinator: Fable 5（Claude Code main thread）
 - Writer: Codex（owner 外部端末、public-writer clone に cwd pin）
 - Plan Reviewer: Sonnet subagent（independent、Writer と別）
-- Final Reviewer: Sonnet review-only subagent（workflow gate change のため Contract Audit Double Audit ×2 独立 context）+ Fable 5 裁定
-- Reviewed Content HEAD: pending
+- Final Reviewer: Contract Audit Double Audit 両 pass（1 pass = Fable inline 直接 / 2 pass = Codex 独立 mutation testing）+ Fable 5 裁定
+- Reviewed Content HEAD: 9f58050
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
-- Human Gate: 発注起動（owner 外部端末）/ Ready 承認 / merge
+- Human Gate: Ready 承認（owner、pending）/ merge
 
 ### 遷移記録（append-only）
 
 - plan-first commit が kickoff → spec-check → design → plan-draft → plan-gate を圧縮 materialize する。根拠: task scope と Risk R3 は本 packet `Risk` 節に記録（kickoff → spec-check）。design 更新の要否は Design Phase で判定し、design 出力 = `docs/decision-log.md` D-049 を同一 plan-first change に含める（spec-check → design → plan-draft）。packet + Test Design Matrix は同 commit で committed（plan-draft → plan-gate）。
 - state-only 遷移 commit が plan-gate → plan-approved → implementing を圧縮 materialize する。根拠: 独立 Plan Reviewer（Sonnet subagent、Writer と別）が 3 round（R1: P1×1/P2×5/P3×4 全件是正 → R2: P2×1/P3×1 是正 → R3: 新規 0）で **P1/P2 = 0・収束**を報告（plan-gate → plan-approved。Review Response 節参照）。Plan Commit = 6dbdf1b（初回 plan-first commit、実装 commit ゼロの時点で設定 = 全実装 commit に先行）。実装は Codex 発注で開始（plan-approved → implementing）。
+- implementing → local-verified は content commit 9f58050（Codex 修正 HEAD）に同乗した。根拠: 9f58050 の L1 `local-ci.sh full` が clean exact-HEAD で `MERGE_EVIDENCE_VALID=true`（PR body、L1 evidence file）。
+- state-only 遷移 commit が local-verified → independent-review → human-confirm を圧縮 materialize する。根拠: independent-review = Contract Audit Double Audit 両 pass 完了（1 pass = Fable inline 契約突合 blocker なし / 2 pass = Codex 独立 mutation testing P2×5/P3×1 → 同一 PR 修正 9f58050 で全件是正、Coordinator が F1/F2 実 mutation 注入で回帰感度を確証）。findings adjudicated・P1/P2 = 0 → human-confirm materialize、Reviewed Content HEAD = 9f58050（監査済み content commit）。Human Gate = Ready 承認（owner）待ち。
 
 ## Owner Effort Budget
 
@@ -276,4 +278,5 @@ Do not transcribe exact-HEAD SHA or test counts here (D-035/D-038 Evidence Owner
 - Contract Audit 1 pass 目（Fable inline 直接、2026-07-18）: 契約 C1–C7 を現物 + T1–T15 実走で突合、merge blocker なし（P1/P2 = 0）と判定。ただし anti-tautology を「test 構造からの推論」で判定し実 mutation 注入は未実施。
 - Contract Audit 2 pass 目（Codex 独立、mutation testing、2026-07-18）: 入力系列 33 種試行 / 想定外 1 件、**P1 = 0 / P2 = 5 / P3 = 1、全件 accept**（Coordinator = Fable が test コード照合で裏取り、F1 stdout 非検査・F5 encoded namespace drift を確認）。5 P2 はすべて test の anti-tautology 不足（実装 b66dd53 は C1–C7 に一致するが、test が実装デグレを検出できない = missing critical tests）: (F1) `assert_rejected` が拒否時の stdout 空を検査せず、repo 外内容を出力する mutation が全 PASS / (F2) `is_allowed_path` を常時成功にしても全 PASS（root 内・非 sensitive・allowlist 外の入力ケース欠落 = C2 最終境界未検証）/ (F3) T4 が default 各 entry の走査を検査せず単一 marker のみ / (F4) directory/default 走査時の sensitive 除外（search `--iglob` / list `find` 除外群）を全削除しても全 PASS / (F5) hook の encoded namespace を旧に戻しても全 PASS（`OLD_ROOT_PATTERN` が slash 形式のみ検出、public namespace 完全一致検査が全 6 hook 未網羅）。P3 = (F6) 改行を含む path 引数を 3 script が受理（repo 外参照にはならないが fail-closed 境界が曖昧）。**Double Audit の価値が実証された案件** — 1 pass 目の推論ベース anti-tautology 判定が見逃した 5 件を、2 pass 目の実 mutation 注入が掴んだ。運用教訓は memory `feedback-security-review-subagent-routing-guardrail` と併せて記録。
 - 是正方針: 全 6 件を同一 PR で修正（implementing 継続、human-confirm 未到達のため backtrack 不要）。test 強化 = 拒否時 stdout 空検査 / allowlist 最終境界ケース / default 全 entry 走査 / directory 経由 sensitive 除外 / encoded namespace drift 検査（全 6 hook）+ 実装 = F6 の CR/LF path 明示拒否。修正は Codex 発注（owner 方針）。
-- Findings Freeze: Double Audit 両 pass 完了により Broad Audit 完了。P2×5/P3×1 の是正確認をもって Freeze 発効予定（現時点 not yet frozen、是正待ち）; post-freeze exceptions: none.
+- 是正確認（closure、2026-07-18、Coordinator = Fable inline、commit 9f58050）: 全 6 件是正を確認。**代表 2 件を実 mutation 注入で回帰感度を実証**（前回 1 pass の推論判定失敗の再発防止）: F2 = search の `is_allowed_path` を常時成功に mutation → `T4 search root-contained non-allowlisted path` が実際に FAIL / F1 = read の repo 外拒否パスに静的 stdout 漏れを注入 → `T3 read traversal emitted output before rejecting the input` が実際に FAIL（`[[ -s "$out" ]]` 検査が噛む）。両 mutation とも確認後 git restore で clean 復帰。残る F3/F4/F5 は diff 構造（default 各 entry marker 検査 / sensitive descendant 除外 / encoded namespace 検査追加）+ Codex の個別 mutation 報告で妥当。F6 = 3 script が `*$'\n'*|*$'\r'*` を明示拒否。targeted test PASS、L1 full green（9f58050、`MERGE_EVIDENCE_VALID=true`）。**P1 = 0 / P2 = 0 / P3 = 0**。
+- Findings Freeze: **frozen**（Double Audit 両 pass による Broad Audit 完了 + P2×5/P3×1 の是正確認済み、2026-07-18）; post-freeze exceptions: none.
