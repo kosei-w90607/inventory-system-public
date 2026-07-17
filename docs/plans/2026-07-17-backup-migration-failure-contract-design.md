@@ -2,16 +2,16 @@
 
 ## Workflow State
 
-- Phase: implementing
+- Phase: human-confirm
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: 3f7fc18
-- Amendments: 8（`a4c6f4f` Codex round 裁定記録 + Final P3-1 lens 訂正 / `94fa8bc` closure round 裁定記録 + AC・Ledger の MNT-01-D4/D5 反映 / `c921dd5` Codex 再レビュー round 裁定記録 + Scope・Trace の diff 同期 / `832fc2f` 再々レビュー round 裁定記録 + packet 残存 drift 是正 + wire 契約の識別子化 / `36c9388` 第 4 round 裁定記録 + cleanup durability 契約 / `ad83d3b` 第 5 round + 検証 round 裁定記録 + temp dispatcher 到達性・oracle 分割・durability 不明分類・遅延成功の operator 可視化 / `4786f7f` 第 6 round + 検証第 2 round 裁定記録 + pending marker 化・detail_json 冪等・committed 例外 / `debc232` 第 7 round 裁定記録 + 補完 3 値・best-effort 化・scope 同期。件数は列挙 SHA と一致させる（第 6 round P3 — SHA 追記時に件数の更新を怠った）。amendment SHA は直後の状態帳簿 commit で確定追記する運用
+- Amendments: 9（`a4c6f4f` Codex round 裁定記録 + Final P3-1 lens 訂正 / `94fa8bc` closure round 裁定記録 + AC・Ledger の MNT-01-D4/D5 反映 / `c921dd5` Codex 再レビュー round 裁定記録 + Scope・Trace の diff 同期 / `832fc2f` 再々レビュー round 裁定記録 + packet 残存 drift 是正 + wire 契約の識別子化 / `36c9388` 第 4 round 裁定記録 + cleanup durability 契約 / `ad83d3b` 第 5 round + 検証 round 裁定記録 + temp dispatcher 到達性・oracle 分割・durability 不明分類・遅延成功の operator 可視化 / `4786f7f` 第 6 round + 検証第 2 round 裁定記録 + pending marker 化・detail_json 冪等・committed 例外 / `debc232` 第 7 round 裁定記録 + 補完 3 値・best-effort 化・scope 同期 / `fa02439` 第 8 round 裁定記録 + row 分類集約・分岐要約表・68 本文 best-effort 化。件数は列挙 SHA と一致させる（第 6 round P3 — SHA 追記時に件数の更新を怠った）。amendment SHA は直後の状態帳簿 commit で確定追記する運用
 - Coordinator: Fable 5（本 session）
 - Writer: Fable 5（design docs 改訂）
 - Plan Reviewer: Sonnet subagent（独立 context）
 - Final Reviewer: Sonnet subagent（Plan Reviewer とは別 context）
-- Reviewed Content HEAD: debc232
+- Reviewed Content HEAD: fa02439
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
 - Human Gate: Draft PR の owner 確認 + Ready 承認 + Ready 後の explicit `workflow_dispatch` 1 run（docs-only は paths-ignore で自動 event 対象外のため、ci.md R3 経路の hosted final は owner 指示の dispatch で満たす）+ merge
@@ -312,4 +312,6 @@ Fill after implementation.
   - 第 8 P3 not-closed（PR body の Non-scope / Source docs が 68 実変更と不一致 — packet のみ同期して PR body の該当表現が別文言で置換空振り）: accept。PR body を packet と同語で同期。
   - 第 8 fresh P2（旧形式 row = `detail_json NULL`（backup.rs:316-321 の実証つき）と複数 row の 3 値集約規則が未定義 — NULL 行の扱いが実装依存になる）: accept・**Codex 修正案を全面採用**。行分類（NULL / attempt_id 欠落 / 別 ID = NoMatch、malformed / 不正型 = parse failure）+ 集約順序（exact match → AlreadyPresent が最優先 / match なし + error → Failed / 全 NoMatch + error なし → INSERT）を契約化し、§71.10 に 5 fixture を追加。
   - 提案 #1（reconcile 分岐要約表）: Adopt-with-changes の条件どおり「観測条件 / branch ID（T0, R1〜R7）/ normative 散文参照 / safety 分類」の索引表として追加、T0（temp 前処理）の全分岐先行を表で固定、§71.10 の該当行に branch ID 参照を導入。
+- 第 8 round 反映の独立検証（同 Sonnet reviewer、2026-07-18）: 3 項目全 closed、**分岐要約表 8 行の散文全行突合で drift 検出ゼロ**、絶対保証の残存なし（grep 確認）、敵対確認（exact match が malformed 併存に勝つ規則の安全性 — malformed は原理的に exact match になり得ず、1 attempt = 最大 1 行の idempotency で二重生成経路が契約上存在しない）も反例なし。
+- state-only 遷移記録（2026-07-18、第 10）: `implementing -> local-verified -> independent-review -> human-confirm` を本 commit（状態帳簿 + dashboard 同期）への同乗で materialize。根拠 = content candidate `fa02439`（第 8 round 反映 `f3e2934` + packet amendment）に対する L1 `local-ci.sh full` PASS / start-end CLEAN / MERGE_EVIDENCE_VALID=true（implementing -> local-verified、evidence は PR body）、第 8 round 反映の独立検証（3 項目 closed + 表突合 drift ゼロ。independent-review -> human-confirm）。
 - Findings Freeze: frozen after Broad Audit（Plan Gate 3 round + 独立 Final Review 完了、2026-07-17）; post-freeze exceptions: **Codex 独立レビューの P1×3 は freeze の保護対象外（candidate safety）として same-PR 修正。P2-2/P2-3/P2-4 は runtime 失敗証明ではないが、公式 API doc・SQLite 文書化挙動という決定的証拠があり、本 PR の成果物（設計正本の契約文）自体の欠陥のため same-PR 修正を選択。P2-1 の single-instance 部分は当初 follow-up（backlog）としたが、再レビュー P1-3 で MNT-01-D5 の前提条件（実装 PR1 scope）へ昇格済み**。
