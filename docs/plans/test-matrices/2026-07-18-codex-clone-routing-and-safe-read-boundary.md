@@ -8,7 +8,7 @@ fixture は `$TMPDIR` の合成 git repo（allowlist 相当 dir + 合成 file + 
 | T1 | C2 | search-safe-files.sh | `..` traversal | `"^name:" "docs/../../../.claude/skills"`（現 repo で再現済みの実攻撃列） | 非 0 exit、repo 外内容を出力しない |
 | T2 | C2 | list-safe-files.sh | `..` traversal | `docs/../../../` 系引数 | 非 0 exit、repo 外 file 名を列挙しない |
 | T3 | C2 | read-safe-file.sh | `..` traversal（回帰） | 同上 | 既存の `refusing path outside repository` 拒否を維持 |
-| T4 | C2 | 3 script 各 | allowlist 内 正常系 | `docs/` 配下の実在 file / dir 相対 path | 成功（read は内容、search は match、list は列挙） |
+| T4 | C2 | 3 script 各 | allowlist 内 正常系 | `docs/` 配下の実在 file / dir 相対 path。search / list は**無引数呼び出し**（default 一覧 `docs src ... .claude/skills AGENTS.md Plans.md`）も実行 | 成功（read は内容、search は match、list は列挙）。無引数呼び出しが canonicalize 導入後も default 一覧全 entry で成功（可用性回帰防止） |
 | T5 | C2 | 3 script 各 | 絶対 path | root 内・root 外の絶対 path | 拒否（allowlist は repo 相対字面のみ、現行挙動維持） |
 | T6 | C2 | 3 script 各 | symlink 脱出 | fixture repo の allowlist dir 内に repo 外実体への symlink を置き参照 | canonicalize 後 root 外として拒否 |
 | T7 | C6 | 3 script 各 | sensitive path | `.env` / `auth.json` / `*secret*` 系名 | 拒否（既存挙動維持） |
@@ -18,7 +18,9 @@ fixture は `$TMPDIR` の合成 git repo（allowlist 相当 dir + 合成 file + 
 | T11 | C4 | execpolicy 2 mirror | 同一性 + 旧参照ゼロ | `cmp` + 旧 clone path grep（explicit file 2 本、負 glob 不使用） | byte-identical かつ `-public` を除く旧 clone path 0 件 |
 | T12 | C5/C7 | B 群 docs / hooks | 旧参照ゼロ | Scope 4–10 の explicit file list を grep（A 群 file は対象外） | 旧 clone 参照 0 件 |
 | T13 | C7 | .claude/hooks 6 script | namespace 実在 | hook 内の auto-memory / log path が public namespace（`-home-kosei-Projects-inventory-system-public`）を指す | 参照 dir が現行実体と一致 |
+| T14 | C6 | 3 script 各 | symlink alias → sensitive 実体 | fixture repo の allowlist dir 内に、allowlist 適合名（例 `docs/README.md`）の symlink を同 repo 内 sensitive 命名実体（例 `docs/api_token.md`）へ張り参照 | canonical 相対 path での sensitive 判定により拒否（生引数判定では通過してしまう系列） |
+| T15 | C2 | 3 script 各 | canonicalize / root 解決失敗 | 解決不能 path（symlink loop 等）、および非 git dir に置いた script copy の実行 | 明示メッセージ付き非 0 exit で拒否（`set -e` の暗黙 abort ではなく、意図した拒否経路であることを stderr で判別可能） |
 
-負系列の網羅根拠: 棚卸しで実証された攻撃列（T1/T2）、read-safe-file.sh 既存拒否の後退防止（T3/T5/T7/T8）、canonicalize 導入で新たに閉じるべき系列（T6）、root 動的化のデグレ防止（T9/T10）。
+負系列の網羅根拠: 棚卸しで実証された攻撃列（T1/T2）、read-safe-file.sh 既存拒否の後退防止（T3/T5/T7/T8）、canonicalize 導入で新たに閉じるべき系列（T6/T14/T15）、root 動的化のデグレ防止（T9/T10）、可用性回帰防止（T4 無引数）。T14/T15 は Plan Gate R1（P1-1 / P2-3）起源。
 
 runner 登録: `scripts/local-ci.sh` の `run_required` 明示登録（glob 収集ではない）。hosted CI の job routing で同 test が走ることを Writer が確認し PR body に記録。
