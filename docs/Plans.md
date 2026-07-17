@@ -86,7 +86,7 @@
 1. 中期 roadmap（owner 裁定 2026-07-16、実施順。backlog は系統ごとに 1 PR ずつ束ねる）:
    1. **workflow docs PR**（小、既指定）: 登録・生成義務 checklist の template 昇格 + Contract Probe 手順明文化 + materialize 局所 workflow-git 検査（UI-13 WER）+ 可変 count の prose 転記禁止の D-038 拡張検討（PR #9 WER）+ `read-safe-file.sh` history-view clone 参照修正
    2. **横断アーキテクチャ + コード品質監査**（read-only、成果物 = 監査レポート + 優先度付き是正リスト）: 部品重複 / 層違反残渣 / error handling 一貫性 / 型重複 / 状態管理パターンのばらつき / dead code に加え、**可読性・慣用性・命名などコード品質そのもの**を観点に含める（owner 意向: 「良いとされるコードになっているか」を製品価値の一部として見る）。監査結果が 3 の優先度と 4 の重点箇所の入力になる
-   3. **コード品質・整合性系の是正 PR 群**: 監査 findings + 既存 backlog（SortableHeader 共通化 / `low_stock` SSOT 定数 / focus-visible / `integrity_cmd.rs` tautological test 実呼び化 / docs drift 系）を優先度順に統合。着手中: 順 1+2 の failure contract design phase（active packet: [plans/2026-07-17-backup-migration-failure-contract-design.md](plans/2026-07-17-backup-migration-failure-contract-design.md)）
+   3. **コード品質・整合性系の是正 PR 群**: 監査 findings + 既存 backlog（SortableHeader 共通化 / `low_stock` SSOT 定数 / focus-visible / `integrity_cmd.rs` tautological test 実呼び化 / docs drift 系）を優先度順に統合。順 1+2 の failure contract design phase は PR #14 で完了（[archived packet](archive/plans/2026-07-17-backup-migration-failure-contract-design.md)）。次 = その実装 R4 2 PR
    4. **業務シナリオ受入テスト**: CSV 取込み → 在庫反映 → 在庫少検知 → 棚卸し → 整合性検証 → バックアップ/復元 の一気通貫をシナリオ台本化し、Windows native で owner が operator 役で 1 周。自動 E2E はここで穴が出た箇所のみ最小 smoke を後付け評価
    5. **v1.0 gate**: Windows MSI 配布手順 docs 化 + 配布判定（4 の受入テスト pass が入口条件）
 

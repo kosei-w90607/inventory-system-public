@@ -30,7 +30,7 @@
 Risk: R3
 
 Reason:
-docs-only の design phase だが、[adjudication](../research/audit-2026-07/adjudication.md) が是正順 1+2 全体へ R4 を付与しており、本改訂はその destructive data lifecycle の failure contract 正本そのもの。DEV_WORKFLOW Design Phase Rules の「data lifecycle / operator recovery に触れる behavior spec は高い方の tier で評価する」に従い、docs-only の前例（PR #142 = R2）との類推ではなく R3 とする（Plan Gate 独立レビュー P2-1 の裁定）。R4 としない理由: 本 PR 自体は destructive 操作を一切実行せず（docs のみ、git revert で完全に巻き戻せる）、R4 の explicit human approval + rollback/recovery notes は destructive 挙動が実際に変わる実装 2 PR 側の packet に付す。R3 の必須物（Spec Contract / Trace Matrix / Data Safety / Test Design Matrix / Contract Coverage Ledger / review-only 独立レビュー）は本 packet で満たす。
+docs-only の design phase だが、[adjudication](../../research/audit-2026-07/adjudication.md) が是正順 1+2 全体へ R4 を付与しており、本改訂はその destructive data lifecycle の failure contract 正本そのもの。DEV_WORKFLOW Design Phase Rules の「data lifecycle / operator recovery に触れる behavior spec は高い方の tier で評価する」に従い、docs-only の前例（PR #142 = R2）との類推ではなく R3 とする（Plan Gate 独立レビュー P2-1 の裁定）。R4 としない理由: 本 PR 自体は destructive 操作を一切実行せず（docs のみ、git revert で完全に巻き戻せる）、R4 の explicit human approval + rollback/recovery notes は destructive 挙動が実際に変わる実装 2 PR 側の packet に付す。R3 の必須物（Spec Contract / Trace Matrix / Data Safety / Test Design Matrix / Contract Coverage Ledger / review-only 独立レビュー）は本 packet で満たす。
 
 ## Goal
 
@@ -38,7 +38,7 @@ Goal Invariant:
 
 ### 最小完了条件
 
-- `docs/function-design/71-mnt-backup.md` と `docs/function-design/22-mnt-migration.md` の failure contract が、監査 findings P3-1 / P3-3 / P3b-1 / P3b-2 / P8b-3（[report](../research/audit-2026-07/report.md) 是正順 1+2、[adjudication](../research/audit-2026-07/adjudication.md) で R4 付与）の害経路をすべて契約レベルで塞いだ状態で正本確定しており、後続の実装者が設計書だけから R4 実装 2 PR を計画できる。
+- `docs/function-design/71-mnt-backup.md` と `docs/function-design/22-mnt-migration.md` の failure contract が、監査 findings P3-1 / P3-3 / P3b-1 / P3b-2 / P8b-3（[report](../../research/audit-2026-07/report.md) 是正順 1+2、[adjudication](../../research/audit-2026-07/adjudication.md) で R4 付与）の害経路をすべて契約レベルで塞いだ状態で正本確定しており、後続の実装者が設計書だけから R4 実装 2 PR を計画できる。
 
 ### 失敗定義
 
