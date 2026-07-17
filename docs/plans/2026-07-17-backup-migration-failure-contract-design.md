@@ -2,16 +2,16 @@
 
 ## Workflow State
 
-- Phase: implementing
+- Phase: human-confirm
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: 3f7fc18
-- Amendments: 4（`a4c6f4f` Codex round 裁定記録 + Final P3-1 lens 訂正 / `fa42d87` closure round 裁定記録 + AC・Ledger の MNT-01-D4/D5 反映 / `ed6da71` Codex 再レビュー round 裁定記録 + Scope・Trace の diff 同期 / 本 amendment = 再々レビュー round 裁定記録 + packet 残存 drift 是正 + wire 契約の識別子化）
+- Amendments: 4（`a4c6f4f` Codex round 裁定記録 + Final P3-1 lens 訂正 / `94fa8bc` closure round 裁定記録 + AC・Ledger の MNT-01-D4/D5 反映 / `c921dd5` Codex 再レビュー round 裁定記録 + Scope・Trace の diff 同期 / 本 amendment = 再々レビュー round 裁定記録 + packet 残存 drift 是正 + wire 契約の識別子化）
 - Coordinator: Fable 5（本 session）
 - Writer: Fable 5（design docs 改訂）
 - Plan Reviewer: Sonnet subagent（独立 context）
 - Final Reviewer: Sonnet subagent（Plan Reviewer とは別 context）
-- Reviewed Content HEAD: ed6da71
+- Reviewed Content HEAD: 832fc2f
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
 - Human Gate: Draft PR の owner 確認 + Ready 承認 + Ready 後の explicit `workflow_dispatch` 1 run（docs-only は paths-ignore で自動 event 対象外のため、ci.md R3 経路の hosted final は owner 指示の dispatch で満たす）+ merge
@@ -256,21 +256,21 @@ Fill after implementation.
   - Closure P2-a（68 §68.7 が撤回済み create-capable 復旧の記述のまま）: accept。68 §68.7 を no-create open + MNT-01-D4 参照へ更新（scope 節の「68 は non-scope」は UI 文言・画面契約を指し、D4 が変えた CMD 復旧機構の記述整合は本 PR の責務と裁定）。
   - Closure P2-b（packet の AC / Design Intent Audit / Minimum design checks / Ledger が D4/D5 未反映）: accept。本 amendment で D1〜D5 表記へ訂正、Ledger に D4/D5 の 2 行を追加。
   - Closure P3×3（成功直後〜marker 削除前中断の巻き戻り挙動を Why に文書化 / 22 §12.2 ステップ 1 の存在確認 error 処理の対称性 / FK 復元 PRAGMA 失敗の記録対象化）: すべて accept・一行追記で対応。
-- state-only 遷移記録（2026-07-17、第 3）: `implementing -> local-verified -> independent-review -> human-confirm` を単一 state-only commit で materialize。根拠 = content candidate `d89ac6f`（+ packet amendment `fa42d87`）に対する L1 `local-ci.sh full` PASS / start-end CLEAN / MERGE_EVIDENCE_VALID=true（implementing -> local-verified、evidence は PR body）、独立 closure 再検証（Sonnet subagent、closure Reviewer とは別 context）の全 6 findings closed / 新規矛盾なし報告（independent-review -> human-confirm）。`Reviewed Content HEAD` は closure 反映後の content candidate `d89ac6f` を指す。
-- Codex 再レビュー（owner 発注・relay 経由、PR #14 issue comment、2026-07-17、live HEAD `06cf93a` 時点）: 前回 9 findings の閉鎖確認（closed 6 / not-closed 3）+ fresh P1×3 / P2×2 / P3×1、verdict「merge blocker あり」。Coordinator 裁定（全件実証裏取り済み、`0bb98b8` で human-confirm -> implementing へ backtrack）:
+- state-only 遷移記録（2026-07-17、第 3）: `implementing -> local-verified -> independent-review -> human-confirm` を amendment `94fa8bc` への同乗で materialize（当初は独立 state-only commit として記録、後述の STATECAP 是正 rebase で融合）。根拠 = content candidate `d89ac6f`（+ packet amendment `94fa8bc`）に対する L1 `local-ci.sh full` PASS / start-end CLEAN / MERGE_EVIDENCE_VALID=true（implementing -> local-verified、evidence は PR body）、独立 closure 再検証（Sonnet subagent、closure Reviewer とは別 context）の全 6 findings closed / 新規矛盾なし報告（independent-review -> human-confirm）。`Reviewed Content HEAD` は closure 反映後の content candidate `d89ac6f` を指す。
+- Codex 再レビュー（owner 発注・relay 経由、PR #14 issue comment、2026-07-17、live HEAD `48af9d0`（rebase 前 `06cf93a`） 時点）: 前回 9 findings の閉鎖確認（closed 6 / not-closed 3）+ fresh P1×3 / P2×2 / P3×1、verdict「merge blocker あり」。Coordinator 裁定（全件実証裏取り済み、`02da8ba` で human-confirm -> implementing へ backtrack）:
   - not-closed P1-1（43:206 が create-capable `init_database` 復旧のまま）: accept・CONFIRMED（drift fix の grep 漏れ）。43 の処理ステップを D4 準拠へ更新。
   - not-closed P1-2 / fresh P1-1（presence 3 分岐では旧 WAL と attempt 生成世代を区別できない — 「退避に無い元名を削除する」と退避途中中断の旧 WAL を失い、「削除しない」と restore 成功後中断の新世代 WAL が旧 main と混在する。単純規則の両側に反例）: accept。D5 を manifest 方式（attempt ID + 退避対象存在集合の記録、実在集合との一致/真部分集合で世代判定）へ全面改訂。前 round の「manifest は過剰」棄却を撤回し、Rejected alternatives に旧 marker 案を反例つきで記録。
   - fresh P1-2（durability barrier 未規定 — page cache 上の copy 完了と削除 metadata の永続順序が逆転すると reconcile のどの分岐にも入らない状態が生じる）: accept。D5 に durability 契約（manifest write→sync_all→dir sync / rename の dir sync / 新 main sync_all / manifest の durable 削除→退避削除の順序）を明文化。
   - fresh P1-3 / not-closed P2-1（固定 manifest/退避名が存在しない single-instance 保証に依存）: accept・前 round の「実発生根拠なしで backlog」裁定を転換（owner 承認済み）。single-instance ガードを MNT-01-D5 の前提条件として実装 PR1 scope へ昇格、D5 冒頭に前提として明記、22 §12.2 の backlog 参照も更新。
   - fresh P2-1（FK 復元 PRAGMA は transaction 中に成功を返す no-op があり得る）: accept。MNT-03-D1 に is_autocommit 確認後の復元 + 再読取一致検証 + 閉塞時は接続破棄必須の構造化 fatal を追加。
   - fresh P2-2（packet Scope/Trace が現 diff 未同期 — 撤回済み blocking dialog 指定・「CMD 再接続現行維持」・68 non-scope 表記の残存、Trace に D4/D5 行なし）: accept・CONFIRMED。本 amendment で Scope（63/66/71/77/93 相当行）・Trace・Ledger を同期。
-  - fresh P3（Reviewed Content HEAD が AC/Ledger を変えた `fa42d87` でなく親 `d89ac6f`）: accept。本 round の遷移時から「packet amendment を含む最新 content-bearing commit」を指す運用に統一。
+  - fresh P3（Reviewed Content HEAD が AC/Ledger を変えた `94fa8bc` でなく親 `d89ac6f`）: accept。本 round の遷移時から「packet amendment を含む最新 content-bearing commit」を指す運用に統一。
 - 再レビュー反映の独立検証（Sonnet subagent、別 context、2026-07-17）: Part A = 全 7 対応 closed。Part B（新 D5 契約への敵対的検証、中断ケース 20〜25 列挙）= 中核不変条件は全ケース保持、ただし P2×2 / P3×2 を検出、全件 accept・即時反映:
   - 検証 P2-a（22 §9 の v2 scopeguard「必ず復元」が D1 の is_autocommit ゲートと矛盾 — 字義どおり実装すると閉塞時契約に違反）: 22 §9 を D1 参照 + ゲート必須へ改訂。
   - 検証 P2-b（manifest 作成/削除が §71.7 の番号付きステップ本文に未統合 — D5 を読まない実装で crash-safety 全体が欠落）: ステップ 3.5（manifest 作成 + 残骸 fail-closed）/ 7a（durable 削除）/ 8c・8e（巻き戻し後削除・二重失敗時は残置）を本文へ統合。
   - 検証 P3×2（manifest パース不能時の規則未定義 / 復元成功直後の operation_log 欠落）: reconcile に第 4 規則（パース不能 + 退避なし = 削除のみ、+ 退避あり = fail-closed 起動中止）を追加、log 欠落はステップ 7c 注記で受容を文書化。
-- state-only 遷移記録（2026-07-17、第 4）: `implementing -> local-verified -> independent-review -> human-confirm` を単一 state-only commit で materialize。根拠 = content candidate `ed6da71`（再レビュー反映 `88b0f6b` + packet amendment）に対する L1 `local-ci.sh full` PASS / start-end CLEAN / MERGE_EVIDENCE_VALID=true（implementing -> local-verified、evidence は PR body）、独立検証（Sonnet subagent、別 context）の Part A 全 7 対応 closed + Part B 敵対的検証（中断ケース 20+）で中核不変条件全ケース保持、検出 P2×2/P3×2 の修正も同 reviewer が差分再検証で全件 closed / 新規矛盾なしを確認（independent-review -> human-confirm）。`Reviewed Content HEAD` は packet amendment を含む最新 content-bearing commit `ed6da71` を指す（再レビュー P3 の運用統一に従う）。
-- Codex 再々レビュー（owner 発注・relay 経由、PR #14 issue comment、2026-07-17、live HEAD `2f8f607` 時点、状態機械トレース 48 系列）: 前 round 10 判定中 8 closed（fresh P1-1 は反例再実行トレースで閉鎖確認）、fresh P2-2 の packet/PR body 面 not-closed、fresh P1×2 / P2×2 / P3×1、verdict「merge blocker あり」。Coordinator 裁定（全件実証裏取り済み、`7579ec9` で human-confirm -> implementing へ backtrack）:
+- state-only 遷移記録（2026-07-17、第 4）: `implementing -> local-verified -> independent-review -> human-confirm` を amendment `c921dd5` への同乗で materialize（当初は独立 state-only commit として記録、後述の STATECAP 是正 rebase で融合）。根拠 = content candidate `c921dd5`（再レビュー反映 `e7815b1` + packet amendment）に対する L1 `local-ci.sh full` PASS / start-end CLEAN / MERGE_EVIDENCE_VALID=true（implementing -> local-verified、evidence は PR body）、独立検証（Sonnet subagent、別 context）の Part A 全 7 対応 closed + Part B 敵対的検証（中断ケース 20+）で中核不変条件全ケース保持、検出 P2×2/P3×2 の修正も同 reviewer が差分再検証で全件 closed / 新規矛盾なしを確認（independent-review -> human-confirm）。`Reviewed Content HEAD` は packet amendment を含む最新 content-bearing commit `c921dd5` を指す（再レビュー P3 の運用統一に従う）。
+- Codex 再々レビュー（owner 発注・relay 経由、PR #14 issue comment、2026-07-17、live HEAD `62a223d`（rebase 前 `2f8f607`） 時点、状態機械トレース 48 系列）: 前 round 10 判定中 8 closed（fresh P1-1 は反例再実行トレースで閉鎖確認）、fresh P2-2 の packet/PR body 面 not-closed、fresh P1×2 / P2×2 / P3×1、verdict「merge blocker あり」。Coordinator 裁定（全件実証裏取り済み、`d1833b2` で human-confirm -> implementing へ backtrack）:
   - 再々 P1-1（同期巻き戻し = ステップ 8 が「存在する退避だけ戻す」旧手順のままで、部分 migration が生成した新世代 WAL/SHM を元名側に残し世代混在を作る — reconcile 一致分岐との対称性欠落）: accept・CONFIRMED（テキスト事実）。ステップ 8 を reconcile 一致分岐と同一手順（元名側全削除 + sync → 記録集合復帰 → manifest durable 削除）へ統合、§71.10 に回帰固定テスト行を追加。
   - 再々 P1-2（「manifest なし + 退避あり = 成功後掃除中断」規則が、同じ固定退避名を使う現行実装（backup.rs:263 実確認）の中断残骸 — 唯一の実データを含み得る — をアップグレード境界で削除する）: accept・CONFIRMED。manifest に phase（active/committed）を追加し、成功 commit は phase=committed の原子的 durable 更新で表現。manifest 不在 + 退避遺物は自動削除せず fail-closed 起動中止へ変更。phase なし案は Rejected alternatives に反例つきで記録。
   - 再々 P2-1（実在集合が記録集合の部分集合でない superset/mixed が 4 規則のどれにも入らない）: accept。catch-all fail-closed 分岐（遺物不変更 + operator 可視化）を追加。
@@ -278,4 +278,6 @@ Fill after implementation.
   - 再々 P3（ステップ 4 早期失敗の巻き戻し後 manifest 削除が本文にない）: accept。ステップ 4 に durable 削除 / 失敗時残置を明記。
   - not-closed P2-2（packet 140/159/175/273 行の残存 drift + PR body Scope 未同期）: accept・CONFIRMED。packet 4 箇所を本 amendment で是正、PR body は Scope 節を最終 diff へ全面同期。
 - 再々レビュー反映の独立検証（同 Sonnet reviewer、2026-07-17）: Part A 全 6 項目 closed。Part B（phase 化 D5 への敵対的検証、中断ケース 25）= 反例・未定義状態なし、中核不変条件全ケース保持（phase rename の非耐久性は既承認の受容窓と一致、ステップ 4 巻き戻しの手順省略は元名側必空で等価と棄却理由まで確認）。検証が新規検出した「wire shape 変更なし」訂正漏れ 2 箇所（Required Design Artifacts 表 / Boundary・Wire Contract 節）+ Ledger D5 行の陳腐化（P2×1/P3×1 相当）は本 amendment で即時是正 — 159 行のみ修正して同主張の他箇所を grep しなかった drift 是正不徹底の再演として記録する。
+- STATECAP 是正 rebase（owner 承認、2026-07-17）: forward `state-only遷移` commit が 4 件となり cap 3 / post-implementation cap 2 を超過（L1 STATECAP FAIL で検出 — DEV_WORKFLOW の UI-13 教訓「遷移 commit 作成直後に check-workflow-git.sh を回す」を怠った運用ミスとして記録）。規約「every other transition rides an adjacent content commit」に従い、遷移 #3（旧 `0540542`）を closure amendment `94fa8bc` へ、遷移 #4（旧 `4f0d0ca`）を再レビュー amendment `c921dd5` へ融合する rebase + force-push を owner 承認の下で実施。融合後の forward 遷移は `ac3b63d`（plan-approval）/ `0a94983`（post-impl 第 1）の 2 件で、残枠 1 は ready-hosted-final 遷移用。rebase により本記録内の当該範囲 SHA は付け替え済み（レビュー時点の旧 live HEAD は併記）。
+- state-only 遷移記録（2026-07-17、第 5）: `implementing -> local-verified -> independent-review -> human-confirm` を本 commit（dashboard 同期 + rebase 帳簿更新）への同乗で materialize。根拠 = content candidate `832fc2f`（再々レビュー反映 `aebf350` + packet amendment）に対する L1 `local-ci.sh full` PASS / start-end CLEAN / MERGE_EVIDENCE_VALID=true（rebase 後 HEAD で再実行、implementing -> local-verified、evidence は PR body）、再々レビュー反映の独立検証（Part A 全 6 closed + Part B 中断ケース 25 で反例なし、検出 P2/P3 是正の差分確認込み。independent-review -> human-confirm）。
 - Findings Freeze: frozen after Broad Audit（Plan Gate 3 round + 独立 Final Review 完了、2026-07-17）; post-freeze exceptions: **Codex 独立レビューの P1×3 は freeze の保護対象外（candidate safety）として same-PR 修正。P2-2/P2-3/P2-4 は runtime 失敗証明ではないが、公式 API doc・SQLite 文書化挙動という決定的証拠があり、本 PR の成果物（設計正本の契約文）自体の欠陥のため same-PR 修正を選択。P2-1 の single-instance 部分は当初 follow-up（backlog）としたが、再レビュー P1-3 で MNT-01-D5 の前提条件（実装 PR1 scope）へ昇格済み**。
