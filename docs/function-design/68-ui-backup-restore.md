@@ -177,7 +177,7 @@ recoverable / unrecoverable の判別は **CMD が返す構造化された分類
 | 事前バックアップ失敗 | 通常復元は block。DB 破損復旧シナリオとして break-glass checkbox を明示した時だけ進める。 |
 | restore 失敗 recovered | `バックアップの復元に失敗しました。現在のデータには戻しています。もう一度お試しください。` を表示し、操作可能状態へ戻す。 |
 | restore 失敗 unrecoverable | full-page destructive Alert。`バックアップの復元に失敗し、DB接続の復旧もできませんでした。アプリを閉じて、もう一度開いてください。` と表示し、画面内操作を disabled。 |
-| restore 結果 durability 不明（71 MNT-01-D5 (e)(ii)） | full-page destructive Alert（unrecoverable と同じ terminal 分岐）。ただし失敗を断定せず `復元が完了したか確定できませんでした。アプリを閉じて、もう一度開いてください。` と表示。結果は再起動後に確定し、完了していた場合は操作ログに復元完了（起動時確定）が記録される。 |
+| restore 結果 durability 不明（71 MNT-01-D5 (e)(ii)） | full-page destructive Alert（unrecoverable と同じ terminal 分岐）。ただし失敗を断定せず `復元が完了したか確定できませんでした。アプリを閉じて、もう一度開いてください。` と表示。結果は再起動後に確定し、完了していた場合は**通常は**操作ログに復元完了（起動時確定）が記録される（記録は best-effort — 記録系の障害が続く場合は現れないことがあり、その場合は復元対象日時のデータ内容で確認する。71 の補完処理契約参照）。 |
 
 復元成功後に真の Undo は存在しない。MNT 層の `.restore_backup` 退避ファイルは成功後に削除されるため、UI は「元に戻せる」印象を与えない。
 
