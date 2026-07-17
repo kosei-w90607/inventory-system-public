@@ -1,8 +1,23 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-REPO_ROOT="/home/kosei/Projects/inventory-system"
-cd "$REPO_ROOT"
+script_parent="$(dirname -- "${BASH_SOURCE[0]}")"
+if ! SCRIPT_DIR="$(cd -- "$script_parent" 2>/dev/null && pwd -P)"; then
+  echo "read-safe-file.sh: cannot resolve script directory: $script_parent" >&2
+  exit 1
+fi
+if ! REPO_ROOT="$(git -C "$SCRIPT_DIR" rev-parse --show-toplevel 2>/dev/null)"; then
+  echo "read-safe-file.sh: cannot resolve repository root from script directory: $SCRIPT_DIR" >&2
+  exit 1
+fi
+if ! REPO_ROOT="$(realpath -e -- "$REPO_ROOT" 2>/dev/null)"; then
+  echo "read-safe-file.sh: cannot canonicalize repository root" >&2
+  exit 1
+fi
+if ! cd -- "$REPO_ROOT"; then
+  echo "read-safe-file.sh: cannot enter repository root: $REPO_ROOT" >&2
+  exit 1
+fi
 
 is_sensitive_path() {
   local lower_path
@@ -16,6 +31,14 @@ is_sensitive_path() {
     token|*/token|.token|*/.token|*.token|*/*.token|token.*|*/token.*) return 0 ;;
     *) return 1 ;;
   esac
+}
+
+canonicalize_path() {
+  if [[ -e "$1" || -L "$1" ]]; then
+    realpath -e -- "$1"
+  else
+    realpath -m -- "$1"
+  fi
 }
 
 if [ "$#" -eq 0 ]; then
@@ -35,13 +58,24 @@ is_allowed_path() {
 
 for input_path in "$@"; do
   case "$input_path" in
+    *$'\n'*|*$'\r'*)
+      echo "refusing path containing CR or LF" >&2
+      exit 1
+      ;;
     -*)
       echo "refusing option-like path: $input_path" >&2
       exit 2
       ;;
+    /*)
+      echo "refusing absolute path: $input_path" >&2
+      exit 1
+      ;;
   esac
 
-  abs_path="$(realpath -m -- "$input_path")"
+  if ! abs_path="$(canonicalize_path "$input_path" 2>/dev/null)"; then
+    echo "cannot canonicalize path: $input_path" >&2
+    exit 1
+  fi
   case "$abs_path" in
     "$REPO_ROOT"/*) ;;
     *)

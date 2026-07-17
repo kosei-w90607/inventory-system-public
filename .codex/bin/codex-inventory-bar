@@ -1,19 +1,37 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-REPO="${CODEX_INVENTORY_REPO:-/home/kosei/Projects/inventory-system}"
+script_parent="$(dirname -- "${BASH_SOURCE[0]}")"
+if ! SCRIPT_DIR="$(cd -- "$script_parent" 2>/dev/null && pwd -P)"; then
+  echo "codex-inventory-bar: cannot resolve script directory: $script_parent" >&2
+  exit 1
+fi
+if [[ -n "${CODEX_INVENTORY_REPO:-}" ]]; then
+  REPO="$CODEX_INVENTORY_REPO"
+elif ! REPO="$(git -C "$SCRIPT_DIR" rev-parse --show-toplevel 2>/dev/null)"; then
+  echo "codex-inventory-bar: cannot resolve repository root from script directory: $SCRIPT_DIR" >&2
+  exit 1
+fi
 CONFIG="${CODEX_HOME:-$HOME/.codex}/config.toml"
 REAL_CODEX="${REAL_CODEX:-/home/kosei/.npm-global/bin/codex}"
 INTERVAL="${CODEX_INVENTORY_BAR_INTERVAL:-2}"
 COLOR_MODE="${CODEX_INVENTORY_BAR_COLOR:-always}"
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 METRICS="${CODEX_INVENTORY_METRICS:-$SCRIPT_DIR/codex-inventory-metrics}"
 METRICS_CACHE="${CODEX_INVENTORY_METRICS_CACHE:-/tmp/codex-inventory-rate-limits-${USER:-user}.txt}"
 METRICS_CACHE_SECONDS="${CODEX_INVENTORY_METRICS_CACHE_SECONDS:-60}"
 once=false
+debug=false
 
-if [[ "${1:-}" == "--once" ]]; then
-  once=true
+case "${1:-}" in
+  --once) once=true ;;
+  --debug) debug=true ;;
+esac
+
+if [[ "$debug" == true ]]; then
+  printf 'codex-inventory-bar debug\n'
+  printf '  repo: %s\n' "$REPO"
+  printf '  wrapper: %s\n' "$0"
+  exit 0
 fi
 
 if [[ ! -x "$REAL_CODEX" ]]; then
