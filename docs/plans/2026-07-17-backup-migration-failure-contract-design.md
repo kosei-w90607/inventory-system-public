@@ -2,16 +2,16 @@
 
 ## Workflow State
 
-- Phase: implementing
+- Phase: human-confirm
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: 3f7fc18
-- Amendments: 5（`a4c6f4f` Codex round 裁定記録 + Final P3-1 lens 訂正 / `94fa8bc` closure round 裁定記録 + AC・Ledger の MNT-01-D4/D5 反映 / `c921dd5` Codex 再レビュー round 裁定記録 + Scope・Trace の diff 同期 / `832fc2f` 再々レビュー round 裁定記録 + packet 残存 drift 是正 + wire 契約の識別子化 / 第 5 = 第 4 round 裁定記録 + cleanup durability 契約。SHA は直後の状態帳簿 commit で確定追記する運用 — 第 4 round P3 の「本 amendment」自己参照問題の恒久解）
+- Amendments: 5（`a4c6f4f` Codex round 裁定記録 + Final P3-1 lens 訂正 / `94fa8bc` closure round 裁定記録 + AC・Ledger の MNT-01-D4/D5 反映 / `c921dd5` Codex 再レビュー round 裁定記録 + Scope・Trace の diff 同期 / `832fc2f` 再々レビュー round 裁定記録 + packet 残存 drift 是正 + wire 契約の識別子化 / `36c9388` 第 4 round 裁定記録 + cleanup durability 契約。amendment SHA は直後の状態帳簿 commit で確定追記する運用 — 第 4 round P3 の「本 amendment」自己参照問題の恒久解）
 - Coordinator: Fable 5（本 session）
 - Writer: Fable 5（design docs 改訂）
 - Plan Reviewer: Sonnet subagent（独立 context）
 - Final Reviewer: Sonnet subagent（Plan Reviewer とは別 context）
-- Reviewed Content HEAD: 832fc2f
+- Reviewed Content HEAD: 36c9388
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
 - Human Gate: Draft PR の owner 確認 + Ready 承認 + Ready 後の explicit `workflow_dispatch` 1 run（docs-only は paths-ignore で自動 event 対象外のため、ci.md R3 経路の hosted final は owner 指示の dispatch で満たす）+ merge
@@ -284,4 +284,6 @@ Fill after implementation.
   - 第 4 P2-1（committed cleanup が再中断に durable に閉じない — 退避 unlink と manifest unlink の間の dir sync 欠落で、電源断の unlink 永続順序逆転により「manifest なし + 退避あり」= fail-closed 誤爆が正常完了後に出現。cleanup 失敗の結果分類も未規定）: accept。durability 契約 (d) を「退避 unlink → dir sync → manifest unlink → dir sync」へ精密化し、(e) cleanup 失敗分類を新設（phase 更新失敗 = 新接続非公開 + 退避残置 / committed 後の cleanup 失敗 = 復元成功維持 + committed manifest 残置で次回 reconcile が冪等再処理）。ステップ 7b/7c とエラーハンドリング節へ反映。
   - 第 4 P2-2（phase 更新 temp が状態機械の遺物集合に含まれない — rename 前中断で temp 孤児が残り「遺物ゼロ」违反 + 次回 restore の原子的更新と衝突）: accept。canonical temp 名 `{db_path}.restore_manifest.tmp` を契約化し、ステップ 3.5 の残骸検査と reconcile 規則（canonical あり = 未 commit 残骸として durable 削除 / temp 単独 = 削除後 manifest なし系規則を適用）へ組込み。§71.10 に cleanup durability 順序の failpoint テスト行を追加。
   - 第 4 P3（Amendments 行の「本 amendment」が rebase 確定後も未置換で PK5 の ancestry 検証対象が件数と不一致）: accept。`832fc2f` を明記し、以後の amendment SHA は直後の状態帳簿 commit で確定追記する運用に統一（自己参照問題の恒久解）。
+- 第 4 round 反映の独立検証（同 Sonnet reviewer、2026-07-17）: Part A 全 4 項目 closed（P2-1/P2-2 は Codex 反例の再実行トレースで不成立を確認 — 新 cleanup 順序では「manifest なし + 退避あり」到達経路が構造的に消滅、temp は reconcile が分岐前に無条件 durable 削除）。Part B（cleanup 経路の局所敵対検証、中断ケース 18）= 反例・誤爆・孤児・冪等性破れなし。R3「遺物不変更」と temp 削除の字面優先順位は表現精度のみの P3 と判定し是正不要。
+- state-only 遷移記録（2026-07-17、第 6）: `implementing -> local-verified -> independent-review -> human-confirm` を本 commit（状態帳簿 + dashboard 同期）への同乗で materialize。根拠 = content candidate `36c9388`（第 4 round 反映 `81393bd` + packet amendment）に対する L1 `local-ci.sh full` PASS / start-end CLEAN / MERGE_EVIDENCE_VALID=true（implementing -> local-verified、evidence は PR body）、第 4 round 反映の独立検証（Part A 全 4 closed + Part B 反例なし。independent-review -> human-confirm）。
 - Findings Freeze: frozen after Broad Audit（Plan Gate 3 round + 独立 Final Review 完了、2026-07-17）; post-freeze exceptions: **Codex 独立レビューの P1×3 は freeze の保護対象外（candidate safety）として same-PR 修正。P2-2/P2-3/P2-4 は runtime 失敗証明ではないが、公式 API doc・SQLite 文書化挙動という決定的証拠があり、本 PR の成果物（設計正本の契約文）自体の欠陥のため same-PR 修正を選択。P2-1 の single-instance 部分は当初 follow-up（backlog）としたが、再レビュー P1-3 で MNT-01-D5 の前提条件（実装 PR1 scope）へ昇格済み**。
