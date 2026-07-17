@@ -2,16 +2,16 @@
 
 ## Workflow State
 
-- Phase: implementing
+- Phase: human-confirm
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: 3f7fc18
-- Amendments: 7（`a4c6f4f` Codex round 裁定記録 + Final P3-1 lens 訂正 / `94fa8bc` closure round 裁定記録 + AC・Ledger の MNT-01-D4/D5 反映 / `c921dd5` Codex 再レビュー round 裁定記録 + Scope・Trace の diff 同期 / `832fc2f` 再々レビュー round 裁定記録 + packet 残存 drift 是正 + wire 契約の識別子化 / `36c9388` 第 4 round 裁定記録 + cleanup durability 契約 / `ad83d3b` 第 5 round + 検証 round 裁定記録 + temp dispatcher 到達性・oracle 分割・durability 不明分類・遅延成功の operator 可視化 / `4786f7f` 第 6 round + 検証第 2 round 裁定記録 + pending marker 化・detail_json 冪等・committed 例外。件数は列挙 SHA と一致させる（第 6 round P3 — SHA 追記時に件数の更新を怠った）。amendment SHA は直後の状態帳簿 commit で確定追記する運用
+- Amendments: 8（`a4c6f4f` Codex round 裁定記録 + Final P3-1 lens 訂正 / `94fa8bc` closure round 裁定記録 + AC・Ledger の MNT-01-D4/D5 反映 / `c921dd5` Codex 再レビュー round 裁定記録 + Scope・Trace の diff 同期 / `832fc2f` 再々レビュー round 裁定記録 + packet 残存 drift 是正 + wire 契約の識別子化 / `36c9388` 第 4 round 裁定記録 + cleanup durability 契約 / `ad83d3b` 第 5 round + 検証 round 裁定記録 + temp dispatcher 到達性・oracle 分割・durability 不明分類・遅延成功の operator 可視化 / `4786f7f` 第 6 round + 検証第 2 round 裁定記録 + pending marker 化・detail_json 冪等・committed 例外 / `debc232` 第 7 round 裁定記録 + 補完 3 値・best-effort 化・scope 同期。件数は列挙 SHA と一致させる（第 6 round P3 — SHA 追記時に件数の更新を怠った）。amendment SHA は直後の状態帳簿 commit で確定追記する運用
 - Coordinator: Fable 5（本 session）
 - Writer: Fable 5（design docs 改訂）
 - Plan Reviewer: Sonnet subagent（独立 context）
 - Final Reviewer: Sonnet subagent（Plan Reviewer とは別 context）
-- Reviewed Content HEAD: 4786f7f
+- Reviewed Content HEAD: debc232
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
 - Human Gate: Draft PR の owner 確認 + Ready 承認 + Ready 後の explicit `workflow_dispatch` 1 run（docs-only は paths-ignore で自動 event 対象外のため、ci.md R3 経路の hosted final は owner 指示の dispatch で満たす）+ merge
@@ -305,4 +305,6 @@ Fill after implementation.
   - 第 7 P2-1（既存 attempt row 検出時の manifest 削除条件が未定義 — 字面どおりだと AlreadyPresent で marker が残り毎起動再処理、再 INSERT すれば重複）: accept・**Codex 修正案を全面採用**。補完処理の結果を `AlreadyPresent | Inserted | Failed` の 3 値で定義し、AlreadyPresent / Inserted は補完成功として manifest durable 削除、Failed（lookup / parse / INSERT の error）のみ warn + 残置。§71.10 に既存一致 row + committed marker の専用 fixture と 3 値 oracle を明記。
   - 第 7 P2-2（escape hatch が「log 恒久欠落は構造的に発生しない」の絶対保証と矛盾 — 持続 Failed + 新規 restore の最終試行失敗で監査記録と遅延成功確認が恒久消失）: accept・**Codex 修正案を部分採用**。log 保証を best-effort へ条件付き化（欠落系列は committed 例外経由のみ、fallback = 診断ログ + データ内容確認）し 71/68 の断定を除去 — これが矛盾解消の最小手段。推奨された「DB log 非依存の起動通知」は新 UI 挙動の追加（scope 拡大）であり、必要になるのが二重障害系列のみのため Plans.md backlog へ切り出し。代替案「attempt 別 audit-pending marker」は attempt 毎一意ファイル名の再導入（D5 が 2 回棄却した複雑化）+ operation_log は規制監査ログではなく exactly-once 要求が過剰、として不採用。
   - 第 7 P3（packet / PR body の「UI 文言不変」表記が 68 文言表の新設と矛盾）: accept。非目的 / Scope / Non-scope / Design Sources / Required Design Artifacts の 5 箇所を「非断定文言 + 起動後確認契約の新設は scope 内」へ同期、PR body も追随。
+- 第 7 round 反映の独立検証（同 Sonnet reviewer、2026-07-17）: **Codex 指定 3 系列すべて成立**（A: AlreadyPresent 収束で記録 1 件 + 残骸ゼロ / B: 持続 Failed + 新規 restore 非ブロック、best-effort 方針の 71/68/packet 三者一貫、絶対保証の残存なしを grep 確認 / C: active・temp・退避で committed 例外不発火の fail-closed 維持）+ 閉鎖確認 4 項目全 closed、新規矛盾なし。
+- state-only 遷移記録（2026-07-17、第 9）: `implementing -> local-verified -> independent-review -> human-confirm` を本 commit（状態帳簿 + dashboard 同期）への同乗で materialize。根拠 = content candidate `debc232`（第 7 round 反映 `80f06b1` + packet amendment）に対する L1 `local-ci.sh full` PASS / start-end CLEAN / MERGE_EVIDENCE_VALID=true（implementing -> local-verified、evidence は PR body）、第 7 round 反映の独立検証（Codex 指定 3 系列成立 + 4 項目 closed。independent-review -> human-confirm）。
 - Findings Freeze: frozen after Broad Audit（Plan Gate 3 round + 独立 Final Review 完了、2026-07-17）; post-freeze exceptions: **Codex 独立レビューの P1×3 は freeze の保護対象外（candidate safety）として same-PR 修正。P2-2/P2-3/P2-4 は runtime 失敗証明ではないが、公式 API doc・SQLite 文書化挙動という決定的証拠があり、本 PR の成果物（設計正本の契約文）自体の欠陥のため same-PR 修正を選択。P2-1 の single-instance 部分は当初 follow-up（backlog）としたが、再レビュー P1-3 で MNT-01-D5 の前提条件（実装 PR1 scope）へ昇格済み**。
