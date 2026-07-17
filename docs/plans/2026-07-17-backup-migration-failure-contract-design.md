@@ -2,16 +2,16 @@
 
 ## Workflow State
 
-- Phase: implementing
+- Phase: human-confirm
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: 3f7fc18
-- Amendments: 5（`a4c6f4f` Codex round 裁定記録 + Final P3-1 lens 訂正 / `94fa8bc` closure round 裁定記録 + AC・Ledger の MNT-01-D4/D5 反映 / `c921dd5` Codex 再レビュー round 裁定記録 + Scope・Trace の diff 同期 / `832fc2f` 再々レビュー round 裁定記録 + packet 残存 drift 是正 + wire 契約の識別子化 / `36c9388` 第 4 round 裁定記録 + cleanup durability 契約 / 第 6 = 第 5 round 裁定記録 + temp dispatcher 到達性・oracle 分割・durability 不明分類。amendment SHA は直後の状態帳簿 commit で確定追記する運用 — 第 4 round P3 の「本 amendment」自己参照問題の恒久解）
+- Amendments: 5（`a4c6f4f` Codex round 裁定記録 + Final P3-1 lens 訂正 / `94fa8bc` closure round 裁定記録 + AC・Ledger の MNT-01-D4/D5 反映 / `c921dd5` Codex 再レビュー round 裁定記録 + Scope・Trace の diff 同期 / `832fc2f` 再々レビュー round 裁定記録 + packet 残存 drift 是正 + wire 契約の識別子化 / `36c9388` 第 4 round 裁定記録 + cleanup durability 契約 / `ad83d3b` 第 5 round + 検証 round 裁定記録 + temp dispatcher 到達性・oracle 分割・durability 不明分類・遅延成功の operator 可視化。amendment SHA は直後の状態帳簿 commit で確定追記する運用 — 第 4 round P3 の「本 amendment」自己参照問題の恒久解）
 - Coordinator: Fable 5（本 session）
 - Writer: Fable 5（design docs 改訂）
 - Plan Reviewer: Sonnet subagent（独立 context）
 - Final Reviewer: Sonnet subagent（Plan Reviewer とは別 context）
-- Reviewed Content HEAD: 36c9388
+- Reviewed Content HEAD: ad83d3b
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
 - Human Gate: Draft PR の owner 確認 + Ready 承認 + Ready 後の explicit `workflow_dispatch` 1 run（docs-only は paths-ignore で自動 event 対象外のため、ci.md R3 経路の hosted final は owner 指示の dispatch で満たす）+ merge
@@ -290,5 +290,6 @@ Fill after implementation.
   - 第 5 P2-1（temp-only 残骸が reconcile の起動条件に含まれず dispatcher から到達不能 — 規則だけ新設して入口を追加し忘れた drift）: accept。起動条件と restore 開始時残骸検査の列挙に `.restore_manifest.tmp` を追加、§71.10 に実 startup dispatcher 経由の統合テスト条件を明記。
   - 第 5 P2-2（§71.10 oracle が rename 前の中断まで committed 分岐完了を要求 — 正しい実装をテストが落とすか temp を commit signal と誤認する実装を誘導）: accept。oracle を「rename 前 = active 一致復帰 / dir sync 完了後 = committed / rename 後〜sync 前 = 回復した canonical phase に従い双方許容」へ分割。
   - 第 5 P2-3（rename 成功後の dir sync 失敗で「manifest は active のまま」と断定 — 名前空間上は committed 済みで電断後の回復先を一意に断定できない実装不能な事後状態保証）: accept。(e) を 2 分類へ精密化（rename 前 = active 確定 Err / rename 後 sync 失敗 = durability 不明・新接続非公開・退避保持・unrecoverable、再起動時は実回復 phase に従う）。manifest unlink 後の sync 失敗も「committed 残置 / absent の双方を許容し安全収束」へ緩和。ステップ 7a・エラーハンドリング節へ反映。
-- 第 5 round 反映の独立検証（同 Sonnet reviewer、2026-07-17）: 3 項目全 closed（temp dispatcher 到達性 / oracle 分割と temp 規則の相互補強 / (e) 2 分類と D4 分類の整合）。ただし検証の敵対確認が**新規 P2 を検出**: (e)(ii) の精密化により「unrecoverable（失敗）表示 → 再起動 → committed 回復で実は復元成功」のケースが生まれたが、operator が遅延成功を知る手段が設計に無い（第 4 round までは単一結果だったため存在しなかったギャップ）。裁定 = accept・same-PR: (e)(ii) の文言を非断定（「復元が完了したか確定できませんでした」）へ変更（unrecoverable 分類・terminal 分岐は不変、表示専用文言の差し替え）、reconcile committed 分岐の解消後に operation_log へ復元完了（起動時確定）を記録 — ステップ 7d の log 欠落補完を兼ね、旧「監査証跡欠落の受容」を解消。68 §68.7・§71.10 へ追随。
+- 第 5 round 反映の独立検証（同 Sonnet reviewer、2026-07-17）: 3 項目全 closed（temp dispatcher 到達性 / oracle 分割と temp 規則の相互補強 / (e) 2 分類と D4 分類の整合）。ただし検証の敵対確認が**新規 P2 を検出**: (e)(ii) の精密化により「unrecoverable（失敗）表示 → 再起動 → committed 回復で実は復元成功」のケースが生まれたが、operator が遅延成功を知る手段が設計に無い（第 4 round までは単一結果だったため存在しなかったギャップ）。裁定 = accept・same-PR: (e)(ii) の文言を非断定（「復元が完了したか確定できませんでした」）へ変更（unrecoverable 分類・terminal 分岐は不変、表示専用文言の差し替え）、reconcile committed 分岐の解消後に operation_log へ復元完了（起動時確定）を記録 — ステップ 7d の log 欠落補完を兼ね、旧「監査証跡欠落の受容」を解消。68 §68.7・§71.10 へ追随。UX P2 修正の閉鎖確認も同 reviewer で全 4 項目 closed（committed / active 両分岐の operator 体験を再トレース、新規矛盾なし。指摘された log 書込み接続の確保タイミングは「reconcile は DB を開かない原則を保ち、init_database 後に記録要求を書き込む」で即時明文化）。
+- state-only 遷移記録（2026-07-17、第 7）: `implementing -> local-verified -> independent-review -> human-confirm` を本 commit（状態帳簿 + dashboard 同期）への同乗で materialize。根拠 = content candidate `ad83d3b`（第 5 round 反映 `c3de2f6` + packet amendment）に対する L1 `local-ci.sh full` PASS / start-end CLEAN / MERGE_EVIDENCE_VALID=true（implementing -> local-verified、evidence は PR body）、第 5 round 反映の独立検証（3 項目 closed + UX P2 検出・是正・閉鎖確認 4 項目 closed。independent-review -> human-confirm）。
 - Findings Freeze: frozen after Broad Audit（Plan Gate 3 round + 独立 Final Review 完了、2026-07-17）; post-freeze exceptions: **Codex 独立レビューの P1×3 は freeze の保護対象外（candidate safety）として same-PR 修正。P2-2/P2-3/P2-4 は runtime 失敗証明ではないが、公式 API doc・SQLite 文書化挙動という決定的証拠があり、本 PR の成果物（設計正本の契約文）自体の欠陥のため same-PR 修正を選択。P2-1 の single-instance 部分は当初 follow-up（backlog）としたが、再レビュー P1-3 で MNT-01-D5 の前提条件（実装 PR1 scope）へ昇格済み**。
