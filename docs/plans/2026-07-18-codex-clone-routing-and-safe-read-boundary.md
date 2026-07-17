@@ -6,7 +6,7 @@ Use the field definitions, enums, transition evidence, packet-selection rule, an
 
 If a state-only commit materializes multiple phases, list the complete adjacent forward sequence and the pre-existing evidence for every intermediate transition in an append-only review/evidence record. Recording compression never permits a gate skip.
 
-- Phase: human-confirm
+- Phase: ready-hosted-final
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: 6dbdf1b
@@ -18,7 +18,7 @@ If a state-only commit materializes multiple phases, list the complete adjacent 
 - Reviewed Content HEAD: 9f58050
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
-- Human Gate: Ready 承認（owner、pending）/ merge
+- Human Gate: Ready 承認済み（owner、介入 2/3）/ merge（pending）
 
 ### 遷移記録（append-only）
 
@@ -26,6 +26,7 @@ If a state-only commit materializes multiple phases, list the complete adjacent 
 - state-only 遷移 commit が plan-gate → plan-approved → implementing を圧縮 materialize する。根拠: 独立 Plan Reviewer（Sonnet subagent、Writer と別）が 3 round（R1: P1×1/P2×5/P3×4 全件是正 → R2: P2×1/P3×1 是正 → R3: 新規 0）で **P1/P2 = 0・収束**を報告（plan-gate → plan-approved。Review Response 節参照）。Plan Commit = 6dbdf1b（初回 plan-first commit、実装 commit ゼロの時点で設定 = 全実装 commit に先行）。実装は Codex 発注で開始（plan-approved → implementing）。
 - implementing → local-verified は content commit 9f58050（Codex 修正 HEAD）に同乗した。根拠: 9f58050 の L1 `local-ci.sh full` が clean exact-HEAD で `MERGE_EVIDENCE_VALID=true`（PR body、L1 evidence file）。
 - state-only 遷移 commit が local-verified → independent-review → human-confirm を圧縮 materialize する。根拠: independent-review = Contract Audit Double Audit 両 pass 完了（1 pass = Fable inline 契約突合 blocker なし / 2 pass = Codex 独立 mutation testing P2×5/P3×1 → 同一 PR 修正 9f58050 で全件是正、Coordinator が F1/F2 実 mutation 注入で回帰感度を確証）。findings adjudicated・P1/P2 = 0 → human-confirm materialize、Reviewed Content HEAD = 9f58050（監査済み content commit）。Human Gate = Ready 承認（owner）待ち。
+- state-only 遷移 commit が human-confirm → ready-hosted-final を materialize する。根拠: owner が Ready 承認（介入 2/3、2026-07-18）。本 commit を Draft のまま作成し、resulting HEAD で L1 `local-ci.sh full` を回して PR body を最終リフレッシュする。Ready / dispatch はその同一 HEAD で owner がトリガー。L1 SHA・hosted URL は本 packet に転記せず PR body を唯一の権威とする（D-035）。
 
 ## Owner Effort Budget
 
