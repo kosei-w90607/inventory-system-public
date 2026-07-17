@@ -1,7 +1,7 @@
 # Test Design Matrix — `.codex/` clone routing + safe-read boundary 是正
 
 対象: `scripts/tests/codex-safe-wrappers.test.sh`（新設）。契約 ID は packet の SPEC-CODEX-SAFE-BOUNDARY-2026-07-18 C1–C7。
-fixture は `$TMPDIR` の合成 git repo（allowlist 相当 dir + 合成 file + repo 外実体への symlink）で構成し、実在の global Skill・secrets を fixture 化しない。
+fixture は `$TMPDIR` の合成 git repo（allowlist 相当 dir + 合成 file + repo 外実体への symlink + repo 内 sensitive 命名実体への symlink alias〔T14〕+ 非 git dir / 解決不能 path〔T15〕）で構成し、実在の global Skill・secrets を fixture 化しない。
 
 | ID | 契約 | 対象 script | 系列 | 入力 / 手順 | 期待結果 |
 |---|---|---|---|---|---|
