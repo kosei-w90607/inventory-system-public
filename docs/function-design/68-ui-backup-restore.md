@@ -118,10 +118,12 @@ UI は PR #141 で生成済みの `commands.*` だけを使う。
 | `restore_confirm` | 最終 AlertDialog | `restoring` / `restore_detail` | 「元に戻せません」と日時を再掲。実行ボタンに日時を含める。 |
 | `restoring` | `restoreBackup` | `restore_succeeded` / `restore_failed_recovered` / `restore_failed_unrecoverable` | 画面内操作を disabled。 |
 | `restore_succeeded` | CMD が Ok を返す | home route | Query cache を `clear` し、ホームへ遷移して success Alert。 |
-| `restore_failed_recovered` | CMD が Err を返し、DB 接続再確立済み | `ready` | 復元失敗を表示し、一覧を再取得して再試行可能にする。 |
-| `restore_failed_unrecoverable` | CMD が「DB接続の復旧もできませんでした。アプリを再起動してください」を返す | terminal | DSR-03 上部帯の full-page destructive Alert、全操作 disabled、「アプリを閉じて、もう一度開いてください」。 |
+| `restore_failed_recovered` | CMD が **recoverable 分類**の Err を返す（DB 接続再確立済み） | `ready` | 復元失敗を表示し、一覧を再取得して再試行可能にする。 |
+| `restore_failed_unrecoverable` | CMD が **unrecoverable 分類**の Err を返す | terminal | DSR-03 上部帯の full-page destructive Alert、全操作 disabled、「アプリを閉じて、もう一度開いてください」。 |
 
 `restore_backup` の MNT 層は失敗時に DB ファイルを退避から戻すが、有効な接続は返さない。CMD 層は `match` で処理し、「退避復元済み」の失敗に限り **create 能力のない open**（71 §71.7 MNT-01-D4）で再接続を試み、成功すれば recovered connection を Mutex に戻してから Err を返す。UI はこの recoverable failure を通常の再試行可能エラーとして扱う。復元後の状態が確定できない失敗、または no-create 再接続に失敗した double failure が restart-required 状態である（create 能力のある `init_database` を復旧再接続に使うと、main 不在時に空 DB が作られ recoverable に偽装される — MNT-01-D4 参照）。
+
+recoverable / unrecoverable の判別は **CMD が返す構造化された分類識別子**（`CmdError` への kind 等の追加。wire 具体形は実装 PR1 で確定し、順 8 = P3-4 の error 表示統一と整合させる）で行い、**エラーメッセージ文字列の部分一致に依存しない**。文言（「アプリを再起動してください」等）は表示専用とする — 現行 frontend の substring token 判定（`BackupRestorePage.tsx` の `message.includes(...)`）は、文言変更だけで unrecoverable が通常エラーへ落ちる脆い契約であり、実装 PR1 で識別子ベースへ置き換え、frontend テストも識別子で固定する（PR #14 Codex 再々レビュー P2-2）。
 
 ## 68.8 Command Contract
 

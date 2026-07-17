@@ -162,13 +162,13 @@ fn restore_backup(
 2. 現在の接続でWALをフラッシュ: `PRAGMA wal_checkpoint(TRUNCATE)`
    - 失敗 → `tracing::warn!` で警告して続行。**この非致命扱いの根拠は、ステップ4で旧DB一式（WAL含む）を退避することにある。したがってステップ4の退避が成功する場合に限り有効**（MNT-01-D1）
 3. `current_conn` をdrop（ファイルロック解放）
-3.5. durable manifest `{db_path}.restore_manifest` を作成する（MNT-01-D5: attempt ID + 退避対象存在集合を記録し、書込み → `sync_all` → 親 directory sync の完了後にのみ次へ進む。前回の manifest / `.restore_backup` 遺物が残存していれば restore を開始せず Err）
+3.5. durable manifest `{db_path}.restore_manifest` を作成する（MNT-01-D5: attempt ID + 退避対象存在集合 + phase=active を記録し、書込み → `sync_all` → 親 directory sync の完了後にのみ次へ進む。前回の manifest / `.restore_backup` 遺物が残存していれば restore を開始せず Err）
 4. 現在のDBファイル一式を退避する。**main / 存在する WAL / 存在する SHM のすべてで退避（rename）成功が必須**（rename は main → WAL → SHM の順、各 rename は親 directory sync で永続化。MNT-01-D5）:
    - `{db_path}` → `{db_path}.restore_backup`
    - `{db_path}-wal` → `{db_path}-wal.restore_backup`（存在する場合）
    - `{db_path}-shm` → `{db_path}-shm.restore_backup`（存在する場合）
-   - いずれかの rename が失敗 → 退避済みファイルを元の名前へ巻き戻し、**本体置換に進まず** `DbError::QueryFailed` で restore を中止する（MNT-01-D1）
-   - 巻き戻し自体がさらに失敗した場合 → ステップ 8e と同等の致命的エラーとして扱う（`tracing::error!` 記録、`DbError::QueryFailed`、アプリ再起動が必要）
+   - いずれかの rename が失敗 → 退避済みファイルを元の名前へ巻き戻し、**本体置換に進まず** `DbError::QueryFailed` で restore を中止する（MNT-01-D1）。巻き戻し完了後は manifest を durable 削除する（Codex 再々レビュー P3）
+   - 巻き戻し自体がさらに失敗した場合 → ステップ 8e と同等の致命的エラーとして扱う（`tracing::error!` 記録、`DbError::QueryFailed`、アプリ再起動が必要。manifest は残置し、次回起動の reconcile に委ねる）
 
 **MNT-01-D1: 退避は一式成功が必須、失敗時は置換前に中止**
 
@@ -182,7 +182,7 @@ fn restore_backup(
 - 決定: restore の失敗は「**退避復元済み**（元 DB 一式を元の名前へ戻せた）」と「**状態不明/未復旧**（巻き戻し失敗・二重失敗を含む）」を区別して呼び出し元へ伝える。CMD 層の復旧再接続は次の契約に従う:
   - 「退避復元済み」の場合のみ再接続を試みる。再接続は **create 能力のない open**（`SQLITE_OPEN_CREATE` を含まない `open_with_flags`）で行い、成功時のみ recoverable（再試行可能エラー）として返す
   - 「状態不明/未復旧」の場合、または no-create 再接続が失敗した場合は、再接続を試みず unrecoverable（`アプリを再起動してください` を含む既存文言）を返す
-  - 区別の伝搬は message 文字列比較に依存せず型・variant レベルで行う（DbError の variant 追加か戻り値の構造化かは実装 PR1 で確定）
+  - 区別の伝搬は message 文字列比較に依存せず型・variant レベルで行う（DbError の variant 追加か戻り値の構造化かは実装 PR1 で確定）。**CMD → UI の伝搬も同様に構造化された分類識別子で行い、frontend が文言の部分一致で分岐しない**（68 §68.7 参照。Codex 再々レビュー P2-2）
 - Why: 現行 CMD パターンの `db::init_database` による復旧は create 能力を持つため、二重失敗で main が `{db_path}.restore_backup` 側に残ったまま `{db_path}` が不在の状態では**空 DB を新規作成して migration まで成功**し、復旧不能な状態が recoverable として UI（68 §68.7 の `restore_failed_recovered`）に渡る。operator は「現在のデータに戻した」と誤認して空 DB へ入力を続ける — 本設計が塞ぐべき空 DB 隠蔽経路そのもの
 - Rejected alternatives: 現行の create-capable `init_database` による復旧（上記の偽装経路）/ message 文字列での分岐追加のみ（文字列は契約として脆く、監査 P3-4 = 順 8 で是正予定の分裂をさらに深める）
 - 見直し契機: 順 8（error 表示 contract 統一)で CmdError に相関 ID / kind 拡張が入るとき
@@ -191,38 +191,41 @@ fn restore_backup(
 
 - 決定: 逐次 rename は I/O エラーには MNT-01-D1 で巻き戻せるが、プロセス中断・電源断には原子的でない。次の durable manifest + 起動時 reconcile で「元 snapshot または新 snapshot のどちらか一方が完全な形で残り再接続可能」の不変条件を再起動をまたいで保証する:
   - **前提: single-instance 保証**。本契約は同時に 1 プロセスのみが restore / reconcile / legacy 移行を実行することを前提とする。single-instance ガード（`tauri-plugin-single-instance` 等）の導入を**実装 PR1 の前提条件**とし、ガードなしで本契約を実装してはならない — 固定名の manifest / 退避名は多重プロセスに対して防御せず、後発 attempt の退避 rename が先発 attempt の旧 main を置換し得る（Codex 再レビュー P1-3）
-  - restore は最初のファイル mutation より前に durable manifest `{db_path}.restore_manifest` を作成する。manifest は (a) 一意 attempt ID（診断・テスト固定用）、(b) **退避対象の存在集合**（`{db_path}` / `-wal` / `-shm` それぞれの退避開始時点での有無）を記録する
-  - **durability 契約**（Codex 再レビュー P1-2）: (a) manifest は「内容書込み → `sync_all` → 親 directory sync」の完了後にのみファイル mutation へ進む。(b) rename（退避・巻き戻し・元名復帰とも）は親 directory sync で永続化する。(c) 本体コピー完了後、`init_database` より前に新 main の `sync_all` + 親 directory sync を行う（userspace のコピー完了・page cache 経由の open 成功を永続化の根拠にしない）。(d) manifest の削除は「unlink + 親 directory sync」による durable 削除とし、**成功時は新接続確立の直後（退避ファイル削除より前）**、失敗時は巻き戻し完了後に行う。durable 削除の完了前に退避ファイルを削除してはならない
+  - restore は最初のファイル mutation より前に durable manifest `{db_path}.restore_manifest` を作成する。manifest は (a) 一意 attempt ID（診断・テスト固定用）、(b) **退避対象の存在集合**（`{db_path}` / `-wal` / `-shm` それぞれの退避開始時点での有無）、(c) **phase**（`active` = 作成時 / `committed` = 新接続確立済み）を記録する。**manifest の不在を「復元完了」の判定に使ってはならない** — 現行実装（manifest 導入前）も同じ固定退避名 `.restore_backup` を使っており（backup.rs:263）、manifest なしの退避遺物は「旧形式実装の任意時点中断の残骸（唯一の実データを含み得る）」と区別できない（Codex 再々レビュー P1-2）
+  - **durability 契約**（Codex 再レビュー P1-2）: (a) manifest は「内容書込み → `sync_all` → 親 directory sync」の完了後にのみファイル mutation へ進む。(b) rename（退避・巻き戻し・元名復帰とも）は親 directory sync で永続化する。(c) 本体コピー完了後、`init_database` より前に新 main の `sync_all` + 親 directory sync を行う（userspace のコピー完了・page cache 経由の open 成功を永続化の根拠にしない）。(d) 成功時は新接続確立の直後（退避ファイル削除より前）に **phase=committed を原子的に durable 更新**（一時ファイル書込み + `sync_all` + rename + 親 directory sync）し、退避削除の完了後に manifest を durable 削除（unlink + 親 directory sync）する。失敗時は巻き戻し完了後に manifest を durable 削除する。phase=committed の永続化前に退避ファイルを削除してはならない
   - 退避 rename は main → WAL → SHM の順で固定する（ファイル mutation は manifest 存在下でのみ行う）
   - 起動シーケンス（lib.rs）は `init_database` より前に reconcile を実行する: manifest または `.restore_backup` 遺物が存在する場合、**DB を開かず・新規作成もせず**、次の決定論的規則で解消してから通常起動に進む
-    - manifest **あり** + 退避側の実在集合が manifest 記録集合と**一致** = 退避完了後（本体コピー / 接続確立 / manifest 削除のいずれか）の中断。元名側に存在する DB 一式（main / WAL / SHM すべて — この attempt が生成した信頼できない世代）を削除してから、退避集合を rename で元名へ戻し、manifest を durable 削除する。記録集合に無い種別の元名側残骸（例: 元 DB が clean で WAL 無しと記録したのに `init_database` が生成した新世代 WAL が残る）もこの削除で必ず除去する — **存在ビットだけでは旧世代と attempt 生成世代を区別できないため、記録集合との一致/不一致を世代判定に使う**（Codex 再レビュー P1-1）
-    - manifest **あり** + 退避側の実在集合が記録集合の**真部分集合**（退避ゼロ = mutation 未着手を含む） = 退避 rename 途中または未着手の中断。本体コピーは退避完了後にのみ始まるため、元名側に残るファイルは**旧世代の実データ** — 削除しない。退避側に実在するファイルのみ元名へ戻し（元名に同種別が存在する場合はそれを削除してから rename）、manifest を durable 削除する
-    - manifest **なし** + 退避遺物あり = 復元は完了済みで掃除だけが中断 → `{db_path}` 一式を正とし、退避遺物を削除する
-    - manifest が存在するが**読取・パース不能**（作成途中の中断による破損） = ファイル mutation は manifest の durable 化後にのみ始まるため、退避遺物が無ければ manifest のみ削除して通常起動へ進む。退避遺物が**ある**場合は理論上到達不能な状態であり、自動解消せず起動中止（fail-closed + operator 可視化）とする
+    - manifest **あり（phase=active）** + 退避側の実在集合が manifest 記録集合と**一致** = 退避完了後（本体コピー / 接続確立前）の中断。元名側に存在する DB 一式（main / WAL / SHM すべて — この attempt が生成した信頼できない世代）を削除してから、退避集合を rename で元名へ戻し、manifest を durable 削除する。記録集合に無い種別の元名側残骸（例: 元 DB が clean で WAL 無しと記録したのに `init_database` が生成した新世代 WAL が残る）もこの削除で必ず除去する — **存在ビットだけでは旧世代と attempt 生成世代を区別できないため、記録集合との一致/不一致を世代判定に使う**（Codex 再レビュー P1-1）
+    - manifest **あり（phase=active）** + 退避側の実在集合が記録集合の**真部分集合**（退避ゼロ = mutation 未着手を含む） = 退避 rename 途中または未着手の中断。本体コピーは退避完了後にのみ始まるため、元名側に残るファイルは**旧世代の実データ** — 削除しない。退避側に実在するファイルのみ元名へ戻し（元名に同種別が存在する場合はそれを削除してから rename）、manifest を durable 削除する
+    - manifest **あり（phase=active）** + 退避側の実在集合が記録集合の**部分集合でない**（記録に無い種別が退避側に存在する superset / mixed） = 本契約下では到達不能な状態（退避 rename は記録集合のファイルのみを対象とする）。自動解消せず起動中止（fail-closed + operator 可視化）とし、遺物を変更しない（Codex 再々レビュー P2-1）
+    - manifest **あり（phase=committed）** = 復元は完了済みで掃除だけが中断 → `{db_path}` 一式を正とし、退避遺物を削除してから manifest を durable 削除する
+    - manifest **なし** + 退避遺物あり = **旧形式実装（manifest 導入前）の中断残骸、または不明の遺物**。退避側が唯一の実データである可能性がある（現行実装で退避後・コピー前に中断したケース）ため、**自動削除せず**起動中止（fail-closed + operator 可視化）とする（Codex 再々レビュー P1-2。D5 実装の成功後掃除中断は phase=committed が識別するため、この分岐に落ちるのは旧形式・不明遺物のみ）
+    - manifest が存在するが**読取・パース不能**（作成途中の中断による破損） = ファイル mutation は manifest の durable 化後にのみ始まるため、退避遺物が無ければ manifest のみ削除して通常起動へ進む。退避遺物が**ある**場合は自動解消せず起動中止（fail-closed + operator 可視化）とする
   - reconcile は**冪等**に設計する: 各分岐は現在の状態のみから解消先を決め、新たな中間状態を作らない。reconcile 自身が任意の時点で再中断されても（例: 一致分岐の巻き戻し途中で退避実在集合が真部分集合に減る）、再起動後の reconcile が同じ規則で残状態を一意に解消できる
   - restore 開始時に前回の manifest または `.restore_backup` 遺物が残存している場合、restore を開始せず Err を返す（reconcile は起動時に完了しているはずで、実行中の残存は掃除失敗の兆候。fail-closed）
   - reconcile 自体の失敗は起動中止（MNT-03-D4 と同じ fail-closed + operator 可視化）とし、遺物を残したまま `init_database` に進んで空 DB を作ることを禁止する
   - reconcile は **legacy 移行判定（22 §12）より前に**実行する。restore 中断で `{db_path}` が不在の間に legacy 移行判定が走ると「新 DB 無し」と誤認して旧 CWD DB を publish し得るため、順序は reconcile → legacy 移行判定 → `init_database` で固定する
-- Why: 退避 rename 後・コピー完了前に中断すると `{db_path}` が不在になり、現行起動は `init_database` が空 DB を新規作成して実データ（退避側に無傷で存在）を隠蔽する。manifest の記録集合は (1) 「`{db_path}` を信頼してよいか」（manifest の有無）と (2) 「元名側のファイルが旧世代か attempt 生成世代か」（退避実在集合と記録集合の一致/不一致）の両方を決定論化し、全中断タイミングで解消先が一意に決まる。存在ビットのみの固定 marker（本 D5 の旧案）では (2) を判定できず、「巻き戻しで退避に無い元名を削除する」と退避途中中断の旧 WAL 実データを失い、「削除しない」と restore 成功後中断の新世代 WAL/SHM が旧 main と混在残存する — どちらの単純規則にも反例が成立する（Codex 再レビュー P1-1）。durable 削除を退避削除より前に置くのは、成功後の掃除中断を「main 優先」で解消するため。なお「新接続確立直後〜manifest 削除前」の中断だけは、完了していた復元が reconcile で旧データへ巻き戻る（不変条件には違反しない安全側の挙動。operator は復元を再実行すればよく、この挙動は受容して文書化する）
-- Rejected alternatives: 存在ビットのみの固定 marker `{db_path}.restore_inprogress`（本 D5 の旧案。上記の世代判定不能で棄却）/ attempt ごとの一意 staging 名（single-instance 前提下では固定退避名 + manifest 記録集合で決定論を確保でき、staging 名の列挙・掃除の複雑さに見合わない）/ reconcile なしで「退避があれば常に戻す」（成功後の掃除中断で完了済みの復元が巻き戻り、operator の操作結果を無効化する）
+- Why: 退避 rename 後・コピー完了前に中断すると `{db_path}` が不在になり、現行起動は `init_database` が空 DB を新規作成して実データ（退避側に無傷で存在）を隠蔽する。manifest の記録集合は (1) 「`{db_path}` を信頼してよいか」（manifest の有無）と (2) 「元名側のファイルが旧世代か attempt 生成世代か」（退避実在集合と記録集合の一致/不一致）の両方を決定論化し、全中断タイミングで解消先が一意に決まる。存在ビットのみの固定 marker（本 D5 の旧案）では (2) を判定できず、「巻き戻しで退避に無い元名を削除する」と退避途中中断の旧 WAL 実データを失い、「削除しない」と restore 成功後中断の新世代 WAL/SHM が旧 main と混在残存する — どちらの単純規則にも反例が成立する（Codex 再レビュー P1-1）。phase=committed を退避削除より前に永続化するのは、成功後の掃除中断を「main 優先」で解消するためであり、**manifest の不在を commit 判定に使うと旧形式実装（同じ固定退避名を使用）の中断残骸 — 唯一の実データを含み得る — を成功後残骸と誤認して削除する**アップグレード境界の反例が成立するため、不在は fail-closed に送る（Codex 再々レビュー P1-2）。なお「新接続確立直後〜phase=committed 永続化前」の中断だけは、完了していた復元が reconcile で旧データへ巻き戻る（不変条件には違反しない安全側の挙動。operator は復元を再実行すればよく、この挙動は受容して文書化する）
+- Rejected alternatives: 存在ビットのみの固定 marker `{db_path}.restore_inprogress`（本 D5 の旧案。上記の世代判定不能で棄却）/ **phase なしの manifest + 「manifest なし + 退避あり = 掃除中断」規則**（本 D5 の第 2 案。アップグレード境界で旧形式残骸の唯一の実データを削除する反例で棄却 — Codex 再々レビュー P1-2）/ attempt ごとの一意 staging 名（single-instance 前提下では固定退避名 + manifest 記録集合で決定論を確保でき、staging 名の列挙・掃除の複雑さに見合わない）/ reconcile なしで「退避があれば常に戻す」（成功後の掃除中断で完了済みの復元が巻き戻り、operator の操作結果を無効化する）/ 同期巻き戻し（ステップ 8）を「存在する退避だけ戻す」軽量手順にする（部分 migration が生成した新世代 WAL/SHM を残し世代混在を作る — reconcile 一致分岐と同一手順に統合。Codex 再々レビュー P1-1）
 - 見直し契機: restore を接続 API ベース（`rusqlite::backup` 等)へ置き換えるとき、または multi-instance 対応が要件化されるとき
 5. バックアップファイルを `{db_path}` にコピー
 6. `db::init_database(db_path)` で新しい接続を作成
    - PRAGMA再設定＋マイグレーション実行が含まれる
 7. 成功の場合:
-   a. manifest を durable 削除する（unlink + 親 directory sync。MNT-01-D5: 退避ファイル削除より前が必須）
+   a. manifest の phase を `committed` へ原子的に durable 更新する（MNT-01-D5: 退避ファイル削除より前が必須）
    b. 退避ファイルを削除（`.restore_backup` ファイル群）
-   c. `system_repo::insert_operation_log` で記録:
+   c. manifest を durable 削除する（unlink + 親 directory sync）
+   d. `system_repo::insert_operation_log` で記録:
       - `operation_type`: `"backup_restore"`
       - `summary`: `"バックアップから復元しました: {ファイル名}"`
-      - 注: 7a〜7c の間の中断では復元自体は完全（不変条件充足）だが operation_log レコードが欠落し得る。監査証跡の欠落として受容・文書化する（データ安全性には影響しない）
-   d. 新しい `DbConnection` を返す
-8. 失敗の場合（ステップ5-6でエラー）:
-   a. 退避ファイルから復元: `{db_path}.restore_backup` → `{db_path}`
-   b. WAL/SHMも復元（存在する場合）
-   c. 巻き戻し完了後に manifest を durable 削除し、その後に退避側の残骸を削除（MNT-01-D5）
+      - 注: 7a〜7d の間の中断では復元自体は完全（不変条件充足）だが operation_log レコードが欠落し得る。監査証跡の欠落として受容・文書化する（データ安全性には影響しない）
+   e. 新しい `DbConnection` を返す
+8. 失敗の場合（ステップ5-6でエラー）: 巻き戻しは **MNT-01-D5 reconcile の「一致」分岐と同一手順**で行う（存在する退避だけを戻す方式は、`init_database` の部分 migration が生成した新世代 WAL/SHM を元名側に残し、旧 main と混在させるため禁止 — Codex 再々レビュー P1-1）:
+   a. 元名側の DB 一式（main / WAL / SHM すべて — この attempt が生成した信頼できない世代）を削除し、親 directory sync で永続化する
+   b. manifest 記録集合の退避ファイルを rename で元名へ復帰する（`{db_path}.restore_backup` → `{db_path}`、WAL / SHM も記録集合に従う）
+   c. 巻き戻し完了後に manifest を durable 削除する
    d. `DbError::QueryFailed` を返す（元のDBファイルは復元済みだが、接続は呼び出し元が再確立する必要がある）
-   e. 退避からの復元も失敗した場合 → `DbError::QueryFailed` で致命的エラー（manifest は削除しない — 次回起動の reconcile が解消する）
+   e. 巻き戻し（8a-8b）が失敗した場合 → `DbError::QueryFailed` で致命的エラー（manifest は削除しない — 次回起動の reconcile が解消する）
 
 **重要: 失敗時の契約**
 - `restore_backup` は失敗時に「退避復元済み」か「状態不明/未復旧」かを区別できる `Err` を返す（MNT-01-D4）。有効なDbConnectionは返さない
@@ -397,7 +400,9 @@ pub fn resolve_backup_dir(conn: &DbConnection, app_data: &Path) -> Result<PathBu
 | restore 退避失敗注入（MNT-01-D1） | 上記条件を満たす実 WAL fixture で、WAL/SHM の退避 rename を failpoint で失敗させ、本体置換が行われず元 DB が WAL 込みで再接続可能なことを検証 |
 | restore 成功系の WAL 意味論（MNT-01-D1） | checkpoint 完了/busy 両系で、restore 後の DB がバックアップ時点のデータのみを持ち、旧 WAL の変更が混入しないことを再 open + row 検証で確認 |
 | 二重失敗の unrecoverable 化（MNT-01-D4） | 巻き戻し失敗を注入して main 不在の状態を作り、CMD 復旧が空 DB を新規作成せず unrecoverable を返すことを検証（現行の create-capable 復旧では空 DB が作られ recoverable に化けることの回帰固定） |
-| 中断 reconcile（MNT-01-D5） | 各ファイル mutation・sync・manifest 操作の直後で処理を打ち切る failpoint で中断状態（退避実在集合 = 記録集合の一致 / 真部分集合（退避ゼロ含む） / manifest なし退避遺物あり、および reconcile 自身の巻き戻し途中再中断）を作り、起動時 reconcile 後に元 DB 一式（または完了済み restore 結果）が**世代混在なく**再接続可能で遺物ゼロなことを検証。元 DB の WAL/SHM 有無 × 中断点の全組合せを含み、特に「clean な元 DB（WAL 無し記録）× restore 成功後 manifest 削除前の中断」で新世代 WAL が残らないことを固定する |
+| 中断 reconcile（MNT-01-D5） | 各ファイル mutation・sync・manifest 操作の直後で処理を打ち切る failpoint で中断状態（phase=active の一致 / 真部分集合（退避ゼロ含む） / phase=committed / reconcile 自身の巻き戻し途中再中断）を作り、起動時 reconcile 後に元 DB 一式（または完了済み restore 結果）が**世代混在なく**再接続可能で遺物ゼロなことを検証。元 DB の WAL/SHM 有無 × 中断点の全組合せを含み、特に「clean な元 DB（WAL 無し記録）× restore 成功後 phase=committed 前の中断」で新世代 WAL が残らないことを固定する |
+| 同期巻き戻しの世代掃除（MNT-01-D5 / ステップ 8） | 退避完了後に `init_database` の部分 migration で新世代 WAL/SHM を生成させてから restore を失敗させ、同期巻き戻し後に元名側へ新世代 sidecar が残らない（旧 main + 記録集合のみ）ことを検証（Codex 再々レビュー P1-1 の回帰固定） |
+| fail-closed reconcile 分岐（MNT-01-D5） | (a) manifest なし + 退避遺物あり（旧形式実装の中断残骸を模した fixture）、(b) 実在集合が記録集合の部分集合でない superset、(c) パース不能 manifest + 退避あり — いずれも遺物を変更せず起動中止 + operator 可視化することを検証。(a) は退避側の実データが削除されないことを必須 assert とする（Codex 再々レビュー P1-2 の回帰固定） |
 | single-instance ガード（MNT-01-D5 前提） | 二重起動時に後発 instance が restore / reconcile / legacy 移行へ到達しないことを検証（`tauri-plugin-single-instance` 等の導入は実装 PR1 の前提条件） |
 | retention 読取失敗（MNT-01-D3） | `backup_retention_days` の読取 DB error / 非数値値を注入し、cleanup が実行されず（削除 0 件）warn が記録されることを検証 |
 | retention 未設定（MNT-01-D3） | 設定行なしで既定 3 日が適用されることを検証（既存挙動の固定） |
