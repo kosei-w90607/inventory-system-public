@@ -2,16 +2,16 @@
 
 ## Workflow State
 
-- Phase: implementing
+- Phase: human-confirm
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: 3f7fc18
-- Amendments: 9（`a4c6f4f` Codex round 裁定記録 + Final P3-1 lens 訂正 / `94fa8bc` closure round 裁定記録 + AC・Ledger の MNT-01-D4/D5 反映 / `c921dd5` Codex 再レビュー round 裁定記録 + Scope・Trace の diff 同期 / `832fc2f` 再々レビュー round 裁定記録 + packet 残存 drift 是正 + wire 契約の識別子化 / `36c9388` 第 4 round 裁定記録 + cleanup durability 契約 / `ad83d3b` 第 5 round + 検証 round 裁定記録 + temp dispatcher 到達性・oracle 分割・durability 不明分類・遅延成功の operator 可視化 / `4786f7f` 第 6 round + 検証第 2 round 裁定記録 + pending marker 化・detail_json 冪等・committed 例外 / `debc232` 第 7 round 裁定記録 + 補完 3 値・best-effort 化・scope 同期 / `fa02439` 第 8 round 裁定記録 + row 分類集約・分岐要約表・68 本文 best-effort 化。件数は列挙 SHA と一致させる（第 6 round P3 — SHA 追記時に件数の更新を怠った）。amendment SHA は直後の状態帳簿 commit で確定追記する運用
+- Amendments: 10（`a4c6f4f` Codex round 裁定記録 + Final P3-1 lens 訂正 / `94fa8bc` closure round 裁定記録 + AC・Ledger の MNT-01-D4/D5 反映 / `c921dd5` Codex 再レビュー round 裁定記録 + Scope・Trace の diff 同期 / `832fc2f` 再々レビュー round 裁定記録 + packet 残存 drift 是正 + wire 契約の識別子化 / `36c9388` 第 4 round 裁定記録 + cleanup durability 契約 / `ad83d3b` 第 5 round + 検証 round 裁定記録 + temp dispatcher 到達性・oracle 分割・durability 不明分類・遅延成功の operator 可視化 / `4786f7f` 第 6 round + 検証第 2 round 裁定記録 + pending marker 化・detail_json 冪等・committed 例外 / `debc232` 第 7 round 裁定記録 + 補完 3 値・best-effort 化・scope 同期 / `fa02439` 第 8 round 裁定記録 + row 分類集約・分岐要約表・68 本文 best-effort 化 / `7e227ef` 第 9 round 裁定記録 + branch ID traceability 補完。件数は列挙 SHA と一致させる（第 6 round P3 — SHA 追記時に件数の更新を怠った）。amendment SHA は直後の状態帳簿 commit で確定追記する運用
 - Coordinator: Fable 5（本 session）
 - Writer: Fable 5（design docs 改訂）
 - Plan Reviewer: Sonnet subagent（独立 context）
 - Final Reviewer: Sonnet subagent（Plan Reviewer とは別 context）
-- Reviewed Content HEAD: fa02439
+- Reviewed Content HEAD: 7e227ef
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
 - Human Gate: Draft PR の owner 確認 + Ready 承認 + Ready 後の explicit `workflow_dispatch` 1 run（docs-only は paths-ignore で自動 event 対象外のため、ci.md R3 経路の hosted final は owner 指示の dispatch で満たす）+ merge
@@ -316,4 +316,6 @@ Fill after implementation.
 - state-only 遷移記録（2026-07-18、第 10）: `implementing -> local-verified -> independent-review -> human-confirm` を本 commit（状態帳簿 + dashboard 同期）への同乗で materialize。根拠 = content candidate `fa02439`（第 8 round 反映 `f3e2934` + packet amendment）に対する L1 `local-ci.sh full` PASS / start-end CLEAN / MERGE_EVIDENCE_VALID=true（implementing -> local-verified、evidence は PR body）、第 8 round 反映の独立検証（3 項目 closed + 表突合 drift ゼロ。independent-review -> human-confirm）。
 - Codex 第 9 round レビュー（owner 発注・relay 経由、PR #14 issue comment、2026-07-18、live HEAD `dd3cce7` 時点、主監査 39 系列 + 独立 review-only pass 32 系列で判定一致）: **P1 = 0 / P2 = 0 / P3 = 1、merge blocker なし** — 初の non-blocker verdict。前 round 4 判定 closed（PR body 同期含む）、要約表突合 drift 0 を独立再確認。Lens 3 追加提案なし（「設計拡張より traceability 小修正で収束が妥当」）。Coordinator 裁定:
   - 第 9 P3（branch ID traceability 不完全 — §71.10 の明示参照が R3/R4/R5/R7 のみで T0/R1/R2/R6 未参照、R6 専用 fixture 欠落、表の「パース不能」が散文の「読取・パース不能」より狭い）: accept・same-PR 小修正で完全収束を選択（follow-up 化は実装 PR の Ledger 参照性を損なう）。中断 reconcile 行に R1/R2/R4、cleanup durability 行に T0/R1/R4 を付記、R6 単独解消の fixture 行を新設、表の R6/R7 表現を「読取・パース不能」へ統一。
+- 第 9 round P3 反映の独立検証（同 Sonnet reviewer、2026-07-18）: 全 5 項目 closed — T0〜R7 の**全 8 branch ID が §71.10 から参照される被覆**を列挙確認、ID 付記は既存 oracle を一切変えない純粋な注釈追加であることも確認。
+- state-only 遷移記録（2026-07-18、第 11）: `implementing -> local-verified -> independent-review -> human-confirm` を本 commit（状態帳簿 + dashboard 同期）への同乗で materialize。根拠 = content candidate `7e227ef`（第 9 round P3 反映 `44b5a7b` + packet amendment）に対する L1 `local-ci.sh full` PASS / start-end CLEAN / MERGE_EVIDENCE_VALID=true（implementing -> local-verified、evidence は PR body）、第 9 round P3 反映の独立検証（5 項目 closed + 全 branch ID 被覆。independent-review -> human-confirm）。**Codex 第 9 round verdict = merge blocker なし（P1/P2 = 0）に P3 の same-PR 収束を加えた完全収束状態** — 残る gate は Human Gate（owner 確認 → Ready → explicit dispatch 1 run → merge）のみ。
 - Findings Freeze: frozen after Broad Audit（Plan Gate 3 round + 独立 Final Review 完了、2026-07-17）; post-freeze exceptions: **Codex 独立レビューの P1×3 は freeze の保護対象外（candidate safety）として same-PR 修正。P2-2/P2-3/P2-4 は runtime 失敗証明ではないが、公式 API doc・SQLite 文書化挙動という決定的証拠があり、本 PR の成果物（設計正本の契約文）自体の欠陥のため same-PR 修正を選択。P2-1 の single-instance 部分は当初 follow-up（backlog）としたが、再レビュー P1-3 で MNT-01-D5 の前提条件（実装 PR1 scope）へ昇格済み**。
