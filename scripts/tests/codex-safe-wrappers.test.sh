@@ -35,6 +35,11 @@ assert_rejected() {
         sed -n '1,20p' "$err" >&2
         fail "$label did not report the expected rejection"
     fi
+    if [[ -s "$out" ]]; then
+        echo "stdout:" >&2
+        sed -n '1,20p' "$out" >&2
+        fail "$label emitted output before rejecting the input"
+    fi
 }
 
 wrapper_sources=(
@@ -65,6 +70,7 @@ mkdir -p \
     "$fixture_repo/.codex/rules" \
     "$fixture_repo/.agents/skills/sample" \
     "$fixture_repo/.claude/skills/sample" \
+    "$fixture_repo/.github" \
     "$fixture_repo/.github/workflows" \
     "$fixture_repo/docs" \
     "$fixture_repo/src" \
@@ -84,6 +90,7 @@ printf 'fixture-marker\n' > "$fixture_repo/Plans.md"
 printf 'fixture-marker\n' > "$fixture_repo/.codex/README.md"
 printf 'fixture-marker\n' > "$fixture_repo/.codex/execpolicy.rules"
 printf 'fixture-marker\n' > "$fixture_repo/.codex/rules/default.rules"
+printf 'fixture-marker\n' > "$fixture_repo/.codex/bin/fixture-marker.txt"
 printf 'fixture-marker\n' > "$fixture_repo/.agents/skills/sample/SKILL.md"
 printf 'fixture-marker\n' > "$fixture_repo/.claude/skills/sample/SKILL.md"
 printf 'fixture-marker\n' > "$fixture_repo/src/sample.ts"
@@ -91,6 +98,9 @@ printf 'fixture-marker\n' > "$fixture_repo/src-tauri/src/sample.rs"
 printf 'fixture-marker\n' > "$fixture_repo/src-tauri/tests/sample.rs"
 printf 'fixture-marker\n' > "$fixture_repo/scripts/sample.sh"
 printf 'fixture-marker\n' > "$fixture_repo/.github/workflows/sample.yml"
+printf 'not-allowlisted-marker\n' > "$fixture_repo/.github/not-allowlisted.md"
+printf 'directory-scan-marker\n' > "$fixture_repo/docs/visible.md"
+printf 'directory-scan-marker\n' > "$fixture_repo/docs/hidden_secret.md"
 printf 'outside-marker\n' > "$outside_dir/outside.md"
 ln -s "$outside_dir/outside.md" "$fixture_repo/docs/outside.md"
 
@@ -116,9 +126,62 @@ grep -Fq 'docs/guide.md' "$out" || fail "T4 search output missing allowlisted fi
 assert_success "T4 list allowlisted directory" "$list_wrapper" docs
 grep -Fq 'docs/guide.md' "$out" || fail "T4 list output missing allowlisted file"
 assert_success "T4 default search inputs" "$search_wrapper" fixture-marker
-grep -Fq 'docs/guide.md' "$out" || fail "T4 default search omitted docs"
+default_files=(
+    docs/guide.md
+    src/sample.ts
+    src-tauri/src/sample.rs
+    src-tauri/tests/sample.rs
+    scripts/sample.sh
+    .github/workflows/sample.yml
+    .codex/README.md
+    .codex/execpolicy.rules
+    .codex/rules/default.rules
+    .codex/bin/fixture-marker.txt
+    .agents/skills/sample/SKILL.md
+    .claude/skills/sample/SKILL.md
+    AGENTS.md
+    Plans.md
+)
+for expected_file in "${default_files[@]}"; do
+    grep -Fq -- "$expected_file:" "$out" ||
+        fail "T4 default search omitted $expected_file"
+done
 assert_success "T4 default list inputs" "$list_wrapper"
-grep -Fq 'docs/guide.md' "$out" || fail "T4 default list omitted docs"
+for expected_file in "${default_files[@]}"; do
+    grep -Fxq -- "$expected_file" "$out" ||
+        fail "T4 default list omitted $expected_file"
+done
+
+# T4/C2: canonical root containment is not enough; the final allowlist must
+# reject root-contained paths outside the approved path families.
+assert_rejected "T4 read root-contained non-allowlisted path" "safe-read allowlist" \
+    "$read_wrapper" .github/not-allowlisted.md
+assert_rejected "T4 search root-contained non-allowlisted path" "safe-search allowlist" \
+    "$search_wrapper" not-allowlisted-marker .github/not-allowlisted.md
+assert_rejected "T4 list root-contained non-allowlisted path" "safe-list allowlist" \
+    "$list_wrapper" .github/not-allowlisted.md
+
+# T4/C6: directory and default traversal must filter sensitive descendants,
+# not only reject a sensitive path when it is passed directly.
+assert_success "T4 search directory with sensitive descendant" \
+    "$search_wrapper" directory-scan-marker docs
+grep -Fq 'docs/visible.md:' "$out" || fail "T4 search omitted visible descendant"
+if grep -Fq 'docs/hidden_secret.md:' "$out"; then
+    fail "T4 search exposed a sensitive descendant"
+fi
+assert_success "T4 list directory with sensitive descendant" "$list_wrapper" docs
+if grep -Fxq 'docs/hidden_secret.md' "$out"; then
+    fail "T4 list exposed a sensitive descendant"
+fi
+assert_success "T4 default search filters sensitive descendants" \
+    "$search_wrapper" directory-scan-marker
+if grep -Fq 'docs/hidden_secret.md:' "$out"; then
+    fail "T4 default search exposed a sensitive descendant"
+fi
+assert_success "T4 default list filters sensitive descendants" "$list_wrapper"
+if grep -Fxq 'docs/hidden_secret.md' "$out"; then
+    fail "T4 default list exposed a sensitive descendant"
+fi
 
 # T5: absolute paths are never accepted as allowlist spellings.
 for wrapper in "$read_wrapper" "$list_wrapper"; do
@@ -157,6 +220,21 @@ assert_rejected "T8 read option-like" "refusing option-like path" "$read_wrapper
 assert_rejected "T8 search option-like" "refusing option-like path" \
     "$search_wrapper" fixture-marker --foo
 assert_rejected "T8 list option-like" "refusing option-like path" "$list_wrapper" --foo
+
+# C2 audit regression: CR/LF in a path argument must be rejected before
+# canonicalization so diagnostics and path output cannot be split across lines.
+lf_path=$'docs/line\nbreak.md'
+cr_path=$'docs/carriage\rreturn.md'
+printf 'control-character-marker\n' > "$fixture_repo/$lf_path"
+printf 'control-character-marker\n' > "$fixture_repo/$cr_path"
+for control_path in "$lf_path" "$cr_path"; do
+    assert_rejected "C2 read CR/LF path" "refusing path containing CR or LF" \
+        "$read_wrapper" "$control_path"
+    assert_rejected "C2 search CR/LF path" "refusing path containing CR or LF" \
+        "$search_wrapper" control-character-marker "$control_path"
+    assert_rejected "C2 list CR/LF path" "refusing path containing CR or LF" \
+        "$list_wrapper" "$control_path"
+done
 
 # T9-T10: all fixture copies resolve their owning repo; launchers expose the
 # result through dry-run/debug exits and preserve the explicit override.
@@ -216,10 +294,29 @@ if sed -n '130,160p;236,244p' "$SOURCE_ROOT/docs/DEV_SETUP_CHECKLIST.md" |
     fail "T12 live DEV_SETUP sections still reference the history-view clone"
 fi
 public_namespace='-home-kosei-Projects-inventory-system-public'
-grep -Fq -- "$public_namespace" "$SOURCE_ROOT/.claude/hooks/memory-capture-feedback.sh" ||
-    fail "T13 memory hook does not use public namespace"
-grep -Fq -- "/tmp/claude-1000/$public_namespace" "$SOURCE_ROOT/.claude/hooks/check-plan-on-exit.sh" ||
-    fail "T13 plan hook does not use public log namespace"
+old_namespace_pattern='-home-kosei-Projects-inventory-system($|[^-])'
+if rg -n -- "$old_namespace_pattern" "${live_files[@]}"; then
+    fail "T12 live B-group file still contains the history-view encoded namespace"
+fi
+namespace_files=(
+    "$SOURCE_ROOT/.claude/hooks/check-plan-on-exit.sh"
+    "$SOURCE_ROOT/.claude/hooks/memory-capture-feedback.sh"
+    "$SOURCE_ROOT/.claude/hooks/memory-precompact-scan.sh"
+    "$SOURCE_ROOT/.claude/hooks/audit-trigger-phase.sh"
+    "$SOURCE_ROOT/.claude/hooks/audit-trigger-plan.sh"
+    "$SOURCE_ROOT/.claude/hooks/audit-safety-net.sh"
+    "$SOURCE_ROOT/CLAUDE.md"
+)
+for namespace_file in "${namespace_files[@]}"; do
+    grep -Fq -- "$public_namespace" "$namespace_file" ||
+        fail "T13 public namespace missing from $namespace_file"
+done
+live_setup_sections="$(sed -n '130,160p;236,244p' "$SOURCE_ROOT/docs/DEV_SETUP_CHECKLIST.md")"
+if printf '%s\n' "$live_setup_sections" | rg -n -- "$old_namespace_pattern"; then
+    fail "T12 live DEV_SETUP sections contain the history-view encoded namespace"
+fi
+printf '%s\n' "$live_setup_sections" | grep -Fq -- "$public_namespace" ||
+    fail "T13 live DEV_SETUP sections do not use the public namespace"
 
 # T14: canonical relative path, not the symlink alias spelling, controls the
 # sensitive-path decision.

@@ -58,6 +58,10 @@ is_allowed_path() {
 
 for input_path in "$@"; do
   case "$input_path" in
+    *$'\n'*|*$'\r'*)
+      echo "refusing path containing CR or LF" >&2
+      exit 1
+      ;;
     -*)
       echo "refusing option-like path: $input_path" >&2
       exit 2
