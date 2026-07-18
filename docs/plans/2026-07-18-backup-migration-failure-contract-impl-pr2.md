@@ -2,21 +2,22 @@
 
 ## Workflow State
 
-- Phase: implementing
+- Phase: human-confirm
 - Risk: R4
 - Execution Mode: fable-window
 - Plan Commit: fe63252
-- Amendments: none
+- Amendments: 1（`8801e9d` Double Audit 2 pass 起因の Ledger §71.5 2 行追加 + Matrix D5 訂正 / D5a / D5b 新設）
 - Coordinator: Fable 5（本 session）
 - Writer: Codex（実装・テスト。発注 cwd は public-writer clone `/home/kosei/Projects/inventory-system-public` に pin）
 - Plan Reviewer: Sonnet subagent（独立 context）
 - Final Reviewer: Fable inline（Contract Audit 1 pass）+ Codex 独立 context（2 pass。定義は Acceptance Criteria の Double Audit 項）
-- Reviewed Content HEAD: pending
+- Reviewed Content HEAD: d07299c
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
 - Human Gate: (1) R4 explicit approval = **済み**（2026-07-19、owner 承認、介入 1 回目 / 予算 3 回。Windows native L3 不要判断も同承認に同梱）。pending = (2) Ready 承認 (3) merge
 - State Narrative（append-only）: 本 packet の plan-first commit で `kickoff -> spec-check -> plan-draft -> plan-gate` を実体化。evidence: spec-check = Risk R4 の分類記録（本 packet Risk 節、[adjudication](../research/audit-2026-07/adjudication.md) の是正順 1+2 R4 付与を継承）/ plan-draft への skip = Design Readiness が既存設計正本（PR #14 で確定済みの 71 §71.8/71.9 + 22 §3.2 + D-048）を十分と引用（許可された唯一の skip 経路）/ plan-gate = packet + Test Design Matrix complete and committed（本 commit）。
 - State Narrative 追記（append-only、2026-07-19）: state-only commit で隣接 forward 2 遷移 `plan-gate -> plan-approved -> implementing` を実体化。evidence: plan-approved = Plan Gate 独立 3 round 収束（round 3 で resolved 3/3 + 新規 P1/P2 = 0、Review Response 参照）+ `Plan Commit` = plan-first commit `fe63252` 記入（実装 commit は本遷移時点でゼロであり plan-first commit が全実装 commit に先行する）/ implementing = owner の R4 explicit approval（2026-07-19、介入 1 回目 / 予算 3 回、Windows native L3 不要判断を同梱承認）。
+- State Narrative 追記（append-only、2026-07-19）: state-only commit で隣接 forward 3 遷移 `implementing -> local-verified -> independent-review -> human-confirm` を実体化。evidence: local-verified = content HEAD `d07299c` での `local-ci full` PASS / END_TREE_STATE=CLEAN / MERGE_EVIDENCE_VALID=true（`.local/ci-evidence/`、SHA 正本は PR body）/ independent-review = Double Audit 両 pass 完了（1 pass = Fable inline blocker なし、2 pass = Codex 独立 fresh context P1×1 + P2×2 検出 → 是正 `5479d06` + gated amendment `8801e9d` → Coordinator が独立 reviewer 指定 oracle への実 mutation 3/3 red で closure、Review Response 参照）/ human-confirm = findings 全裁定済み P1/P2 = 0、`Reviewed Content HEAD` = `d07299c` 記入、Findings Freeze 発効。
 
 ## Owner Effort Budget
 
