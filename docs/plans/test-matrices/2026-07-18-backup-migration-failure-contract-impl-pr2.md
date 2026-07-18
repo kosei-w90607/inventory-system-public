@@ -4,7 +4,7 @@
 
 Risk: R4
 
-fixture / 注入の必須条件: (1) cleanup テストの削除対象は temp dir 内 synthetic ファイルのみ（実 `app_data/backups` 非参照）。(2) 設定読取の DB error 注入は決定論的に行う（例: 接続 close 済み / `app_settings` テーブル drop 済みの接続、または PR1 の `RestoreFileOps` trait 抽象に相当する注入可能抽象。乱数・タイミング依存は禁止）。(3) COMMIT BUSY は実 2 接続 lock で再現する（Contract Probe A で決定論的手順を実証済み: 別接続が shared lock 保持中の COMMIT は `SQLITE_BUSY`）。(4) ROLLBACK 失敗注入は注入可能抽象（execute 層の failpoint）で決定論的に。(5) 意味的完了条件 = 「破壊的操作は入力と前提状態を確定できた場合のみ実行され、確定できない失敗は既定値・成功へ変換されず記録付きで安全側に倒れる」。
+fixture / 注入の必須条件: (1) cleanup テストの削除対象は temp dir 内 synthetic ファイルのみ（実 `app_data/backups` 非参照）。(2) 設定読取の失敗注入は **key 選択的**に行える注入可能抽象（PR1 の `RestoreFileOps` trait パターン相当）で決定論的に行う — 接続 close / テーブル drop は `backup_enabled` 等の先行読取まで同時に壊れて経路が `create_backup` / `run_cleanup` に到達しないため、「`backup_retention_days` だけ読めない」状態を作る手段として**使用禁止**。乱数・タイミング依存も禁止。(3) COMMIT 失敗は execute 層 failpoint 注入で決定論的に再現する（COMMIT を実行せず Err を返す注入 → 実接続は transaction open のまま → `is_autocommit()` と実 ROLLBACK を本物の状態で検証できる）。**実 2 接続 lock による COMMIT-時 BUSY 再現は本番 WAL では成立しない**（Probe A-2: WAL では lock 衝突は `BEGIN IMMEDIATE` / 最初の write 文で顕在化し、先行 writer の COMMIT は成功する。journal_mode=DELETE での Probe A のみ COMMIT-時 BUSY を再現した）。(4) ROLLBACK 失敗注入も同じ execute 層 failpoint で決定論的に。(5) 意味的完了条件 = 「破壊的操作は入力と前提状態を確定できた場合のみ実行され、確定できない失敗は既定値・成功へ変換されず記録付きで安全側に倒れる」。
 
 ## Contracts Under Test
 
@@ -39,7 +39,7 @@ fixture / 注入の必須条件: (1) cleanup テストの削除対象は temp di
 | # | Contract | Failure Mode | Test Type | 検査 | 期待 / Would fail if... |
 |---|---|---|---|---|---|
 | D1 | MNT-01-D3 (b) | — | unit | 設定行不存在 + 期限超過 synthetic ファイル（4 日前） | 既定 3 日で削除実行（確定条件 (b) の成立）。未設定まで skip にすると red |
-| D2 | MNT-01-D3 | DB error → 既定日数 fallback | unit | 保持日数読取に DB error を注入 + 期限超過ファイルあり + backup 作成条件成立 | **削除 0 件** + `tracing::warn!` 記録 + **backup 作成自体は成功**（同時 assert）。`unwrap_or(3)` に戻すと red |
+| D2 | MNT-01-D3 | DB error → 既定日数 fallback | integration（`check_auto_backup` 実経路） | key 選択的注入で `backup_retention_days` の読取のみ DB error（`backup_enabled` 等の先行読取は成功）+ 期限超過ファイルあり + backup 作成条件成立の状態で `check_auto_backup` を呼ぶ | **削除 0 件** + `tracing::warn!` 記録 + **backup ファイルが実際に作成される**（同時 assert — 個別関数直呼びでは cleanup 失敗が backup を巻き込む回帰を検出できないため実経路必須）。`unwrap_or(3)` に戻すと red |
 | D3 | MNT-01-D3 | parse 失敗 → 既定日数 fallback | unit | `backup_retention_days` = `"abc"` + 期限超過ファイルあり | **削除 0 件** + warn 記録。parse 失敗を既定適用にすると red |
 | D4 | MNT-01-D3 (a) | 確定値の無視 | unit | `backup_retention_days` = `"90"` + 4 日前ファイル | 削除 0 件（90 日基準）。既定 3 日で上書きする実装だと red（4 日前ファイルが消えて検出） |
 | D5 | MNT-01-D3 | — | regression | 既存 cleanup テスト（`test_cleanup_old_backups_req901_*`） | green 維持（期限超過削除・パターン不一致 skip 等） |
@@ -50,10 +50,11 @@ fixture / 注入の必須条件: (1) cleanup テストの削除対象は temp di
 |---|---|---|---|---|---|
 | E1 | 22 §3.2 | — | unit（回帰） | SQL 失敗 + ROLLBACK 成功 | `DbError::MigrationFailed` に version + 失敗 SQL 概要（既存契約維持） |
 | E2 | MNT-03-D1 | ROLLBACK 失敗の無言破棄 | unit（失敗注入） | SQL 失敗後の ROLLBACK に失敗を注入 | `tracing::error!` 記録 + 併合メッセージ（元エラー + ROLLBACK エラー + `transaction 状態不明`）。`.ok()` に戻すと red |
-| E3 | MNT-03-D1 | COMMIT 失敗の状態不確定 | integration（実 2 接続 lock） | 別接続の shared lock 保持中に COMMIT（Probe A 手順） | `is_autocommit()` 確認 → ROLLBACK 試行 → 併合規則で報告。lock 解放後の再実行で migration 成功（transaction が残っていないこと） |
+| E3 | MNT-03-D1 | COMMIT 失敗の状態不確定 | unit（failpoint 注入） | COMMIT を実行せず Err を返す注入（実接続は transaction open のまま = 本物の状態） | `is_autocommit()` = false を確認 → 実 ROLLBACK 試行成功 → 併合規則で報告。注入解除後の再実行で migration 成功（transaction が残っていないこと）。fixture 条件 (3) 参照 |
+| E3b | MNT-03-D1 / 22 §3.2 | WAL 実 lock の顕在化位置の誤解 | integration（実 2 接続、WAL + busy_timeout 短縮） | 別 writer が `BEGIN IMMEDIATE` 保持中に migration 実行（Probe A-2 手順） | `BEGIN IMMEDIATE` / write 文で `MigrationFailed`（既存「SQL 実行失敗 → ROLLBACK」分岐 = E1/E2 経路で処理され、COMMIT 分岐に到達しない）。lock 解放後の再実行で成功 |
 | E4 | MNT-03-D1 | 閉塞不能時の FK 復元続行 | unit（失敗注入） | COMMIT 失敗 + ROLLBACK も失敗（注入） | FK 復元を試みず、接続破棄必須を示す構造化された致命エラー。復元続行する実装だと red |
 | E5 | MNT-03-D1 | FK 復元の no-op 素通り | unit | v2 経路で FK 復元後の再読取一致検証を assert（transaction 開放済み経路 + transaction 残存経路の両方） | 復元後再読取 = 元値。再読取検証を除去すると red（Probe B: transaction 中 PRAGMA は成功を返す no-op のため、実行記録だけでは検出不能） |
-| E6 | MNT-03-D1 | ヘルパー適用漏れ | 機械走査 + review | `rg 'ROLLBACK' src-tauri/src/db/` で全 8 箇所（migration.rs:2 / schema_v2.rs:4 / schema_v3.rs:2 相当）enumeration | 全箇所が共通ヘルパー経由。裸の `execute_batch("ROLLBACK").ok()` 残存ゼロ |
+| E6 | MNT-03-D1 | ヘルパー適用漏れ | 機械走査 + review | `rg 'ROLLBACK\|COMMIT' src-tauri/src/db/` で ROLLBACK 全 8 箇所（migration.rs:2 / schema_v2.rs:4 / schema_v3.rs:2 相当）+ COMMIT 全 3 箇所を enumeration | 全 ROLLBACK が共通ヘルパー経由（裸の `execute_batch("ROLLBACK").ok()` 残存ゼロ）+ 全 COMMIT が is_autocommit 対応の共通経路経由（裸の COMMIT 直接 `?` 残存ゼロ） |
 | E7 | MNT-03-D1 | 復元・再読取失敗の無記録 | unit（失敗注入） | inner Err 時の FK 復元失敗 / 再読取失敗を注入 | 記録（tracing）+ エラー報告に反映。無記録通過（現行挙動）に戻すと red |
 
 ### 実 mutation 注入（回帰感度、PR #15 教訓、Double Audit 2 pass = Codex）
@@ -99,7 +100,7 @@ workflow-state 行（本 packet の遷移運用は DEV_WORKFLOW の transition t
 | ROLLBACK 失敗処理（`.ok()` 破棄の是正） | `migration.rs:93,104` / `schema_v2.rs:70,84,93,105` / `schema_v3.rs:25,36`（`rg 'ROLLBACK' src-tauri/src/db/` で全 8 箇所） | 全 8 箇所へ共通ヘルパー適用 | なし（以降の schema_vN も同ヘルパー使用を 22 §3.2 が要求） | E6 |
 | 巻き戻し失敗の格上げパターン（PR1 `rollback_after_failure`、`restore.rs:324-354`） | mnt/restore.rs（PR1 実装） | 設計パターンとして migration 用ヘルパーへ転用（コード共有はしない — 層と エラー型が異なる） | mnt 層の `RestoreError` は流用しない（DB 層は `DbError`） | E2 / E4 の実装レビュー |
 | tracing 構造化イディオム（`tracing::warn!(error = %e, ...)`） | `backup.rs:173,356` / `restore.rs:334` | 新規 warn/error 記録箇所（run_cleanup skip / ROLLBACK 失敗 / FK 復元失敗） | — | D2/D3/E2/E7 のログ assert または実装レビュー |
-| COMMIT 直接 `?` の是正 | `migration.rs:111-112` / `schema_v2.rs:113-114` / `schema_v3.rs:43-44`（3 箇所） | 全 3 箇所へ is_autocommit 確認 + ROLLBACK 試行 | — | E3 + 実装レビュー |
+| COMMIT 直接 `?` の是正 | `migration.rs:111-112` / `schema_v2.rs:113-114` / `schema_v3.rs:43-44`（3 箇所） | 全 3 箇所へ is_autocommit 確認 + ROLLBACK 試行 | — | E3（注入）+ E3b（WAL 実 lock 回帰）+ E6（COMMIT enumeration 機械走査） |
 
 ## Negative Paths
 
@@ -158,5 +159,5 @@ workflow-state 行（本 packet の遷移運用は DEV_WORKFLOW の transition t
 ## Residual Test Gaps
 
 - lib.rs setup hook そのものの end-to-end 起動テストは既存制約どおり困難（PR1 M8 と同等の「自動化可能範囲」に留める）。C5 は起動契約と同形の呼び出しで代替し、実起動での観測は通常運用の起動ログで担保。
-- ROLLBACK 失敗の実 SQLite 再現（注入なし）は決定論的手順が確立していないため注入で代替（COMMIT BUSY のみ実 lock で再現 = E3）。
+- ROLLBACK / COMMIT 失敗の実 SQLite 再現（注入なし）は本番 WAL では決定論的手順が存在しない（Probe A-2: contention は BEGIN IMMEDIATE / write 文で先に顕在化）ため failpoint 注入で代替（E2/E3）。実 lock の顕在化位置自体は E3b が回帰として固定する。
 - 「以降の schema_vN も同ヘルパー」の将来適用は本 PR では E6 の走査を CI 常設化まではせず review で担保（機械化は将来の workflow docs PR で検討）。
