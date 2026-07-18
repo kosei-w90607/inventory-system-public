@@ -4,7 +4,7 @@
 
 Risk: R4
 
-fixture / 注入の必須条件: (1) cleanup テストの削除対象は temp dir 内 synthetic ファイルのみ（実 `app_data/backups` 非参照）。(2) 設定読取の失敗注入は **key 選択的**に行える注入可能抽象（PR1 の `RestoreFileOps` trait パターン相当）で決定論的に行う — 接続 close / テーブル drop は `backup_enabled` 等の先行読取まで同時に壊れて経路が `create_backup` / `run_cleanup` に到達しないため、「`backup_retention_days` だけ読めない」状態を作る手段として**使用禁止**。乱数・タイミング依存も禁止。(3) COMMIT 失敗は execute 層 failpoint 注入で決定論的に再現する（COMMIT を実行せず Err を返す注入 → 実接続は transaction open のまま → `is_autocommit()` と実 ROLLBACK を本物の状態で検証できる）。**実 2 接続 lock による COMMIT-時 BUSY 再現は本番 WAL では成立しない**（Probe A-2: WAL では lock 衝突は `BEGIN IMMEDIATE` / 最初の write 文で顕在化し、先行 writer の COMMIT は成功する。journal_mode=DELETE での Probe A のみ COMMIT-時 BUSY を再現した）。(4) ROLLBACK 失敗注入も同じ execute 層 failpoint で決定論的に。(5) 意味的完了条件 = 「破壊的操作は入力と前提状態を確定できた場合のみ実行され、確定できない失敗は既定値・成功へ変換されず記録付きで安全側に倒れる」。
+fixture / 注入の必須条件: (1) cleanup テストの削除対象は temp dir 内 synthetic ファイルのみ（実 `app_data/backups` 非参照）。(2) 設定読取の失敗注入は **key 選択的**に行える `#[cfg(test)]` thread-local failpoint（`mnt/backup.rs` の key 指定設定読取 wrapper 内、packet Scope の機構確定を参照）で決定論的に行う — 接続 close / テーブル drop は `backup_enabled` 等の先行読取まで同時に壊れて経路が `create_backup` / `run_cleanup` に到達しないため、「`backup_retention_days` だけ読めない」状態を作る手段として**使用禁止**。乱数・タイミング依存も禁止。(3) COMMIT 失敗は MNT-03-D1 共通ヘルパー内の `#[cfg(test)]` thread-local failpoint で決定論的に再現する（COMMIT を実行せず Err を返す注入 → 実接続は transaction open のまま → `is_autocommit()` と実 ROLLBACK を本物の状態で検証できる。機構確定は packet Scope 参照）。**実 2 接続 lock による COMMIT-時 BUSY 再現は本番 WAL では成立しない**（Probe A-2: WAL では lock 衝突は `BEGIN IMMEDIATE` / 最初の write 文で顕在化し、先行 writer の COMMIT は成功する。journal_mode=DELETE での Probe A のみ COMMIT-時 BUSY を再現した）。(4) ROLLBACK 失敗注入も同じ共通ヘルパー内 thread-local failpoint で決定論的に。(5) 意味的完了条件 = 「破壊的操作は入力と前提状態を確定できた場合のみ実行され、確定できない失敗は既定値・成功へ変換されず記録付きで安全側に倒れる」。
 
 ## Contracts Under Test
 
@@ -51,7 +51,7 @@ fixture / 注入の必須条件: (1) cleanup テストの削除対象は temp di
 | E1 | 22 §3.2 | — | unit（回帰） | SQL 失敗 + ROLLBACK 成功 | `DbError::MigrationFailed` に version + 失敗 SQL 概要（既存契約維持） |
 | E2 | MNT-03-D1 | ROLLBACK 失敗の無言破棄 | unit（失敗注入） | SQL 失敗後の ROLLBACK に失敗を注入 | `tracing::error!` 記録 + 併合メッセージ（元エラー + ROLLBACK エラー + `transaction 状態不明`）。`.ok()` に戻すと red |
 | E3 | MNT-03-D1 | COMMIT 失敗の状態不確定 | unit（failpoint 注入） | COMMIT を実行せず Err を返す注入（実接続は transaction open のまま = 本物の状態） | `is_autocommit()` = false を確認 → 実 ROLLBACK 試行成功 → 併合規則で報告。注入解除後の再実行で migration 成功（transaction が残っていないこと）。fixture 条件 (3) 参照 |
-| E3b | MNT-03-D1 / 22 §3.2 | WAL 実 lock の顕在化位置の誤解 | integration（実 2 接続、WAL + busy_timeout 短縮） | 別 writer が `BEGIN IMMEDIATE` 保持中に migration 実行（Probe A-2 手順） | `BEGIN IMMEDIATE` / write 文で `MigrationFailed`（既存「SQL 実行失敗 → ROLLBACK」分岐 = E1/E2 経路で処理され、COMMIT 分岐に到達しない）。lock 解放後の再実行で成功 |
+| E3b | MNT-03-D1 / 22 §3.2 | WAL 実 lock の顕在化位置の誤解 | integration（実 2 接続、WAL + busy_timeout 短縮） | 別 writer が write lock 保持中に **v1（MigrationKind::Sql、deferred `BEGIN`）** の migration 実行（Probe A-2 手順） | 最初の write 文で失敗し「SQL 実行失敗 → ROLLBACK」分岐（E1/E2 経路）で `MigrationFailed`、COMMIT 分岐に到達しない。lock 解放後の再実行で成功。注: v2/v3 の `BEGIN IMMEDIATE` contention は transaction 未開始のまま直接 Err（ROLLBACK 不要・ヘルパー対象外）であり、本行の oracle には含めない |
 | E4 | MNT-03-D1 | 閉塞不能時の FK 復元続行 | unit（失敗注入） | COMMIT 失敗 + ROLLBACK も失敗（注入） | FK 復元を試みず、接続破棄必須を示す構造化された致命エラー。復元続行する実装だと red |
 | E5 | MNT-03-D1 | FK 復元の no-op 素通り | unit | v2 経路で FK 復元後の再読取一致検証を assert（transaction 開放済み経路 + transaction 残存経路の両方） | 復元後再読取 = 元値。再読取検証を除去すると red（Probe B: transaction 中 PRAGMA は成功を返す no-op のため、実行記録だけでは検出不能） |
 | E6 | MNT-03-D1 | ヘルパー適用漏れ | 機械走査 + review | `rg 'ROLLBACK\|COMMIT' src-tauri/src/db/` で ROLLBACK 全 8 箇所（migration.rs:2 / schema_v2.rs:4 / schema_v3.rs:2 相当）+ COMMIT 全 3 箇所を enumeration | 全 ROLLBACK が共通ヘルパー経由（裸の `execute_batch("ROLLBACK").ok()` 残存ゼロ）+ 全 COMMIT が is_autocommit 対応の共通経路経由（裸の COMMIT 直接 `?` 残存ゼロ） |
@@ -108,7 +108,7 @@ workflow-state 行（本 packet の遷移運用は DEV_WORKFLOW の transition t
 - invalid input: parse 不能な保持日数（D3）、空文字 backup_path（C3）。
 - duplicate/ambiguous input: 非該当（設定 key は単一行）。
 - unknown reference: 非該当。
-- dependency missing: `app_settings` テーブル不在級の DB error（C1 / D2 の注入手段候補）。
+- dependency missing: `app_settings` テーブル不在級の DB error（C1 の注入手段候補。D2 には使用禁止 — fixture 条件 (2) のとおり key 選択的 failpoint のみ）。
 - permission/write failure: cleanup の個別ファイル削除失敗は既存契約（warn + 続行、71 §71.5）のまま — 本 PR の対象外だが回帰を D5 で担保。
 - dry-run side effect: skip 経路（D2/D3）でファイルシステムへの削除副作用ゼロを assert。
 
