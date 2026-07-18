@@ -268,6 +268,7 @@ Do not transcribe exact-HEAD SHA or test counts here (D-035/D-038 Evidence Owner
   - P1（「RestoreFileOps trait パターン踏襲」が `MigrationKind::Custom` の fn pointer dispatch と両立しない）: Coordinator が `db/migration.rs:19-23,137-139` を実読して裁定確定。是正 = 実現機構を「MNT-03-D1 共通ヘルパー内 + 設定読取 wrapper 内の `#[cfg(test)]` thread-local failpoint」に確定し、Scope の機構記述を訂正（trait 機構は流用しない旨と理由を明記）。本番シグネチャ・`MigrationKind` は不変のため Boundary / Wire Contract への波及なし。
   - P2-1（E3b の oracle が v1 deferred BEGIN と v2/v3 BEGIN IMMEDIATE を混同）: 是正 = E3b を v1（write 文失敗 → ROLLBACK 分岐）に限定し、v2/v3 の BEGIN IMMEDIATE contention は「transaction 未開始の直接 Err（ROLLBACK 不要）」として oracle から明示除外。
   - P2-2（Negative Paths の dependency missing 行が fixture 条件 (2) の使用禁止と矛盾）: 是正 = D2 を注入手段候補から削除。
+- Plan Gate round 3（2026-07-19、同 Plan Reviewer 継続 context、対象 = 是正 commit `3cdcdd5`）: round 2 の 3 findings は **resolved 3/3**。thread-local failpoint 機構の妥当性 3 点（本番シグネチャ不変 / test 並列安全 / E2・E3・E4・E7・D2 の実現可能性）も実読ベースで成立と判定。最終 sweep で新規 P1/P2 = 0 — **Plan Gate 収束**。P3=1（C1 注入手段の記述と採用機構の対応が古い）は同 commit で 1 行明記により消化。
 - Findings Freeze: not yet frozen; post-freeze exceptions: none.
 
 If R3 review-only sub-agent is skipped, record an explicit line beginning with `Review-only skipped because:` and the reason.

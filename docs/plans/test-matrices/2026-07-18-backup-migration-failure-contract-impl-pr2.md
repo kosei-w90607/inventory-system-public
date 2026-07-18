@@ -108,7 +108,7 @@ workflow-state 行（本 packet の遷移運用は DEV_WORKFLOW の transition t
 - invalid input: parse 不能な保持日数（D3）、空文字 backup_path（C3）。
 - duplicate/ambiguous input: 非該当（設定 key は単一行）。
 - unknown reference: 非該当。
-- dependency missing: `app_settings` テーブル不在級の DB error（C1 の注入手段候補。D2 には使用禁止 — fixture 条件 (2) のとおり key 選択的 failpoint のみ）。
+- dependency missing: `app_settings` テーブル不在級の DB error（C1 の注入手段候補 — C1 は単一 key 読取のため table-drop でも thread-local failpoint でも等価。D2 には使用禁止 — fixture 条件 (2) のとおり key 選択的 failpoint のみ）。
 - permission/write failure: cleanup の個別ファイル削除失敗は既存契約（warn + 続行、71 §71.5）のまま — 本 PR の対象外だが回帰を D5 で担保。
 - dry-run side effect: skip 経路（D2/D3）でファイルシステムへの削除副作用ゼロを assert。
 
