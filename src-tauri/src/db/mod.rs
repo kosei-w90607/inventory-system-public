@@ -305,9 +305,7 @@ fn migrate_legacy_db_with_ops(
             ));
         }
         ops.publish_no_clobber(&staging_db, &new_db)?;
-        if let Err(error) = ops.remove_file(&staging_db) {
-            tracing::warn!(path = %staging_db.display(), %error, "移行一時ファイルの削除に失敗");
-        }
+        ops.remove_file(&staging_db)?;
         Ok(true)
     })();
 
@@ -412,14 +410,34 @@ mod tests {
 
     #[derive(Clone, Copy)]
     enum LegacyFailpoint {
-        Exists,
+        NewExists,
+        OldExists,
         Vacuum,
         Publish,
+        StagingUnlink,
         DestinationRace,
         DeleteBeforeOpen,
     }
 
-    struct InjectedLegacyOps(LegacyFailpoint);
+    struct InjectedLegacyOps {
+        failpoint: LegacyFailpoint,
+        old_db: std::path::PathBuf,
+        new_db: std::path::PathBuf,
+    }
+
+    impl InjectedLegacyOps {
+        fn new(
+            failpoint: LegacyFailpoint,
+            old_dir: &std::path::Path,
+            new_dir: &std::path::Path,
+        ) -> Self {
+            Self {
+                failpoint,
+                old_db: old_dir.join("inventory.db"),
+                new_db: new_dir.join("inventory.db"),
+            }
+        }
+    }
 
     struct PrepublishRaceOps {
         destination: std::path::PathBuf,
@@ -470,13 +488,15 @@ mod tests {
 
     impl LegacyMigrationOps for InjectedLegacyOps {
         fn try_exists(&self, path: &std::path::Path) -> std::io::Result<bool> {
-            if matches!(self.0, LegacyFailpoint::Exists) && path.ends_with("inventory.db") {
+            if (matches!(self.failpoint, LegacyFailpoint::NewExists) && path == self.new_db)
+                || (matches!(self.failpoint, LegacyFailpoint::OldExists) && path == self.old_db)
+            {
                 return Err(std::io::Error::other("injected exists failure"));
             }
             path.try_exists()
         }
         fn before_open(&self, path: &std::path::Path) -> std::io::Result<()> {
-            if matches!(self.0, LegacyFailpoint::DeleteBeforeOpen) {
+            if matches!(self.failpoint, LegacyFailpoint::DeleteBeforeOpen) {
                 std::fs::remove_file(path)?;
             }
             Ok(())
@@ -486,7 +506,7 @@ mod tests {
             conn: &rusqlite::Connection,
             destination: &std::path::Path,
         ) -> std::io::Result<()> {
-            if matches!(self.0, LegacyFailpoint::Vacuum) {
+            if matches!(self.failpoint, LegacyFailpoint::Vacuum) {
                 return Err(std::io::Error::other("injected VACUUM failure"));
             }
             StdLegacyMigrationOps.vacuum_into(conn, destination)
@@ -496,15 +516,21 @@ mod tests {
             source: &std::path::Path,
             destination: &std::path::Path,
         ) -> std::io::Result<()> {
-            if matches!(self.0, LegacyFailpoint::Publish) {
+            if matches!(self.failpoint, LegacyFailpoint::Publish) {
                 return Err(std::io::Error::other("injected publish failure"));
             }
-            if matches!(self.0, LegacyFailpoint::DestinationRace) {
+            if matches!(self.failpoint, LegacyFailpoint::DestinationRace) {
                 std::fs::write(destination, b"racing destination")?;
             }
             StdLegacyMigrationOps.publish_no_clobber(source, destination)
         }
         fn remove_file(&self, path: &std::path::Path) -> std::io::Result<()> {
+            if matches!(self.failpoint, LegacyFailpoint::StagingUnlink)
+                && path.ends_with("inventory.db.migrating")
+                && self.new_db.exists()
+            {
+                return Err(std::io::Error::other("injected staging unlink failure"));
+            }
             StdLegacyMigrationOps.remove_file(path)
         }
     }
@@ -579,7 +605,7 @@ mod tests {
             assert!(migrate_legacy_db_with_ops(
                 old_dir.path(),
                 new_dir.path(),
-                &InjectedLegacyOps(failpoint)
+                &InjectedLegacyOps::new(failpoint, old_dir.path(), new_dir.path())
             )
             .is_err());
             assert!(!new_dir.path().join("inventory.db").exists());
@@ -601,7 +627,11 @@ mod tests {
         assert!(migrate_legacy_db_with_ops(
             old_dir.path(),
             new_dir.path(),
-            &InjectedLegacyOps(LegacyFailpoint::DestinationRace)
+            &InjectedLegacyOps::new(
+                LegacyFailpoint::DestinationRace,
+                old_dir.path(),
+                new_dir.path(),
+            )
         )
         .is_err());
         assert_eq!(
@@ -625,8 +655,8 @@ mod tests {
     }
 
     #[test]
-    fn test_migrate_legacy_db_req903_errors_are_not_skipped_or_created() {
-        // REQ-903 / Matrix M5, M6
+    fn test_migrate_legacy_db_req903_new_and_old_exists_errors_are_not_skipped() {
+        // REQ-903 / Matrix M5
         let old_dir = tempfile::tempdir().unwrap();
         let new_dir = tempfile::tempdir().unwrap();
         let old_db = old_dir.path().join("inventory.db");
@@ -638,13 +668,37 @@ mod tests {
         assert!(migrate_legacy_db_with_ops(
             old_dir.path(),
             new_dir.path(),
-            &InjectedLegacyOps(LegacyFailpoint::Exists)
+            &InjectedLegacyOps::new(LegacyFailpoint::NewExists, old_dir.path(), new_dir.path(),)
         )
         .is_err());
         assert!(migrate_legacy_db_with_ops(
             old_dir.path(),
             new_dir.path(),
-            &InjectedLegacyOps(LegacyFailpoint::DeleteBeforeOpen)
+            &InjectedLegacyOps::new(LegacyFailpoint::OldExists, old_dir.path(), new_dir.path(),)
+        )
+        .is_err());
+    }
+
+    #[test]
+    fn test_migrate_legacy_db_req903_no_create_after_exists_check() {
+        // REQ-903 / Matrix M6
+        let old_dir = tempfile::tempdir().unwrap();
+        let new_dir = tempfile::tempdir().unwrap();
+        let old_db = old_dir.path().join("inventory.db");
+        let source = rusqlite::Connection::open(&old_db).unwrap();
+        source
+            .execute_batch("CREATE TABLE toctou_data(value TEXT);")
+            .unwrap();
+        drop(source);
+
+        assert!(migrate_legacy_db_with_ops(
+            old_dir.path(),
+            new_dir.path(),
+            &InjectedLegacyOps::new(
+                LegacyFailpoint::DeleteBeforeOpen,
+                old_dir.path(),
+                new_dir.path(),
+            )
         )
         .is_err());
         assert!(
@@ -652,6 +706,42 @@ mod tests {
             "NO_CREATE open must not recreate the source"
         );
         assert!(!new_dir.path().join("inventory.db").exists());
+    }
+
+    #[test]
+    fn test_migrate_legacy_db_req903_m3b_staging_unlink_failure_self_heals_on_restart() {
+        // REQ-903 / Matrix M3b: publish 済み snapshot を保持して fail-closed、次回は new DB skip。
+        let old_dir = tempfile::tempdir().unwrap();
+        let new_dir = tempfile::tempdir().unwrap();
+        let old_db = old_dir.path().join("inventory.db");
+        let new_db = new_dir.path().join("inventory.db");
+        let source = rusqlite::Connection::open(&old_db).unwrap();
+        source
+            .execute_batch(
+                "CREATE TABLE source_data(value TEXT);
+                 INSERT INTO source_data(value) VALUES ('complete snapshot');",
+            )
+            .unwrap();
+        drop(source);
+
+        let result = migrate_legacy_db_with_ops(
+            old_dir.path(),
+            new_dir.path(),
+            &InjectedLegacyOps::new(
+                LegacyFailpoint::StagingUnlink,
+                old_dir.path(),
+                new_dir.path(),
+            ),
+        );
+        assert!(result.is_err(), "post-link unlink failure must fail closed");
+        assert!(new_db.exists(), "published snapshot remains complete");
+
+        assert!(!migrate_legacy_db(old_dir.path(), new_dir.path()).unwrap());
+        let reopened = init_database(new_db.to_str().unwrap()).unwrap();
+        let value: String = reopened
+            .query_row("SELECT value FROM source_data", [], |row| row.get(0))
+            .unwrap();
+        assert_eq!(value, "complete snapshot");
     }
 
     #[test]
