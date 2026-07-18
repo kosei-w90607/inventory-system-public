@@ -252,7 +252,7 @@ grep -Fq "repo: $outside_dir" "$out" || fail "T10 bar ignored override"
 
 assert_success "T9 public read root" \
     "$SOURCE_ROOT/.codex/bin/read-safe-file.sh" \
-    docs/plans/2026-07-18-codex-clone-routing-and-safe-read-boundary.md
+    docs/archive/plans/2026-07-18-codex-clone-routing-and-safe-read-boundary.md
 grep -Fq 'Plan Packet' "$out" || fail "T9 public read wrapper did not use public repo"
 assert_success "T9 public launcher root" env -u CODEX_INVENTORY_REPO \
     "$SOURCE_ROOT/.codex/bin/codex-inventory" --debug
