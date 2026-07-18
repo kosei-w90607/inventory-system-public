@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: implementing
+- Phase: human-confirm
 - Risk: R4
 - Execution Mode: fable-window
 - Plan Commit: d9f7b53
@@ -11,11 +11,12 @@
 - Writer: Codex（実装・テスト・bindings 再生成。発注 cwd は public-writer clone に pin）
 - Plan Reviewer: Sonnet subagent（独立 context）
 - Final Reviewer: Fable inline（Contract Audit 1 pass）+ Codex 独立 context（2 pass。定義は Acceptance Criteria の Double Audit 項）
-- Reviewed Content HEAD: pending
+- Reviewed Content HEAD: 5d5a230
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
 - Human Gate: R4 explicit approval **済み**（2026-07-18、介入 1 回目 / 予算 4 回、Data Safety 節を承認対象に含む）+ Draft PR の owner 確認 + Ready 承認 + Windows native L3（Matrix L3-1/L3-2）+ merge
 - State Narrative（append-only）: 2026-07-18 の state-only commit で隣接 forward 3 遷移 `plan-draft -> plan-gate -> plan-approved -> implementing` を実体化。evidence: plan-gate = packet + Test Design Matrix の plan-first commit `d9f7b53`（packet complete and committed）/ plan-approved = Plan Gate round 3 の独立 Plan Reviewer 報告 P1/P2 = 0（Review Response 参照）+ `Plan Commit` 記入 / implementing = owner の R4 explicit approval（介入 1 回目）。実装 commit は本遷移時点でゼロであり plan-first commit が全実装 commit に先行する。
+- State Narrative 追記（append-only、2026-07-18）: 2 つ目の state-only commit で隣接 forward 3 遷移 `implementing -> local-verified -> independent-review -> human-confirm` を実体化。evidence: local-verified = content HEAD `5d5a230` での `local-ci full` PASS + MERGE_EVIDENCE_VALID=true（Writer 報告の evidence log）/ independent-review = Double Audit 両 pass（1 pass = Fable inline `5155f65` 記録、2 pass = Codex 独立 round 1 `ce639c6` 記録 → 是正 7 commit → Coordinator が差分再確証、Review Response 参照）/ human-confirm = findings 全裁定済み P1/P2 = 0、`Reviewed Content HEAD` 記入。
 
 ## Owner Effort Budget
 
@@ -300,4 +301,5 @@ Do not transcribe exact-HEAD SHA or test counts here (D-035/D-038 Evidence Owner
   - P3-2（hard-link 確定後の「rename」用語残存、22 §12.3/12.5 + Matrix 含む）: accept。repo 全体 grep で一括置換（publish/link 失敗と post-link unlink 失敗の識別子分離を含む）。
   - P3-3（M8/B12 の診断ログ oracle 未固定）: accept。tracing capture で severity + 固定 event 文言を assert。
   - 是正は Writer（Codex 実装セッション）に発注し、是正後に 2 pass round 2（差分再監査、独立 context)で収束を確認する。relay 上限は +1 調整済み（Owner Effort Budget 参照）。
-- Findings Freeze: not yet frozen; post-freeze exceptions: none.
+- Contract Audit 2 pass round 2（是正差分の Coordinator 再確証、Fable inline、2026-07-18、対象 content HEAD `5d5a230`）: 是正 7 件を実文・実出力で再確証 — P2-1 = `db/mod.rs` の staging unlink が `?` で Err 伝搬（M3a/M3b 分割）/ P2-2 = `classify_restore_log` が全行走査 + flag 集約で exact 勝ち（71:201 準拠）/ P2-3・P2-4・P3-3 = survivor mutation 3 種の red 実出力を証跡採用 / P3-1 = 71 §71.7 が `RestoreError` に統一 / P3-2 = 残存「rename」は「Rust std rename は採用しない」の正当言及のみ。relay 予算残 0 のため round 2 は Coordinator inline で実施（PR #15 の Coordinator 再確証と同型）。**Contract Audit 収束、P1/P2 = 0**。
+- Findings Freeze: frozen after Broad Audit（Double Audit 両 pass + 是正 + 再確証完了、2026-07-18）; post-freeze exceptions: none.
