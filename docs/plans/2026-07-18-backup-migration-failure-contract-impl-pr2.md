@@ -1,0 +1,261 @@
+# Plan Packet: backup / migration failure contract 実装 PR2（設定読取 / migration rollback の失敗処理）
+
+## Workflow State
+
+- Phase: plan-gate
+- Risk: R4
+- Execution Mode: fable-window
+- Plan Commit: pending
+- Amendments: none
+- Coordinator: Fable 5（本 session）
+- Writer: Codex（実装・テスト。発注 cwd は public-writer clone `/home/kosei/Projects/inventory-system-public` に pin）
+- Plan Reviewer: Sonnet subagent（独立 context）
+- Final Reviewer: Fable inline（Contract Audit 1 pass）+ Codex 独立 context（2 pass。定義は Acceptance Criteria の Double Audit 項）
+- Reviewed Content HEAD: pending
+- Final Exact-HEAD Evidence: PR body
+- Hosted CI Requirement: required
+- Human Gate: pending（(1) R4 explicit approval = Codex 発注前 (2) Ready 承認 (3) merge。Windows native L3 は本 packet の判断により不要 — Manual verification lens 参照）
+- State Narrative（append-only）: 本 packet の plan-first commit で `kickoff -> spec-check -> plan-draft -> plan-gate` を実体化。evidence: spec-check = Risk R4 の分類記録（本 packet Risk 節、[adjudication](../research/audit-2026-07/adjudication.md) の是正順 1+2 R4 付与を継承）/ plan-draft への skip = Design Readiness が既存設計正本（PR #14 で確定済みの 71 §71.8/71.9 + 22 §3.2 + D-048）を十分と引用（許可された唯一の skip 経路）/ plan-gate = packet + Test Design Matrix complete and committed（本 commit）。
+
+## Owner Effort Budget
+
+- 介入回数上限: 3（内訳: (1) R4 発注承認 (2) Codex 実行 relay (3) Ready 承認 + merge。PR1 の 4 から L3 実機確認が不要になった分 -1）
+- 実働時間上限: 30分
+- relay 往復上限: 3（既定 2 から調整。理由: R4 の Double Audit 2 pass が是正 round を要求した場合の +1 を PR1/PR #15 の実績から設計上想定に含める。scope 拡張ではない）
+
+既定値と超過時の Coordinator 責務は `docs/DEV_WORKFLOW.md` `Owner Effort Budget` 参照。
+承認依頼フォーマット: `この change での介入 N 回目 / 予算 M 回` + `承認すると利用者から見て何が完了するか1文`。
+
+## Risk
+
+Risk: R4
+
+Reason:
+[adjudication](../research/audit-2026-07/adjudication.md) が是正順 1+2 へ R4 を付与しており、本 PR はその destructive data lifecycle の残り半分 — バックアップファイルの削除（cleanup）を駆動する入力の確定条件、削除・cleanup の対象ディレクトリを決める設定読取、schema migration の transaction 巻き戻し — の実装挙動を実際に変更する。cleanup は実ファイル削除を含む破壊的操作であり、migration は起動時の DB 構造変更経路そのもの。R4 必須物 = R3 必須物 + explicit human approval（発注前）+ rollback / recovery notes（本 packet Data Safety 節）+ Double Audit（2 pass waive 禁止）。
+
+## Goal
+
+Goal Invariant:
+
+### 最小完了条件
+
+- MNT-01-D2 / MNT-01-D3 / MNT-03-D1 の 3 契約（[71-mnt-backup.md](../function-design/71-mnt-backup.md) §71.8/§71.9 / [22-mnt-migration.md](../function-design/22-mnt-migration.md) §3.2 が正本）が実装され、**意味的完了条件「破壊的操作（バックアップ削除・migration 巻き戻し後の状態確定）は入力と前提状態を確定できた場合のみ実行され、確定できない失敗は既定値・成功へ変換されず記録付きで安全側（skip / 構造化エラー）に倒れる」**を、失敗注入 + 実 mutation 注入テスト（[Test Design Matrix](test-matrices/2026-07-18-backup-migration-failure-contract-impl-pr2.md)）で検証済みの状態にする。
+
+### 失敗定義
+
+- いずれかの契約が実装から漏れる、または実装されたがテストが意味的完了条件への感度を持たない（mutation を注入しても green のまま = tautological、Matrix X1 で検出）。
+- destructive fallback が残存する（DB error / parse 失敗が既定保持日数 3 日に潰れて削除が走る、DB error が既定 backup ディレクトリに潰れる、ROLLBACK / COMMIT / FK 復元の失敗が無記録で握りつぶされる）。
+- 既存の正しい挙動（未設定時の既定 fallback、cleanup の正常削除、migration v1→v4 の正常適用、既存テスト）を壊す。
+
+### 非目的
+
+- MNT-02（操作ログ自動削除）や check_auto_backup の判定手順自体の変更。
+- 順8（P3-4 利用者向け error 表示統一）。本 PR は既存の error 変換規約（internal error）の範囲で伝搬させるのみで、新しい wire 識別子・利用者文言を追加しない。
+- 設定値の書込み時 validation（MNT-01-D3 の見直し契機として設計書に記録済み、本 PR では実装しない）。
+- migration を起動時以外から呼ぶ経路の追加（MNT-03-D1 の見直し契機）。
+
+Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。AC や証跡作業が Goal Invariant を前進させない場合は、Goal を置き換えず簡略化・defer・削除する。
+
+## Scope
+
+- `src-tauri/src/mnt/backup.rs`:
+  - `resolve_backup_dir`（現行 `backup.rs:120-127`）の Result 化（MNT-01-D2）: `get_setting` の DB error を `Err(DbError)` で伝搬し、既定 `app_data/backups` への fallback は「未設定（None）または空文字」の場合に限定する。
+  - `run_cleanup`（現行 `backup.rs:348-357`）の保持日数確定条件（MNT-01-D3）: `backup_retention_days` は (a) 読取成功かつ数値 parse 成功、または (b) 設定行不存在（未設定 = 既定 3 日）のみ確定。DB error・parse 失敗は cleanup を skip して `tracing::warn!` を記録し、削除を実行しない。バックアップ作成の成否には影響させない。
+- `src-tauri/src/lib.rs` 起動シーケンス（現行 `lib.rs:629` 付近）: `resolve_backup_dir` の `Err` → `tracing::warn!` + 自動バックアップチェック skip + 起動継続（71 §71.9 のコード例どおり）。
+- `src-tauri/src/cmd/settings_cmd.rs` `get_backup_dir`（現行 `settings_cmd.rs:54-60`）: `resolve_backup_dir` の `Err` を既存の error 変換規約どおり internal error として伝搬（呼び出し 4 箇所 `settings_cmd.rs:222/239/257/272` は既存の `?` 伝搬のまま）。
+- `src-tauri/src/db/migration.rs` / `db/schema_v2.rs` / `db/schema_v3.rs`（MNT-03-D1）:
+  - ROLLBACK 失敗の記録 + 併合を共通ヘルパーで実装し、全 ROLLBACK 箇所（`migration.rs:93,104` / `schema_v2.rs:70,84,93,105` / `schema_v3.rs:25,36` の 8 箇所）へ適用。個別再実装をしない。ヘルパーの置き場所は `db/` 配下（`mnt/migration.rs` は実質空モジュールのため命名衝突に注意し、`db::migration` 側へ寄せる）。
+  - COMMIT 失敗（`migration.rs:111-112` / `schema_v2.rs:113-114` / `schema_v3.rs:43-44`）: `Connection::is_autocommit()` で transaction 状態を確認し、transaction 中なら ROLLBACK を試行して結果を併合規則で報告。
+  - `PRAGMA foreign_keys` 復元（`schema_v2.rs:30-57`）: `is_autocommit()` で transaction が閉じたことを確認してから復元し、**再読取で復元後の値が元値と一致することを検証**。transaction を閉じられない場合は復元を試みず接続破棄必須の構造化された致命エラーとして返す。復元 PRAGMA・再読取の失敗も記録対象（現行の inner Err 時無記録通過を是正）。
+- テスト: Test Design Matrix の全行（失敗注入・回帰・実 mutation 注入）。テストが新規に参照する REQ ID（REQ-901 / REQ-903）は既存のため traceability は `cd src-tauri && cargo run --bin generate_traceability` で再生成し drift ゼロを確認する。
+- Writer の完了条件に release-profile compile check を含める: `cd src-tauri && cargo check --release` green（PR1 の release build 盲点の教訓、Plans.md 明記事項）。
+
+## Non-scope
+
+- frontend / UI / route / bindings の変更（新規 Tauri command なし、command シグネチャ変更なし、`CmdError.kind` の新識別子なし。`generate_bindings` の drift 確認は L1 で走るが差分ゼロが期待値）。
+- 71 §71.7（restore）/ §71.4（create_backup）/ 22 §12（legacy 移行）の変更 — PR1 で実装済み。
+- `DbError` の variant 構造変更（メッセージ内容の充実のみ。tuple-string 構造は維持）。
+- 既存起動失敗 3 経路の無言クラッシュ可視化（Plans.md backlog 済み）。
+- Plans.md「非目的」節記載の各項目。
+
+## Acceptance Criteria
+
+- `resolve_backup_dir` が `Result<PathBuf, DbError>` を返し、DB error 注入テスト（Matrix C1、`cd src-tauri && cargo test resolve_backup_dir`）で `Err` 伝搬、未設定/空文字テスト（C2/C3）で既定 fallback が green。
+- cleanup の確定条件テスト（Matrix D1〜D5）が green: DB error / parse 失敗注入で**削除 0 件** + `tracing::warn!` 記録、設定行不存在で既定 3 日適用、有効値 90 で 90 日基準（`cd src-tauri && cargo test cleanup`）。
+- migration 失敗注入テスト（Matrix E1〜E7）が green: ROLLBACK 失敗時の併合メッセージ（元エラー + ROLLBACK エラー + transaction 状態不明）、COMMIT BUSY 時の `is_autocommit()` 確認 + ROLLBACK 試行、FK 復元の再読取一致検証、閉塞時の接続破棄必須エラー（`cd src-tauri && cargo test migration`）。
+- 実 mutation 注入（Matrix X1 の 5 種）で対応テストが red になることを Writer が実証する: mutation 適用 → `cd src-tauri && cargo test` の failed 出力（red になったテスト名）を採取 → revert、を 5 種それぞれで行い、mutation と red テスト名の対応表を PR body に記録する（推論ベース判定のみで完了扱いしない）。
+- 既存テスト green 維持・削除/skip なし: `cd src-tauri && cargo fmt --check && cargo clippy --all-targets --all-features -- -D warnings && cargo test` 全 green。
+- release-profile compile check: `cd src-tauri && cargo check --release` green。
+- traceability drift ゼロ: `cd src-tauri && cargo run --bin generate_traceability -- --check` exit 0。
+- 生成 bindings 差分ゼロ: `cd src-tauri && cargo run --bin generate_bindings` 後の `git diff --exit-code src/lib/bindings.ts` exit 0。
+- L1: `bash scripts/local-ci.sh full` PASS / CLEAN（評価 SHA と evidence は PR body、D-038 Evidence Ownership）。
+- Double Audit: 1 pass = Fable inline の契約突合（`docs/function-design/71-mnt-backup.md` §71.8/71.9 + `docs/function-design/22-mnt-migration.md` §3.2 の全契約行 vs 実装・テスト）、2 pass = Codex 独立 fresh context（waive 禁止）。両 pass の findings 裁定が P1/P2 = 0 になるまで是正し、経緯を本 packet `Review Response` 節へ記録する。
+
+## Design Sources
+
+- Requirements / spec: `docs/spec/requirements.md` REQ-901（バックアップ）/ REQ-903（マイグレーション）
+- Architecture: `docs/ARCHITECTURE.md`（`UI -> CMD -> BIZ -> IO/MNT` 層、MNT/DB の責務）
+- Function / command / DTO: [71-mnt-backup.md](../function-design/71-mnt-backup.md) §71.8（check_auto_backup + MNT-01-D3）/ §71.9（起動シーケンス + resolve_backup_dir + MNT-01-D2）、`settings_cmd` の既存 error 変換規約
+- DB: [22-mnt-migration.md](../function-design/22-mnt-migration.md) §3.2（migrate + MNT-03-D1）
+- Screen / UI: 非該当（UI 変更なし）
+- Decision log / ADR: [decision-log.md](../decision-log.md) D-048（3 本柱、実装 2 PR 分割）、[archived design packet](../archive/plans/2026-07-17-backup-migration-failure-contract-design.md) Contract Coverage Ledger の PR2 行、`.claude/rules/implementation-quality.md`（Result 握りつぶし禁止）
+
+## Required Design Artifacts
+
+| Area touched by upcoming work | Required source doc / artifact | Status: existing sufficient / updated in this PR / intentionally deferred |
+|---|---|---|
+| Backend function / command / repository / validation / error | 71 §71.8/§71.9、22 §3.2、settings_cmd 既存規約 | existing sufficient（PR #14 design phase で確定済み） |
+| Command / DTO / generated binding / wire shape | 変更なし（新識別子なし、シグネチャ不変） | existing sufficient |
+| DB / transaction / audit / rollback / migration | 22 §3.2 MNT-03-D1（COMMIT / FK 復元含む） | existing sufficient |
+| Screen / UI / route state / Japanese wording | 非該当 | 非該当 |
+| CSV / TSV / report / import / export format | 非該当 | 非該当 |
+| Durable decision / ADR | D-048 | existing sufficient |
+
+## Registration / Generation Obligations
+
+| 新規追加物 | 登録・生成義務 |
+|---|---|
+| Tauri command | 該当なし（新規 command なし） |
+| function-design doc 新設 | 該当なし（既存 71 / 22 の実装のみ） |
+| REQ coverage 追加（テスト追加） | 新規テストが REQ-901 / REQ-903 を引用するため `cargo run --bin generate_traceability` で `90-traceability.md` を再生成し `--check` drift ゼロを確認（Scope に明記済み、AC に観測 token あり） |
+| route 新設 | 該当なし |
+| operator 画面新設 | 該当なし |
+
+## Design Intent Trace
+
+| Spec / requirement ID | Source design doc section | Decision ID | Why / rejected alternatives | Implementation target | Test target |
+|---|---|---|---|---|---|
+| REQ-901 / MNT-01 | 71 §71.9 | MNT-01-D2 | DB error を既定 dir へ潰すと保存先誤認 + 誤ディレクトリへの cleanup（P3-1 補強）。rejected: PathBuf 直接返却 + 内部 warn | `mnt/backup.rs` `resolve_backup_dir` / `lib.rs` 起動 / `settings_cmd.rs` | Matrix C1〜C6 |
+| REQ-901 / MNT-01 | 71 §71.8 | MNT-01-D3 | 読取失敗を既定 3 日へ潰すと 90 日保持設定者のバックアップを誤削除（P3-1 中核）。skip は安全側で自然回復。rejected: `.ok().flatten().unwrap_or(3)` / parse 失敗も既定適用 | `mnt/backup.rs` `run_cleanup` | Matrix D1〜D5 |
+| REQ-903 / MNT-03 | 22 §3.2 | MNT-03-D1 | ROLLBACK 失敗の `.ok()` 破棄は transaction 状態不明を隠す（P3-3）。COMMIT BUSY は transaction を残す（Probe A 実証）。FK 復元 PRAGMA は transaction 中 no-op（Probe B 実証）。rejected: 自動再試行 / 元エラー差し替え | `db/migration.rs` / `db/schema_v2.rs` / `db/schema_v3.rs` 共通ヘルパー | Matrix E1〜E7 |
+
+## Design Intent Audit
+
+- Source docs can answer what is being built and why without chat history or archived Plan Packets: yes — 71 §71.8/71.9 と 22 §3.2 に決定・Why・rejected alternatives・見直し契機が PR #14 で正本化済み。
+- Plan-only durable decisions found and promoted to source docs / decision-log / ADR: なし（本 packet は既確定契約の実装 scope 化のみ。共通ヘルパーの置き場所 = `db/` 配下は実装詳細であり durable design ではない）。
+- Assumptions and constraints: SQLite の COMMIT BUSY 挙動・PRAGMA no-op 挙動・rusqlite `is_autocommit()` の存在は Contract Probe 3 件で実証済み（Contract Probe 節）。
+- Deferred design gaps, risk, and follow-up target: 設定値書込み時 validation（MNT-01-D3 見直し契機、設計書記録済み）。restore 遅延成功の起動通知（Plans.md backlog 済み）。
+- Test Design Matrix can cite design decision IDs or source doc sections: yes — 全行が MNT-01-D2/D3 / MNT-03-D1 を引用。
+
+## Impact Review Lenses
+
+| Lens | Applicability / finding | Follow-up artifact |
+|---|---|---|
+| Adapter / core boundary | not applicable — POS/外部ツール非接触。SQLite/rusqlite は core 依存であり adapter ではない | — |
+| Fact check / design decision split | 適用: 契約が依存する SQLite 挙動 3 点（COMMIT BUSY 後の transaction 残存 / transaction 中 PRAGMA no-op / `is_autocommit` API）を Contract Probe で観測事実として確定 | Contract Probe 節 |
+| Lifecycle / retry | 適用: cleanup skip は「バックアップが溜まる」安全方向の失敗で次回成功時に自然回復。migration 失敗は起動時実行のため再起動が再試行経路（自動再試行は rejected 済み） | Matrix D2/D3（skip 後の自然回復は D1/D4 の確定条件成立で担保）/ E 系 |
+| Operator workflow | 変更なし — operator 可視の画面・文言・操作に変更なし。cleanup skip / migration エラーは tracing ログと既存エラー表示経路のみ | — |
+| Replacement path | not applicable — 外部システム置換に非接触 | — |
+| Data safety / evidence | 適用: テストの削除対象は temp dir 内 synthetic ファイルのみ。実 backup / 実 DB 非使用 | Data Safety 節 |
+| Reporting / accounting semantics | not applicable — 集計・帳票非接触 | — |
+| Manual verification | Windows native L3 不要と判断: 変更は backend 失敗処理経路のみで、(1) Windows/Tauri native でしか観測できない挙動がない（L3 Eligibility 条件 1 不成立）、(2) 失敗注入は DB lock 操作等 manual fault-injection 級で L3 Eligibility 条件 3 違反 — 自動テストへ route（UI-11c L3-7/8 waiver の教訓どおり）。operator-facing screen change ではないため human visual confirmation slot も非該当 | Matrix（全行自動化）+ 本判断の owner 確認は R4 approval に同梱 |
+
+## Design Readiness
+
+- Existing design docs are sufficient because: PR #14（design phase、squash merge `34a95a1`）で 71 §71.8/71.9 と 22 §3.2 に MNT-01-D2/D3 / MNT-03-D1 の決定・Why・rejected alternatives・呼び出し元契約・併合メッセージ例まで確定済み。Codex 9 round + 敵対的独立検証 11 巡を通過した正本であり、未解決の設計問題はない。
+- Source docs updated in this PR: なし（実装のみ）。
+- Design gaps intentionally deferred: 設定値書込み時 validation（見直し契機として設計書記録済み）。
+- Durable decisions discovered in this plan and promoted to source docs: なし。
+
+Minimum design checks for business-app work:
+
+- Layer ownership (`UI -> CMD -> BIZ -> IO/MNT`): MNT（backup）と DB（migration）内の失敗処理是正のみ。CMD は既存 error 変換規約の範囲、UI/BIZ 非接触。
+- Backend function design: 71 §71.8/71.9 / 22 §3.2 にシグネチャ・処理ステップ・エラーハンドリングが確定済み。
+- Command / DTO / data contract: 変更なし（bindings 差分ゼロが AC）。
+- Persistence / transaction / audit impact: migration transaction の失敗時状態確定が本 PR の中核。schema 変更なし・新 migration なし。
+- Operator workflow / Japanese UI wording: 変更なし。
+- Error, empty, retry, and recovery behavior: cleanup skip = 自然回復、migration 失敗 = 再起動再試行、resolve 失敗 = 起動時 skip / CMD internal error。いずれも設計書の確定契約。
+- Testability and traceability IDs: REQ-901 / REQ-903 + MNT-01-D2/D3 / MNT-03-D1 をテストコメントで引用（既存 `test_<関数>_req901_<内容>` 命名踏襲）。
+
+## Contract Probe
+
+- SQLITE_BUSY での COMMIT 失敗は transaction を active のまま残す（MNT-03-D1 COMMIT 契約の前提）: sqlite3 CLI 2 接続で shared lock 保持中に COMMIT → `database is locked (5)` 失敗後、同一接続の `BEGIN` が `cannot start a transaction within a transaction` -> **transaction 残存を実証**（2026-07-18、journal_mode=DELETE）。
+- `PRAGMA foreign_keys` は transaction 中は成功を返しつつ no-op（再読取検証が必要な根拠）: sqlite3 CLI で `foreign_keys=ON` → `BEGIN` → `PRAGMA foreign_keys=OFF`（エラーなし）→ 再読取 = `1` のまま、COMMIT 後も `1` -> **no-op + 成功返却を実証**（2026-07-18）。
+- rusqlite に `Connection::is_autocommit()` が存在する（本 repo の依存 version で使用可能）: `src-tauri/Cargo.toml` は rusqlite 0.31、cargo registry 実体 `rusqlite-0.31.0/src/lib.rs` に `fn is_autocommit` を確認 -> **API 存在を実証**（2026-07-18）。
+- 登録漏れ是正を含む probe: 該当なし（新規登録物なし）。
+
+## Contract Coverage Ledger
+
+| Design contract / decision ID | Implementation target | Automated test | L3 or non-scope |
+|---|---|---|---|
+| MNT-01-D2: DB error は Err 伝搬、fallback は未設定/空文字のみ | `mnt/backup.rs` `resolve_backup_dir` | Matrix C1（Err 伝搬）/ C2〜C4（fallback 限定） | non-scope（自動化） |
+| MNT-01-D2: lib.rs 起動時 Err → warn + auto-backup skip + 起動継続 | `lib.rs` 起動シーケンス step 7 | Matrix C5 | non-scope（自動化） |
+| MNT-01-D2: settings_cmd は Err → internal error（既存規約） | `settings_cmd.rs` `get_backup_dir` | Matrix C6 | non-scope（自動化） |
+| MNT-01-D2: 全 backup 操作（create/list/check/restore）が本ヘルパーで backup_dir を統一決定 | `settings_cmd.rs` 呼び出し 4 箇所 + `lib.rs` | Matrix C7（呼び出し元 enumeration の regression） | non-scope（自動化 + Adjacent Pattern Audit） |
+| MNT-01-D2: D-032 復元前強制バックアップ（break-glass 含む）は create_backup 経由の既存伝搬のままで矛盾なし | 変更なし（確認のみ） | Matrix C8（restore 経路の既存テスト green 維持） | non-scope（回帰） |
+| MNT-01-D3: 保持日数確定条件 (a) 読取+parse 成功 / (b) 設定行不存在 = 既定 3 日 | `mnt/backup.rs` `run_cleanup` | Matrix D1（未設定 = 3 日）/ D4（有効値 90 適用） | non-scope（自動化） |
+| MNT-01-D3: DB error / parse 失敗は cleanup skip + warn、削除実行しない | `mnt/backup.rs` `run_cleanup` | Matrix D2 / D3 | non-scope（自動化） |
+| MNT-01-D3: cleanup の成否・skip はバックアップ作成の成否に影響しない | `mnt/backup.rs` `check_auto_backup` | Matrix D2（backup 成功 + 削除 0 件の同時 assert） | non-scope（自動化） |
+| 71 §71.8 check_auto_backup 判定手順（既存挙動維持） | 変更最小化 | Matrix G1（既存テスト green） | non-scope（回帰） |
+| MNT-03-D1: ROLLBACK 失敗は tracing::error! 記録 + 元エラーと併合 + transaction 状態不明の明示 | `db/` 共通ヘルパー | Matrix E2 | non-scope（自動化） |
+| MNT-03-D1: 共通ヘルパーを全 ROLLBACK 8 箇所へ適用、個別再実装なし | `migration.rs` ×2 / `schema_v2.rs` ×4 / `schema_v3.rs` ×2 | Matrix E6（全箇所 enumeration） | non-scope（自動化 + Adjacent Pattern Audit） |
+| MNT-03-D1: COMMIT 失敗時は is_autocommit 確認 + transaction 中なら ROLLBACK 試行 + 併合報告 | `migration.rs` / `schema_v2.rs` / `schema_v3.rs` COMMIT 3 箇所 | Matrix E3 | non-scope（自動化） |
+| MNT-03-D1: transaction を閉じられない場合は FK 復元を試みず接続破棄必須の構造化 fatal | `db/schema_v2.rs` | Matrix E4 | non-scope（自動化） |
+| MNT-03-D1: FK 復元は is_autocommit 確認後 + 再読取一致検証、復元・再読取失敗も記録 | `db/schema_v2.rs` FK 復元部 | Matrix E5 / E7 | non-scope（自動化） |
+| 22 §3.2 migrate 手順・エラーメッセージ（version + SQL 概要）（既存挙動維持） | 変更最小化 | Matrix E1 + G1 | non-scope（回帰） |
+
+## Test Plan
+
+- targeted tests: [Test Design Matrix](test-matrices/2026-07-18-backup-migration-failure-contract-impl-pr2.md) C1〜C8 / D1〜D5 / E1〜E7。
+- negative tests: DB error 注入（C1/C6/D2）、parse 不能値（D3）、ROLLBACK/COMMIT/FK 復元失敗注入（E2〜E5/E7)。
+- compatibility checks: 既存 migration v1→v4 正常適用の回帰（G1）、bindings 差分ゼロ、traceability drift ゼロ。
+- data safety checks: テスト削除対象は temp dir 内 synthetic ファイルのみ（Matrix Data Safety 節）。
+- main wiring/integration checks: lib.rs 起動経路（C5）と settings_cmd 経路（C6）が新 Result 契約に実配線されていること。ヘルパーが 8 箇所全てに実適用されていること（E6）。
+
+## Boundary / Wire Contract
+
+- producer: 変更なし。`resolve_backup_dir` の Result 化は Rust 内部シグネチャで、Tauri command のシグネチャ・DTO・`CmdError.kind` 識別子は不変。
+- consumer: frontend は非接触（bindings 差分ゼロが AC）。
+- wire type: 変更なし。
+- internal type: `resolve_backup_dir` の戻り値 `PathBuf` → `Result<PathBuf, DbError>`（内部契約のみ）。`DbError::MigrationFailed` のメッセージ文字列が併合情報を含むようになる（variant 構造不変）。
+- precision/range: `backup_retention_days` の parse は `u32`（既存）。確定条件の (a)/(b) 判別が新規。
+- round-trip path: 非該当。
+- invalid input: parse 不能な保持日数 → cleanup skip（削除 0 件）。
+- compatibility: 既存の設定値・設定行不存在 DB に対する挙動は不変（D1/C2 で固定）。
+
+## Review Focus
+
+- destructive fallback の除去が完全か: `rg '\.ok\(\)' src-tauri/src/mnt/backup.rs src-tauri/src/db/migration.rs src-tauri/src/db/schema_v2.rs src-tauri/src/db/schema_v3.rs` で失敗握りつぶしの残存を確認（意図的な `.ok()` が残る場合は理由コメント必須）。
+- 共通ヘルパーが 8 箇所全てに適用され、個別再実装・適用漏れがないか（Adjacent Pattern Audit）。
+- テストが tautological でないか: 各失敗注入テストは「壊れた実装（mutation X1）で red になるか」で判定。推論ベースの anti-tautology 判定を完了扱いしない（PR #15 の最大の教訓）。
+- cleanup skip が backup 作成成否に影響していないか（D2 の同時 assert）。
+- `is_autocommit()` の確認位置が契約どおりか（COMMIT 失敗直後 + FK 復元前の 2 文脈）。
+- 既存挙動の回帰: 未設定時 fallback、正常 cleanup、migration v1→v4 正常適用。
+
+## Spec Contract
+
+Contract ID: SPEC-MNT-FAILURE-PR2
+
+- 破壊的操作（バックアップ削除 / migration 状態確定）は入力と前提状態を確定できた場合のみ実行される。確定できない失敗（DB error / parse 失敗 / ROLLBACK・COMMIT・FK 復元失敗）は既定値・成功へ変換されず、記録付きで安全側（skip / 構造化エラー）に倒れる（D-048 柱 (1)(3)、テストは Matrix C1/D2/D3/E2〜E5/E7）。
+- 「設定が無い」と「設定を読めない」は破壊的操作の前提として同値ではない（MNT-01-D2/D3、テストは Matrix C1 vs C2、D1 vs D2）。
+- transaction 状態が不明のまま呼び出し元へ返らない: COMMIT/ROLLBACK 失敗時は is_autocommit で状態を確定し、併合メッセージで「transaction 状態不明」を明示する（MNT-03-D1、テストは Matrix E2/E3/E4）。
+
+## Trace Matrix
+
+| Spec ID | Plan Step | Test | Review Focus | Evidence |
+|---|---|---|---|---|
+| REQ-901 / MNT-01-D2 | resolve_backup_dir Result 化 + 呼び出し元 2 系統 | Matrix C1〜C8 | fallback 限定・Err 伝搬・配線 | cargo test + Double Audit 1/2 pass |
+| REQ-901 / MNT-01-D3 | run_cleanup 確定条件 + skip | Matrix D1〜D5 | destructive fallback 除去・backup 成否非影響 | cargo test + mutation X1(c) |
+| REQ-903 / MNT-03-D1 | ROLLBACK 共通ヘルパー + COMMIT + FK 復元 | Matrix E1〜E7 | 8 箇所適用・is_autocommit・再読取検証 | cargo test + mutation X1(a)(b)(e) |
+| SPEC-MNT-FAILURE-PR2 | 全体 | Matrix X1 / G1 | tautology 排除・回帰 | mutation red 実証（PR body 記録）+ L1 full |
+
+## Data Safety
+
+- 実 POS / 店舗データ・実 backup ファイル・実 DB・実ログは commit しない（既存規約）。テスト fixture は synthetic のみ。
+- cleanup テストの削除対象は `tempfile` 等で作る temp dir 内の synthetic ファイルに限定する。実 `app_data/backups` を参照するテストを書かない。
+- rollback / recovery notes（R4 必須）:
+  - 本 PR 自体の切り戻し: schema 変更・新 migration・データ形式変更・wire 変更を含まないため、squash commit の `git revert` で完全に戻せる。復旧手順に DB 操作は不要。
+  - 変更の失敗方向はいずれも安全側: cleanup skip = ファイルが溜まる（次回成功時に自然回復）、resolve Err = 自動バックアップ skip で起動継続（手動バックアップ・CMD 経路は明示エラー）、migration 失敗 = 従来どおり起動時エラーで停止（変更前より診断情報が増える方向のみ）。
+  - 実装ミスの最悪ケース想定: 確定条件の論理誤りで cleanup が誤実行される方向が唯一の破壊的リスク。D2/D3（削除 0 件 assert）と mutation X1(c) がこの方向への感度を持つ。
+
+## Implementation Results
+
+Fill after implementation.
+
+Do not transcribe exact-HEAD SHA or test counts here (D-035/D-038 Evidence Ownership). Record a qualitative summary and the PR link only.
+
+## Review Response
+
+Fill after review.
+If R3 review-only sub-agent is skipped, record an explicit line beginning with `Review-only skipped because:` and the reason.
+- Findings Freeze: not yet frozen; post-freeze exceptions: none.
