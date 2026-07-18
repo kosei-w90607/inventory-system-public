@@ -49,7 +49,9 @@ pub struct AppState {
 /// docs/function-design/40-cmd-product.md §5.3 + 41-cmd-pos.md §17.4
 #[derive(Debug, serde::Serialize, specta::Type)]
 pub struct CmdError {
-    /// エラー分類: "validation" / "duplicate" / "not_found" / "internal" / "import_error" / "idempotency_conflict" / "stocktake_in_progress" / "stocktake_not_in_progress"
+    /// エラー分類: validation / duplicate / not_found / internal / import_error /
+    /// idempotency_conflict / stocktake_* / restore_failed_recovered /
+    /// restore_failed_unrecoverable / restore_durability_unknown
     pub kind: String,
     /// 利用者向け日本語メッセージ
     pub message: String,
@@ -74,16 +76,20 @@ impl CmdError {
         Self::restore("restore_failed_recovered", message)
     }
 
-    pub(crate) fn restore_failed_unrecoverable(message: &str) -> Self {
-        Self::restore("restore_failed_unrecoverable", message)
+    pub(crate) fn restore_failed_unrecoverable(message: &str, detail: &str) -> Self {
+        Self::restore_with_detail("restore_failed_unrecoverable", message, detail)
     }
 
-    pub(crate) fn restore_durability_unknown(message: &str) -> Self {
-        Self::restore("restore_durability_unknown", message)
+    pub(crate) fn restore_durability_unknown(message: &str, detail: &str) -> Self {
+        Self::restore_with_detail("restore_durability_unknown", message, detail)
     }
 
     fn restore(kind: &str, message: &str) -> Self {
-        tracing::error!(kind, message, "CMD層リストアエラー");
+        Self::restore_with_detail(kind, message, message)
+    }
+
+    fn restore_with_detail(kind: &str, message: &str, detail: &str) -> Self {
+        tracing::error!(kind, message, detail, "CMD層リストアエラー");
         Self {
             kind: kind.to_string(),
             message: message.to_string(),
@@ -207,11 +213,11 @@ mod tests {
             "restore_failed_recovered"
         );
         assert_eq!(
-            CmdError::restore_failed_unrecoverable("fatal").kind,
+            CmdError::restore_failed_unrecoverable("fatal", "detail").kind,
             "restore_failed_unrecoverable"
         );
         assert_eq!(
-            CmdError::restore_durability_unknown("unknown").kind,
+            CmdError::restore_durability_unknown("unknown", "detail").kind,
             "restore_durability_unknown"
         );
     }

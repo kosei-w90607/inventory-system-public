@@ -68,15 +68,15 @@ fn terminal_restore_error(error: backup::RestoreError) -> CmdError {
     match error {
         backup::RestoreError::Recovered(message) => CmdError::restore_failed_recovered(&message),
         backup::RestoreError::Unrecoverable(message) => {
-            tracing::error!(%message, "バックアップ復元が復旧不能状態で終了");
             CmdError::restore_failed_unrecoverable(
                 "バックアップの復元に失敗し、DB接続の復旧もできませんでした。アプリを再起動してください",
+                &message,
             )
         }
         backup::RestoreError::DurabilityUnknown(message) => {
-            tracing::error!(%message, "バックアップ復元の永続化状態を確認できない");
             CmdError::restore_durability_unknown(
                 "復元が完了したか確定できませんでした。アプリを再起動してください。",
+                &message,
             )
         }
     }
@@ -98,9 +98,12 @@ fn handle_restore_failure(
                     ))
                 }
                 Err(recovery_error) => {
-                    tracing::error!(%error, %recovery_error, "同期巻き戻し後のDB再接続に失敗");
+                    let detail = format!(
+                        "同期巻き戻し後のDB再接続に失敗: restore={error}; reconnect={recovery_error}"
+                    );
                     CmdError::restore_failed_unrecoverable(
                         "バックアップの復元に失敗し、DB接続の復旧もできませんでした。アプリを再起動してください",
+                        &detail,
                     )
                 }
             }
