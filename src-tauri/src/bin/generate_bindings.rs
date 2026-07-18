@@ -10,7 +10,16 @@
 //! 通常の tauri dev 起動時は `lib.rs::run()` 冒頭で `export_specta_bindings()`
 //! が debug build 時に自動呼び出しされるため、このバイナリは必要に応じて実行する。
 
+#[cfg(debug_assertions)]
 fn main() {
     inventory_system_tauri_scaffold_lib::export_specta_bindings();
     println!("TS bindings exported to src/lib/bindings.ts");
+}
+
+// release build では export_specta_bindings が cfg(debug_assertions) で存在しないため、
+// 本バイナリも同じ条件で no-op にする（bindings 生成は開発時専用の workflow）。
+#[cfg(not(debug_assertions))]
+fn main() {
+    eprintln!("generate_bindings is a debug-build tool; run with a debug profile");
+    std::process::exit(1);
 }
