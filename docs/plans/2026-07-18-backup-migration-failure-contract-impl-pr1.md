@@ -176,9 +176,13 @@ Minimum design checks for business-app work:
 実装着手後・本実装前に Codex が実施し、結果を packet Amendment で確定（是正仮適用状態で end-to-end）:
 
 1. **pre-window エラー表示機構**（22 §12.4）: `blocking_show` の main-thread 禁止下で、setup 失敗時に operator 可視のダイアログを webview マウント前に表示できる機構の実証（worker thread / callback API / 専用 error window から選定、最小再現コード + Windows 実機）。
+   - Probe result #1: `blocking_show` worker + main-thread `join` は dispatch 相互待ち、callback は可視化不能だったため不採用。Windows `MessageBoxW` を専用 worker で表示し `join` 後に setup `Err` とする方式で、native pre-window 表示完了（`shown=true`）後の fail-closed 終了を実証し採用。
 2. **restore error wire 形**（71 / 68 §68.7）: `CmdError` への restore 分類 kind 追加 + specta `bindings.ts` 再生成が既存 command の wire に波及しないことの実証。
+   - Probe result #2: `CmdError.kind: String` を維持して `restore_failed_recovered` / `restore_failed_unrecoverable` / `restore_durability_unknown` を追加する最小差分で生成前後の `bindings.ts` SHA-256 が一致し、既存 command wire 無変更を実証し採用。
 3. **single-instance plugin**: `tauri-plugin-single-instance` の導入実証 — Rust 側のみで足りるか（npm guest bindings 要否）、二重起動時の観測可能挙動、初期化失敗の観測可能性（B11 の注入手段）。
+   - Probe result #3: `tauri-plugin-single-instance = 2.4.3` は Rust plugin 登録のみ（npm guest bindings 不要）。後発は先発 callback へ args/CWD を送り終了し、B11 は injectable guard plugin の setup `Err` で app setup mutation 不到達を実証する方式を採用。
 4. **no-clobber rename primitive**（22 §12.1 ステップ6）: Rust std `rename` は既存 destination を置換し得るため、Windows で「既存 destination を置換しない」ことが保証される primitive の選定と実証。
+   - Probe result #4: 同一 directory の `std::fs::hard_link(temp, destination)` publish は native Windows で既存 destination に `AlreadyExists`（内容保持）、不在時は link 作成後 temp unlink で完成 snapshot を公開できたため no-clobber primitive として採用。
 
 ## Contract Coverage Ledger
 
