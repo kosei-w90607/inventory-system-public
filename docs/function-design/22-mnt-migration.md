@@ -187,7 +187,7 @@ fn migrate_legacy_db(
 3. 旧 DB を **create 能力なしで開く**（`SQLITE_OPEN_READ_WRITE` のみ、`SQLITE_OPEN_CREATE` を含めない `open_with_flags`。read-only にしないのは open 時の WAL recovery を SQLite に委ねるため、CREATE を外すのは存在確認後に旧 DB が消える TOCTOU で空の旧 DB を作らないため）。open 失敗 → `Err`
 4. `VACUUM INTO '{new_dir}/inventory.db.migrating'` を実行（一時ファイル名。パスのシングルクォートは 71 §71.4 と同じ規約でエスケープ）
 5. 旧 DB 接続を閉じる
-6. `{new_dir}/inventory.db.migrating` → `{new_dir}/inventory.db` へ rename。**publish は no-clobber**: rename 直前に destination 不在を再確認し、既存 destination を置換しない手段を用いる（Rust std の `rename` は既存 destination を置換し得て OS 差もある — 実装 PR1 で platform 適合の primitive を確定）。destination が出現していた場合は一時ファイルを削除して `Err`（同時二重起動の直列化は single-instance ガードが担う — 71 §71.7 MNT-01-D5 の前提条件として実装 PR1 で導入。no-clobber はガード障害時の defense-in-depth）
+6. `{new_dir}/inventory.db.migrating` → `{new_dir}/inventory.db` へ publish。**publish は no-clobber**: rename 直前に destination 不在を再確認し、既存 destination を置換しない手段を用いる。**実装 PR1 確定形**: 同一 directory の `std::fs::hard_link(staging, destination)` で destination 名を作成し、成功後に staging 名を unlink する（native Windows / Unix とも既存 destination は `AlreadyExists` で内容非置換。Rust std `rename` は採用しない）。destination が出現していた場合は一時ファイルを削除して `Err`（同時二重起動の直列化は single-instance ガードが担う — 71 §71.7 MNT-01-D5 の前提条件。no-clobber はガード障害時の defense-in-depth）
 7. `Ok(true)` を返す。旧 3 ファイル（main/-wal/-shm）は削除しない（現行どおり手動削除の運用）
 
 **呼び出し元の存在確認契約（PR #14 Codex P1-3）**: lib.rs は `std::env::current_dir()` の失敗を `if let Ok(cwd)` で無言 skip してはならない。ステップ 1 の「新 DB 既存 → skip」は CWD に依存しないため先に判定し、新 DB が無い場合の CWD 解決失敗・存在確認 error・その他の「旧 DB の有無を確定できない」状態はすべて `Err` として MNT-03-D4（fail-closed 起動中止）へ流す。「旧 DB が無い」と「有無を確認できない」を同じ skip に潰すと、P3b-1 の空 DB 隠蔽経路が discovery failure の形で残る
@@ -213,7 +213,7 @@ fn migrate_legacy_db(
 ### 12.4 lib.rs 起動契約（MNT-03-D4）
 
 - 決定: lib.rs setup hook は `migrate_legacy_db` の `Err` で起動を中止する（fail-closed）。中止時は operator へ可視のエラーダイアログで「旧データは無事であること・アプリ再起動で再試行されること・繰り返し失敗する場合の連絡誘導」を表示し、**表示完了（または表示不能の確定）後にのみ**終了する。詳細は診断ログに記録する
-- **表示機構の制約（PR #14 Codex P2-2）**: `tauri_plugin_dialog` の `blocking_show` は公式 API doc が「main thread context で使用してはならない」と明記しており（vendored source lib.rs:355-356 で確認済み）、setup hook（main thread）での同期表示を機構として指定しない。候補 = worker thread で blocking 表示して main thread は完了を待つ / callback API + 終了順序制御 / 専用 error window。**どの機構を採るかと pre-window（webview マウント前）で実表示できるかは、実装 PR1 の Contract Probe（Windows 実機）で確定**し、表示不能が確定した場合も fail-closed（起動中止 + 診断ログ）自体は維持する
+- **表示機構の制約（PR #14 Codex P2-2）**: `tauri_plugin_dialog` の `blocking_show` は公式 API doc が「main thread context で使用してはならない」と明記しており（vendored source lib.rs:355-356 で確認済み）、setup hook（main thread）での同期表示を機構として指定しない。**実装 PR1 確定形**: Windows は専用 worker thread で Win32 `MessageBoxW` を表示し、setup thread が `join` で表示完了を待ってから `Err` を返す。Contract Probe の native pre-window 表示で可視性を確認済み。thread panic / API 表示不能時も診断ログを残して fail-closed 起動中止を維持する（`blocking_show` worker は main-thread dispatch との相互待ち、callback は pre-window 可視化不能のため不採用）
 - Why: 現行の「`tracing::error!` + 続行」は、直後の `init_database` が新パスに**空 DB を新規作成**するため、以後の起動は「新 DB 既存」で移行を永久 skip し、旧データが空 DB に隠蔽される（operator にはデータ全損に見え、空 DB への誤入力も進行する）。可視の起動失敗（データ無傷 + 再試行可能）の方が安全側
 - 前提事実: 既存の setup 失敗経路（`app_data_dir` 取得失敗・`init_database` 失敗等の `?` / `.expect`）は release build（`windows_subsystem = "windows"`）では console が無く**無言クラッシュ**になる。本契約は新設する移行失敗経路のみ dialog 可視化を要求し、既存経路の可視化は scope 外（Plans.md backlog「起動時 setup 失敗の operator 可視化」）
 - Rejected alternatives: 現行の「警告して続行」（上記の隠蔽経路そのもの）/ 移行 skip して旧パスの DB をそのまま使う（パス二重管理が恒久化し、app_data 移行の目的に反する）
