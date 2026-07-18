@@ -117,11 +117,15 @@ pub struct BackupInfo {
 fn extract_date_from_backup(filename: &str) -> Option<chrono::NaiveDate> {
     let stem = filename.strip_prefix(BACKUP_PREFIX)?;
     let stem = stem.strip_suffix(BACKUP_EXT)?;
-    // stem = "YYYYMMDD_HHMMSS"
-    if stem.len() != 15 {
+    // stem = "YYYYMMDD_HHMMSS" の完全一致のみ削除対象（§71.5 ステップ2a-2d）。
+    // 日付部分だけの検証では inventory_backup_YYYYMMDD_manual.db のような
+    // 非 timestamp suffix のファイルまで削除対象になる
+    if stem.len() != 15 || stem.as_bytes()[8] != b'_' {
         return None;
     }
     let date_part = &stem[..8];
+    let time_part = &stem[9..];
+    chrono::NaiveTime::parse_from_str(time_part, "%H%M%S").ok()?;
     chrono::NaiveDate::parse_from_str(date_part, "%Y%m%d").ok()
 }
 
@@ -710,6 +714,72 @@ mod tests {
 
         assert_eq!(deleted, 1, "1件削除されるべき");
         assert!(!old_file.exists(), "古いファイルは削除されるべき");
+    }
+
+    #[test]
+    fn test_cleanup_old_backups_req901_skips_non_timestamp_suffix() {
+        // REQ-901: バックアップ
+        // Task: MNT-01
+        // MNT-01 §71.5 ステップ2a-2d / Matrix D5a: ファイル名は
+        // inventory_backup_YYYYMMDD_HHMMSS.db の完全一致のみ削除対象。
+        // 非 timestamp suffix（手動リネーム等）は保持日数超過でも削除しない
+        let dir = tempfile::tempdir().unwrap();
+        let backup_dir = dir.path().join("backups");
+        std::fs::create_dir_all(&backup_dir).unwrap();
+
+        let old_date = (chrono::Local::now().date_naive() - chrono::Duration::days(10))
+            .format("%Y%m%d")
+            .to_string();
+        // stem 長 15 だが suffix が時刻でない（"_manual" は separator 込みで 7 文字）
+        let manual_file = backup_dir.join(format!("{BACKUP_PREFIX}{old_date}_manual{BACKUP_EXT}"));
+        std::fs::write(&manual_file, "synthetic manual copy").unwrap();
+        // separator 位置が '_' でないケース
+        let no_sep_file = backup_dir.join(format!("{BACKUP_PREFIX}{old_date}x120000{BACKUP_EXT}"));
+        std::fs::write(&no_sep_file, "synthetic").unwrap();
+
+        let deleted = cleanup_old_backups(&backup_dir, 3).unwrap();
+
+        assert_eq!(deleted, 0, "パターン不一致ファイルは削除件数に含めない");
+        assert!(
+            manual_file.exists(),
+            "非 timestamp suffix は削除してはならない"
+        );
+        assert!(no_sep_file.exists(), "separator 不一致は削除してはならない");
+    }
+
+    #[test]
+    fn test_cleanup_old_backups_req901_warns_and_continues_on_delete_failure() {
+        // REQ-901: バックアップ
+        // Task: MNT-01
+        // MNT-01 §71.5 ステップ2g / Matrix D5b: 個別ファイルの削除失敗は
+        // tracing::warn! を記録して次のファイルへ進む（全体を中断しない）
+        let dir = tempfile::tempdir().unwrap();
+        let backup_dir = dir.path().join("backups");
+        std::fs::create_dir_all(&backup_dir).unwrap();
+
+        let old_date = (chrono::Local::now().date_naive() - chrono::Duration::days(10))
+            .format("%Y%m%d")
+            .to_string();
+        // パターン一致名の「ディレクトリ」= remove_file が決定論的に失敗する
+        let undeletable = backup_dir.join(format!("{BACKUP_PREFIX}{old_date}_120000{BACKUP_EXT}"));
+        std::fs::create_dir_all(&undeletable).unwrap();
+        // 通常の削除対象ファイル（処理順に依存せず削除継続を検証できる）
+        let deletable = backup_dir.join(format!("{BACKUP_PREFIX}{old_date}_130000{BACKUP_EXT}"));
+        std::fs::write(&deletable, "synthetic").unwrap();
+
+        let (result, logs) = crate::test_tracing::capture(|| cleanup_old_backups(&backup_dir, 3));
+
+        assert_eq!(
+            result.unwrap(),
+            1,
+            "削除失敗があっても他ファイルの削除は継続"
+        );
+        assert!(undeletable.exists(), "削除失敗対象は残る");
+        assert!(!deletable.exists(), "後続の削除対象は削除される");
+        assert!(
+            logs.contains("WARN") && logs.contains("削除に失敗"),
+            "logs={logs:?}"
+        );
     }
 
     #[test]

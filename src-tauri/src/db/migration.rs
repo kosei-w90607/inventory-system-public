@@ -231,7 +231,11 @@ mod tests {
         let DbError::MigrationFailed(message) = error else {
             panic!("MigrationFailedを期待")
         };
-        assert!(message.contains("COMMIT") && message.contains("ROLLBACK"));
+        assert!(
+            message.contains("injected COMMIT failure"),
+            "併合メッセージは実 COMMIT エラーを含むべき（context 固定文言だけでは不可）: {message}"
+        );
+        assert!(message.contains("ROLLBACK 成功"), "message={message}");
         assert!(
             conn.is_autocommit(),
             "COMMIT失敗後にtransactionを閉じるべき"
