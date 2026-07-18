@@ -152,13 +152,13 @@ fn restore_backup(
     current_conn: DbConnection,
     backup_path: &Path,
     db_path: &Path,
-) -> Result<DbConnection, DbError>
+) -> Result<DbConnection, RestoreError>
 ```
 
 注意: `current_conn` は所有権を取得する（dropしてファイルロックを解放するため）
 
 **処理ステップ**:
-1. バックアップファイルの存在確認。存在しなければ `DbError::NotFound` を返す
+1. バックアップファイルの存在確認。存在しなければ `RestoreError::Recovered` を返す
 2. 現在の接続でWALをフラッシュ: `PRAGMA wal_checkpoint(TRUNCATE)`
    - 失敗 → `tracing::warn!` で警告して続行。**この非致命扱いの根拠は、ステップ4で旧DB一式（WAL含む）を退避することにある。したがってステップ4の退避が成功する場合に限り有効**（MNT-01-D1）
 3. `current_conn` をdrop（ファイルロック解放）
@@ -167,8 +167,8 @@ fn restore_backup(
    - `{db_path}` → `{db_path}.restore_backup`
    - `{db_path}-wal` → `{db_path}-wal.restore_backup`（存在する場合）
    - `{db_path}-shm` → `{db_path}-shm.restore_backup`（存在する場合）
-   - いずれかの rename が失敗 → 退避済みファイルを元の名前へ巻き戻し、**本体置換に進まず** `DbError::QueryFailed` で restore を中止する（MNT-01-D1）。巻き戻し完了後は manifest を durable 削除する（Codex 再々レビュー P3）
-   - 巻き戻し自体がさらに失敗した場合 → ステップ 8e と同等の致命的エラーとして扱う（`tracing::error!` 記録、`DbError::QueryFailed`、アプリ再起動が必要。manifest は残置し、次回起動の reconcile に委ねる）
+   - いずれかの rename が失敗 → 退避済みファイルを元の名前へ巻き戻し、**本体置換に進まず** `RestoreError::Recovered` で restore を中止する（MNT-01-D1）。巻き戻し完了後は manifest を durable 削除する（Codex 再々レビュー P3）
+   - 巻き戻し自体がさらに失敗した場合 → ステップ 8e と同等の致命的エラーとして扱う（`tracing::error!` 記録、`RestoreError::Unrecoverable`、アプリ再起動が必要。manifest は残置し、次回起動の reconcile に委ねる）
 
 **MNT-01-D1: 退避は一式成功が必須、失敗時は置換前に中止**
 
@@ -239,8 +239,8 @@ fn restore_backup(
    a. 元名側の DB 一式（main / WAL / SHM すべて — この attempt が生成した信頼できない世代）を削除し、親 directory sync で永続化する
    b. manifest 記録集合の退避ファイルを rename で元名へ復帰する（`{db_path}.restore_backup` → `{db_path}`、WAL / SHM も記録集合に従う）
    c. 巻き戻し完了後に manifest を durable 削除する
-   d. `DbError::QueryFailed` を返す（元のDBファイルは復元済みだが、接続は呼び出し元が再確立する必要がある）
-   e. 巻き戻し（8a-8b）が失敗した場合 → `DbError::QueryFailed` で致命的エラー（manifest は削除しない — 次回起動の reconcile が解消する）
+   d. `RestoreError::Recovered` を返す（元のDBファイルは復元済みだが、接続は呼び出し元が再確立する必要がある）
+   e. 巻き戻し（8a-8b）が失敗した場合 → `RestoreError::Unrecoverable` で致命的エラー（manifest は削除しない — 次回起動の reconcile が解消する）
 
 **重要: 失敗時の契約**
 - `restore_backup` は失敗時に「退避復元済み」か「状態不明/未復旧」かを区別できる `Err` を返す（MNT-01-D4）。有効なDbConnectionは返さない
@@ -285,10 +285,10 @@ match mnt::backup::restore_backup(old_conn, &backup_path, &db_path) {
 ```
 
 **エラーハンドリング**:
-- バックアップファイル不在 → `DbError::NotFound`
+- バックアップファイル不在 → `RestoreError::Recovered`
 - コピー失敗 → 退避から復元を試みてから `Err` を返す
 - init_database失敗 → 退避から復元を試みてから `Err` を返す
-- 退避からの復元も失敗 → `DbError::QueryFailed`（致命的。アプリ再起動が必要）
+- 退避からの復元も失敗 → `RestoreError::Unrecoverable`（致命的。アプリ再起動が必要）
 - phase=committed 更新失敗（rename 前） → 新接続を公開せず退避も削除せず `Err`（manifest は active 確定、次回 reconcile が旧データへ復帰 — D5 (e)(i)）
 - phase=committed 更新の rename 後 directory sync 失敗 → durability 不明。新接続を公開せず退避も削除せず unrecoverable（再起動必須）を返す。再起動時の reconcile は実際に回復した canonical phase に従う — D5 (e)(ii)
 - committed 後の cleanup / 記録（退避削除・log INSERT・manifest 削除）失敗 → 復元成功のまま warn 記録 + 新接続を返す。committed manifest が残っていれば次回起動が退避掃除・冪等 INSERT・manifest 削除を再処理する。manifest unlink 成功後の final sync 失敗のみ事後状態は「committed 残置 / absent」の二値（log は 7c で INSERT 済みのためどちらでも記録は保全、absent なら再処理も不要）— D5 (e)

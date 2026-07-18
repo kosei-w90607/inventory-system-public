@@ -593,7 +593,7 @@ mod tests {
 
     #[test]
     fn test_migrate_legacy_db_req903_failure_injection_is_retryable() {
-        // REQ-903 / Matrix M2, M3
+        // REQ-903 / Matrix M2, M3a
         for failpoint in [LegacyFailpoint::Vacuum, LegacyFailpoint::Publish] {
             let old_dir = tempfile::tempdir().unwrap();
             let new_dir = tempfile::tempdir().unwrap();
