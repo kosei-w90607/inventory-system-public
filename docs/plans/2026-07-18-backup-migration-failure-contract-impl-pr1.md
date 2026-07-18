@@ -2,10 +2,10 @@
 
 ## Workflow State
 
-- Phase: plan-draft
+- Phase: implementing
 - Risk: R4
 - Execution Mode: fable-window
-- Plan Commit: pending
+- Plan Commit: d9f7b53
 - Amendments: none
 - Coordinator: Fable 5（本 session）
 - Writer: Codex（実装・テスト・bindings 再生成。発注 cwd は public-writer clone に pin）
@@ -14,7 +14,8 @@
 - Reviewed Content HEAD: pending
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
-- Human Gate: R4 explicit approval（Codex 発注前、Data Safety 節を承認対象に含む）+ Draft PR の owner 確認 + Ready 承認 + Windows native L3（Matrix L3-1/L3-2）+ merge
+- Human Gate: R4 explicit approval **済み**（2026-07-18、介入 1 回目 / 予算 4 回、Data Safety 節を承認対象に含む）+ Draft PR の owner 確認 + Ready 承認 + Windows native L3（Matrix L3-1/L3-2）+ merge
+- State Narrative（append-only）: 2026-07-18 の state-only commit で隣接 forward 3 遷移 `plan-draft -> plan-gate -> plan-approved -> implementing` を実体化。evidence: plan-gate = packet + Test Design Matrix の plan-first commit `d9f7b53`（packet complete and committed）/ plan-approved = Plan Gate round 3 の独立 Plan Reviewer 報告 P1/P2 = 0（Review Response 参照）+ `Plan Commit` 記入 / implementing = owner の R4 explicit approval（介入 1 回目）。実装 commit は本遷移時点でゼロであり plan-first commit が全実装 commit に先行する。
 
 ## Owner Effort Budget
 
