@@ -530,24 +530,34 @@ fn classify_restore_log(
     let mut statement =
         conn.prepare("SELECT detail_json FROM operation_logs WHERE operation_type = ?1")?;
     let rows = statement.query_map([RESTORE_OPERATION], |row| row.get::<_, Option<String>>(0))?;
-    let mut malformed = false;
+    let mut exact_match = false;
+    let mut failed = false;
     for row in rows {
-        let Some(detail) = row? else {
+        let detail = match row {
+            Ok(detail) => detail,
+            Err(_) => {
+                failed = true;
+                continue;
+            }
+        };
+        let Some(detail) = detail else {
             continue;
         };
         match serde_json::from_str::<serde_json::Value>(&detail) {
             Ok(value) if value.get("attempt_id").and_then(|id| id.as_str()) == Some(attempt_id) => {
-                return Ok(LogClassification::AlreadyPresent);
+                exact_match = true;
             }
             Ok(value) => match value.get("attempt_id") {
                 None => {}
                 Some(id) if id.as_str().is_some() => {}
-                Some(_) => malformed = true,
+                Some(_) => failed = true,
             },
-            Err(_) => malformed = true,
+            Err(_) => failed = true,
         }
     }
-    Ok(if malformed {
+    Ok(if exact_match {
+        LogClassification::AlreadyPresent
+    } else if failed {
         LogClassification::Failed
     } else {
         LogClassification::NoMatch
@@ -1721,6 +1731,31 @@ mod tests {
             LogClassification::AlreadyPresent,
             2,
             false,
+        );
+
+        let dir = tempfile::tempdir().unwrap();
+        let db_path = dir.path().join("inventory.db");
+        let conn = database_with_supplier(&db_path, "data");
+        conn.execute(
+            "INSERT INTO operation_logs
+             (operation_type, summary, detail_json, created_at)
+             VALUES ('backup_restore', 'invalid typed row', X'00', '2026-07-18T00:00:00')",
+            [],
+        )
+        .unwrap();
+        db::system_repo::insert_operation_log(
+            &conn,
+            &NewOperationLog {
+                operation_type: RESTORE_OPERATION.to_string(),
+                summary: "exact after decode error".to_string(),
+                detail_json: Some(r#"{"attempt_id":"target"}"#.to_string()),
+            },
+        )
+        .unwrap();
+        assert_eq!(
+            classify_restore_log(&conn, "target").unwrap(),
+            LogClassification::AlreadyPresent,
+            "REQ-901 / Matrix B8: exact match wins over a prior row decode error"
         );
     }
 
