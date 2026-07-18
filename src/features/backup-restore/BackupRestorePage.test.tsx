@@ -47,10 +47,10 @@ function ok<T>(data: T) {
   return { status: "ok" as const, data };
 }
 
-function cmdError(message: string) {
+function cmdError(message: string, kind = "internal") {
   return {
     status: "error" as const,
-    error: { kind: "internal", message, field: null },
+    error: { kind, message, field: null },
   };
 }
 
@@ -176,11 +176,50 @@ describe("BackupRestorePage (UI-11b / QR-05 / REQ-905)", () => {
     expect(screen.queryByText("アプリを閉じて、もう一度開いてください")).not.toBeInTheDocument();
   });
 
+  it("QR-05 REQ-905 branches restore failures by CmdError kind", async () => {
+    const user = userEvent.setup();
+    mockRestoreBackup.mockResolvedValueOnce({
+      status: "error",
+      error: {
+        kind: "restore_failed_unrecoverable",
+        message: "message text is intentionally unrelated",
+        field: null,
+      },
+    });
+
+    renderWithClient(<BackupRestorePage />);
+    await startRestoreConfirmation(user);
+    await user.click(screen.getByRole("button", { name: "7月3日 21:00 の控えに戻す" }));
+
+    expect(await screen.findByText("再起動が必要です")).toBeInTheDocument();
+  });
+
+  it("QR-05 REQ-905 shows non-assertive guidance for durability unknown", async () => {
+    const user = userEvent.setup();
+    mockRestoreBackup.mockResolvedValueOnce({
+      status: "error",
+      error: {
+        kind: "restore_durability_unknown",
+        message: "durability state unknown",
+        field: null,
+      },
+    });
+
+    renderWithClient(<BackupRestorePage />);
+    await startRestoreConfirmation(user);
+    await user.click(screen.getByRole("button", { name: "7月3日 21:00 の控えに戻す" }));
+
+    expect(await screen.findByText("復元結果を確認できませんでした")).toBeInTheDocument();
+    expect(screen.getByText("復元が完了したか確定できませんでした。")).toBeInTheDocument();
+    expect(screen.queryByText(/現在のデータには戻しています/)).not.toBeInTheDocument();
+  });
+
   it("QR-05 REQ-905 shows restart guidance and disables operations on double failure", async () => {
     const user = userEvent.setup();
     mockRestoreBackup.mockResolvedValueOnce(
       cmdError(
         "バックアップの復元に失敗し、DB接続の復旧もできませんでした。アプリを再起動してください",
+        "restore_failed_unrecoverable",
       ),
     );
 
@@ -202,6 +241,7 @@ describe("BackupRestorePage (UI-11b / QR-05 / REQ-905)", () => {
     mockRestoreBackup.mockResolvedValueOnce(
       cmdError(
         "バックアップの復元に失敗し、DB接続の復旧もできませんでした。アプリを再起動してください",
+        "restore_failed_unrecoverable",
       ),
     );
 

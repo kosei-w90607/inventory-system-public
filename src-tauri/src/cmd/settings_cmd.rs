@@ -64,6 +64,54 @@ fn db_err(e: db::DbError) -> CmdError {
     CmdError::internal(&format!("{}", e))
 }
 
+fn terminal_restore_error(error: backup::RestoreError) -> CmdError {
+    match error {
+        backup::RestoreError::Recovered(message) => CmdError::restore_failed_recovered(&message),
+        backup::RestoreError::Unrecoverable(message) => {
+            CmdError::restore_failed_unrecoverable(
+                "バックアップの復元に失敗し、DB接続の復旧もできませんでした。アプリを再起動してください",
+                &message,
+            )
+        }
+        backup::RestoreError::DurabilityUnknown(message) => {
+            CmdError::restore_durability_unknown(
+                "復元が完了したか確定できませんでした。アプリを再起動してください。",
+                &message,
+            )
+        }
+    }
+}
+
+fn handle_restore_failure(
+    guard: &mut DbConnection,
+    db_path: &std::path::Path,
+    error: backup::RestoreError,
+) -> CmdError {
+    match error {
+        backup::RestoreError::Recovered(error) => {
+            // NO_CREATE 再接続のみ許可し、空DBを生成しない。
+            match db::open_existing_database(db_path.to_str().unwrap_or("")) {
+                Ok(recovered) => {
+                    *guard = recovered;
+                    CmdError::restore_failed_recovered(&format!(
+                        "バックアップの復元に失敗しました。現在のデータには戻しています: {error}"
+                    ))
+                }
+                Err(recovery_error) => {
+                    let detail = format!(
+                        "同期巻き戻し後のDB再接続に失敗: restore={error}; reconnect={recovery_error}"
+                    );
+                    CmdError::restore_failed_unrecoverable(
+                        "バックアップの復元に失敗し、DB接続の復旧もできませんでした。アプリを再起動してください",
+                        &detail,
+                    )
+                }
+            }
+        }
+        other => terminal_restore_error(other),
+    }
+}
+
 fn validate_log_date_range(
     start_date: Option<&str>,
     end_date: Option<&str>,
@@ -266,29 +314,7 @@ pub fn restore_backup(
             *guard = new_conn;
             Ok(())
         }
-        Err(e) => {
-            // restore_backup 内でDBファイルは退避から復元済み
-            // 有効な接続を再確立して guard に入れる
-            match db::init_database(db_path.to_str().unwrap_or("")) {
-                Ok(recovered) => *guard = recovered,
-                Err(e2) => {
-                    // 致命的: dummy接続が残り、以降の全コマンドが失敗する
-                    // アプリ再起動が必要な状態
-                    tracing::error!(
-                        restore_error = %e,
-                        recovery_error = %e2,
-                        "DB接続の復旧にも失敗。アプリ再起動が必要です"
-                    );
-                    return Err(CmdError::internal(
-                        "バックアップの復元に失敗し、DB接続の復旧もできませんでした。アプリを再起動してください",
-                    ));
-                }
-            }
-            Err(CmdError::internal(&format!(
-                "バックアップの復元に失敗: {}",
-                e
-            )))
-        }
+        Err(error) => Err(handle_restore_failure(&mut guard, &db_path, error)),
     }
 }
 
@@ -670,14 +696,50 @@ mod tests {
         // Task: CMD-11
         // CMD-11: 復旧不能時の「再起動が必要」メッセージが CmdError に含まれることを検証
         // 実際の init_database 失敗は再現困難なため、エラーメッセージの構築を直接テスト
-        let msg = "バックアップの復元に失敗し、DB接続の復旧もできませんでした。アプリを再起動してください";
-        let cmd_err = CmdError::internal(msg);
-        assert_eq!(cmd_err.kind, "internal");
+        let cmd_err =
+            terminal_restore_error(backup::RestoreError::Unrecoverable("fixture".to_string()));
+        assert_eq!(cmd_err.kind, "restore_failed_unrecoverable");
         assert!(
             cmd_err.message.contains("再起動"),
             "再起動メッセージが含まれるべき: {}",
             cmd_err.message
         );
+    }
+
+    #[test]
+    fn test_restore_backup_req905_maps_all_failure_kinds_without_message_parsing() {
+        // REQ-905 / MNT-01-D4 / Matrix F1, F2
+        let recovered =
+            terminal_restore_error(backup::RestoreError::Recovered("same message".to_string()));
+        let fatal = terminal_restore_error(backup::RestoreError::Unrecoverable(
+            "same message".to_string(),
+        ));
+        let unknown = terminal_restore_error(backup::RestoreError::DurabilityUnknown(
+            "same message".to_string(),
+        ));
+        assert_eq!(recovered.kind, "restore_failed_recovered");
+        assert_eq!(fatal.kind, "restore_failed_unrecoverable");
+        assert_eq!(unknown.kind, "restore_durability_unknown");
+        assert_eq!(
+            unknown.message,
+            "復元が完了したか確定できませんでした。アプリを再起動してください。"
+        );
+    }
+
+    #[test]
+    fn test_restore_backup_req905_b3_no_create_cmd_recovery_never_hides_missing_main() {
+        // REQ-905 / MNT-01-D4 / Matrix B3
+        let dir = tempfile::tempdir().unwrap();
+        let missing = dir.path().join("inventory.db");
+        let mut dummy = rusqlite::Connection::open_in_memory().unwrap();
+        let error = handle_restore_failure(
+            &mut dummy,
+            &missing,
+            backup::RestoreError::Recovered("injected rollback result".to_string()),
+        );
+        assert_eq!(error.kind, "restore_failed_unrecoverable");
+        assert!(error.message.contains("再起動"));
+        assert!(!missing.exists(), "CMD recovery must use NO_CREATE open");
     }
 
     #[test]

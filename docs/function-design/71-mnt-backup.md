@@ -152,13 +152,13 @@ fn restore_backup(
     current_conn: DbConnection,
     backup_path: &Path,
     db_path: &Path,
-) -> Result<DbConnection, DbError>
+) -> Result<DbConnection, RestoreError>
 ```
 
 注意: `current_conn` は所有権を取得する（dropしてファイルロックを解放するため）
 
 **処理ステップ**:
-1. バックアップファイルの存在確認。存在しなければ `DbError::NotFound` を返す
+1. バックアップファイルの存在確認。存在しなければ `RestoreError::Recovered` を返す
 2. 現在の接続でWALをフラッシュ: `PRAGMA wal_checkpoint(TRUNCATE)`
    - 失敗 → `tracing::warn!` で警告して続行。**この非致命扱いの根拠は、ステップ4で旧DB一式（WAL含む）を退避することにある。したがってステップ4の退避が成功する場合に限り有効**（MNT-01-D1）
 3. `current_conn` をdrop（ファイルロック解放）
@@ -167,8 +167,8 @@ fn restore_backup(
    - `{db_path}` → `{db_path}.restore_backup`
    - `{db_path}-wal` → `{db_path}-wal.restore_backup`（存在する場合）
    - `{db_path}-shm` → `{db_path}-shm.restore_backup`（存在する場合）
-   - いずれかの rename が失敗 → 退避済みファイルを元の名前へ巻き戻し、**本体置換に進まず** `DbError::QueryFailed` で restore を中止する（MNT-01-D1）。巻き戻し完了後は manifest を durable 削除する（Codex 再々レビュー P3）
-   - 巻き戻し自体がさらに失敗した場合 → ステップ 8e と同等の致命的エラーとして扱う（`tracing::error!` 記録、`DbError::QueryFailed`、アプリ再起動が必要。manifest は残置し、次回起動の reconcile に委ねる）
+   - いずれかの rename が失敗 → 退避済みファイルを元の名前へ巻き戻し、**本体置換に進まず** `RestoreError::Recovered` で restore を中止する（MNT-01-D1）。巻き戻し完了後は manifest を durable 削除する（Codex 再々レビュー P3）
+   - 巻き戻し自体がさらに失敗した場合 → ステップ 8e と同等の致命的エラーとして扱う（`tracing::error!` 記録、`RestoreError::Unrecoverable`、アプリ再起動が必要。manifest は残置し、次回起動の reconcile に委ねる）
 
 **MNT-01-D1: 退避は一式成功が必須、失敗時は置換前に中止**
 
@@ -182,7 +182,7 @@ fn restore_backup(
 - 決定: restore の失敗は「**退避復元済み**（元 DB 一式を元の名前へ戻せた）」と「**状態不明/未復旧**（巻き戻し失敗・二重失敗を含む）」を区別して呼び出し元へ伝える。CMD 層の復旧再接続は次の契約に従う:
   - 「退避復元済み」の場合のみ再接続を試みる。再接続は **create 能力のない open**（`SQLITE_OPEN_CREATE` を含まない `open_with_flags`）で行い、成功時のみ recoverable（再試行可能エラー）として返す
   - 「状態不明/未復旧」の場合、または no-create 再接続が失敗した場合は、再接続を試みず unrecoverable（`アプリを再起動してください` を含む既存文言）を返す
-  - 区別の伝搬は message 文字列比較に依存せず型・variant レベルで行う（DbError の variant 追加か戻り値の構造化かは実装 PR1 で確定）。**CMD → UI の伝搬も同様に構造化された分類識別子で行い、frontend が文言の部分一致で分岐しない**（68 §68.7 参照。Codex 再々レビュー P2-2）
+  - 区別の伝搬は message 文字列比較に依存せず型・variant レベルで行う。**実装 PR1 確定形**: MNT 層は `RestoreError::Recovered | Unrecoverable | DurabilityUnknown`、CMD wire は `CmdError.kind` の `restore_failed_recovered | restore_failed_unrecoverable | restore_durability_unknown` を用いる（`DbError` の汎用 variant は追加しない）。**CMD → UI の伝搬も同じ構造化分類識別子で行い、frontend が文言の部分一致で分岐しない**（68 §68.7 参照。Codex 再々レビュー P2-2）
 - Why: 現行 CMD パターンの `db::init_database` による復旧は create 能力を持つため、二重失敗で main が `{db_path}.restore_backup` 側に残ったまま `{db_path}` が不在の状態では**空 DB を新規作成して migration まで成功**し、復旧不能な状態が recoverable として UI（68 §68.7 の `restore_failed_recovered`）に渡る。operator は「現在のデータに戻した」と誤認して空 DB へ入力を続ける — 本設計が塞ぐべき空 DB 隠蔽経路そのもの
 - Rejected alternatives: 現行の create-capable `init_database` による復旧（上記の偽装経路）/ message 文字列での分岐追加のみ（文字列は契約として脆く、監査 P3-4 = 順 8 で是正予定の分裂をさらに深める）
 - 見直し契機: 順 8（error 表示 contract 統一)で CmdError に相関 ID / kind 拡張が入るとき
@@ -190,7 +190,7 @@ fn restore_backup(
 **MNT-01-D5: restore の中断（process/power interruption）復旧契約（PR #14 Codex P1-2、再レビュー P1×3 で manifest 方式へ改訂）**
 
 - 決定: 逐次 rename は I/O エラーには MNT-01-D1 で巻き戻せるが、プロセス中断・電源断には原子的でない。次の durable manifest + 起動時 reconcile で「元 snapshot または新 snapshot のどちらか一方が完全な形で残り再接続可能」の不変条件を再起動をまたいで保証する:
-  - **前提: single-instance 保証**。本契約は同時に 1 プロセスのみが restore / reconcile / legacy 移行を実行することを前提とする。single-instance ガード（`tauri-plugin-single-instance` 等）の導入を**実装 PR1 の前提条件**とし、ガードなしで本契約を実装してはならない — 固定名の manifest / 退避名は多重プロセスに対して防御せず、後発 attempt の退避 rename が先発 attempt の旧 main を置換し得る（Codex 再レビュー P1-3）
+  - **前提: single-instance 保証**。本契約は同時に 1 プロセスのみが restore / reconcile / legacy 移行を実行することを前提とする。single-instance ガード（`tauri-plugin-single-instance` 等）の導入を**実装 PR1 の前提条件**とし、ガードなしで本契約を実装してはならない — 固定名の manifest / 退避名は多重プロセスに対して防御せず、後発 attempt の退避 rename が先発 attempt の旧 main を置換し得る（Codex 再レビュー P1-3）。**実装 PR1 確定形**: `tauri-plugin-single-instance = 2.4.3` を Rust plugin として mutation を行う setup より先に登録する（npm guest bindings 不要）。plugin 初期化が失敗した場合は setup mutation へ進まず起動を fail-closed 中止する
   - restore は最初のファイル mutation より前に durable manifest `{db_path}.restore_manifest` を作成する。manifest は (a) 一意 attempt ID（診断・テスト固定用）、(b) **退避対象の存在集合**（`{db_path}` / `-wal` / `-shm` それぞれの退避開始時点での有無）、(c) **phase**（`active` = 作成時 / `committed` = 新接続確立済み）を記録する。**manifest の不在を「復元完了」の判定に使ってはならない** — 現行実装（manifest 導入前）も同じ固定退避名 `.restore_backup` を使っており（backup.rs:263）、manifest なしの退避遺物は「旧形式実装の任意時点中断の残骸（唯一の実データを含み得る）」と区別できない（Codex 再々レビュー P1-2）
   - **durability 契約**（Codex 再レビュー P1-2）: (a) manifest は「内容書込み → `sync_all` → 親 directory sync」の完了後にのみファイル mutation へ進む。(b) rename（退避・巻き戻し・元名復帰とも）は親 directory sync で永続化する。(c) 本体コピー完了後、`init_database` より前に新 main の `sync_all` + 親 directory sync を行う（userspace のコピー完了・page cache 経由の open 成功を永続化の根拠にしない）。(d) 成功時は新接続確立の直後（退避ファイル削除より前）に **phase=committed を原子的に durable 更新**（canonical 一時ファイル `{db_path}.restore_manifest.tmp` への書込み + `sync_all` + canonical 名への rename + 親 directory sync）する。cleanup は「退避ファイル群の unlink → **親 directory sync** → manifest unlink → 親 directory sync」の順で段階ごとに永続化する — 退避削除の永続化前に manifest を削除すると、電源断時の unlink 永続順序逆転で「manifest なし + 退避遺物あり」（fail-closed 行き）が**正常完了後に**出現し得る（Codex 第 4 round P2-1）。失敗時は巻き戻し完了後に manifest を durable 削除する。phase=committed の永続化前に退避ファイルを削除してはならない。(e) **cleanup 段階の失敗分類**（Codex 第 5 round P2-3 で精密化）: phase=committed への更新失敗は失敗点で 2 分する。(i) canonical 名への rename **前**の失敗（temp 書込み / sync / rename 自体の Err）= manifest は active **確定**。新接続を公開せず退避も削除せず Err — 次回起動の reconcile が active 一致分岐で旧データへ復帰する（既承認の巻き戻り受容窓と同じ挙動）。(ii) rename 成功**後**の親 directory sync 失敗 = **durability 不明**（名前空間上は committed 済みだが、電断をまたぐと active / committed のどちらへ回復するか確定できない）。新接続を公開せず退避も削除せず、unrecoverable（再起動必須）として返す — 事後状態を一意に断定せず、再起動時の reconcile が**実際に回復した canonical phase に従う**（active なら旧データ復帰、committed なら新 snapshot 採用。どちらも中核不変条件内）。この分類の operator 文言は**失敗を断定しない**: 「復元が完了したか確定できませんでした。アプリを再起動してください。」とし（unrecoverable 分類内の表示専用文言差し替え — 68 §68.7 の terminal 分岐・構造化識別子契約は不変）、結果は再起動後に確定する — 「失敗しました」と断定すると committed 回復（復元成功）時に事実と矛盾する（独立検証 round P2）。phase=committed 永続化後の cleanup 失敗（退避削除・manifest 削除）は復元成功を覆さない — committed manifest を残したまま新接続を返して warn を記録し、残骸は次回起動の reconcile（committed 分岐）が冪等に再処理する。ただし manifest unlink 成功後の親 directory sync 失敗では事後状態は「committed manifest 残置 **または** absent」のいずれか — committed なら次回 reconcile が再処理、absent なら（退避削除は既に durable のため）遺物なしの正常状態であり、どちらも安全に収束する。契約・テストはこの二値性を前提とし、単一状態を断定しない
   - 退避 rename は main → WAL → SHM の順で固定する（ファイル mutation は manifest 存在下でのみ行う）
@@ -239,15 +239,15 @@ fn restore_backup(
    a. 元名側の DB 一式（main / WAL / SHM すべて — この attempt が生成した信頼できない世代）を削除し、親 directory sync で永続化する
    b. manifest 記録集合の退避ファイルを rename で元名へ復帰する（`{db_path}.restore_backup` → `{db_path}`、WAL / SHM も記録集合に従う）
    c. 巻き戻し完了後に manifest を durable 削除する
-   d. `DbError::QueryFailed` を返す（元のDBファイルは復元済みだが、接続は呼び出し元が再確立する必要がある）
-   e. 巻き戻し（8a-8b）が失敗した場合 → `DbError::QueryFailed` で致命的エラー（manifest は削除しない — 次回起動の reconcile が解消する）
+   d. `RestoreError::Recovered` を返す（元のDBファイルは復元済みだが、接続は呼び出し元が再確立する必要がある）
+   e. 巻き戻し（8a-8b）が失敗した場合 → `RestoreError::Unrecoverable` で致命的エラー（manifest は削除しない — 次回起動の reconcile が解消する）
 
 **重要: 失敗時の契約**
 - `restore_backup` は失敗時に「退避復元済み」か「状態不明/未復旧」かを区別できる `Err` を返す（MNT-01-D4）。有効なDbConnectionは返さない
 - **CMD層が `?` で早期returnすると、Mutex内がdummy接続のまま残り、以降の全コマンドが失敗する**
 - CMD層は必ず `match` で処理する。`Err` パスの再接続は MNT-01-D4 に従う: 「退避復元済み」の場合のみ **no-create open** で再接続し、それ以外（状態不明/未復旧、または no-create 再接続の失敗）は unrecoverable（再起動誘導文言）を返す。create 能力のある `init_database` を復旧再接続に使ってはならない
 
-**CMD層での呼び出しパターン**（設計レベルの擬似コード。error 型の具体形は実装 PR1 で確定）:
+**CMD層での呼び出しパターン**（設計レベルの擬似コード。実装 PR1 の具体形は上記 `RestoreError` 3 variant + `CmdError.kind` 3 値）:
 ```
 let mut guard = state.db.lock().map_err(|_| CmdError::internal(...))?;
 let dummy = rusqlite::Connection::open_in_memory().map_err(...)?;
@@ -285,10 +285,10 @@ match mnt::backup::restore_backup(old_conn, &backup_path, &db_path) {
 ```
 
 **エラーハンドリング**:
-- バックアップファイル不在 → `DbError::NotFound`
+- バックアップファイル不在 → `RestoreError::Recovered`
 - コピー失敗 → 退避から復元を試みてから `Err` を返す
 - init_database失敗 → 退避から復元を試みてから `Err` を返す
-- 退避からの復元も失敗 → `DbError::QueryFailed`（致命的。アプリ再起動が必要）
+- 退避からの復元も失敗 → `RestoreError::Unrecoverable`（致命的。アプリ再起動が必要）
 - phase=committed 更新失敗（rename 前） → 新接続を公開せず退避も削除せず `Err`（manifest は active 確定、次回 reconcile が旧データへ復帰 — D5 (e)(i)）
 - phase=committed 更新の rename 後 directory sync 失敗 → durability 不明。新接続を公開せず退避も削除せず unrecoverable（再起動必須）を返す。再起動時の reconcile は実際に回復した canonical phase に従う — D5 (e)(ii)
 - committed 後の cleanup / 記録（退避削除・log INSERT・manifest 削除）失敗 → 復元成功のまま warn 記録 + 新接続を返す。committed manifest が残っていれば次回起動が退避掃除・冪等 INSERT・manifest 削除を再処理する。manifest unlink 成功後の final sync 失敗のみ事後状態は「committed 残置 / absent」の二値（log は 7c で INSERT 済みのためどちらでも記録は保全、absent なら再処理も不要）— D5 (e)

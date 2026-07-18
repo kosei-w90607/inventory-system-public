@@ -7,6 +7,28 @@
 use crate::db::{self, DbConnection, DbError, NewOperationLog};
 use std::path::{Path, PathBuf};
 
+pub use super::restore::RestoreError;
+
+/// バックアップ snapshot へ crash-consistent に置換する（MNT-01-D1/D4/D5）。
+pub fn restore_backup(
+    current_conn: DbConnection,
+    backup_path: &Path,
+    db_path: &Path,
+) -> Result<DbConnection, RestoreError> {
+    super::restore::restore_backup(current_conn, backup_path, db_path)
+}
+
+pub(crate) fn reconcile_restore(db_path: &Path) -> Result<(), RestoreError> {
+    super::restore::reconcile_restore(db_path).map(|_| ())
+}
+
+pub(crate) fn complete_reconciled_restore(
+    conn: &DbConnection,
+    db_path: &Path,
+) -> Result<(), RestoreError> {
+    super::restore::complete_reconciled_restore(conn, db_path)
+}
+
 // ---------------------------------------------------------------------------
 // 定数
 // ---------------------------------------------------------------------------
@@ -230,132 +252,6 @@ pub fn list_backups(backup_dir: &Path) -> Result<Vec<BackupInfo>, std::io::Error
     // 新しい順
     backups.sort_by(|a, b| b.created_at.cmp(&a.created_at));
     Ok(backups)
-}
-
-/// バックアップファイルからDBを復元する
-///
-/// 71-mnt-backup.md §71.7
-///
-/// `current_conn` の所有権を取得してdrop（ファイルロック解放）し、
-/// バックアップファイルで現在のDBを置き換えた後、新しい接続を返す。
-///
-/// **失敗時の契約**: Err時にDBファイルは退避から復元済みだが有効な接続は無い。
-/// CMD層が match で再接続する。
-pub fn restore_backup(
-    current_conn: DbConnection,
-    backup_path: &Path,
-    db_path: &Path,
-) -> Result<DbConnection, DbError> {
-    // 1. バックアップ存在確認
-    if !backup_path.exists() {
-        return Err(DbError::NotFound);
-    }
-
-    // 2. WALフラッシュ
-    if let Err(e) = current_conn.execute_batch("PRAGMA wal_checkpoint(TRUNCATE)") {
-        tracing::warn!(error = %e, "WALチェックポイントに失敗（続行）");
-    }
-
-    // 3. 接続をdrop（ファイルロック解放）
-    drop(current_conn);
-
-    // 4. 退避パス
-    let backup_suffix = ".restore_backup";
-    let db_backup = PathBuf::from(format!("{}{}", db_path.display(), backup_suffix));
-    let wal_path = PathBuf::from(format!("{}-wal", db_path.display()));
-    let shm_path = PathBuf::from(format!("{}-shm", db_path.display()));
-    let wal_backup = PathBuf::from(format!("{}-wal{}", db_path.display(), backup_suffix));
-    let shm_backup = PathBuf::from(format!("{}-shm{}", db_path.display(), backup_suffix));
-
-    // 5. 現在のDBを退避
-    if let Err(e) = std::fs::rename(db_path, &db_backup) {
-        return Err(DbError::QueryFailed(format!(
-            "DBファイルの退避に失敗: {}",
-            e
-        )));
-    }
-    // WAL/SHMは存在する場合のみ退避（失敗時はwarnで続行）
-    if wal_path.exists() {
-        if let Err(e) = std::fs::rename(&wal_path, &wal_backup) {
-            tracing::warn!(error = %e, "WALファイルの退避に失敗（続行）");
-        }
-    }
-    if shm_path.exists() {
-        if let Err(e) = std::fs::rename(&shm_path, &shm_backup) {
-            tracing::warn!(error = %e, "SHMファイルの退避に失敗（続行）");
-        }
-    }
-
-    // 6. バックアップをコピー → 新接続作成
-    let restore_result = (|| -> Result<DbConnection, DbError> {
-        std::fs::copy(backup_path, db_path).map_err(|e| {
-            DbError::QueryFailed(format!("バックアップファイルのコピーに失敗: {}", e))
-        })?;
-
-        let new_conn = db::init_database(
-            db_path
-                .to_str()
-                .ok_or_else(|| DbError::QueryFailed("DBパスの文字列変換に失敗".to_string()))?,
-        )?;
-
-        Ok(new_conn)
-    })();
-
-    match restore_result {
-        Ok(new_conn) => {
-            // 7a. 成功: 退避ファイルを削除
-            let _ = std::fs::remove_file(&db_backup);
-            let _ = std::fs::remove_file(&wal_backup);
-            let _ = std::fs::remove_file(&shm_backup);
-
-            // 操作ログ記録
-            let backup_name = backup_path
-                .file_name()
-                .map(|n| n.to_string_lossy().to_string())
-                .unwrap_or_default();
-            if let Err(e) = db::system_repo::insert_operation_log(
-                &new_conn,
-                &NewOperationLog {
-                    operation_type: "backup_restore".to_string(),
-                    summary: format!("バックアップから復元しました: {}", backup_name),
-                    detail_json: None,
-                },
-            ) {
-                tracing::warn!(error = %e, "リストア操作ログの記録に失敗");
-            }
-
-            Ok(new_conn)
-        }
-        Err(e) => {
-            // 7b. 失敗: 退避から復元
-            if db_backup.exists() {
-                // コピーに失敗した不完全なDBファイルを削除
-                let _ = std::fs::remove_file(db_path);
-                if let Err(e2) = std::fs::rename(&db_backup, db_path) {
-                    tracing::error!(
-                        error = %e2,
-                        "退避ファイルからの復元にも失敗（致命的）"
-                    );
-                    return Err(DbError::QueryFailed(format!(
-                        "バックアップの復元に失敗し、退避からの復元にも失敗: {} / {}",
-                        e, e2
-                    )));
-                }
-            }
-            if wal_backup.exists() {
-                if let Err(e2) = std::fs::rename(&wal_backup, &wal_path) {
-                    tracing::warn!(error = %e2, "WAL退避ファイルの復元に失敗");
-                }
-            }
-            if shm_backup.exists() {
-                if let Err(e2) = std::fs::rename(&shm_backup, &shm_path) {
-                    tracing::warn!(error = %e2, "SHM退避ファイルの復元に失敗");
-                }
-            }
-
-            Err(e)
-        }
-    }
 }
 
 /// 自動バックアップの条件を判定し、必要なら実行する
@@ -752,7 +648,7 @@ mod tests {
     fn test_restore_backup_req901_nonexistent_file() {
         // REQ-901: バックアップ
         // Task: MNT-01
-        // MNT-01: 存在しないファイルでNotFoundエラー
+        // MNT-01-D4: 存在しない復元対象は元接続を壊さない recoverable error
         let dir = tempfile::tempdir().unwrap();
         let db_path = dir.path().join("main.db");
         let conn = db::init_database(db_path.to_str().unwrap()).unwrap();
@@ -761,10 +657,7 @@ mod tests {
         let result = restore_backup(conn, &nonexistent, &db_path);
 
         assert!(result.is_err(), "エラーが返されるべき");
-        match result.unwrap_err() {
-            DbError::NotFound => {} // 期待通り
-            other => panic!("NotFoundが期待されるが、{:?} が返された", other),
-        }
+        assert!(matches!(result.unwrap_err(), RestoreError::Recovered(_)));
     }
 
     #[test]

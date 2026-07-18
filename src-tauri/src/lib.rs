@@ -11,6 +11,8 @@ pub mod db;
 mod io;
 #[allow(dead_code)]
 mod mnt;
+#[cfg(test)]
+mod test_tracing;
 
 // pub: dev tooling 専用のデモデータ seed ロジック。src/bin/seed_demo_data.rs と
 // tests/seed_test.rs から参照される
@@ -22,6 +24,143 @@ use mnt::diagnostic_log::DiagnosticLogConfig;
 use std::collections::HashMap;
 use std::sync::Mutex;
 use tauri::Manager;
+
+#[derive(Debug)]
+enum StartupDatabaseError {
+    RestoreReconcile(String),
+    LegacyMigration(String),
+    DatabaseInit(String),
+}
+
+impl std::fmt::Display for StartupDatabaseError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::RestoreReconcile(message)
+            | Self::LegacyMigration(message)
+            | Self::DatabaseInit(message) => formatter.write_str(message),
+        }
+    }
+}
+
+impl StartupDatabaseError {
+    fn operator_message(&self) -> Option<String> {
+        match self {
+            Self::RestoreReconcile(details) => Some(format!(
+                "前回の復元状態を安全に確定できませんでした。データ保護のため起動を中止します。\nアプリを再起動してください。繰り返し失敗する場合は管理者へ連絡してください。\n{details}"
+            )),
+            Self::LegacyMigration(details) => Some(format!(
+                "旧データは無事です。アプリを再起動すると移行を再試行します。\n繰り返し失敗する場合は管理者へ連絡してください。\n{details}"
+            )),
+            // 既存 init_database 失敗経路の可視化は本 PR の scope 外。
+            Self::DatabaseInit(_) => None,
+        }
+    }
+}
+
+fn prepare_database(app_data: &std::path::Path) -> Result<db::DbConnection, StartupDatabaseError> {
+    prepare_database_with(
+        app_data,
+        || {
+            std::env::current_dir()
+                .map_err(|error| format!("作業フォルダを確認できません: {error}"))
+        },
+        db::migrate_legacy_db,
+    )
+}
+
+fn prepare_database_with<C, F>(
+    app_data: &std::path::Path,
+    cwd: C,
+    migrate: F,
+) -> Result<db::DbConnection, StartupDatabaseError>
+where
+    C: FnOnce() -> Result<std::path::PathBuf, String>,
+    F: FnOnce(&std::path::Path, &std::path::Path) -> Result<bool, std::io::Error>,
+{
+    prepare_database_with_init(app_data, cwd, migrate, db::init_database)
+}
+
+fn prepare_database_with_init<C, F, I>(
+    app_data: &std::path::Path,
+    cwd: C,
+    migrate: F,
+    init: I,
+) -> Result<db::DbConnection, StartupDatabaseError>
+where
+    C: FnOnce() -> Result<std::path::PathBuf, String>,
+    F: FnOnce(&std::path::Path, &std::path::Path) -> Result<bool, std::io::Error>,
+    I: FnOnce(&str) -> Result<db::DbConnection, db::DbError>,
+{
+    let db_path = app_data.join("inventory.db");
+    mnt::backup::reconcile_restore(&db_path)
+        .map_err(|error| StartupDatabaseError::RestoreReconcile(error.to_string()))?;
+
+    let new_db_exists = db_path.try_exists().map_err(|error| {
+        StartupDatabaseError::LegacyMigration(format!("新DBの存在確認に失敗しました: {error}"))
+    })?;
+    if !new_db_exists {
+        let cwd = cwd().map_err(StartupDatabaseError::LegacyMigration)?;
+        match migrate(&cwd, app_data) {
+            Ok(true) => tracing::info!(
+                old_dir = %cwd.display(),
+                new_dir = %app_data.display(),
+                "既存DBを安全な単一snapshotへ移行しました（旧ファイルは保持）"
+            ),
+            Ok(false) => {}
+            Err(error) => {
+                return Err(StartupDatabaseError::LegacyMigration(format!(
+                    "旧DBの移行に失敗しました: {error}"
+                )))
+            }
+        }
+    }
+
+    let db_path_text = db_path.to_str().ok_or_else(|| {
+        StartupDatabaseError::DatabaseInit("DBパスの文字列変換に失敗".to_string())
+    })?;
+    let conn = init(db_path_text)
+        .map_err(|error| StartupDatabaseError::DatabaseInit(error.to_string()))?;
+    if let Err(error) = mnt::backup::complete_reconciled_restore(&conn, &db_path) {
+        // committed snapshot は利用可能。ログ補完/manifest cleanup は次回起動で再試行する。
+        tracing::warn!(%error, "復元後処理の補完を次回起動へ持ち越し");
+    }
+    Ok(conn)
+}
+
+fn record_pre_window_fatal(message: &str) {
+    tracing::error!(message, "pre-window initialization failed");
+}
+
+fn show_pre_window_fatal(message: &str) {
+    record_pre_window_fatal(message);
+    #[cfg(windows)]
+    {
+        use std::os::windows::ffi::OsStrExt;
+        use windows_sys::Win32::UI::WindowsAndMessaging::{MessageBoxW, MB_ICONERROR, MB_OK};
+
+        let title: Vec<u16> = std::ffi::OsStr::new("Inventory startup error")
+            .encode_wide()
+            .chain(std::iter::once(0))
+            .collect();
+        let body: Vec<u16> = std::ffi::OsStr::new(message)
+            .encode_wide()
+            .chain(std::iter::once(0))
+            .collect();
+        let dialog = std::thread::spawn(move || unsafe {
+            MessageBoxW(
+                std::ptr::null_mut(),
+                body.as_ptr(),
+                title.as_ptr(),
+                MB_OK | MB_ICONERROR,
+            )
+        });
+        if dialog.join().is_err() {
+            tracing::error!("pre-window error dialog thread panicked");
+        }
+    }
+    #[cfg(not(windows))]
+    eprintln!("起動できませんでした: {message}");
+}
 
 /// tauri-specta で TS 型 bindings を `src/lib/bindings.ts` に生成（ADR-002 / 2026-04-20 採用）
 ///
@@ -184,6 +323,250 @@ mod bindings_generation_tests {
         let normalized = std::fs::read_to_string(path).unwrap();
         assert_eq!(normalized, "type A = {\n\tfield: string,\n}\n");
     }
+
+    #[test]
+    fn test_startup_req903_m8_migration_error_stops_before_database_creation() {
+        // REQ-903 / Matrix M5, M8
+        let app_data = tempfile::tempdir().unwrap();
+        let cwd = tempfile::tempdir().unwrap();
+        let db_path = app_data.path().join("inventory.db");
+        let result = super::prepare_database_with(
+            app_data.path(),
+            || Ok(cwd.path().to_path_buf()),
+            |_old, _new| Err(std::io::Error::other("injected migration failure")),
+        );
+        let error = result.unwrap_err();
+        assert!(matches!(
+            &error,
+            super::StartupDatabaseError::LegacyMigration(_)
+        ));
+        assert!(
+            !db_path.exists(),
+            "init_database must not run after migration failure"
+        );
+
+        let cwd_error = super::prepare_database_with(
+            app_data.path(),
+            || Err("injected CWD failure".to_string()),
+            |_old, _new| Ok(false),
+        );
+        assert!(cwd_error.is_err());
+        assert!(!db_path.exists());
+
+        let message = error.operator_message().unwrap();
+        assert!(message.contains("旧データは無事です"));
+        assert!(message.contains("再起動すると移行を再試行"));
+        assert!(message.contains("管理者へ連絡"));
+        let (_, logs) = crate::test_tracing::capture(|| super::record_pre_window_fatal(&message));
+        assert!(logs.contains("ERROR"));
+        assert!(logs.contains("pre-window initialization failed"));
+    }
+
+    #[test]
+    fn test_startup_req901_b6_fail_closed_reconcile_is_operator_visible_before_init() {
+        // REQ-901 / Matrix B6: R3/R5/R7 は実 startup dispatcher で可視化され、DB初期化へ進まない。
+        for branch in ["r3", "r5", "r7"] {
+            let app_data = tempfile::tempdir().unwrap();
+            let db_path = app_data.path().join("inventory.db");
+            let manifest =
+                std::path::PathBuf::from(format!("{}.restore_manifest", db_path.display()));
+            let main_backup =
+                std::path::PathBuf::from(format!("{}.restore_backup", db_path.display()));
+            std::fs::write(&main_backup, b"must-survive").unwrap();
+            match branch {
+                "r3" => {
+                    std::fs::write(
+                        &manifest,
+                        br#"{"attempt_id":"r3","original_files":["main"],"phase":"active"}"#,
+                    )
+                    .unwrap();
+                    std::fs::write(
+                        format!("{}-wal.restore_backup", db_path.display()),
+                        b"unexpected",
+                    )
+                    .unwrap();
+                }
+                "r5" => {}
+                "r7" => std::fs::write(&manifest, b"not-json").unwrap(),
+                _ => unreachable!(),
+            }
+
+            let init_called = std::cell::Cell::new(false);
+            let result = super::prepare_database_with_init(
+                app_data.path(),
+                || panic!("CWD resolution must not run after reconcile failure"),
+                |_old, _new| panic!("migration must not run after reconcile failure"),
+                |_path| {
+                    init_called.set(true);
+                    panic!("DB init must not run after reconcile failure")
+                },
+            );
+            let error = result.unwrap_err();
+            assert!(matches!(
+                error,
+                super::StartupDatabaseError::RestoreReconcile(_)
+            ));
+            let message = error
+                .operator_message()
+                .expect("RestoreReconcile must be operator-visible");
+            assert!(message.contains("データ保護のため起動を中止"));
+            assert!(message.contains("アプリを再起動してください"));
+            assert!(message.contains("管理者へ連絡してください"));
+            assert!(!init_called.get(), "branch={branch}");
+            assert_eq!(std::fs::read(&main_backup).unwrap(), b"must-survive");
+        }
+    }
+
+    #[test]
+    fn test_startup_req903_m7_existing_new_db_does_not_resolve_cwd() {
+        // REQ-903 / Matrix M7: 新DB既存判定は CWD 非依存で先行する。
+        let app_data = tempfile::tempdir().unwrap();
+        let db_path = app_data.path().join("inventory.db");
+        drop(crate::db::init_database(db_path.to_str().unwrap()).unwrap());
+
+        let conn = super::prepare_database_with(
+            app_data.path(),
+            || Err("CWD must not be resolved".to_string()),
+            |_old, _new| panic!("migration must be skipped when the new DB exists"),
+        )
+        .unwrap();
+        drop(conn);
+    }
+
+    #[test]
+    fn test_startup_req901_b9_temp_artifacts_route_through_reconcile() {
+        // REQ-901 / Matrix B9: temp-only と canonical+temp は実 startup dispatcher で T0 を通る。
+        let app_data = tempfile::tempdir().unwrap();
+        let db_path = app_data.path().join("inventory.db");
+        let temp_path =
+            std::path::PathBuf::from(format!("{}.restore_manifest.tmp", db_path.display()));
+        std::fs::write(&temp_path, b"temp-only").unwrap();
+        drop(
+            super::prepare_database_with(
+                app_data.path(),
+                || Ok(app_data.path().to_path_buf()),
+                |_old, _new| Ok(false),
+            )
+            .unwrap(),
+        );
+        assert!(!temp_path.exists());
+
+        let conn = crate::db::open_existing_database(db_path.to_str().unwrap()).unwrap();
+        conn.execute(
+            "INSERT INTO suppliers (name, created_at) VALUES ('old', '2026-07-18T00:00:00')",
+            [],
+        )
+        .unwrap();
+        drop(conn);
+        let backup_path = std::path::PathBuf::from(format!("{}.restore_backup", db_path.display()));
+        let manifest_path =
+            std::path::PathBuf::from(format!("{}.restore_manifest", db_path.display()));
+        std::fs::rename(&db_path, &backup_path).unwrap();
+        std::fs::write(
+            &manifest_path,
+            br#"{"attempt_id":"startup-t0","original_files":["main"],"phase":"active"}"#,
+        )
+        .unwrap();
+        std::fs::write(&temp_path, b"stale-commit-temp").unwrap();
+
+        let reopened = super::prepare_database_with(
+            app_data.path(),
+            || Err("CWD must not be needed after reconcile restores main".to_string()),
+            |_old, _new| panic!("migration must not run after reconcile restores main"),
+        )
+        .unwrap();
+        let names: Vec<String> = reopened
+            .prepare("SELECT name FROM suppliers ORDER BY name")
+            .unwrap()
+            .query_map([], |row| row.get(0))
+            .unwrap()
+            .collect::<Result<_, _>>()
+            .unwrap();
+        assert_eq!(names, vec!["old"]);
+        assert!(!temp_path.exists() && !manifest_path.exists() && !backup_path.exists());
+    }
+
+    #[test]
+    fn test_startup_req901_b9_committed_marker_survives_init_failure_then_converges() {
+        // REQ-901 / Matrix B9: committed reconcile 後の init_database 失敗でも marker を再々起動へ残す。
+        let app_data = tempfile::tempdir().unwrap();
+        let db_path = app_data.path().join("inventory.db");
+        drop(crate::db::init_database(db_path.to_str().unwrap()).unwrap());
+        let manifest_path =
+            std::path::PathBuf::from(format!("{}.restore_manifest", db_path.display()));
+        std::fs::write(
+            &manifest_path,
+            br#"{"attempt_id":"init-retry","original_files":["main"],"phase":"committed"}"#,
+        )
+        .unwrap();
+
+        let failed = super::prepare_database_with_init(
+            app_data.path(),
+            || Err("CWD must not run".to_string()),
+            |_old, _new| panic!("migration must not run"),
+            |_path| {
+                Err(crate::db::DbError::ConnectionFailed(
+                    "injected init failure".into(),
+                ))
+            },
+        );
+        assert!(matches!(
+            failed,
+            Err(super::StartupDatabaseError::DatabaseInit(_))
+        ));
+        assert!(manifest_path.exists());
+
+        let conn = super::prepare_database_with(
+            app_data.path(),
+            || Err("CWD must not run".to_string()),
+            |_old, _new| panic!("migration must not run"),
+        )
+        .unwrap();
+        let count: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM operation_logs
+                 WHERE operation_type = 'backup_restore'
+                   AND json_extract(detail_json, '$.attempt_id') = 'init-retry'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(count, 1);
+        assert!(!manifest_path.exists());
+    }
+
+    #[test]
+    fn test_startup_req901_b10_guard_registration_precedes_mutation_setup() {
+        // REQ-901 / Matrix B10: source-order regression guard.
+        let source = include_str!("lib.rs");
+        let guard = source.find("tauri_plugin_single_instance::init").unwrap();
+        let setup = source.find(".setup(|app|").unwrap();
+        assert!(
+            guard < setup,
+            "single-instance guard must precede mutation setup"
+        );
+    }
+
+    #[test]
+    fn test_startup_req901_b11_guard_failure_prevents_mutation_setup() {
+        // REQ-901 / Matrix B11: injected guard plugin setup failure is observable and fail-closed.
+        use std::sync::atomic::{AtomicBool, Ordering};
+        static MUTATION_REACHED: AtomicBool = AtomicBool::new(false);
+        MUTATION_REACHED.store(false, Ordering::SeqCst);
+        let failing_guard =
+            tauri::plugin::Builder::<tauri::test::MockRuntime>::new("single-instance-guard")
+                .setup(|_, _| Err("injected single-instance initialization failure".into()))
+                .build();
+        let result = tauri::test::mock_builder()
+            .plugin(failing_guard)
+            .setup(|_| {
+                MUTATION_REACHED.store(true, Ordering::SeqCst);
+                Ok(())
+            })
+            .build(tauri::test::mock_context(tauri::test::noop_assets()));
+        assert!(result.is_err());
+        assert!(!MUTATION_REACHED.load(Ordering::SeqCst));
+    }
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -192,6 +575,13 @@ pub fn run() {
     export_specta_bindings();
 
     tauri::Builder::default()
+        // mutation を行う setup より先に single-instance guard を確立する。
+        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.show();
+                let _ = window.set_focus();
+            }
+        }))
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
@@ -217,26 +607,18 @@ pub fn run() {
                 tracing::warn!(error = %e, "古いログファイルの削除に失敗");
             }
 
-            // 3. 旧DBの移行フォールバック
-            // 旧実装では相対パス "inventory.db" を使用していたため、CWDにDBが残っている可能性がある。
-            if let Ok(cwd) = std::env::current_dir() {
-                match db::migrate_legacy_db(&cwd, &app_data) {
-                    Ok(true) => tracing::info!(
-                        old_dir = %cwd.display(),
-                        new_dir = %app_data.display(),
-                        "既存DBを移行しました（旧ファイルは手動削除してください）"
-                    ),
-                    Ok(false) => {} // 移行不要
-                    Err(e) => tracing::error!(
-                        error = %e,
-                        "旧DBの移行に失敗しました。手動でコピーしてください"
-                    ),
+            // 3-4. reconcile → legacy migration → DB初期化。いずれかの失敗は fail-closed。
+            let conn = match prepare_database(&app_data) {
+                Ok(conn) => conn,
+                Err(error) => {
+                    if let Some(message) = error.operator_message() {
+                        show_pre_window_fatal(&message);
+                    } else {
+                        tracing::error!(%error, "database initialization failed");
+                    }
+                    return Err(error.to_string().into());
                 }
-            }
-
-            // 4. DB初期化（app_data_dir 配下の絶対パス）
-            let db_path = app_data.join("inventory.db");
-            let conn = db::init_database(db_path.to_str().expect("DB パスの文字列変換に失敗"))?;
+            };
 
             // 5. 操作ログ自動削除（DB初期化後に実行。失敗してもアプリ起動は続行）
             if let Err(e) = mnt::log_manager::cleanup_old_logs(&conn) {
