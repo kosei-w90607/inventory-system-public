@@ -51,12 +51,15 @@ pub struct SaveImageResponse {
 // ---------------------------------------------------------------------------
 
 /// backup_dir を resolve するヘルパー（複数コマンドで共通）
-fn get_backup_dir(conn: &DbConnection, app_handle: &tauri::AppHandle) -> Result<PathBuf, CmdError> {
+fn get_backup_dir<R: tauri::Runtime>(
+    conn: &DbConnection,
+    app_handle: &tauri::AppHandle<R>,
+) -> Result<PathBuf, CmdError> {
     let app_data = app_handle
         .path()
         .app_data_dir()
         .map_err(|e| CmdError::internal(&format!("app_data_dir取得エラー: {}", e)))?;
-    Ok(backup::resolve_backup_dir(conn, &app_data))
+    backup::resolve_backup_dir(conn, &app_data).map_err(db_err)
 }
 
 /// DbError → CmdError::internal 変換ヘルパー
@@ -375,6 +378,21 @@ mod tests {
         let db_path = dir.path().join("test.db");
         let conn = db::init_database(db_path.to_str().unwrap()).unwrap();
         (dir, conn)
+    }
+
+    #[test]
+    fn test_get_backup_dir_req901_d2_maps_db_error_to_internal() {
+        // REQ-901 / MNT-01-D2 / Matrix C6
+        let (_dir, conn) = setup_test_db();
+        let app = tauri::test::mock_builder()
+            .build(tauri::test::mock_context(tauri::test::noop_assets()))
+            .unwrap();
+        let _failure = mnt_backup::fail_setting_read("backup_path");
+
+        let error = get_backup_dir(&conn, app.handle()).unwrap_err();
+
+        assert_eq!(error.kind, "internal");
+        assert!(error.message.contains("backup_path"));
     }
 
     #[test]

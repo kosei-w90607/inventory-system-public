@@ -270,6 +270,9 @@ Do not transcribe exact-HEAD SHA or test counts here (D-035/D-038 Evidence Owner
   - P2-1（E3b の oracle が v1 deferred BEGIN と v2/v3 BEGIN IMMEDIATE を混同）: 是正 = E3b を v1（write 文失敗 → ROLLBACK 分岐）に限定し、v2/v3 の BEGIN IMMEDIATE contention は「transaction 未開始の直接 Err（ROLLBACK 不要）」として oracle から明示除外。
   - P2-2（Negative Paths の dependency missing 行が fixture 条件 (2) の使用禁止と矛盾）: 是正 = D2 を注入手段候補から削除。
 - Plan Gate round 3（2026-07-19、同 Plan Reviewer 継続 context、対象 = 是正 commit `3cdcdd5`）: round 2 の 3 findings は **resolved 3/3**。thread-local failpoint 機構の妥当性 3 点（本番シグネチャ不変 / test 並列安全 / E2・E3・E4・E7・D2 の実現可能性）も実読ベースで成立と判定。最終 sweep で新規 P1/P2 = 0 — **Plan Gate 収束**。P3=1（C1 注入手段の記述と採用機構の対応が古い）は同 commit で 1 行明記により消化。
+- Writer 自己レビュー round 1（2026-07-19、契約正本 71 §71.5/§71.8/§71.9 + 22 §3.2 の各行 vs live 実装・テスト）: ROLLBACK 8 / COMMIT 3 箇所、Result 呼び出し元、cleanup 確定条件、FK 復元ゲートと再読取を走査。P1/P2=0。P3 相当の stale code comment 2 件（保持日数の既定条件 / schema_v2 の FK 復元条件）は同時修正。
+- Writer 自己レビュー round 2（2026-07-19、Matrix C1〜C8 / D1〜D5 / E1〜E7 + E3b と anti-tautology の再突合）: P2=1（E7 が inner success + 復元系失敗のみで、Matrix 指定の inner Err + 復元系 Err の併合分岐を未検証）を検出・accept。synthetic FK 不整合で inner Err を作る fixture へ E7 2 tests を強化し、一次 `FK整合性エラー` + 二次復元/再読取エラー + ERROR log を同時 assert。targeted 3 tests green、是正後 P1/P2=0。
+- R4 review-only sub-agent（2026-07-19、独立 context、live diff Contract Audit）: 初回 P1=0 / P2=1（Writer round 2 と同じ E7 二重失敗 fixture gap）。是正後 closure-only re-review で **RESOLVED / 未解決 0**。本番 `MigrationKind` / fn pointer 不変、ROLLBACK 8 / COMMIT 3、negative space、State Lifecycle、Data Safety、release cfg を確認。
 - Findings Freeze: not yet frozen; post-freeze exceptions: none.
 
 If R3 review-only sub-agent is skipped, record an explicit line beginning with `Review-only skipped because:` and the reason.

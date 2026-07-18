@@ -7,6 +7,50 @@
 use crate::db::{self, DbConnection, DbError, NewOperationLog};
 use std::path::{Path, PathBuf};
 
+#[cfg(test)]
+thread_local! {
+    static SETTING_READ_FAILURE: std::cell::RefCell<Option<String>> = const { std::cell::RefCell::new(None) };
+}
+
+#[cfg(test)]
+pub(crate) struct SettingReadFailureGuard {
+    previous: Option<String>,
+}
+
+#[cfg(test)]
+impl Drop for SettingReadFailureGuard {
+    fn drop(&mut self) {
+        SETTING_READ_FAILURE.with(|failure| {
+            *failure.borrow_mut() = self.previous.take();
+        });
+    }
+}
+
+#[cfg(test)]
+pub(crate) fn fail_setting_read(key: &str) -> SettingReadFailureGuard {
+    let previous = SETTING_READ_FAILURE.with(|failure| failure.replace(Some(key.to_string())));
+    SettingReadFailureGuard { previous }
+}
+
+fn get_backup_setting(conn: &DbConnection, key: &str) -> Result<Option<String>, DbError> {
+    #[cfg(test)]
+    {
+        SETTING_READ_FAILURE.with(|failure| {
+            if failure.borrow().as_deref() == Some(key) {
+                return Err(DbError::QueryFailed(format!(
+                    "injected setting read failure: {key}"
+                )));
+            }
+            db::system_repo::get_setting(conn, key)
+        })
+    }
+
+    #[cfg(not(test))]
+    {
+        db::system_repo::get_setting(conn, key)
+    }
+}
+
 pub use super::restore::RestoreError;
 
 /// バックアップ snapshot へ crash-consistent に置換する（MNT-01-D1/D4/D5）。
@@ -35,7 +79,7 @@ pub(crate) fn complete_reconciled_restore(
 
 const BACKUP_PREFIX: &str = "inventory_backup_";
 const BACKUP_EXT: &str = ".db";
-/// デフォルトのバックアップ保持日数（app_settingsから取得できない場合）
+/// デフォルトのバックアップ保持日数（設定行が存在しない場合）
 const DEFAULT_RETENTION_DAYS: u32 = 3;
 
 // ---------------------------------------------------------------------------
@@ -117,13 +161,11 @@ fn extract_datetime_from_backup(filename: &str) -> Option<String> {
 /// 71-mnt-backup.md §71.9
 ///
 /// app_settings の backup_path を優先し、未設定/空なら app_data/backups をデフォルトとする。
-pub fn resolve_backup_dir(conn: &DbConnection, app_data: &Path) -> PathBuf {
-    db::system_repo::get_setting(conn, "backup_path")
-        .ok()
-        .flatten()
+pub fn resolve_backup_dir(conn: &DbConnection, app_data: &Path) -> Result<PathBuf, DbError> {
+    Ok(get_backup_setting(conn, "backup_path")?
         .filter(|p| !p.is_empty())
         .map(PathBuf::from)
-        .unwrap_or_else(|| app_data.join("backups"))
+        .unwrap_or_else(|| app_data.join("backups")))
 }
 
 /// SQLiteデータベースの安全なバックアップを作成する
@@ -346,11 +388,27 @@ pub fn check_auto_backup(conn: &DbConnection, backup_dir: &Path) -> Result<bool,
 
 /// cleanup_old_backups を設定値で実行するヘルパー（エラーはwarnのみ）
 fn run_cleanup(conn: &DbConnection, backup_dir: &Path) {
-    let retention_days = db::system_repo::get_setting(conn, "backup_retention_days")
-        .ok()
-        .flatten()
-        .and_then(|s| s.parse::<u32>().ok())
-        .unwrap_or(DEFAULT_RETENTION_DAYS);
+    let retention_days = match get_backup_setting(conn, "backup_retention_days") {
+        Ok(Some(value)) => match value.parse::<u32>() {
+            Ok(days) => days,
+            Err(e) => {
+                tracing::warn!(
+                    backup_retention_days = %value,
+                    error = %e,
+                    "backup_retention_daysのparseに失敗（cleanupをスキップ）"
+                );
+                return;
+            }
+        },
+        Ok(None) => DEFAULT_RETENTION_DAYS,
+        Err(e) => {
+            tracing::warn!(
+                error = %e,
+                "backup_retention_daysの読取に失敗（cleanupをスキップ）"
+            );
+            return;
+        }
+    };
 
     if let Err(e) = cleanup_old_backups(backup_dir, retention_days) {
         tracing::warn!(error = %e, "古いバックアップの削除に失敗");
@@ -371,6 +429,156 @@ mod tests {
         let db_path = dir.path().join("test.db");
         let conn = db::init_database(db_path.to_str().unwrap()).unwrap();
         (dir, conn)
+    }
+
+    fn write_backup_days_old(backup_dir: &Path, days: i64) -> PathBuf {
+        std::fs::create_dir_all(backup_dir).unwrap();
+        let date = (chrono::Local::now().date_naive() - chrono::Duration::days(days))
+            .format("%Y%m%d")
+            .to_string();
+        let path = backup_dir.join(format!("{BACKUP_PREFIX}{date}_120000{BACKUP_EXT}"));
+        std::fs::write(&path, "synthetic backup").unwrap();
+        path
+    }
+
+    #[test]
+    fn test_resolve_backup_dir_req901_d2_propagates_db_error() {
+        // REQ-901 / MNT-01-D2 / Matrix C1
+        let (dir, conn) = setup_test_db();
+        let _failure = fail_setting_read("backup_path");
+
+        let result = resolve_backup_dir(&conn, dir.path());
+
+        assert!(
+            matches!(result, Err(DbError::QueryFailed(message)) if message.contains("backup_path"))
+        );
+    }
+
+    #[test]
+    fn test_resolve_backup_dir_req901_d2_defaults_when_missing() {
+        // REQ-901 / MNT-01-D2 / Matrix C2
+        let (dir, conn) = setup_test_db();
+        conn.execute("DELETE FROM app_settings WHERE key = 'backup_path'", [])
+            .unwrap();
+
+        assert_eq!(
+            resolve_backup_dir(&conn, dir.path()).unwrap(),
+            dir.path().join("backups")
+        );
+    }
+
+    #[test]
+    fn test_resolve_backup_dir_req901_d2_defaults_when_empty() {
+        // REQ-901 / MNT-01-D2 / Matrix C3
+        let (dir, conn) = setup_test_db();
+        db::system_repo::upsert_setting(&conn, "backup_path", "").unwrap();
+
+        assert_eq!(
+            resolve_backup_dir(&conn, dir.path()).unwrap(),
+            dir.path().join("backups")
+        );
+    }
+
+    #[test]
+    fn test_resolve_backup_dir_req901_d2_uses_configured_path() {
+        // REQ-901 / MNT-01-D2 / Matrix C4
+        let (dir, conn) = setup_test_db();
+        let configured = dir.path().join("configured-backups");
+        db::system_repo::upsert_setting(
+            &conn,
+            "backup_path",
+            configured.to_string_lossy().as_ref(),
+        )
+        .unwrap();
+
+        assert_eq!(resolve_backup_dir(&conn, dir.path()).unwrap(), configured);
+    }
+
+    #[test]
+    fn test_resolve_backup_dir_req901_d2_all_callers_handle_result_contract() {
+        // REQ-901 / MNT-01-D2 / Matrix C7
+        let lib = include_str!("../lib.rs");
+        let settings = include_str!("../cmd/settings_cmd.rs")
+            .split("#[cfg(test)]")
+            .next()
+            .unwrap();
+        assert_eq!(lib.matches("mnt::backup::resolve_backup_dir").count(), 1);
+        assert_eq!(settings.matches("backup::resolve_backup_dir").count(), 1);
+        assert!(lib.contains("match mnt::backup::resolve_backup_dir"));
+        assert!(settings.contains("backup::resolve_backup_dir(conn, &app_data).map_err(db_err)"));
+    }
+
+    #[test]
+    fn test_run_cleanup_req901_d3_missing_setting_uses_default() {
+        // REQ-901 / MNT-01-D3 / Matrix D1
+        let (dir, conn) = setup_test_db();
+        conn.execute(
+            "DELETE FROM app_settings WHERE key = 'backup_retention_days'",
+            [],
+        )
+        .unwrap();
+        let backup_dir = dir.path().join("backups");
+        let expired = write_backup_days_old(&backup_dir, 4);
+
+        run_cleanup(&conn, &backup_dir);
+
+        assert!(!expired.exists(), "未設定時は既定3日で削除するべき");
+    }
+
+    #[test]
+    fn test_check_auto_backup_req901_d3_db_error_skips_cleanup_but_keeps_backup() {
+        // REQ-901 / MNT-01-D3 / Matrix D2
+        let (dir, conn) = setup_test_db();
+        db::system_repo::upsert_setting(&conn, "backup_enabled", "1").unwrap();
+        let backup_dir = dir.path().join("backups");
+        let expired = write_backup_days_old(&backup_dir, 4);
+        let _failure = fail_setting_read("backup_retention_days");
+
+        let (result, logs) = crate::test_tracing::capture(|| check_auto_backup(&conn, &backup_dir));
+
+        assert!(result.unwrap(), "cleanup失敗でもbackup作成は成功するべき");
+        assert!(
+            expired.exists(),
+            "保持日数を読めない場合は削除してはならない"
+        );
+        assert!(
+            list_backups(&backup_dir).unwrap().len() >= 2,
+            "既存syntheticファイルに加えて新規backupが作成されるべき"
+        );
+        assert!(
+            logs.contains("WARN") && logs.contains("cleanup"),
+            "logs={logs:?}"
+        );
+    }
+
+    #[test]
+    fn test_run_cleanup_req901_d3_parse_error_skips_cleanup() {
+        // REQ-901 / MNT-01-D3 / Matrix D3
+        let (dir, conn) = setup_test_db();
+        db::system_repo::upsert_setting(&conn, "backup_retention_days", "abc").unwrap();
+        let backup_dir = dir.path().join("backups");
+        let expired = write_backup_days_old(&backup_dir, 4);
+
+        let (_, logs) = crate::test_tracing::capture(|| run_cleanup(&conn, &backup_dir));
+
+        assert!(expired.exists(), "parse不能時は削除してはならない");
+        assert!(
+            logs.contains("WARN") && logs.contains("parse"),
+            "logs={logs:?}"
+        );
+    }
+
+    #[test]
+    fn test_run_cleanup_req901_d3_uses_valid_retention() {
+        // REQ-901 / MNT-01-D3 / Matrix D4
+        let (dir, conn) = setup_test_db();
+        db::system_repo::upsert_setting(&conn, "backup_retention_days", "90").unwrap();
+        let backup_dir = dir.path().join("backups");
+        let four_days_old = write_backup_days_old(&backup_dir, 4);
+
+        run_cleanup(&conn, &backup_dir);
+
+        assert!(four_days_old.exists(), "設定した90日基準を使うべき");
     }
 
     // -----------------------------------------------------------------------

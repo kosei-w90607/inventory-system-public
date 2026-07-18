@@ -8,6 +8,7 @@
 //! - Custom: 関数側が TX管理 + schema_versions INSERT まで全責任を持つ
 //!   （PRAGMA操作等でTX外処理が必要な場合用）
 
+use super::migration_tx;
 use super::schema_v1;
 use super::schema_v2;
 use super::schema_v3;
@@ -90,26 +91,23 @@ fn apply_sql_migration(
         .map_err(|e| DbError::MigrationFailed(format!("v{} BEGIN失敗: {}", version, e)))?;
 
     if let Err(e) = conn.execute_batch(sql) {
-        conn.execute_batch("ROLLBACK;").ok();
-        return Err(DbError::MigrationFailed(format!(
-            "v{} ({}) SQL実行失敗: {}",
-            version, description, e
-        )));
+        return Err(migration_tx::rollback_after_error(
+            conn,
+            format!("v{} ({}) SQL実行失敗: {}", version, description, e),
+        ));
     }
 
     if let Err(e) = conn.execute(
         "INSERT INTO schema_versions (version, applied_at) VALUES (?1, ?2)",
         rusqlite::params![version, now],
     ) {
-        conn.execute_batch("ROLLBACK;").ok();
-        return Err(DbError::MigrationFailed(format!(
-            "v{} バージョン記録失敗: {}",
-            version, e
-        )));
+        return Err(migration_tx::rollback_after_error(
+            conn,
+            format!("v{} バージョン記録失敗: {}", version, e),
+        ));
     }
 
-    conn.execute_batch("COMMIT;")
-        .map_err(|e| DbError::MigrationFailed(format!("v{} COMMIT失敗: {}", version, e)))?;
+    migration_tx::commit_transaction(conn, &format!("v{} COMMIT失敗", version))?;
 
     Ok(())
 }
@@ -146,8 +144,184 @@ pub fn migrate(conn: &Connection) -> Result<(), DbError> {
 
 #[cfg(test)]
 mod tests {
-    use crate::db::{init_database, schema_v1, schema_v2};
+    use crate::db::{
+        init_database,
+        migration_tx::{self, FailurePoint},
+        schema_v1, schema_v2, DbError,
+    };
     use rusqlite::Connection;
+
+    fn setup_minimal_migration_db() -> Connection {
+        let conn = Connection::open_in_memory().unwrap();
+        conn.execute_batch(
+            "CREATE TABLE schema_versions (
+                version INTEGER PRIMARY KEY,
+                applied_at TEXT NOT NULL
+            );",
+        )
+        .unwrap();
+        conn
+    }
+
+    #[test]
+    fn test_apply_sql_migration_req903_d1_preserves_original_error_after_rollback() {
+        // REQ-903 / MNT-03-D1 / Matrix E1
+        let conn = setup_minimal_migration_db();
+
+        let error = super::apply_sql_migration(
+            &conn,
+            7,
+            "failure-sql-summary",
+            "CREATE TABLE transient(id INTEGER); INVALID SQL;",
+        )
+        .unwrap_err();
+
+        assert!(conn.is_autocommit());
+        assert!(matches!(error, DbError::MigrationFailed(message)
+            if message.contains("v7") && message.contains("failure-sql-summary")));
+    }
+
+    #[test]
+    fn test_apply_sql_migration_req903_d1_combines_rollback_failure() {
+        // REQ-903 / MNT-03-D1 / Matrix E2
+        let conn = setup_minimal_migration_db();
+        let _failure = migration_tx::fail_operations(&[FailurePoint::Rollback]);
+
+        let (result, logs) = crate::test_tracing::capture(|| {
+            super::apply_sql_migration(
+                &conn,
+                8,
+                "original-sql-error",
+                "CREATE TABLE transient(id INTEGER); INVALID SQL;",
+            )
+        });
+
+        let DbError::MigrationFailed(message) = result.unwrap_err() else {
+            panic!("MigrationFailedを期待")
+        };
+        assert!(message.contains("original-sql-error"), "message={message}");
+        assert!(
+            message.contains("injected ROLLBACK failure"),
+            "message={message}"
+        );
+        assert!(
+            message.contains("transaction 状態不明"),
+            "message={message}"
+        );
+        assert!(
+            logs.contains("ERROR") && logs.contains("ROLLBACK"),
+            "logs={logs:?}"
+        );
+    }
+
+    #[test]
+    fn test_apply_sql_migration_req903_d1_commit_failure_rolls_back_and_allows_retry() {
+        // REQ-903 / MNT-03-D1 / Matrix E3
+        let conn = setup_minimal_migration_db();
+        let failure = migration_tx::fail_operations(&[FailurePoint::Commit]);
+
+        let error = super::apply_sql_migration(
+            &conn,
+            9,
+            "commit-failure",
+            "CREATE TABLE committed_after_retry(id INTEGER);",
+        )
+        .unwrap_err();
+
+        let DbError::MigrationFailed(message) = error else {
+            panic!("MigrationFailedを期待")
+        };
+        assert!(message.contains("COMMIT") && message.contains("ROLLBACK"));
+        assert!(
+            conn.is_autocommit(),
+            "COMMIT失敗後にtransactionを閉じるべき"
+        );
+        drop(failure);
+
+        super::apply_sql_migration(
+            &conn,
+            9,
+            "commit-failure",
+            "CREATE TABLE committed_after_retry(id INTEGER);",
+        )
+        .unwrap();
+        assert!(conn.is_autocommit());
+    }
+
+    #[test]
+    fn test_apply_sql_migration_req903_d1_wal_writer_lock_fails_on_write_then_retries() {
+        // REQ-903 / MNT-03-D1 / Matrix E3b
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("wal-lock.db");
+        let writer = Connection::open(&path).unwrap();
+        let migrating = Connection::open(&path).unwrap();
+        writer
+            .execute_batch("PRAGMA journal_mode=WAL; PRAGMA busy_timeout=0;")
+            .unwrap();
+        migrating
+            .execute_batch(
+                "PRAGMA journal_mode=WAL;
+                 PRAGMA busy_timeout=0;
+                 CREATE TABLE schema_versions (
+                    version INTEGER PRIMARY KEY,
+                    applied_at TEXT NOT NULL
+                 );",
+            )
+            .unwrap();
+        writer
+            .execute_batch("BEGIN IMMEDIATE; CREATE TABLE writer_holds_lock(id INTEGER);")
+            .unwrap();
+
+        let error = super::apply_sql_migration(
+            &migrating,
+            10,
+            "wal-write-contention",
+            "CREATE TABLE succeeds_after_unlock(id INTEGER);",
+        )
+        .unwrap_err();
+        assert!(matches!(error, DbError::MigrationFailed(message)
+            if message.contains("SQL実行失敗") && message.contains("locked")));
+        assert!(
+            migrating.is_autocommit(),
+            "write失敗後はROLLBACK済みであるべき"
+        );
+
+        writer.execute_batch("ROLLBACK;").unwrap();
+        super::apply_sql_migration(
+            &migrating,
+            10,
+            "wal-write-contention",
+            "CREATE TABLE succeeds_after_unlock(id INTEGER);",
+        )
+        .unwrap();
+    }
+
+    #[test]
+    fn test_migration_req903_d1_all_transaction_sites_use_shared_helper() {
+        // REQ-903 / MNT-03-D1 / Matrix E6
+        let migration = include_str!("migration.rs")
+            .split("#[cfg(test)]")
+            .next()
+            .unwrap();
+        let schema_v2 = include_str!("schema_v2.rs")
+            .split("#[cfg(test)]")
+            .next()
+            .unwrap();
+        let schema_v3 = include_str!("schema_v3.rs")
+            .split("#[cfg(test)]")
+            .next()
+            .unwrap();
+        for source in [migration, schema_v2, schema_v3] {
+            assert!(!source.contains("execute_batch(\"ROLLBACK;\").ok()"));
+            assert!(!source.contains("execute_batch(\"COMMIT;\")"));
+        }
+        assert_eq!(migration.matches("rollback_after_error").count(), 2);
+        assert_eq!(schema_v2.matches("rollback_after_error").count(), 4);
+        assert_eq!(schema_v3.matches("rollback_after_error").count(), 2);
+        assert_eq!(migration.matches("commit_transaction").count(), 1);
+        assert_eq!(schema_v2.matches("commit_transaction").count(), 1);
+        assert_eq!(schema_v3.matches("commit_transaction").count(), 1);
+    }
 
     fn setup_v1_only_db() -> (tempfile::TempDir, Connection) {
         let dir = tempfile::tempdir().unwrap();

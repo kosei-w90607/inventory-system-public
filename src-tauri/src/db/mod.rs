@@ -9,6 +9,7 @@ pub mod inventory_common;
 pub mod inventory_repo;
 pub mod manual_sale_repo;
 pub mod migration;
+mod migration_tx;
 pub mod product_repo;
 pub mod receiving_repo;
 pub mod return_repo;

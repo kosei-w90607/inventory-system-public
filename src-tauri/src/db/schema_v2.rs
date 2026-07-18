@@ -7,7 +7,7 @@
 //! SQLite の ALTER TABLE ADD COLUMN は NOT NULL + デフォルト値なしに対応しないため、
 //! テーブル再作成方式で実装する。
 
-use super::DbError;
+use super::{migration_tx, DbError};
 use rusqlite::Connection;
 
 /// v2 マイグレーション: 冪等性カラム追加
@@ -24,7 +24,7 @@ use rusqlite::Connection;
 /// 7. PRAGMA foreign_key_check → 0件でなければ ROLLBACK + Err
 /// 8. schema_versions INSERT（version引数を使用）
 /// 9. COMMIT
-/// 10. PRAGMA foreign_keys を元の値に復元（成功/失敗問わず）
+/// 10. transaction 閉塞確認後、PRAGMA foreign_keys を元の値に復元して再読取検証
 pub fn apply_v2_idempotency(conn: &Connection, version: i64) -> Result<(), DbError> {
     // 1. 現在の foreign_keys 設定を保存
     let original_fk: i64 = conn
@@ -39,22 +39,43 @@ pub fn apply_v2_idempotency(conn: &Connection, version: i64) -> Result<(), DbErr
             DbError::MigrationFailed(format!("v{} foreign_keys=OFF失敗: {}", version, e))
         })?;
 
-    // 3-9 を inner で実行し、10 で必ず foreign_keys を復元
+    // 3-9 を inner で実行し、transaction 閉塞時だけ 10 の foreign_keys 復元へ進む
     let result = apply_v2_inner(conn, version);
 
-    // 10. foreign_keys を元の値に復元（成功/失敗問わず）
-    let restore_sql = format!("PRAGMA foreign_keys = {};", original_fk);
-    if let Err(e) = conn.execute_batch(&restore_sql) {
-        // 復元失敗はログに残すが、inner の結果を優先して返す
-        if result.is_ok() {
-            return Err(DbError::MigrationFailed(format!(
-                "v{} foreign_keys復元失敗: {}",
-                version, e
-            )));
-        }
+    // 10. transaction を閉じられない場合は復元を試みず、接続破棄必須として返す。
+    if !conn.is_autocommit() {
+        let original_error = result
+            .as_ref()
+            .err()
+            .map(ToString::to_string)
+            .unwrap_or_else(|| "migration result was unexpectedly successful".to_string());
+        tracing::error!(
+            version,
+            error = %original_error,
+            "migration transaction could not be closed; foreign_keys restore skipped and connection must be discarded"
+        );
+        return Err(DbError::MigrationFailed(format!(
+            "v{version} migration失敗: {original_error}（transaction 状態不明のためforeign_keysを復元せず、接続破棄必須）"
+        )));
     }
 
-    result
+    let restore_result = migration_tx::restore_foreign_keys(conn, version, original_fk);
+    match (result, restore_result) {
+        (Ok(()), Ok(())) => Ok(()),
+        (Err(error), Ok(())) => Err(error),
+        (Ok(()), Err(error)) => Err(error),
+        (Err(original_error), Err(restore_error)) => {
+            tracing::error!(
+                version,
+                error = %restore_error,
+                original_error = %original_error,
+                "migration failed and foreign_keys restore also failed"
+            );
+            Err(DbError::MigrationFailed(format!(
+                "{original_error}; foreign_keys復元失敗も発生: {restore_error}"
+            )))
+        }
+    }
 }
 
 /// v2 マイグレーションの本体（foreign_keys OFF/ON の間で実行される）
@@ -67,11 +88,10 @@ fn apply_v2_inner(conn: &Connection, version: i64) -> Result<(), DbError> {
 
     // 4-6. 4テーブル再作成
     if let Err(e) = recreate_tables(conn) {
-        conn.execute_batch("ROLLBACK;").ok();
-        return Err(DbError::MigrationFailed(format!(
-            "v{} テーブル再作成失敗: {}",
-            version, e
-        )));
+        return Err(migration_tx::rollback_after_error(
+            conn,
+            format!("v{} テーブル再作成失敗: {}", version, e),
+        ));
     }
 
     // 7. FK 整合性チェック
@@ -81,20 +101,18 @@ fn apply_v2_inner(conn: &Connection, version: i64) -> Result<(), DbError> {
         }) {
             Ok(count) => count,
             Err(e) => {
-                conn.execute_batch("ROLLBACK;").ok();
-                return Err(DbError::MigrationFailed(format!(
-                    "v{} FK整合性チェック実行失敗: {}",
-                    version, e
-                )));
+                return Err(migration_tx::rollback_after_error(
+                    conn,
+                    format!("v{} FK整合性チェック実行失敗: {}", version, e),
+                ));
             }
         };
 
     if fk_errors != 0 {
-        conn.execute_batch("ROLLBACK;").ok();
-        return Err(DbError::MigrationFailed(format!(
-            "v{} FK整合性エラー: {}件の違反を検出",
-            version, fk_errors
-        )));
+        return Err(migration_tx::rollback_after_error(
+            conn,
+            format!("v{} FK整合性エラー: {}件の違反を検出", version, fk_errors),
+        ));
     }
 
     // 8. schema_versions INSERT（version引数をプレースホルダ経由）
@@ -102,16 +120,14 @@ fn apply_v2_inner(conn: &Connection, version: i64) -> Result<(), DbError> {
         "INSERT INTO schema_versions (version, applied_at) VALUES (?1, ?2)",
         rusqlite::params![version, now],
     ) {
-        conn.execute_batch("ROLLBACK;").ok();
-        return Err(DbError::MigrationFailed(format!(
-            "v{} バージョン記録失敗: {}",
-            version, e
-        )));
+        return Err(migration_tx::rollback_after_error(
+            conn,
+            format!("v{} バージョン記録失敗: {}", version, e),
+        ));
     }
 
     // 9. COMMIT
-    conn.execute_batch("COMMIT;")
-        .map_err(|e| DbError::MigrationFailed(format!("v{} COMMIT失敗: {}", version, e)))?;
+    migration_tx::commit_transaction(conn, &format!("v{} COMMIT失敗", version))?;
 
     Ok(())
 }
@@ -208,6 +224,7 @@ fn recreate_tables(conn: &Connection) -> Result<(), rusqlite::Error> {
 #[cfg(test)]
 mod tests {
     use crate::db::init_database;
+    use crate::db::migration_tx::{self, FailurePoint};
     use crate::db::schema_v1;
     use crate::db::DbError;
     use rusqlite::Connection;
@@ -240,6 +257,109 @@ mod tests {
         .unwrap();
 
         (dir, conn)
+    }
+
+    fn insert_fk_violation(conn: &Connection) {
+        conn.execute_batch("PRAGMA foreign_keys = OFF;").unwrap();
+        conn.execute(
+            "INSERT INTO receiving_records (id, supplier_id, receiving_date, note, created_at) \
+             VALUES (99, 99999, '2026-04-06', 'synthetic FK violation', '2026-04-06T00:00:00')",
+            [],
+        )
+        .unwrap();
+        conn.execute_batch("PRAGMA foreign_keys = ON;").unwrap();
+    }
+
+    #[test]
+    fn test_v2_req903_d1_commit_and_rollback_failure_requires_connection_discard() {
+        // REQ-903 / MNT-03-D1 / Matrix E4
+        let (_dir, conn) = setup_v1_only_db();
+        let failures = migration_tx::fail_operations(&[
+            FailurePoint::Commit,
+            FailurePoint::Rollback,
+            FailurePoint::ForeignKeyRestore,
+        ]);
+
+        let (result, logs) = crate::test_tracing::capture(|| super::apply_v2_idempotency(&conn, 2));
+
+        let DbError::MigrationFailed(message) = result.unwrap_err() else {
+            panic!("MigrationFailedを期待")
+        };
+        assert!(
+            message.contains("transaction 状態不明"),
+            "message={message}"
+        );
+        assert!(message.contains("接続破棄必須"), "message={message}");
+        assert!(
+            !message.contains("foreign_keys restore"),
+            "transaction未閉塞時はFK復元を試みてはならない: {message}"
+        );
+        assert!(!conn.is_autocommit());
+        assert!(
+            logs.contains("ERROR") && logs.contains("ROLLBACK"),
+            "logs={logs:?}"
+        );
+
+        drop(failures);
+        conn.execute_batch("ROLLBACK;").unwrap();
+    }
+
+    #[test]
+    fn test_v2_req903_d1_foreign_keys_restore_is_verified() {
+        // REQ-903 / MNT-03-D1 / Matrix E5
+        let (_dir, conn) = setup_v1_only_db();
+        let _failure = migration_tx::fail_operations(&[FailurePoint::ForeignKeyRestoreNoop]);
+
+        let error = super::apply_v2_idempotency(&conn, 2).unwrap_err();
+
+        assert!(matches!(error, DbError::MigrationFailed(message)
+            if message.contains("foreign_keys復元検証失敗")
+                && message.contains("expected=1")
+                && message.contains("actual=0")));
+    }
+
+    #[test]
+    fn test_v2_req903_d1_foreign_keys_restore_failure_is_logged_and_reported() {
+        // REQ-903 / MNT-03-D1 / Matrix E7 (restore failure)
+        let (_dir, conn) = setup_v1_only_db();
+        insert_fk_violation(&conn);
+        let _failure = migration_tx::fail_operations(&[FailurePoint::ForeignKeyRestore]);
+
+        let (result, logs) = crate::test_tracing::capture(|| super::apply_v2_idempotency(&conn, 2));
+
+        let DbError::MigrationFailed(message) = result.unwrap_err() else {
+            panic!("MigrationFailedを期待")
+        };
+        assert!(
+            message.contains("FK整合性エラー") && message.contains("foreign_keys復元失敗"),
+            "message={message}"
+        );
+        assert!(
+            logs.contains("ERROR") && logs.contains("foreign_keys"),
+            "logs={logs:?}"
+        );
+    }
+
+    #[test]
+    fn test_v2_req903_d1_foreign_keys_verify_failure_is_logged_and_reported() {
+        // REQ-903 / MNT-03-D1 / Matrix E7 (re-read failure)
+        let (_dir, conn) = setup_v1_only_db();
+        insert_fk_violation(&conn);
+        let _failure = migration_tx::fail_operations(&[FailurePoint::ForeignKeyVerify]);
+
+        let (result, logs) = crate::test_tracing::capture(|| super::apply_v2_idempotency(&conn, 2));
+
+        let DbError::MigrationFailed(message) = result.unwrap_err() else {
+            panic!("MigrationFailedを期待")
+        };
+        assert!(
+            message.contains("FK整合性エラー") && message.contains("foreign_keys再読取失敗"),
+            "message={message}"
+        );
+        assert!(
+            logs.contains("ERROR") && logs.contains("foreign_keys"),
+            "logs={logs:?}"
+        );
     }
 
     /// 新規DBでv1→v2が正常適用されること
@@ -546,14 +666,7 @@ mod tests {
         let (_dir, conn) = setup_v1_only_db();
 
         // FK不整合データを注入: 存在しない supplier_id = 99999
-        conn.execute_batch("PRAGMA foreign_keys = OFF;").unwrap();
-        conn.execute(
-            "INSERT INTO receiving_records (id, supplier_id, receiving_date, note, created_at) \
-             VALUES (99, 99999, '2026-04-06', 'FK違反テスト', '2026-04-06T00:00:00')",
-            [],
-        )
-        .unwrap();
-        conn.execute_batch("PRAGMA foreign_keys = ON;").unwrap();
+        insert_fk_violation(&conn);
 
         // v2 migration 実行 → FK check で失敗するはず
         let result = super::apply_v2_idempotency(&conn, 2);
