@@ -4,17 +4,19 @@ use std::sync::{Arc, Mutex, Once, OnceLock};
 use std::thread::ThreadId;
 use tracing_subscriber::fmt::MakeWriter;
 
+type CapturedBuffers = Arc<Mutex<HashMap<ThreadId, Vec<u8>>>>;
+
 static INSTALL_SUBSCRIBER: Once = Once::new();
-static CAPTURED_BYTES: OnceLock<Arc<Mutex<HashMap<ThreadId, Vec<u8>>>>> = OnceLock::new();
+static CAPTURED_BYTES: OnceLock<CapturedBuffers> = OnceLock::new();
 
 #[derive(Clone)]
 struct CapturedWriter {
-    bytes: Arc<Mutex<HashMap<ThreadId, Vec<u8>>>>,
+    bytes: CapturedBuffers,
 }
 
 struct CapturedWriteGuard {
     thread_id: ThreadId,
-    bytes: Arc<Mutex<HashMap<ThreadId, Vec<u8>>>>,
+    bytes: CapturedBuffers,
 }
 
 impl<'a> MakeWriter<'a> for CapturedWriter {
