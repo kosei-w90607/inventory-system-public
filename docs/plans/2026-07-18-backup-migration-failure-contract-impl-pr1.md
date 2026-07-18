@@ -21,7 +21,7 @@
 
 - 介入回数上限: 4（内訳: (1) R4 発注承認 (2) Codex 実行 relay (3) Ready 承認 (4) Windows native L3 実機確認 + merge。既定 3 から調整 — 実装を Codex 外部実行する本 packet では relay が介入として必ず挟まるため）
 - 実働時間上限: 40分（L3 実機確認を含む）
-- relay 往復上限: 2
+- relay 往復上限: 3（既定 2 から調整。理由: Contract Audit 2 pass が P2×4 を検出し是正 round が必要になったため +1。Double Audit の設計上想定される経路であり scope 拡張ではない）
 
 既定値と超過時の Coordinator 責務は `docs/DEV_WORKFLOW.md` `Owner Effort Budget` 参照。
 承認依頼フォーマット: `この change での介入 N 回目 / 予算 M 回` + `承認すると利用者から見て何が完了するか1文`。
@@ -291,4 +291,13 @@ Do not transcribe exact-HEAD SHA or test counts here (D-035/D-038 Evidence Owner
   - 実装急所の実査: settings_cmd 復旧経路 = `RestoreError` 3 variant → kind 写像 + Recovered のみ no-create `open_existing_database`（`init_database` 残存は全て `#[cfg(test)]` 内）/ db/mod.rs = READ_WRITE only open + `VACUUM INTO` + `hard_link` no-clobber / `rg "message.includes" src/features/backup-restore/` 0 件 / PR2 対象（migration.rs / schema_v2 / schema_v3 / resolve_backup_dir / cleanup / retention）diff なし。
   - Probe 4 件の結果は Amendment `1135628` で packet 確定済み。X1 mutation 5 種の red 抜粋を Writer 報告で受領。
   - 残タスク: 2 pass（Codex 独立 Contract Audit、Ledger 全行再検証 + negative-space + drift-fix sweep + adjacent pattern + mutation check）は未実施 — waive せず発注する（PR #15 教訓）。
+- Contract Audit 2 pass round 1（Codex 独立 fresh context、2026-07-18、対象 HEAD `5155f65` / content `7ddf5e4`）: P1 = 0 / P2 = 4 / P3 = 3、verdict「Request changes」。X1 5 種 + 独立追加 3 種の mutation 全 red 実証、Ledger 9 行独立再検証（不適合 2 / 部分適合 1）、oracle 変更 5 件の第三者再裁定 = 全 accept。Coordinator 裁定 = **7 件全 accept**（P2-1/P2-2 は Coordinator がコード実文で追認、P2-3/P2-4 は survivor mutation の実出力を証跡として採用）:
+  - P2-1（publish 成功後の staging unlink 失敗を `Ok(true)` 化）: accept。是正方向の裁定 = 22 §12.3 の文言どおり **Err（fail-closed）**。restore の committed 後 cleanup（warn + 続行）と同型に見えるが、restore には committed manifest の収束機構があるのに対し `.migrating` 残骸には収束機構がなく、Err でも次回起動の「新 DB 既存 → skip」で自己回復する（D-048 柱①と整合）。22 §12.3 に post-publish unlink 失敗の適用明確化を 1 行追記（amendment 扱い）+ 専用 failpoint テスト + 再起動 self-heal テストを追加。
+  - P2-2（log 補完の exact match が先行 row decode error に負ける）: accept。71:201 の集約順序どおり decode error をフラグ保持で全行走査し、AlreadyPresent > Failed > NoMatch の順で裁定する形へ修正。
+  - P2-3（failpoint が filename 判定のため旧 DB 存在確認 error が未検証、survivor mutation あり）: accept。new/old path 別 failpoint + 独立テスト分割。
+  - P2-4（R3/R5/R7 の operator 可視化が startup dispatcher 経由で未検証、survivor mutation あり）: accept。実 dispatcher 経由で RestoreReconcile 文言 + DB 初期化不到達を一体 assert する統合テスト追加。
+  - P3-1（71 §71.7 シグネチャ・step 1/4/8 の `DbError` 残存が確定形 `RestoreError` と矛盾）: accept。書き戻し残の drift、統一。
+  - P3-2（hard-link 確定後の「rename」用語残存、22 §12.3/12.5 + Matrix 含む）: accept。repo 全体 grep で一括置換（publish/link 失敗と post-link unlink 失敗の識別子分離を含む）。
+  - P3-3（M8/B12 の診断ログ oracle 未固定）: accept。tracing capture で severity + 固定 event 文言を assert。
+  - 是正は Writer（Codex 実装セッション）に発注し、是正後に 2 pass round 2（差分再監査、独立 context)で収束を確認する。relay 上限は +1 調整済み（Owner Effort Budget 参照）。
 - Findings Freeze: not yet frozen; post-freeze exceptions: none.
