@@ -6,7 +6,7 @@
 - Risk: R4
 - Execution Mode: fable-window
 - Plan Commit: d9f7b53
-- Amendments: none
+- Amendments: 1（`1135628` Contract Probe #1〜#4 結果確定。件数は列挙 SHA と一致させる）
 - Coordinator: Fable 5（本 session）
 - Writer: Codex（実装・テスト・bindings 再生成。発注 cwd は public-writer clone に pin）
 - Plan Reviewer: Sonnet subagent（独立 context）
@@ -285,4 +285,10 @@ Do not transcribe exact-HEAD SHA or test counts here (D-035/D-038 Evidence Owner
   - P3-3（Final Reviewer 欄の書式逸脱）: accept。役割名のみに簡潔化、Double Audit 定義は AC へ一本化。
   - P3-4（Budget 介入 4 の内訳が再確認不能）: accept。内訳 4 件の明示列挙 + 調整理由（Codex relay の介入化）へ書き直し。
 - Plan Gate round 3（同 Plan Reviewer、差分最終確認、2026-07-18）: round 2 対応 6 件の全件クローズを確認（B12 期待値は 71 §71.7 二重失敗契約の原文と再突合済み、F2/M5/B12 の旧帰属残存なし）。P1 = 0 / P2 = 0 / P3 = 1（Ledger D5 行と Trace の B12 帰属非対称、non-blocking）、verdict「plan-gate 通過可」。P3 は accept し Ledger D5 行へ B12 を「D1 行と共有」注記付きで追加、Trace と帰属を完全一致させた。
+- Contract Audit 1 pass（Fable inline 契約突合、2026-07-18、対象 HEAD `7ddf5e4`）: P1 = 0 / P2 = 0。判定材料:
+  - **oracle 変更 5 件の裁定 = 全件 accept**。各件を正本の実文と突合 — 件1 R1 世代削除（71:198「必ず除去する」と一致）/ 件2 補完 3 値分類（71:201 の行分類・集約順序と一致）/ 件3 checkpoint SQL Err warn 継続（71:163・175「退避成功時に限り非致命」と一致、旧 oracle が正本違反）/ 件4 lazy CWD（22:193「新 DB 既存 → skip は CWD に依存しないため先に判定」— 本 PR の書き戻し diff に**含まれない既存正本**であることを確認、循環正当化なし）/ 件5 durability 不明文言（71:195 の正本文言と完全一致）。
+  - 設計書書き戻し 4 本（71/22/68/43）の全 hunk が「実装 PR1 確定形」の留保箇所のみで、既存契約の書き換えなし。
+  - 実装急所の実査: settings_cmd 復旧経路 = `RestoreError` 3 variant → kind 写像 + Recovered のみ no-create `open_existing_database`（`init_database` 残存は全て `#[cfg(test)]` 内）/ db/mod.rs = READ_WRITE only open + `VACUUM INTO` + `hard_link` no-clobber / `rg "message.includes" src/features/backup-restore/` 0 件 / PR2 対象（migration.rs / schema_v2 / schema_v3 / resolve_backup_dir / cleanup / retention）diff なし。
+  - Probe 4 件の結果は Amendment `1135628` で packet 確定済み。X1 mutation 5 種の red 抜粋を Writer 報告で受領。
+  - 残タスク: 2 pass（Codex 独立 Contract Audit、Ledger 全行再検証 + negative-space + drift-fix sweep + adjacent pattern + mutation check）は未実施 — waive せず発注する（PR #15 教訓）。
 - Findings Freeze: not yet frozen; post-freeze exceptions: none.
