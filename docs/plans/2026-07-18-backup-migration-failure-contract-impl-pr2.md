@@ -190,6 +190,8 @@ Minimum design checks for business-app work:
 | MNT-01-D3: DB error / parse 失敗は cleanup skip + warn、削除実行しない | `mnt/backup.rs` `run_cleanup` | Matrix D2 / D3 | non-scope（自動化） |
 | MNT-01-D3: cleanup の成否・skip はバックアップ作成の成否に影響しない | `mnt/backup.rs` `check_auto_backup` | Matrix D2（backup 成功 + 削除 0 件の同時 assert） | non-scope（自動化） |
 | 71 §71.8 check_auto_backup 判定手順（既存挙動維持） | 変更最小化 | Matrix G1（既存テスト green） | non-scope（回帰） |
+| 71 §71.5 ステップ2a-2d: ファイル名 `inventory_backup_YYYYMMDD_HHMMSS.db` 完全一致のみ削除対象（gated amendment: Double Audit 2 pass P1 で Ledger 欠落 + 既存実装欠陥を検出、same-PR 是正） | `mnt/backup.rs` `extract_date_from_backup` | Matrix D5a | non-scope（自動化） |
+| 71 §71.5 ステップ2g: 個別ファイルの削除失敗は warn + 次ファイル継続（gated amendment: 同 2 pass P2） | `mnt/backup.rs` `cleanup_old_backups` | Matrix D5b | non-scope（自動化） |
 | MNT-03-D1: ROLLBACK 失敗は tracing::error! 記録 + 元エラーと併合 + transaction 状態不明の明示 | `db/` 共通ヘルパー | Matrix E2 | non-scope（自動化） |
 | MNT-03-D1: 共通ヘルパーを全 ROLLBACK 8 箇所へ適用、個別再実装なし | `migration.rs` ×2 / `schema_v2.rs` ×4 / `schema_v3.rs` ×2 | Matrix E6（全箇所 enumeration） | non-scope（自動化 + Adjacent Pattern Audit） |
 | MNT-03-D1: COMMIT 失敗時は is_autocommit 確認 + transaction 中なら ROLLBACK 試行 + 併合報告 | `migration.rs` / `schema_v2.rs` / `schema_v3.rs` COMMIT 3 箇所 | Matrix E3（注入）/ E3b（WAL 実 lock の顕在化位置回帰）/ E6（COMMIT 3 箇所の enumeration） | non-scope（自動化 + Adjacent Pattern Audit） |
@@ -276,6 +278,12 @@ Do not transcribe exact-HEAD SHA or test counts here (D-035/D-038 Evidence Owner
 - R4 review-only sub-agent（2026-07-19、独立 context、live diff Contract Audit）: 初回 P1=0 / P2=1（Writer round 2 と同じ E7 二重失敗 fixture gap）。是正後 closure-only re-review で **RESOLVED / 未解決 0**。本番 `MigrationKind` / fn pointer 不変、ROLLBACK 8 / COMMIT 3、negative space、State Lifecycle、Data Safety、release cfg を確認。
 - Coordinator 記録訂正（2026-07-19）: Implementation Results の「R4 Double Audit はいずれも完了し」は Writer 内部の review-only sub-agent を指しており、本 packet AC が定義する Double Audit（1 pass = Fable inline / 2 pass = Codex 独立 fresh context）とは別物。AC 上の Double Audit は下記のとおり本記録以降に実施する。
 - Double Audit 1 pass（2026-07-19、Fable inline、対象 = content HEAD `fe2441d` の実装・テスト vs 71 §71.5/71.8/71.9 + 22 §3.2 + D-048）: **blocker なし（P1/P2 = 0）**。確認事項 = migration_tx.rs の併合規則・is_autocommit 2 文脈・FK 復元ゲート + 再読取検証 + no-op 注入 oracle / ROLLBACK 8 + COMMIT 3 箇所の共通ヘルパー全適用（source-scan テストによる機械固定 = E6 自動化を確認）/ resolve_backup_dir の Err 伝搬と fallback 限定 + 呼び出し元 2 系統の契約 / run_cleanup の (a)(b) 確定条件・skip + warn・backup 成否非影響（D2 は check_auto_backup 実経路で同時 assert）/ E3b の実 2 接続 WAL contention oracle / 裸 ROLLBACK・`.ok()` 握りつぶし残存ゼロ（テスト fixture 除く）/ Cargo.toml 依存追加なし / packet への Writer 追記が append-only 節に限定されること（zero-context hunk 確認）。L1 full evidence = PASS / CLEAN / MERGE_EVIDENCE_VALID=true（SHA は PR body 正本）。
-- Findings Freeze: not yet frozen; post-freeze exceptions: none（Double Audit 2 pass 完了時に発効）.
+- Double Audit 2 pass（2026-07-19、Codex 独立 fresh context、対象 = git diff fe63252..fe2441d + 契約正本直読 + 実 mutation 再実行）: P1=1 / P2=2 / P3=0、**全件 Coordinator 実証裁定で accept**。
+  - P1（`extract_date_from_backup` が separator/HHMMSS を検証せず非 timestamp suffix を削除対象化）: 実文 + LSP 参照確認で確定。**既存欠陥**（plan-first `fe63252` 時点に同一実装 = PR2 非起因）だが、§71.5 は本 PR の touched contract（cleanup 駆動）であり R4 削除経路のため same-PR fix。Ledger 欠落は gated amendment で §71.5 2 行を追加。
+  - P2-1（E3 oracle が実 commit_error の併合を検証しない — 2 pass の独自 mutation N1 が green で立証）: accept。E3 assert へ `injected COMMIT failure` + `ROLLBACK 成功` の実文検証を追加。drift-fix sweep で弱 assert は repo 内 1 箇所のみと確認。
+  - P2-2（削除失敗 warn + 継続の未検証 — 独自 mutation N2 が green で立証）: accept。D5b 新設（ディレクトリによる決定論的 remove_file 失敗）。
+  - 是正実装 = Coordinator 直接（2 file の軽微修正。owner effort budget 内で完結させるための conductor-mode 例外適用。自己承認を避けるため closure は独立 reviewer が指定した oracle への機械的再検証で判定）。是正 commit `5479d06`、全 gate green（fmt / clippy / cargo test / `cargo check --release`）。
+  - Closure 再検証（Coordinator、実 mutation 注入）: mutation A（検証を日付のみへ戻す）→ D5a red / mutation B（併合から commit_error 除去 = 2 pass N1）→ E3 red / mutation C（warn 除去 = 2 pass N2）→ D5b red。**3/3 red を実証、全 mutation revert 済み・tree clean**。2 pass の他の確認事項（ROLLBACK 8 + COMMIT 3 + FK 復元 + 呼出し元 + 層境界 + release への failpoint 漏出なし）は一致報告のため追加対応なし。
+- Findings Freeze: **frozen after Broad Audit**（Double Audit 両 pass + closure 完了、2026-07-19 発効）; post-freeze exceptions: none.
 
 If R3 review-only sub-agent is skipped, record an explicit line beginning with `Review-only skipped because:` and the reason.

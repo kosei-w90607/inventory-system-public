@@ -42,7 +42,9 @@ fixture / 注入の必須条件: (1) cleanup テストの削除対象は temp di
 | D2 | MNT-01-D3 | DB error → 既定日数 fallback | integration（`check_auto_backup` 実経路） | key 選択的注入で `backup_retention_days` の読取のみ DB error（`backup_enabled` 等の先行読取は成功）+ 期限超過ファイルあり + backup 作成条件成立の状態で `check_auto_backup` を呼ぶ | **削除 0 件** + `tracing::warn!` 記録 + **backup ファイルが実際に作成される**（同時 assert — 個別関数直呼びでは cleanup 失敗が backup を巻き込む回帰を検出できないため実経路必須）。`unwrap_or(3)` に戻すと red |
 | D3 | MNT-01-D3 | parse 失敗 → 既定日数 fallback | unit | `backup_retention_days` = `"abc"` + 期限超過ファイルあり | **削除 0 件** + warn 記録。parse 失敗を既定適用にすると red |
 | D4 | MNT-01-D3 (a) | 確定値の無視 | unit | `backup_retention_days` = `"90"` + 4 日前ファイル | 削除 0 件（90 日基準）。既定 3 日で上書きする実装だと red（4 日前ファイルが消えて検出） |
-| D5 | MNT-01-D3 | — | regression | 既存 cleanup テスト（`test_cleanup_old_backups_req901_*`） | green 維持（期限超過削除・パターン不一致 skip 等） |
+| D5 | MNT-01-D3 | — | regression | 既存 cleanup テスト（`test_cleanup_old_backups_req901_*`） | green 維持（期限超過削除・保持期間内保持。**訂正**: 起票時に「パターン不一致 skip」を既存テストと記載したが実在しなかった — Double Audit 2 pass が検出し D5a/D5b として新設） |
+| D5a | 71 §71.5 2a-2d | 非 timestamp suffix の誤削除（既存欠陥、2 pass P1） | unit | 10 日前日付の `_manual` suffix / separator 不一致ファイルを置いて cleanup | 削除 0 件 + 両ファイル残存（`test_cleanup_old_backups_req901_skips_non_timestamp_suffix`）。検証を日付のみへ戻す mutation で red（closure 実証済み） |
+| D5b | 71 §71.5 2g | 削除失敗の無言中断/無記録（2 pass P2） | unit | パターン一致名のディレクトリ（remove_file 決定論的失敗）+ 通常削除対象を併置 | `Ok(1)` + 失敗対象残存 + 後続削除継続 + WARN 記録（`test_cleanup_old_backups_req901_warns_and_continues_on_delete_failure`）。warn 除去 mutation で red（closure 実証済み） |
 
 ### migration ROLLBACK / COMMIT / FK 復元（MNT-03-D1）
 
