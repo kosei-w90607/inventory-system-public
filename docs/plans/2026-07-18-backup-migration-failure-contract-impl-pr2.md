@@ -2,10 +2,10 @@
 
 ## Workflow State
 
-- Phase: plan-gate
+- Phase: implementing
 - Risk: R4
 - Execution Mode: fable-window
-- Plan Commit: pending
+- Plan Commit: fe63252
 - Amendments: none
 - Coordinator: Fable 5（本 session）
 - Writer: Codex（実装・テスト。発注 cwd は public-writer clone `/home/kosei/Projects/inventory-system-public` に pin）
@@ -14,8 +14,9 @@
 - Reviewed Content HEAD: pending
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
-- Human Gate: pending（(1) R4 explicit approval = Codex 発注前 (2) Ready 承認 (3) merge。Windows native L3 は本 packet の判断により不要 — Manual verification lens 参照）
+- Human Gate: (1) R4 explicit approval = **済み**（2026-07-19、owner 承認、介入 1 回目 / 予算 3 回。Windows native L3 不要判断も同承認に同梱）。pending = (2) Ready 承認 (3) merge
 - State Narrative（append-only）: 本 packet の plan-first commit で `kickoff -> spec-check -> plan-draft -> plan-gate` を実体化。evidence: spec-check = Risk R4 の分類記録（本 packet Risk 節、[adjudication](../research/audit-2026-07/adjudication.md) の是正順 1+2 R4 付与を継承）/ plan-draft への skip = Design Readiness が既存設計正本（PR #14 で確定済みの 71 §71.8/71.9 + 22 §3.2 + D-048）を十分と引用（許可された唯一の skip 経路）/ plan-gate = packet + Test Design Matrix complete and committed（本 commit）。
+- State Narrative 追記（append-only、2026-07-19）: state-only commit で隣接 forward 2 遷移 `plan-gate -> plan-approved -> implementing` を実体化。evidence: plan-approved = Plan Gate 独立 3 round 収束（round 3 で resolved 3/3 + 新規 P1/P2 = 0、Review Response 参照）+ `Plan Commit` = plan-first commit `fe63252` 記入（実装 commit は本遷移時点でゼロであり plan-first commit が全実装 commit に先行する）/ implementing = owner の R4 explicit approval（2026-07-19、介入 1 回目 / 予算 3 回、Windows native L3 不要判断を同梱承認）。
 
 ## Owner Effort Budget
 
