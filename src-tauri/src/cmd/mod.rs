@@ -69,6 +69,27 @@ impl CmdError {
             field: None,
         }
     }
+
+    pub(crate) fn restore_failed_recovered(message: &str) -> Self {
+        Self::restore("restore_failed_recovered", message)
+    }
+
+    pub(crate) fn restore_failed_unrecoverable(message: &str) -> Self {
+        Self::restore("restore_failed_unrecoverable", message)
+    }
+
+    pub(crate) fn restore_durability_unknown(message: &str) -> Self {
+        Self::restore("restore_durability_unknown", message)
+    }
+
+    fn restore(kind: &str, message: &str) -> Self {
+        tracing::error!(kind, message, "CMD層リストアエラー");
+        Self {
+            kind: kind.to_string(),
+            message: message.to_string(),
+            field: None,
+        }
+    }
 }
 
 /// BizError → CmdError の変換
@@ -176,6 +197,23 @@ mod tests {
         let cmd_err: CmdError = biz_err.into();
         assert_eq!(cmd_err.kind, "duplicate");
         assert!(cmd_err.message.contains("TEST-001"));
+    }
+
+    #[test]
+    fn test_cmd_error_req905_restore_failure_kinds_are_stable() {
+        // REQ-905 / MNT-01-D4 / Matrix F1
+        assert_eq!(
+            CmdError::restore_failed_recovered("recovered").kind,
+            "restore_failed_recovered"
+        );
+        assert_eq!(
+            CmdError::restore_failed_unrecoverable("fatal").kind,
+            "restore_failed_unrecoverable"
+        );
+        assert_eq!(
+            CmdError::restore_durability_unknown("unknown").kind,
+            "restore_durability_unknown"
+        );
     }
 
     #[test]

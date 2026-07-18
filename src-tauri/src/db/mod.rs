@@ -162,6 +162,18 @@ pub fn init_database(db_path: &str) -> Result<DbConnection, DbError> {
     let conn = rusqlite::Connection::open(db_path)
         .map_err(|e| DbError::ConnectionFailed(e.to_string()))?;
 
+    configure_database(conn, db_path)
+}
+
+/// 既存DBのみを開く。障害復旧経路で空DBを新規生成しないための NO_CREATE 接続。
+pub(crate) fn open_existing_database(db_path: &str) -> Result<DbConnection, DbError> {
+    let conn =
+        rusqlite::Connection::open_with_flags(db_path, rusqlite::OpenFlags::SQLITE_OPEN_READ_WRITE)
+            .map_err(|e| DbError::ConnectionFailed(e.to_string()))?;
+    configure_database(conn, db_path)
+}
+
+fn configure_database(conn: DbConnection, db_path: &str) -> Result<DbConnection, DbError> {
     // 2. PRAGMA foreign_keys = ON
     conn.execute_batch("PRAGMA foreign_keys = ON;")
         .map_err(|e| DbError::PragmaFailed(format!("foreign_keys: {}", e)))?;
@@ -192,41 +204,120 @@ pub fn init_database(db_path: &str) -> Result<DbConnection, DbError> {
 
 /// 旧パス（CWD/inventory.db）から新パス（app_data_dir/inventory.db）へDB移行する
 ///
-/// PR #25 レビュー指摘対応。WALモードの -wal/-shm を含む3ファイルセットでコピー。
-/// 本体（inventory.db）のコピー失敗時は移行失敗として Err を返す。
+/// 旧DBを NO_CREATE で開き、VACUUM INTO により WAL を含む単一 snapshot を一時名へ生成する。
+/// 完成後は no-clobber publish し、旧DB一式は保持する（MNT-03-D2/D3/D4）。
 ///
 /// 戻り値: Ok(true) = 移行実行、Ok(false) = 移行不要（旧DB無し or 新DB既存）
 pub fn migrate_legacy_db(
     old_dir: &std::path::Path,
     new_dir: &std::path::Path,
 ) -> Result<bool, std::io::Error> {
+    migrate_legacy_db_with_ops(old_dir, new_dir, &StdLegacyMigrationOps)
+}
+
+trait LegacyMigrationOps {
+    fn try_exists(&self, path: &std::path::Path) -> std::io::Result<bool>;
+    fn before_open(&self, _path: &std::path::Path) -> std::io::Result<()> {
+        Ok(())
+    }
+    fn vacuum_into(
+        &self,
+        conn: &rusqlite::Connection,
+        destination: &std::path::Path,
+    ) -> std::io::Result<()>;
+    fn publish_no_clobber(
+        &self,
+        source: &std::path::Path,
+        destination: &std::path::Path,
+    ) -> std::io::Result<()>;
+    fn remove_file(&self, path: &std::path::Path) -> std::io::Result<()>;
+}
+
+struct StdLegacyMigrationOps;
+
+impl LegacyMigrationOps for StdLegacyMigrationOps {
+    fn try_exists(&self, path: &std::path::Path) -> std::io::Result<bool> {
+        path.try_exists()
+    }
+
+    fn vacuum_into(
+        &self,
+        conn: &rusqlite::Connection,
+        destination: &std::path::Path,
+    ) -> std::io::Result<()> {
+        let escaped = destination.to_string_lossy().replace('\'', "''");
+        conn.execute_batch(&format!("VACUUM INTO '{escaped}'"))
+            .map_err(sqlite_io_error)
+    }
+
+    fn publish_no_clobber(
+        &self,
+        source: &std::path::Path,
+        destination: &std::path::Path,
+    ) -> std::io::Result<()> {
+        // hard_link の destination 作成は Windows / Unix とも既存名を置換しない。
+        std::fs::hard_link(source, destination)
+    }
+
+    fn remove_file(&self, path: &std::path::Path) -> std::io::Result<()> {
+        std::fs::remove_file(path)
+    }
+}
+
+fn sqlite_io_error(error: rusqlite::Error) -> std::io::Error {
+    std::io::Error::other(error.to_string())
+}
+
+fn migrate_legacy_db_with_ops(
+    old_dir: &std::path::Path,
+    new_dir: &std::path::Path,
+    ops: &dyn LegacyMigrationOps,
+) -> Result<bool, std::io::Error> {
     let old_db = old_dir.join("inventory.db");
     let new_db = new_dir.join("inventory.db");
+    let staging_db = new_dir.join("inventory.db.migrating");
 
-    // 新パスにDB既存 or 旧パスにDB無し → 移行不要
-    if new_db.exists() || !old_db.exists() {
+    // try_exists の I/O error は skip に変換しない（MNT-03-D4）。
+    if ops.try_exists(&new_db)? {
+        return Ok(false);
+    }
+    if !ops.try_exists(&old_db)? {
         return Ok(false);
     }
 
-    // 本体コピー（失敗は致命的 → Err で返す）
-    std::fs::copy(&old_db, &new_db)?;
+    // 前回失敗の一時ファイルだけを掃除する。最終名には一切触れない。
+    if ops.try_exists(&staging_db)? {
+        ops.remove_file(&staging_db)?;
+    }
 
-    // WAL/SHM はベストエフォート（存在すればコピー、失敗は警告のみ）
-    for suffix in &["-wal", "-shm"] {
-        let old = old_dir.join(format!("inventory.db{}", suffix));
-        let new = new_dir.join(format!("inventory.db{}", suffix));
-        if old.exists() {
-            if let Err(e) = std::fs::copy(&old, &new) {
-                tracing::warn!(
-                    file = %old.display(),
-                    error = %e,
-                    "旧DB付随ファイルのコピーに失敗"
-                );
-            }
+    ops.before_open(&old_db)?;
+    let old_conn =
+        rusqlite::Connection::open_with_flags(&old_db, rusqlite::OpenFlags::SQLITE_OPEN_READ_WRITE)
+            .map_err(sqlite_io_error)?;
+
+    let result = (|| {
+        ops.vacuum_into(&old_conn, &staging_db)?;
+        // 直前再確認に加え、publish primitive 自体も no-clobber にして TOCTOU を閉じる。
+        if ops.try_exists(&new_db)? {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::AlreadyExists,
+                "migration destination appeared before publish",
+            ));
+        }
+        ops.publish_no_clobber(&staging_db, &new_db)?;
+        if let Err(error) = ops.remove_file(&staging_db) {
+            tracing::warn!(path = %staging_db.display(), %error, "移行一時ファイルの削除に失敗");
+        }
+        Ok(true)
+    })();
+
+    if result.is_err() && ops.try_exists(&staging_db).unwrap_or(false) {
+        if let Err(error) = ops.remove_file(&staging_db) {
+            tracing::warn!(path = %staging_db.display(), %error, "失敗した移行一時ファイルの削除に失敗");
         }
     }
 
-    Ok(true)
+    result
 }
 
 #[cfg(test)]
@@ -297,71 +388,278 @@ mod tests {
     }
 
     // -----------------------------------------------------------------------
-    // migrate_legacy_db テスト
+    // migrate_legacy_db テスト（MNT-03-D2/D3/D4）
     // -----------------------------------------------------------------------
+
+    fn create_legacy_wal_fixture(path: &std::path::Path) -> rusqlite::Connection {
+        let conn = rusqlite::Connection::open(path).unwrap();
+        conn.execute_batch(
+            "PRAGMA journal_mode=WAL;
+             PRAGMA wal_autocheckpoint=0;
+             CREATE TABLE legacy_rows (value TEXT NOT NULL);
+             INSERT INTO legacy_rows VALUES ('main');
+             PRAGMA wal_checkpoint(TRUNCATE);
+             INSERT INTO legacy_rows VALUES ('wal-frame');",
+        )
+        .unwrap();
+        let wal = std::path::PathBuf::from(format!("{}-wal", path.display()));
+        assert!(
+            std::fs::metadata(wal).unwrap().len() > 32,
+            "WAL frame fixture required"
+        );
+        conn
+    }
+
+    #[derive(Clone, Copy)]
+    enum LegacyFailpoint {
+        Exists,
+        Vacuum,
+        Publish,
+        DestinationRace,
+        DeleteBeforeOpen,
+    }
+
+    struct InjectedLegacyOps(LegacyFailpoint);
+
+    struct PrepublishRaceOps {
+        destination: std::path::PathBuf,
+        destination_checks: std::sync::atomic::AtomicUsize,
+        publish_called: std::sync::atomic::AtomicBool,
+    }
+
+    impl PrepublishRaceOps {
+        fn new(destination: std::path::PathBuf) -> Self {
+            Self {
+                destination,
+                destination_checks: std::sync::atomic::AtomicUsize::new(0),
+                publish_called: std::sync::atomic::AtomicBool::new(false),
+            }
+        }
+    }
+
+    impl LegacyMigrationOps for PrepublishRaceOps {
+        fn try_exists(&self, path: &std::path::Path) -> std::io::Result<bool> {
+            if path == self.destination {
+                let check = self
+                    .destination_checks
+                    .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                return Ok(check >= 1);
+            }
+            path.try_exists()
+        }
+        fn vacuum_into(
+            &self,
+            conn: &rusqlite::Connection,
+            destination: &std::path::Path,
+        ) -> std::io::Result<()> {
+            StdLegacyMigrationOps.vacuum_into(conn, destination)
+        }
+        fn publish_no_clobber(
+            &self,
+            source: &std::path::Path,
+            destination: &std::path::Path,
+        ) -> std::io::Result<()> {
+            self.publish_called
+                .store(true, std::sync::atomic::Ordering::SeqCst);
+            StdLegacyMigrationOps.publish_no_clobber(source, destination)
+        }
+        fn remove_file(&self, path: &std::path::Path) -> std::io::Result<()> {
+            StdLegacyMigrationOps.remove_file(path)
+        }
+    }
+
+    impl LegacyMigrationOps for InjectedLegacyOps {
+        fn try_exists(&self, path: &std::path::Path) -> std::io::Result<bool> {
+            if matches!(self.0, LegacyFailpoint::Exists) && path.ends_with("inventory.db") {
+                return Err(std::io::Error::other("injected exists failure"));
+            }
+            path.try_exists()
+        }
+        fn before_open(&self, path: &std::path::Path) -> std::io::Result<()> {
+            if matches!(self.0, LegacyFailpoint::DeleteBeforeOpen) {
+                std::fs::remove_file(path)?;
+            }
+            Ok(())
+        }
+        fn vacuum_into(
+            &self,
+            conn: &rusqlite::Connection,
+            destination: &std::path::Path,
+        ) -> std::io::Result<()> {
+            if matches!(self.0, LegacyFailpoint::Vacuum) {
+                return Err(std::io::Error::other("injected VACUUM failure"));
+            }
+            StdLegacyMigrationOps.vacuum_into(conn, destination)
+        }
+        fn publish_no_clobber(
+            &self,
+            source: &std::path::Path,
+            destination: &std::path::Path,
+        ) -> std::io::Result<()> {
+            if matches!(self.0, LegacyFailpoint::Publish) {
+                return Err(std::io::Error::other("injected publish failure"));
+            }
+            if matches!(self.0, LegacyFailpoint::DestinationRace) {
+                std::fs::write(destination, b"racing destination")?;
+            }
+            StdLegacyMigrationOps.publish_no_clobber(source, destination)
+        }
+        fn remove_file(&self, path: &std::path::Path) -> std::io::Result<()> {
+            StdLegacyMigrationOps.remove_file(path)
+        }
+    }
 
     #[test]
     fn test_migrate_legacy_db_req903_copies_all_files() {
-        // REQ-903: マイグレーション/DB基盤（初期化/スキーマ更新）
-        // 旧パスにDB+WAL+SHMがあり、新パスにDBがない → 3ファイルコピー
+        // REQ-903 / Matrix M1: 実 WAL frame を単一 snapshot へ統合
         let old_dir = tempfile::tempdir().unwrap();
         let new_dir = tempfile::tempdir().unwrap();
+        let old_db = old_dir.path().join("inventory.db");
+        let source_conn = create_legacy_wal_fixture(&old_db);
 
-        std::fs::write(old_dir.path().join("inventory.db"), "main").unwrap();
-        std::fs::write(old_dir.path().join("inventory.db-wal"), "wal").unwrap();
-        std::fs::write(old_dir.path().join("inventory.db-shm"), "shm").unwrap();
-
-        let result = migrate_legacy_db(old_dir.path(), new_dir.path()).unwrap();
-        assert!(result, "移行が実行されるべき");
-        assert!(new_dir.path().join("inventory.db").exists());
-        assert!(new_dir.path().join("inventory.db-wal").exists());
-        assert!(new_dir.path().join("inventory.db-shm").exists());
-        // 旧ファイルは残っている（手動削除）
-        assert!(old_dir.path().join("inventory.db").exists());
+        assert!(migrate_legacy_db(old_dir.path(), new_dir.path()).unwrap());
+        let migrated = rusqlite::Connection::open(new_dir.path().join("inventory.db")).unwrap();
+        let rows: i64 = migrated
+            .query_row("SELECT COUNT(*) FROM legacy_rows", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(rows, 2, "WAL 内 row も移行される");
+        assert!(old_db.exists(), "旧 snapshot は保持する");
+        drop(source_conn);
     }
 
     #[test]
     fn test_migrate_legacy_db_req903_skips_when_new_exists() {
-        // REQ-903: マイグレーション/DB基盤（初期化/スキーマ更新）
-        // 新パスにDB既存 → 移行不要
+        // REQ-903 / Matrix M7
         let old_dir = tempfile::tempdir().unwrap();
         let new_dir = tempfile::tempdir().unwrap();
-
         std::fs::write(old_dir.path().join("inventory.db"), "old").unwrap();
         std::fs::write(new_dir.path().join("inventory.db"), "new").unwrap();
-
-        let result = migrate_legacy_db(old_dir.path(), new_dir.path()).unwrap();
-        assert!(!result, "移行されるべきではない");
-        // 新パスは上書きされていない
-        let content = std::fs::read_to_string(new_dir.path().join("inventory.db")).unwrap();
-        assert_eq!(content, "new");
+        assert!(!migrate_legacy_db(old_dir.path(), new_dir.path()).unwrap());
+        assert_eq!(
+            std::fs::read(new_dir.path().join("inventory.db")).unwrap(),
+            b"new"
+        );
     }
 
     #[test]
     fn test_migrate_legacy_db_req903_skips_when_old_missing() {
-        // REQ-903: マイグレーション/DB基盤（初期化/スキーマ更新）
-        // 旧パスにDBなし → 移行不要
+        // REQ-903 / Matrix M7
         let old_dir = tempfile::tempdir().unwrap();
         let new_dir = tempfile::tempdir().unwrap();
-
-        let result = migrate_legacy_db(old_dir.path(), new_dir.path()).unwrap();
-        assert!(!result, "移行されるべきではない");
+        assert!(!migrate_legacy_db(old_dir.path(), new_dir.path()).unwrap());
         assert!(!new_dir.path().join("inventory.db").exists());
     }
 
     #[test]
     fn test_migrate_legacy_db_req903_without_wal_shm() {
-        // REQ-903: マイグレーション/DB基盤（初期化/スキーマ更新）
-        // 旧パスにDBのみ（WAL/SHMなし）→ 本体のみコピー
+        // REQ-903: main-only fixture remains supported
         let old_dir = tempfile::tempdir().unwrap();
         let new_dir = tempfile::tempdir().unwrap();
-
-        std::fs::write(old_dir.path().join("inventory.db"), "main").unwrap();
-
-        let result = migrate_legacy_db(old_dir.path(), new_dir.path()).unwrap();
-        assert!(result);
+        let source = rusqlite::Connection::open(old_dir.path().join("inventory.db")).unwrap();
+        source
+            .execute_batch("CREATE TABLE old_data(value TEXT);")
+            .unwrap();
+        drop(source);
+        assert!(migrate_legacy_db(old_dir.path(), new_dir.path()).unwrap());
         assert!(new_dir.path().join("inventory.db").exists());
-        assert!(!new_dir.path().join("inventory.db-wal").exists());
-        assert!(!new_dir.path().join("inventory.db-shm").exists());
+        assert!(!new_dir.path().join("inventory.db.migrating").exists());
+    }
+
+    #[test]
+    fn test_migrate_legacy_db_req903_failure_injection_is_retryable() {
+        // REQ-903 / Matrix M2, M3
+        for failpoint in [LegacyFailpoint::Vacuum, LegacyFailpoint::Publish] {
+            let old_dir = tempfile::tempdir().unwrap();
+            let new_dir = tempfile::tempdir().unwrap();
+            let source = rusqlite::Connection::open(old_dir.path().join("inventory.db")).unwrap();
+            source
+                .execute_batch("CREATE TABLE retry_data(value TEXT);")
+                .unwrap();
+            drop(source);
+            assert!(migrate_legacy_db_with_ops(
+                old_dir.path(),
+                new_dir.path(),
+                &InjectedLegacyOps(failpoint)
+            )
+            .is_err());
+            assert!(!new_dir.path().join("inventory.db").exists());
+            assert!(!new_dir.path().join("inventory.db.migrating").exists());
+            assert!(migrate_legacy_db(old_dir.path(), new_dir.path()).unwrap());
+        }
+    }
+
+    #[test]
+    fn test_migrate_legacy_db_req903_publish_is_no_clobber() {
+        // REQ-903 / Matrix M4
+        let old_dir = tempfile::tempdir().unwrap();
+        let new_dir = tempfile::tempdir().unwrap();
+        let source = rusqlite::Connection::open(old_dir.path().join("inventory.db")).unwrap();
+        source
+            .execute_batch("CREATE TABLE race_data(value TEXT);")
+            .unwrap();
+        drop(source);
+        assert!(migrate_legacy_db_with_ops(
+            old_dir.path(),
+            new_dir.path(),
+            &InjectedLegacyOps(LegacyFailpoint::DestinationRace)
+        )
+        .is_err());
+        assert_eq!(
+            std::fs::read(new_dir.path().join("inventory.db")).unwrap(),
+            b"racing destination"
+        );
+
+        let old_dir = tempfile::tempdir().unwrap();
+        let new_dir = tempfile::tempdir().unwrap();
+        let source = rusqlite::Connection::open(old_dir.path().join("inventory.db")).unwrap();
+        source
+            .execute_batch("CREATE TABLE prepublish_race(value TEXT);")
+            .unwrap();
+        drop(source);
+        let destination = new_dir.path().join("inventory.db");
+        let ops = PrepublishRaceOps::new(destination.clone());
+        assert!(migrate_legacy_db_with_ops(old_dir.path(), new_dir.path(), &ops).is_err());
+        assert!(!ops.publish_called.load(std::sync::atomic::Ordering::SeqCst));
+        assert!(!destination.exists());
+        assert!(!new_dir.path().join("inventory.db.migrating").exists());
+    }
+
+    #[test]
+    fn test_migrate_legacy_db_req903_errors_are_not_skipped_or_created() {
+        // REQ-903 / Matrix M5, M6
+        let old_dir = tempfile::tempdir().unwrap();
+        let new_dir = tempfile::tempdir().unwrap();
+        let old_db = old_dir.path().join("inventory.db");
+        let source = rusqlite::Connection::open(&old_db).unwrap();
+        source
+            .execute_batch("CREATE TABLE toctou_data(value TEXT);")
+            .unwrap();
+        drop(source);
+        assert!(migrate_legacy_db_with_ops(
+            old_dir.path(),
+            new_dir.path(),
+            &InjectedLegacyOps(LegacyFailpoint::Exists)
+        )
+        .is_err());
+        assert!(migrate_legacy_db_with_ops(
+            old_dir.path(),
+            new_dir.path(),
+            &InjectedLegacyOps(LegacyFailpoint::DeleteBeforeOpen)
+        )
+        .is_err());
+        assert!(
+            !old_db.exists(),
+            "NO_CREATE open must not recreate the source"
+        );
+        assert!(!new_dir.path().join("inventory.db").exists());
+    }
+
+    #[test]
+    fn test_open_existing_database_req903_never_creates_missing_file() {
+        // REQ-903 / MNT-03-D4 / Matrix M6
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("missing.db");
+        assert!(open_existing_database(path.to_str().unwrap()).is_err());
+        assert!(!path.exists(), "NO_CREATE open must not create an empty DB");
     }
 }
