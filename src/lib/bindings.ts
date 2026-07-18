@@ -358,7 +358,11 @@ export type BackupResult = {
  *  docs/function-design/40-cmd-product.md §5.3 + 41-cmd-pos.md §17.4
  */
 export type CmdError = {
-	// エラー分類: "validation" / "duplicate" / "not_found" / "internal" / "import_error" / "idempotency_conflict" / "stocktake_in_progress" / "stocktake_not_in_progress"
+	/**
+	 *  エラー分類: validation / duplicate / not_found / internal / import_error /
+	 *  idempotency_conflict / stocktake_* / restore_failed_recovered /
+	 *  restore_failed_unrecoverable / restore_durability_unknown
+	 */
 	kind: string,
 	// 利用者向け日本語メッセージ
 	message: string,
