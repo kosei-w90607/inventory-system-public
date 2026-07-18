@@ -1297,7 +1297,7 @@ mod tests {
             .unwrap_err()
         });
         assert!(matches!(error, RestoreError::Unrecoverable(_)));
-        assert!(logs.contains("ERROR"));
+        assert!(logs.contains("ERROR"), "captured logs: {logs:?}");
         assert!(logs.contains("退避巻き戻し自体に失敗（致命的）"));
         let paths = RestorePaths::new(&db_path);
         assert!(paths.main_backup.exists() && paths.manifest.exists());
