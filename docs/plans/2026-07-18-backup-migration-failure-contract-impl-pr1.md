@@ -190,7 +190,7 @@ Minimum design checks for business-app work:
 |---|---|---|---|
 | MNT-03-D2 VACUUM INTO 移行 + NO_CREATE open | `db/mod.rs::migrate_legacy_db` | Matrix M1, M2, M6, M7 | non-scope（自動化） |
 | MNT-03-D2 ステップ6 no-clobber publish | 同上（Probe #4 の primitive） | Matrix M4 | non-scope（自動化） |
-| MNT-03-D3 完成品不変条件（一時名 + 失敗時削除） | 同上 | Matrix M2, M3 | non-scope（自動化） |
+| MNT-03-D3 完成品不変条件（一時名 + 失敗時削除） | 同上 | Matrix M2, M3a, M3b | non-scope（自動化） |
 | MNT-03-D4 移行失敗の fail-closed 起動中止 + operator 可視化 + 存在確認・CWD エラーの Err 分離（D4 経路への流入） | `lib.rs` setup + Probe #1 機構 | Matrix M5, M8（自動化可能範囲） | L3-1: pre-window ダイアログの Windows 実機確認 |
 | MNT-01-D1 退避一式原子性 + checkpoint busy 限定 + 二重失敗契約 | `mnt/backup.rs::restore_backup` | Matrix B1, B2, B12（二重失敗の mnt 層契約） | non-scope（自動化） |
 | MNT-01-D4 no-create 復旧 + recoverable/unrecoverable 構造化識別子 | `mnt/backup.rs` + `cmd/settings_cmd.rs` + `BackupRestorePage.tsx` | Matrix B3, F1 | non-scope（自動化） |
