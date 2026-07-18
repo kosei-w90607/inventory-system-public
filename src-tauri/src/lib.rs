@@ -335,7 +335,11 @@ mod bindings_generation_tests {
             || Ok(cwd.path().to_path_buf()),
             |_old, _new| Err(std::io::Error::other("injected migration failure")),
         );
-        assert!(result.is_err());
+        let error = result.unwrap_err();
+        assert!(matches!(
+            &error,
+            super::StartupDatabaseError::LegacyMigration(_)
+        ));
         assert!(
             !db_path.exists(),
             "init_database must not run after migration failure"
@@ -349,9 +353,7 @@ mod bindings_generation_tests {
         assert!(cwd_error.is_err());
         assert!(!db_path.exists());
 
-        let message = super::StartupDatabaseError::LegacyMigration("fixture".to_string())
-            .operator_message()
-            .unwrap();
+        let message = error.operator_message().unwrap();
         assert!(message.contains("旧データは無事です"));
         assert!(message.contains("再起動すると移行を再試行"));
         assert!(message.contains("管理者へ連絡"));
