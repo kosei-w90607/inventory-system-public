@@ -1287,14 +1287,18 @@ mod tests {
         let backup_path = dir.path().join("replacement.db");
         let conn = database_with_supplier(&db_path, "old");
         drop(database_with_supplier(&backup_path, "new"));
-        let error = restore_backup_with_ops(
-            conn,
-            &backup_path,
-            &db_path,
-            &InjectedOps::new(InjectedFailure::RollbackOfRollback),
-        )
-        .unwrap_err();
+        let (error, logs) = crate::test_tracing::capture(|| {
+            restore_backup_with_ops(
+                conn,
+                &backup_path,
+                &db_path,
+                &InjectedOps::new(InjectedFailure::RollbackOfRollback),
+            )
+            .unwrap_err()
+        });
         assert!(matches!(error, RestoreError::Unrecoverable(_)));
+        assert!(logs.contains("ERROR"));
+        assert!(logs.contains("退避巻き戻し自体に失敗（致命的）"));
         let paths = RestorePaths::new(&db_path);
         assert!(paths.main_backup.exists() && paths.manifest.exists());
         assert!(db::open_existing_database(db_path.to_str().unwrap()).is_err());

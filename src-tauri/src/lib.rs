@@ -11,6 +11,8 @@ pub mod db;
 mod io;
 #[allow(dead_code)]
 mod mnt;
+#[cfg(test)]
+mod test_tracing;
 
 // pub: dev tooling 専用のデモデータ seed ロジック。src/bin/seed_demo_data.rs と
 // tests/seed_test.rs から参照される
@@ -125,8 +127,12 @@ where
     Ok(conn)
 }
 
-fn show_pre_window_fatal(message: &str) {
+fn record_pre_window_fatal(message: &str) {
     tracing::error!(message, "pre-window initialization failed");
+}
+
+fn show_pre_window_fatal(message: &str) {
+    record_pre_window_fatal(message);
     #[cfg(windows)]
     {
         use std::os::windows::ffi::OsStrExt;
@@ -349,6 +355,64 @@ mod bindings_generation_tests {
         assert!(message.contains("旧データは無事です"));
         assert!(message.contains("再起動すると移行を再試行"));
         assert!(message.contains("管理者へ連絡"));
+        let (_, logs) = crate::test_tracing::capture(|| super::record_pre_window_fatal(&message));
+        assert!(logs.contains("ERROR"));
+        assert!(logs.contains("pre-window initialization failed"));
+    }
+
+    #[test]
+    fn test_startup_req901_b6_fail_closed_reconcile_is_operator_visible_before_init() {
+        // REQ-901 / Matrix B6: R3/R5/R7 は実 startup dispatcher で可視化され、DB初期化へ進まない。
+        for branch in ["r3", "r5", "r7"] {
+            let app_data = tempfile::tempdir().unwrap();
+            let db_path = app_data.path().join("inventory.db");
+            let manifest =
+                std::path::PathBuf::from(format!("{}.restore_manifest", db_path.display()));
+            let main_backup =
+                std::path::PathBuf::from(format!("{}.restore_backup", db_path.display()));
+            std::fs::write(&main_backup, b"must-survive").unwrap();
+            match branch {
+                "r3" => {
+                    std::fs::write(
+                        &manifest,
+                        br#"{"attempt_id":"r3","original_files":["main"],"phase":"active"}"#,
+                    )
+                    .unwrap();
+                    std::fs::write(
+                        format!("{}-wal.restore_backup", db_path.display()),
+                        b"unexpected",
+                    )
+                    .unwrap();
+                }
+                "r5" => {}
+                "r7" => std::fs::write(&manifest, b"not-json").unwrap(),
+                _ => unreachable!(),
+            }
+
+            let init_called = std::cell::Cell::new(false);
+            let result = super::prepare_database_with_init(
+                app_data.path(),
+                || panic!("CWD resolution must not run after reconcile failure"),
+                |_old, _new| panic!("migration must not run after reconcile failure"),
+                |_path| {
+                    init_called.set(true);
+                    panic!("DB init must not run after reconcile failure")
+                },
+            );
+            let error = result.unwrap_err();
+            assert!(matches!(
+                error,
+                super::StartupDatabaseError::RestoreReconcile(_)
+            ));
+            let message = error
+                .operator_message()
+                .expect("RestoreReconcile must be operator-visible");
+            assert!(message.contains("データ保護のため起動を中止"));
+            assert!(message.contains("アプリを再起動してください"));
+            assert!(message.contains("管理者へ連絡してください"));
+            assert!(!init_called.get(), "branch={branch}");
+            assert_eq!(std::fs::read(&main_backup).unwrap(), b"must-survive");
+        }
     }
 
     #[test]
