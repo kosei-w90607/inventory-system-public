@@ -50,8 +50,6 @@ const BACKUP_SETTING_KEYS = new Set([
   "backup_retention_days",
 ]);
 
-const UNRECOVERABLE_RESTORE_TOKEN = "DB接続の復旧もできませんでした";
-
 function describeError(error: unknown): string {
   if (isInvokeError(error)) return error.cmdError.message;
   if (error instanceof Error) return error.message;
@@ -76,8 +74,8 @@ function formatBackupSize(sizeBytes: number): string {
   return `${(sizeBytes / 1_000_000).toFixed(1)} MB`;
 }
 
-function isUnrecoverableRestoreError(message: string): boolean {
-  return message.includes(UNRECOVERABLE_RESTORE_TOKEN) || message.includes("アプリを再起動");
+function restoreErrorKind(error: unknown): string | null {
+  return isInvokeError(error) ? error.cmdError.kind : null;
 }
 
 interface RestoreState {
@@ -105,7 +103,9 @@ export function BackupRestorePage() {
   const [isUpdatingSetting, setIsUpdatingSetting] = useState(false);
   const [isRunningPreBackup, setIsRunningPreBackup] = useState(false);
   const [isRestoring, setIsRestoring] = useState(false);
-  const [fatalRestoreMessage, setFatalRestoreMessage] = useState<string | null>(null);
+  const [fatalRestoreKind, setFatalRestoreKind] = useState<
+    "restore_failed_unrecoverable" | "restore_durability_unknown" | null
+  >(null);
 
   const settingsQuery = useQuery({
     queryKey: queryKeys.backupRestore.settings(),
@@ -137,7 +137,7 @@ export function BackupRestorePage() {
   const selectedBackupLabel = restoreState.selected
     ? formatBackupDate(restoreState.selected.created_at)
     : "";
-  const isFatal = fatalRestoreMessage !== null;
+  const isFatal = fatalRestoreKind !== null;
   const isBusy = isCreatingBackup || isUpdatingSetting || isRunningPreBackup || isRestoring;
   const controlsDisabled = isFatal || isBusy;
 
@@ -153,7 +153,7 @@ export function BackupRestorePage() {
   );
 
   useEffect(() => {
-    if (fatalRestoreMessage) return;
+    if (fatalRestoreKind) return;
 
     const interval = window.setInterval(() => {
       void (async () => {
@@ -173,7 +173,7 @@ export function BackupRestorePage() {
     return () => {
       window.clearInterval(interval);
     };
-  }, [fatalRestoreMessage, queryClient]);
+  }, [fatalRestoreKind, queryClient]);
 
   async function refetchBackupState() {
     await Promise.all([settingsQuery.refetch(), backupsQuery.refetch()]);
@@ -283,9 +283,9 @@ export function BackupRestorePage() {
       toast.success("バックアップから復元しました");
       void navigate({ to: "/" });
     } catch (error) {
-      const message = describeError(error);
-      if (isUnrecoverableRestoreError(message)) {
-        setFatalRestoreMessage(message);
+      const kind = restoreErrorKind(error);
+      if (kind === "restore_failed_unrecoverable" || kind === "restore_durability_unknown") {
+        setFatalRestoreKind(kind);
         setErrorMessage(null);
       } else {
         setErrorMessage(
@@ -304,12 +304,20 @@ export function BackupRestorePage() {
     <div className="min-h-screen space-y-6 p-6">
       <PageHeader title="バックアップ・復元" />
 
-      {fatalRestoreMessage ? (
+      {fatalRestoreKind ? (
         <Alert variant="destructive">
           <AlertTriangle />
-          <AlertTitle>再起動が必要です</AlertTitle>
+          <AlertTitle>
+            {fatalRestoreKind === "restore_durability_unknown"
+              ? "復元結果を確認できませんでした"
+              : "再起動が必要です"}
+          </AlertTitle>
           <AlertDescription className="space-y-2">
-            <p>バックアップの復元に失敗し、DB接続の復旧もできませんでした。</p>
+            <p>
+              {fatalRestoreKind === "restore_durability_unknown"
+                ? "復元が完了したか確定できませんでした。"
+                : "バックアップの復元に失敗し、DB接続の復旧もできませんでした。"}
+            </p>
             <p className="font-medium">アプリを閉じて、もう一度開いてください</p>
           </AlertDescription>
         </Alert>
