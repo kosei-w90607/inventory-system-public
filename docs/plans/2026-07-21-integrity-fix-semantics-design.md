@@ -1,0 +1,246 @@
+# Plan Packet — 整合性補正の不変条件の正本確定（監査是正 順 3、design phase）
+
+## Workflow State
+
+Use the field definitions, enums, transition evidence, packet-selection rule, and fail-closed behavior from `docs/DEV_WORKFLOW.md` `Workflow State`. Keep exactly one `- Key: value` line per field.
+
+If a state-only commit materializes multiple phases, list the complete adjacent forward sequence and the pre-existing evidence for every intermediate transition in an append-only review/evidence record. Recording compression never permits a gate skip.
+
+- Phase: plan-draft
+- Risk: R3
+- Execution Mode: fable-window
+- Plan Commit: pending
+- Amendments: none
+- Coordinator: Fable 5（本 session）
+- Writer: Fable 5（design docs 改訂）
+- Plan Reviewer: 独立 subagent（fresh context、Writer と別）
+- Final Reviewer: 独立 fresh context（Plan Reviewer と別）+ Codex 独立 2 pass（Double Audit）
+- Reviewed Content HEAD: pending
+- Final Exact-HEAD Evidence: PR body
+- Hosted CI Requirement: required
+- Human Gate: Draft PR の owner 確認 + Ready 承認 + Ready 後の explicit `workflow_dispatch` 1 run（docs-only は paths-ignore で自動 event 対象外のため、ci.md R3 経路の hosted final は owner 指示の dispatch で満たす）+ merge
+
+## Owner Effort Budget
+
+- 介入回数上限: 2
+- 実働時間上限: 15分
+- relay 往復上限: 1
+
+既定値と超過時の Coordinator 責務は `docs/DEV_WORKFLOW.md` `Owner Effort Budget` 参照。
+承認依頼フォーマット: `この change での介入 N 回目 / 予算 M 回` + `承認すると利用者から見て何が完了するか1文`。
+補正意味論の owner 裁定（2026-07-21、下記 Design Sources）は packet 起票前に完了しており、この予算に含めない。
+
+## Risk
+
+Risk: R3
+
+Reason:
+docs-only の design phase だが、[adjudication](../research/audit-2026-07/adjudication.md) が順 3 に「R3 design-first」を明示付与しており、対象は在庫数（`products.stock_quantity`）を直接書き換える destructive 寄りの操作契約と operator 向け文言の正本。PR #14（順 1+2 design phase、R3）の前例に従う。R4 としない理由: 本 PR 自体は destructive 操作を実行せず（docs のみ、git revert で完全に巻き戻せる）、実挙動が変わるのは後続実装 PR 側。R3 の必須物（Spec Contract / Trace Matrix / Data Safety / Test Design Matrix / Contract Coverage Ledger / 独立レビュー）は本 packet で満たす。
+
+## Goal
+
+Goal Invariant:
+
+### 最小完了条件
+
+- `docs/function-design/36-biz-integrity-check.md` の整合性補正契約が、owner 裁定 2026-07-21（意味論 A: `inventory_movements` = 在庫推移の原本 / `products.stock_quantity` = 派生 cache / 補正は movement 行を追加しない直接更新 / 補正内容は同一 TX の `integrity_fix` 操作ログへ old/new 付きで必須記録）どおりに**内部矛盾なく**正本確定し、`docs/architecture/biz-task-specs.md` BIZ-07・`docs/function-design/75-ui-integrity-check.md`・`docs/function-design/74-ui-operation-logs.md` の関連記述が同じ意味論を指す。後続実装者が設計書のみから実装 follow-up PR を計画できる。
+
+### 失敗定義
+
+- §21.4（movement 挿入を要求）と §21.6（direct update と記載）の内部矛盾、または「補正後に再チェックが収束しない」手順が正本に残る。
+- 実装（`integrity_service.rs` の「設計書からの逸脱」自己申告コメント）がどちらへ直しても別契約を壊す状態（監査 P7-1 の害経路）が解消されない。
+- operator 向け文言（75-ui「棚卸し補正として記録します」等）が確定した意味論と乖離したまま残る。
+- 設計改訂が既存の正しい契約（run_integrity_check のチェックロジック、UI-13 の選択・確認 flow、D-6 の一般原則）を壊す。
+
+### 非目的
+
+- 実装コード（`src/` `src-tauri/`）の変更（後続実装 follow-up PR で行う）。
+- 順 4（mutation→consumer query 契約）・順 5 以降の設計。
+- 75-ui の state machine・画面構成・選択 flow の変更（文言表の同期のみ scope 内）。
+
+Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。AC や証跡作業が Goal Invariant を前進させない場合は、Goal を置き換えず簡略化・defer・削除する。
+
+## Scope
+
+- `docs/function-design/36-biz-integrity-check.md`:
+  - §21.4 処理ステップ 3e 改訂（BIZ-07-D2）: `insert_movement` 要求を撤回し、direct update（`update_stock_quantity` のみ）を正本化。撤回理由（補正 movement を挿入すると movements_sum 自体が変わり再チェックが収束しない — 監査 P7-1 / adjudication P7-1 補強の算術）を設計判断として明記。
+  - §21.4 ステップ 5 改訂（BIZ-07-D3）: 操作ログ記録を「TX外・警告のみ（先決事項 D-6）」から「**同一 TX 内・必須記録**（失敗時は補正ごと rollback、`BizError::DatabaseError`）」へ変更。D-6 の一般原則（操作ログは best-effort）は維持し、`integrity_fix` を明示例外とする理由（movement 行を残さないため操作ログが唯一の監査痕跡。痕跡なしの在庫直接書換えを構造的に禁止する）を明記。detail_json に old/new（`old_stock` / `new_stock` / `adjustment`）を必須で含める。
+  - §21.4 設計判断「reference_id=0 の理由（先決事項 D-3）」（BIZ-07-D5）: movement を作らない意味論では不要になるため撤回・書き換え（「仮想棚卸し」概念の退役を明記）。
+  - §21.6 対応不変条件（BIZ-07-D1 / D4）: INV-2 行を direct update の正本記述へ一本化。新規行として原本/cache 確定（`inventory_movements` = 原本、`stock_quantity` = 派生 cache）と収束性不変条件（fix_integrity 成功直後の run_integrity_check は対象商品で difference = 0）を追加。
+  - エラーハンドリング節: ログ記録失敗 → rollback の分岐を追加。
+- `docs/architecture/biz-task-specs.md` BIZ-07: 処理構造ステップ 5「各不整合商品について棚卸し補正として処理（BIZ-06の確定処理と同じ方式）」を新意味論（direct update + 同一 TX 必須ログ、movement なし）へ改訂。
+- `docs/function-design/75-ui-integrity-check.md`: 文言表の同期（UI-13 拡張 decision ID を付す）。確認 dialog title「棚卸し補正として記録します」と確定ボタン「棚卸し補正として確定」の「棚卸し補正」語彙を、実挙動（在庫数を入出庫の合計へ補正し、操作ログへ記録する）に一致する operator 語彙へ改訂。UI-13-D8 の原則（色非依存、非IT operator 可読）と本画面の語彙判断（「システム在庫」「入出庫の合計」、UI-13 Amendment 5）は維持。
+- `docs/function-design/74-ui-operation-logs.md`: `integrity_fix` の詳細表示について、detail_json（old/new 内訳）が補正の**唯一の監査痕跡**である旨と表示期待を registry 周辺へ同期（1〜3 行の追記想定）。
+- `docs/decision-log.md`: **D-051** 新設 — 原本/cache の確定と補正意味論の durable 判断。why（収束性 + 原本性 + 監査痕跡の一意化）、rejected alternatives（①movement 挿入 = 数学的に収束せず原本を汚染 ②sum に影響しない marker movement 行（quantity=0 等）= schema/CHECK 制約・movement_type 語彙・履歴画面 noise の追加設計が必要で、操作ログで代替可能 ③stock 原本化 = 既存原則の破壊）、revisit trigger を記録。
+- `docs/Plans.md`: 進行中作業に本 design phase を追加、次の行動 0 を active packet リンクへ更新。実装 follow-up PR（integrity_service.rs のログ TX 内移動 + 逸脱コメント解消 + テスト追随）を次アクション候補として明記。
+
+## Non-scope
+
+- 実装コード（`src/` `src-tauri/`）の変更一切。実装 follow-up PR で: 操作ログ挿入の TX 内移動と必須化、逸脱自己申告コメントの解消、`integrity_cmd.rs` tautological test 実呼び化（既存 backlog）の吸収検討。
+- `run_integrity_check`（§21.3）のチェックロジック・`integrity_check` 操作ログ（TX なし・best-effort のまま）の変更。
+- 順 4（mutation→consumer query 契約）の設計。UI-13 の補正成功後 invalidation 契約は現行のまま（順 4 の入力として引き継ぐ）。
+- D-6 の一般原則自体の変更（integrity_fix の例外化のみ）。
+- 監査 finding P7-1 自体の再検証（独立検証 CONFIRMED 済み）。
+
+## Acceptance Criteria
+
+- `bash scripts/doc-consistency-check.sh --target plan` と full が ERROR 0（既存 WARN = 75-ui paging 上限 1 件から増加なし）。
+- 36-biz に BIZ-07-D1〜D5、decision-log に D-051 が存在し、D-051 に why / rejected alternatives / revisit が付く。
+- `rg "棚卸し補正として" docs/function-design/75-ui-integrity-check.md` が 0 件（文言同期後）。`rg "insert_movement" docs/function-design/36-biz-integrity-check.md` が 0 件（§21.4 撤回後）。
+- 監査 P7-1 の害経路（`docs/research/audit-2026-07/findings/p7-readability-idioms-naming.md` P7-1 の証拠 8 箇所）それぞれについて、改訂後のどの節が塞ぐかを PR body の対応表で示せる（Matrix #7）。
+- 独立 Final Review（改訂後設計 vs P7-1 / vs 実装現状の突合、`docs/plans/test-matrices/2026-07-21-integrity-fix-semantics-design.md` の #2/#4/#7 を含む）の報告で P1 = 0 / P2 = 0。
+
+## Design Sources
+
+- Requirements / spec: REQ-701（整合性検証）、BIZ-07（`docs/architecture/biz-task-specs.md`）
+- Architecture: `docs/ARCHITECTURE.md`（UI -> CMD -> BIZ -> IO/MNT）
+- Function / command / DTO: `docs/function-design/36-biz-integrity-check.md`、`docs/function-design/75-ui-integrity-check.md`、`docs/function-design/74-ui-operation-logs.md`
+- DB: `docs/DB_DESIGN.md`（inventory_movements / products / operation_logs、stock_quantity 整合性チェックの前提）
+- Screen / UI: `docs/function-design/75-ui-integrity-check.md`（文言表のみ）
+- Decision log / ADR: 新規 D-051。owner 裁定 2026-07-21（本 session、verbatim）: 「inventory_movements を在庫推移の原本、products.stock_quantity を派生 cache として確定し、整合性補正は cache を movements 合計へ直接更新する。補正は実入出庫・棚卸しではないため movement 行を追加しない。補正内容は同一 TX の integrity_fix 操作ログへ old/new 付きで必須記録し、UI-13 の棚卸し表現と UI-11c の詳細表示を意味論に同期する。」
+- 監査証拠: `docs/research/audit-2026-07/findings/p7-readability-idioms-naming.md` P7-1、`docs/research/audit-2026-07/adjudication.md`（P7-1 補強 = 3e は数学的に収束しない）
+
+## Required Design Artifacts
+
+| Area touched by upcoming work | Required source doc / artifact | Status |
+|---|---|---|
+| Backend function / command / repository / validation / error | 36-biz-integrity-check.md / biz-task-specs.md BIZ-07 | updated in this PR |
+| Command / DTO / generated binding / wire shape | 変更なし（`fix_integrity` の CMD wire / `IntegrityFixResult` は不変。operation log detail_json は既存 shape の必須化のみ） | existing sufficient |
+| DB / transaction / audit / rollback / migration | 36-biz §21.4 の TX 境界改訂（ログを TX 内へ）。schema 変更なし | updated in this PR |
+| Screen / UI / route state / Japanese wording | 75-ui 文言表 + 74-ui integrity_fix 詳細表示の同期 | updated in this PR |
+| CSV / TSV / report / import / export format | 該当なし | existing sufficient |
+| Durable decision / ADR | decision-log D-051 | updated in this PR |
+
+## Registration / Generation Obligations
+
+該当なし（新規 command / route / function-design doc / REQ の追加なし。既存 doc の改訂と decision-log 追記のみ。traceability はテスト追加を伴わない設計書改訂のため再生成不要 — テスト追随は実装 follow-up PR 側）。
+
+## Design Intent Trace
+
+| Spec / requirement ID | Source design doc section | Decision ID | Why / rejected alternatives | Implementation target | Test target |
+|---|---|---|---|---|---|
+| BIZ-07 | 36-biz §21.6 | BIZ-07-D1（原本/cache 確定） | movements は操作ごとの記録 = 原本、stock は派生 cache（既存原則の明文昇格）。rejected: stock 原本化 | docs（正本記述） | Matrix #2 / #5 |
+| BIZ-07 | 36-biz §21.4 3e | BIZ-07-D2（direct update、movement 追加禁止） | 挿入すると movements_sum が動き再チェック非収束（P7-1 算術）。rejected: movement 挿入 / marker 行 | docs + 実装 follow-up | Matrix #2 / #3 |
+| BIZ-07 | 36-biz §21.4 ステップ5 | BIZ-07-D3（同一 TX 必須ログ、D-6 例外） | movement を残さないため操作ログが唯一の監査痕跡。痕跡なし補正を構造的に禁止。rejected: best-effort 継続 | docs + 実装 follow-up | Matrix #6 |
+| BIZ-07 | 36-biz §21.6 新規行 | BIZ-07-D4（収束性不変条件） | 補正直後の再チェック difference=0 を検証可能な不変条件として固定 | docs + 実装 follow-up テスト | Matrix #5 |
+| BIZ-07 | 36-biz §21.4 設計判断 D-3 | BIZ-07-D5（仮想棚卸し概念の退役） | movement を作らない意味論では reference_id=0 の識別設計が不要 | docs | Matrix #3 |
+| UI-13 | 75-ui 文言表 | UI-13 拡張 decision ID（design 中に採番） | 「棚卸し補正」語彙は movement 記録を示唆し実挙動と乖離。operator 語彙へ同期 | docs + 実装 follow-up | Matrix #3 / #8 |
+| UI-11c | 74-ui registry 周辺 | 追記（decision ID 不要の同期） | integrity_fix detail_json = 唯一の監査痕跡である旨の明記 | docs | Matrix #9 |
+
+## Design Intent Audit
+
+- Source docs can answer what is being built and why without chat history or archived Plan Packets: 改訂後の 36-biz + D-051 が意味論・理由・却下代替案を保持する（owner 裁定 verbatim は本 packet Design Sources と D-051 に記録）。
+- Plan-only durable decisions found and promoted to source docs / decision-log / ADR: 補正意味論 → D-051 へ昇格（本 PR 内）。
+- Assumptions and constraints: rusqlite の TX 内 operation_logs INSERT は既存 daily-report 系で実績のある内部パターンであり外部前提なし。
+- Deferred design gaps, risk, and follow-up target: 実装 follow-up PR（ログ TX 内移動・コメント解消・テスト追随）を Plans.md 次アクションに記録。順 4 の invalidation 契約は非目的として引き継ぎ。
+- Test Design Matrix can cite design decision IDs or source doc sections: 全行が BIZ-07-D1〜D5 / UI-13 / P7-1 を引用（Matrix 参照）。
+- Absolute guarantee / escape hatch self-check completed, with every exception checked and compatibility stated: 「必ず操作ログが残る」の例外 = ログ INSERT 失敗時は補正自体が rollback され何も起きない（痕跡なし変更は発生しない）。D-6 best-effort の他箇所（integrity_check 含む）は非変更で共存を明記。
+
+## Impact Review Lenses
+
+| Lens | Applicability / finding | Follow-up artifact |
+|---|---|---|
+| Adapter / core boundary | not applicable（外部 adapter 非接触） | — |
+| Fact check / design decision split | 該当: 「3e は収束しない」は算術事実（監査 + 独立検証 + Coordinator 再計算の三者一致）、「direct update + TX 内必須ログ」は owner 設計判断。事実と判断を D-051 で分離記録 | D-051 |
+| Lifecycle / retry | 該当: 補正失敗（ログ失敗含む）→ TX rollback → 再試行可能。部分成功なし | 36-biz エラーハンドリング節 |
+| Operator workflow | 該当: 確認 dialog / ボタンの「棚卸し補正」語彙を実挙動一致へ改訂。operator の既習語彙（システム在庫 / 入出庫の合計 / 操作ログ）に接続 | 75-ui 文言表 |
+| Replacement path | not applicable | — |
+| Data safety / evidence | 該当: 在庫直接書換えの監査痕跡を同一 TX 必須ログで保証 | 36-biz BIZ-07-D3 |
+| Reporting / accounting semantics | 該当: 補正は実入出庫・棚卸しと明確に区別（movement を作らない = 入出庫履歴・売上/棚卸し集計を汚染しない） | D-051 / 36-biz |
+| Manual verification | not applicable（docs-only。L3 は実装 follow-up PR 側で評価） | — |
+
+## Design Readiness
+
+- Existing design docs are sufficient because: 不十分（P7-1 のとおり内部矛盾）。本 PR がその是正そのもの。
+- Source docs updated in this PR: 36-biz / biz-task-specs BIZ-07 / 75-ui 文言表 / 74-ui 追記 / decision-log D-051。
+- Design gaps intentionally deferred: 実装反映（コード + テスト）は follow-up PR。順 4 invalidation 契約。
+- Durable decisions discovered in this plan and promoted to source docs: D-051（補正意味論）。
+
+Minimum design checks for business-app work:
+
+- Layer ownership (`UI -> CMD -> BIZ -> IO/MNT`): 補正ロジックと TX 境界は BIZ（integrity_service）、CMD は薄いまま不変。
+- Backend function design: fix_integrity の処理ステップ・エラー分岐・不変条件を 36-biz で確定。
+- Command / DTO / data contract: wire 不変（Required Design Artifacts 参照）。
+- Persistence / transaction / audit impact: TX 境界にログ INSERT を内包。schema 不変。
+- Operator workflow / Japanese UI wording: 75-ui 文言表を意味論同期。
+- Error, empty, retry, and recovery behavior: ログ失敗 → rollback → 再試行可能を明文化。
+- Testability and traceability IDs: BIZ-07-D1〜D5 を実装 follow-up のテスト目標として引用可能に。
+
+## Contract Probe
+
+N/A — 本 plan は未検証の外部前提（外部 library / OS / hardware 挙動)に依存しない。収束性は算術で確定し（監査・独立検証・Coordinator 再計算の三者一致）、TX 内 operation_logs INSERT は既存 daily-report 系で使用済みの内部パターン。
+
+## Contract Coverage Ledger
+
+| Design contract / decision ID | Implementation target | Automated test | L3 or non-scope |
+|---|---|---|---|
+| BIZ-07-D1 原本/cache 確定 | 36-biz §21.6 / D-051 | Matrix #2 / #5（doc 整合 + anchor） | non-scope（docs-only） |
+| BIZ-07-D2 direct update・movement 追加禁止 | 36-biz §21.4 3e / biz-task-specs BIZ-07 | Matrix #2 / #3（旧記述 grep 0 件） | non-scope（実装は follow-up PR） |
+| BIZ-07-D3 同一 TX 必須ログ（D-6 例外） | 36-biz §21.4 ステップ5 + エラーハンドリング | Matrix #6（anchor + 例外理由明記） | non-scope（実装は follow-up PR） |
+| BIZ-07-D4 収束性不変条件 | 36-biz §21.6 新規行 | Matrix #5 | non-scope |
+| BIZ-07-D5 仮想棚卸し概念の退役 | 36-biz §21.4 設計判断 | Matrix #3 | non-scope |
+| 75-ui 文言同期 | 75-ui 文言表 | Matrix #3 / #8 | non-scope（画面実装は follow-up PR） |
+| 74-ui integrity_fix 詳細表示同期 | 74-ui registry 周辺 | Matrix #9 | non-scope |
+| P7-1 害経路の全塞ぎ | PR body 対応表 | Matrix #7 | non-scope |
+
+## Test Plan
+
+Test Design Matrix: [test-matrices/2026-07-21-integrity-fix-semantics-design.md](test-matrices/2026-07-21-integrity-fix-semantics-design.md)
+
+- targeted tests: `bash scripts/doc-consistency-check.sh --target plan` / full（ERROR 0、WARN 既存 1 件から増加なし）
+- negative tests: 旧文言残存 grep（Matrix #3）、§21.4 旧ステップ再注入 mutation で独立レビューが red になる感度確認（Matrix #2）
+- compatibility checks: D-6 一般原則・run_integrity_check・UI-13 flow の非変更確認（Matrix #4 / #8）
+- data safety checks: 実店舗データなし、synthetic 例のみ（Data Safety 参照）
+- main wiring/integration checks: docs-only のため N/A（実装 follow-up PR 側）
+
+## Boundary / Wire Contract
+
+該当なし — `fix_integrity` の CMD wire（引数 / `IntegrityFixResult`）と generated bindings は不変。operation log detail_json は既存 shape（old/new 内訳）の必須化のみで形は変わらない。
+
+## Review Focus
+
+- §21.4 / §21.6 / biz-task-specs BIZ-07 / 75-ui / 74-ui が**単一の意味論**を指しているか（一箇所でも movement 挿入を示唆する残存記述がないか）。
+- BIZ-07-D3 の例外設計が D-6 の一般原則と矛盾なく共存し、例外理由が将来の実装者に自明か。
+- 収束性不変条件が検証可能な形（実装 follow-up のテストが書ける形）で書かれているか。
+- 75-ui 新文言が UI-13-D8（非IT operator 可読・色非依存）と Amendment 5 語彙（システム在庫 / 入出庫の合計）に整合するか。
+- 実装現状との差分（TX 外ログ → TX 内必須）が follow-up PR の作業として明確に列挙されているか。
+
+## Spec Contract
+
+Contract ID: SPEC-BIZ07-FIX-SEMANTICS-2026-07-21
+
+- 整合性補正は `products.stock_quantity` を movements_sum へ直接更新し、`inventory_movements` に行を追加しない。
+- 補正の監査痕跡は同一 TX 内の `integrity_fix` 操作ログ（old/new 付き detail_json）であり、ログ記録失敗時は補正ごと rollback される。
+- fix_integrity 成功直後の run_integrity_check は、補正対象商品について difference = 0 を返す（収束性）。
+- 75-ui / 74-ui の operator 向け表現は上記実挙動と一致する。
+
+## Trace Matrix
+
+| Spec ID | Plan Step | Test | Review Focus | Evidence |
+|---|---|---|---|---|
+| SPEC-BIZ07-FIX-SEMANTICS-2026-07-21（direct update） | 36-biz §21.4 / §21.6 改訂 | Matrix #2 / #3 | 単一意味論 | PR body 対応表 + doc check |
+| SPEC-BIZ07-FIX-SEMANTICS-2026-07-21（TX 内必須ログ） | 36-biz §21.4 ステップ5 改訂 | Matrix #6 | D-6 例外の共存 | doc anchor + 独立レビュー |
+| SPEC-BIZ07-FIX-SEMANTICS-2026-07-21（収束性） | 36-biz §21.6 新規行 | Matrix #5 | 検証可能性 | doc anchor + 独立レビュー |
+| SPEC-BIZ07-FIX-SEMANTICS-2026-07-21（operator 表現） | 75-ui / 74-ui 同期 | Matrix #3 / #8 / #9 | UI-13-D8 整合 | grep 0 件 + 独立レビュー |
+
+## Data Safety
+
+- 実店舗データ・実在庫数値は一切コミットしない（例示はすべて synthetic 値）。
+- local-only paths: なし（docs-only）。
+- synthetic-only paths: 36-biz / 75-ui 内の数値例。
+
+## Implementation Results
+
+Fill after implementation.
+
+Do not transcribe exact-HEAD SHA or test counts here (D-035/D-038 Evidence Ownership). Record a qualitative summary and the PR link only.
+
+## Review Response
+
+Fill after review.
+If R3 review-only sub-agent is skipped, record an explicit line beginning with `Review-only skipped because:` and the reason.
+- Findings Freeze: not yet frozen; post-freeze exceptions: none.
+
+## Review / Evidence Record（append-only）
+
+- 2026-07-21 packet 起票 commit が kickoff → spec-check → design → plan-draft を materialize（記録圧縮、gate skip なし）。各遷移の evidence: kickoff → spec-check = task scope と Risk R3 を本 packet に記録（adjudication 順 3 の R3 design-first 付与）/ spec-check → design = in-scope source docs を Design Sources に列挙、設計更新が必要（P7-1 の内部矛盾）/ design → plan-draft = 設計方向は owner 裁定 2026-07-21（Design Sources に verbatim 記録）で確定済み、未解決の設計質問なし（残る設計作業 = 本 PR の内容そのもの = 正本文言の執筆）。
