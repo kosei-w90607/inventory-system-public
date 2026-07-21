@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: implementing
+- Phase: human-confirm
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: 7f09ed8
@@ -11,7 +11,7 @@
 - Writer: Codex（発注、public-writer clone。発注 prompt は Coordinator 作成）
 - Plan Reviewer: Codex 独立 fresh context（相互修正案方式 — findings に修正案添付、Coordinator が採否裁定）
 - Final Reviewer: Double Audit（1 pass = Coordinator inline 契約突合 / 2 pass = Codex 独立 fresh context、waive 不可）
-- Reviewed Content HEAD: pending
+- Reviewed Content HEAD: ad0cffa
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
 - Human Gate: Ready 承認（介入 2 回目 / 予算 2 回）。R3 のため R4 explicit approval は非該当（plan 承認 = 介入 1 回目は 2026-07-21 消化済み）
@@ -22,6 +22,7 @@
 - State Narrative 追記（append-only、2026-07-21）: Codex Plan Gate round 4（P1×0 + P2×1 + P3×0、accept）反映の plan-gate 修正 commit 第 4 弾。M-HANDOFFa〜c の 3 分割 assert は token 分散・遷移列欠落を検出できない（Codex 反例実演）ため、§2 節内・同一 bullet 行・完全遷移列（`Double Audit.*Ready.*merge`）を一括検証する単一 M-HANDOFF へ置換（Codex 提案コマンドをそのまま採用 — `/^### /` 終端は `:63` の次見出しで正しく閉じることを Coordinator が実測確認、baseline exit 1 追認済み）。packet Scope / AC / Matrix overview を新 assertion 名へ同期。
 - State Narrative 追記（append-only、2026-07-21）: state-only commit で隣接 forward 2 遷移 `plan-gate -> plan-approved -> implementing` を実体化。evidence: plan-approved = Codex Plan Gate 独立 5 round 収束（round 5 = 新規 P1/P2/P3 全ゼロ + Matrix literal 全数実行の baseline 整合 + M-HANDOFF 感度実証。findings 推移 9→6→4→1→0、全件 Coordinator 実証裏取りの上で採否裁定）+ `Plan Commit` = plan-first commit `7f09ed8` 記入（実装 commit は本遷移時点でゼロであり plan-first commit が全実装 commit に先行する）/ implementing = owner の plan 承認（2026-07-21、介入 1 回目 / 予算 2 回。R3 のため R4 explicit approval は非該当、plan 承認が実装開始 authorization を兼ねる）。実装 = Codex 発注（発注書は Coordinator 作成、Writer 向け注意点 = Plan Gate round 5 の引き継ぎ事項を含む）。
 - State Narrative 追記（append-only、2026-07-21）: Double Audit 完了記録。実装 = Codex `bc4269c`（Draft PR #18、assertion 反転表 + local full 記録）。1 pass = Coordinator inline 契約突合 + 全 guard/anchor 独立再実行、blocker 0 + same-PR 是正 2 件（D7 出典誤帰属 / PROJECT_HANDOFF 改行コード、`75a448d`）。2 pass = Codex 独立 fresh context、P1×1 + P2×2 + P3×1 検出 — **P1 = 本 packet への adjacent-contract sweep 自己適用で Handoff 契約の Ledger 行欠落を検出**（本 PR が正本化した規律の dogfood での実効性実証）、P2 = D7 cutoff 意味論（文書作成日条件 → 記述作成日条件へ是正、D-038 原文と同型化）+ PR body freshness、P3 = Trace 略記の解決可能性。実 mutation 4 種（anchor 削除 / 節外移動 / D-050 heading 破損 / 発動条件事実 1 件削除）全 red 確認済み。全 4 件 accept → gated amendment（Ledger へ SPEC-WF-WERC-HANDOFF 行 + Trace 行 + Matrix Contracts Under Test 追加）+ same-PR 是正を本 commit で適用。Findings Freeze は amendment SHA の Amendments 記入と PR body refresh の完了をもって発効。
+- State Narrative 追記（append-only、2026-07-21）: state-only commit で隣接 forward 3 遷移 `implementing -> local-verified -> independent-review -> human-confirm` を実体化。evidence: local-verified = content HEAD `ad0cffa` での `local-ci full` RESULT=PASS（機能 gate 全 green。Coordinator clone は untracked harness file により MERGE_EVIDENCE_VALID=false のため、merge evidence は ready-hosted-final の exact-HEAD 再実行〔clean clone〕で確定する。Writer clean clone では `bc4269c` 時点 MERGE_EVIDENCE_VALID=true 実績あり）/ independent-review = Double Audit 両 pass 完了（1 pass blocker 0 + 是正 `75a448d` / 2 pass P1×1 + P2×2 + P3×1 → gated amendment `1efe836` + 是正、実 mutation 4 種 red、上記記録参照）/ human-confirm = findings 全裁定済み P1/P2 = 0、`Reviewed Content HEAD` = `ad0cffa` 記入、Findings Freeze 発効。残 = owner Ready 承認（介入 2/2）→ Ready 化実操作 → exact final HEAD での L1 full 再実行（clean clone）+ PR body 最終 refresh → workflow_dispatch 明示 1 run → 三点 SHA 一致 → merge。
 
 ## Owner Effort Budget
 
