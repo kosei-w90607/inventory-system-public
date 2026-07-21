@@ -6,105 +6,117 @@ Risk: R3
 
 ## Contracts Under Test
 
-- SPEC-WF-WERC-D1〜D12（packet Contract Coverage Ledger 参照。採用規範文 1 本 = 1 契約 + D-050 記録契約）
+- SPEC-WF-WERC-D1〜D13（packet Contract Coverage Ledger 参照。採用規範文 = anchor phrase 契約、defer/非変更 = 不変 guard 契約）
+
+## Anchor Phrase Contract（Plan Gate 修正時点で固定）
+
+各採用規範文は下表の **anchor phrase を字句どおり含む文**で実装する。全 anchor は plan-gate 修正 commit 時点で対象ファイル全てにおいて **baseline 0 件（rg -F miss）を実証済み**（実行記録は PR body に転記。Evidence Ownership に従い本 doc には count を書かない）。したがって各 rg assertion は「未実装なら必ず exit 1（red）→ 実装後に exit 0（green）」の弁別性を持つ。意味等価性（WER 原文 ↔ 規範文）は rg では検証できず、Double Audit の人的突合で閉じる。
+
+| Decision ID | Anchor phrase（rg -F、字句一致） | 対象ファイル |
+|---|---|---|
+| D1 | `FUNCTION_DESIGN.md` | `docs/templates/plan-packet.md`（Registration 表内） |
+| D2-1 | `attach a concrete fix proposal` | `docs/DEV_WORKFLOW.md`（Review Rules） |
+| D2-2 | `mutual adjudication` | 同上 |
+| D2-3 | `objection channel` | 同上 |
+| D3 | `escape hatch` | `docs/DEV_WORKFLOW.md`（Design checklist）+ `docs/templates/plan-packet.md`（Design Intent Audit） |
+| D4 | `inject a real mutation` | `docs/DEV_WORKFLOW.md`（Contract Audit） |
+| D4-A | `inject a real mutation` | `docs/templates/subagent-review-packet.md` + `.agents/skills/inventory-code-review/SKILL.md` |
+| D7 | `volatile counts` | `docs/DEV_WORKFLOW.md`（Evidence Ownership 段落） |
+| D8 | `repo-wide grep for the old wording` | `docs/DEV_WORKFLOW.md`（Draft PR Checkpoint） |
+| D9 | `cargo check --release` | `docs/DEV_WORKFLOW.md`（Implementation Rules）+ `docs/templates/plan-packet.md`（Test Plan） |
+| D10 | `cited test` | `docs/templates/test-design-matrix.md` + `docs/DEV_WORKFLOW.md`（Design checklist） |
+| D11 | `adjacent-contract sweep` | `docs/DEV_WORKFLOW.md`（Contract Audit）+ `docs/templates/plan-packet.md`（Ledger 節） |
 
 ## Failure Modes
 
-- 意味改変: 規範文が WER 原文の意図と異なる意味で書かれる（希釈・増幅・条件の脱落）
-- 節ズレ: 指定節（Review Rules / Design checklist / Contract Audit / Workflow State / Implementation Rules / Draft PR Checkpoint / template 各節）と異なる場所への追記
-- 既存文破壊: 追記のみ制約に反する既存行の書換・削除（splice）
-- 既存規範との矛盾: D5 追記が backtrack 契約 / STATECAP cap 定義と両立しない
-- 列挙残存: 消化済み項目が Plans.md roadmap 1-1 に残る、または消化先が特定不能
-- 裁定不整合: D-050 の採否と実装が食い違う（採用なのに規範文なし / 不採用なのに実装あり）
-- 置換過剰: DEV_SETUP_CHECKLIST で対象外の `:92`/`:252`/`:261` が置換される
+- 意味改変（希釈・増幅・条件脱落）/ 節ズレ / 既存文破壊（splice）/ 不変対象への変更（Workflow State・ci.md・DEV_SETUP_CHECKLIST 対象外行）/ 列挙残存 / 裁定不整合
 
 ## Test Matrix
 
-検証は doc 検証型: `bash scripts/doc-consistency-check.sh`（構造整合）+ rg（存在・不在確認）+ review evidence（意味等価性は Double Audit で人的突合）。rg 検索語は実装後の文言に依存するため、下表は「検索対象の意味核」を規定し、Writer が実文言確定後に PR body へ実行コマンドを記録する（Evidence Ownership: 検証結果の SHA/count は packet に転記しない）。
+全 assertion は repo root で実行。期待値は exit code / 出力で機械判定可能。
 
-| Contract | Failure Mode | Test Type | Test Name | Would fail if... |
+| Contract | Test Name | Exact command | 期待（実装後） | Would fail if... |
 |---|---|---|---|---|
-| D1 doc 目次行 | 節ズレ / 裁定不整合 | schema (doc) | M-D1: rg "目次" templates/plan-packet.md（Registration 表内） | 表に doc 目次義務行がない、または表外に置かれた |
-| D2 相互修正案方式 | 意味改変 / 節ズレ | schema (doc) | M-D2: rg "修正案" DEV_WORKFLOW.md（Review Rules 節内）— 「添付 + 相互採否裁定 + 異議窓口」の 3 要素 | 3 要素のいずれかが脱落、または Review Rules 外に追記 |
-| D3 絶対保証自己突合 | 意味改変 | schema (doc) | M-D3: rg "保証" DEV_WORKFLOW.md（Design checklist 内）+ templates/plan-packet.md（Design Intent Audit） | 「同 PR 内の例外・escape hatch との両立確認」の意味核が欠落 |
-| D4 実 mutation 注入 | 意味改変 | schema (doc) | M-D4: rg "mutation" DEV_WORKFLOW.md Contract Audit — 既存行に「推論判定は不十分 / 実 mutation 注入」の強化が追加 | 既存の mock 可弁別性文のみで実 mutation 要求がない |
-| D5 cap 枯渇フォールバック | 既存規範との矛盾 / 既存文破壊 | schema (doc) + regression | M-D5: rg "closeout" DEV_WORKFLOW.md Workflow State + `git diff --unified=0` で Evidence Ownership 段落の既存文が無変更 | 追記が段落外にある / 既存文が書き換わった / backtrack 契約と矛盾する表現 |
-| D6 clone パス追随 | 置換過剰 | schema (doc) | M-D6: `rg -P 'projects\\inventory-system(?!-public)' docs/DEV_SETUP_CHECKLIST.md` = 0 件 かつ `:92` の clone URL / `:261` の対比表現が無変更 | パス形が残存、または対象外 3 箇所が置換された |
-| D7 可変 count 拡張 | 意味改変 | schema (doc) | M-D7: rg "count" DEV_WORKFLOW.md Evidence Ownership — 「test counts」限定から可変 count 全般への拡張 | 拡張文がない、または test counts の既存規定を書き換えた |
-| D8 旧文言 grep evidence | 意味改変 / 節ズレ | schema (doc) | M-D8: rg "旧文言\|grep" DEV_WORKFLOW.md Draft PR Checkpoint | PR evidence 記録要求が checkpoint 外、または「契約文言変更 commit」の適用条件が脱落 |
-| D9 release-profile check norm | 意味改変 | schema (doc) | M-D9: rg "release" DEV_WORKFLOW.md Implementation Rules + templates/plan-packet.md Test Plan — 「L3 を Human Gate に含む packet」の条件付き | 無条件要求に増幅、または条件が脱落 |
-| D10 Matrix 実在確認 | 意味改変 | schema (doc) | M-D10: rg "実在" templates/test-design-matrix.md + DEV_WORKFLOW.md Design checklist | 「既存テストで回帰担保」行への rg 実在確認要求がない |
-| D11 adjacent-contract sweep | 意味改変（WER 制約違反） | schema (doc) | M-D11: rg "adjacent\|隣接" DEV_WORKFLOW.md Contract Audit + templates/plan-packet.md Ledger 節 | sweep 要求がない、または「検出前倒しのみ」を超えて新規律を追加した |
-| D12 D-050 採否裁定 | 裁定不整合 | schema (doc) | M-D12: rg "D-050" docs/decision-log.md — 採用/部分採用/不採用 defer の 3 区分 + 不採用 3 件の「発動条件事実」と「却下理由」の分離 | 区分がない / 事実と理由が混在 / 実装と裁定が食い違う |
-| 全体 | 列挙残存 | regression | M-ALL: rg で消化済み 4 件（checklist 昇格 / Contract Probe 仮適用 / materialize 検査 / read-safe-file）が Plans.md roadmap 1-1 の未消化列挙から消えている | 消化済み項目が未消化として残存 |
-| 全体 | 既存文破壊 | regression | M-DIFF: `git diff main --unified=0 -- docs/DEV_WORKFLOW.md docs/templates/` に削除行（`-` 行）が存在しない（純追記。例外 = DEV_SETUP_CHECKLIST の 2 行） | 追記のみ制約に反する削除・書換 hunk |
+| D1 | M-D1 | `sed -n '/^## Registration \/ Generation Obligations/,/^## /p' docs/templates/plan-packet.md \| rg -F "FUNCTION_DESIGN.md"` | exit 0 | doc 目次行が Registration 表外 or 未追加 |
+| D2 | M-D2 | 3 コマンド: `sed -n '/^## Review Rules/,/^## /p' docs/DEV_WORKFLOW.md \| rg -F "<anchor>"` を D2-1/D2-2/D2-3 で個別実行 | 各 exit 0 | 3 要素（修正案添付/相互採否裁定/異議窓口）のいずれか脱落 or Review Rules 節外 |
+| D3 | M-D3 | `sed -n '/Design checklist/,/^## /p' docs/DEV_WORKFLOW.md \| rg -F "escape hatch"` + `sed -n '/^## Design Intent Audit/,/^## /p' docs/templates/plan-packet.md \| rg -F "escape hatch"` | 各 exit 0 | 自己突合行が対象 checklist 外 or 未追加 |
+| D4 | M-D4 | `sed -n '/^## Contract Audit/,/^## /p' docs/DEV_WORKFLOW.md \| rg -F "inject a real mutation"` | exit 0 | 実 mutation 要求が Contract Audit 外 or 未追加 |
+| D4-A | M-D4A | `rg -F "inject a real mutation" docs/templates/subagent-review-packet.md .agents/skills/inventory-code-review/SKILL.md` | 両ファイルで hit（exit 0、2 path 出力） | 隣接 2 doc のどちらかが旧文言のまま |
+| D5N | M-D5N | `git diff main --unified=0 -- docs/DEV_WORKFLOW.md \| rg "STATECAP\|state-backtrack\|state-only"` | exit 1（hit なし） | Workflow State の cap / backtrack / state-only 規則に変更が混入 |
+| D6 | M-D6 | (1) `git diff --numstat main -- docs/DEV_SETUP_CHECKLIST.md` = `2	2` (2) `rg -c -F 'C:\Users\Owner\projects\inventory-system-public' docs/DEV_SETUP_CHECKLIST.md` = 2 (3) `rg -P 'projects\\inventory-system(?!-public)' docs/DEV_SETUP_CHECKLIST.md` = exit 1 (4) `git diff main -- docs/DEV_SETUP_CHECKLIST.md \| rg "inventory-system\.git\|旧 private"` = exit 1 | 各期待どおり | 2 行以外の変更 / `:92`/`:261` の誤置換 / パス残存 |
+| D7 | M-D7 | `sed -n '/Evidence Ownership/,/^$/p' docs/DEV_WORKFLOW.md \| rg -F "volatile counts"` + 不変 guard `git diff main --unified=0 -- docs/DEV_WORKFLOW.md \| rg "^-.*2026-07-12"` | 前者 exit 0 / 後者 exit 1 | 拡張が段落外 / cutoff 行が書き換わった |
+| D8 | M-D8 | `sed -n '/^## Draft PR Checkpoint/,/^## /p' docs/DEV_WORKFLOW.md \| rg -F "repo-wide grep for the old wording"` | exit 0 | evidence 要求が checkpoint 外 or 未追加 |
+| D9 | M-D9 | `rg -F "cargo check --release" docs/DEV_WORKFLOW.md docs/templates/plan-packet.md` の各 hit 行が `rg "L3\|Human Gate"` にも match | 両ファイル hit + 条件語同居 | 無条件要求に増幅 or 条件脱落 or 未追加 |
+| D9-A | M-D9A | `git diff --quiet main -- docs/ci.md` | exit 0（無変更） | CI gate 化の先走り混入 |
+| D10 | M-D10 | `rg -F "cited test" docs/templates/test-design-matrix.md` + `sed -n '/Design checklist/,/^## /p' docs/DEV_WORKFLOW.md \| rg -F "cited test"` | 各 exit 0 | 実在確認要求が未追加 or 対象外配置 |
+| D11 | M-D11 | `sed -n '/^## Contract Audit/,/^## /p' docs/DEV_WORKFLOW.md \| rg -F "adjacent-contract sweep"` + `sed -n '/^## Contract Coverage Ledger/,/^## /p' docs/templates/plan-packet.md \| rg -F "adjacent-contract sweep"` | 各 exit 0 | sweep 要求が対象節外 or 未追加 |
+| D12 | M-D12 | `sed -n '/^## D-050/,/^## /p' docs/decision-log.md` に対し rg -F で `採用` / `部分採用` / `不採用 defer` / `(iv)` を個別 assert | 各 exit 0 | 3 区分欠落 / defer 4 件目（D5）の消失 |
+| D13 | M-D13 | `sed -n '/^1\. 中期 roadmap/,/^2\./p' docs/Plans.md \| rg -F "<stale>"` を 4 語（`checklist の template 昇格` / `Contract Probe 手順明文化` / `materialize 局所 workflow-git 検査` / `read-safe-file.sh`）で個別実行 | 各 exit 1（不在） | 消化済み項目が roadmap 1-1 に残存（完了履歴節は範囲外のため誤検出しない） |
+| M-DIFF | M-DIFF | `git diff main --unified=0 -- docs/DEV_WORKFLOW.md docs/templates/ \| rg "^-([^-]\|$)"` | exit 1（削除行なし） | 追記のみ制約に反する削除・書換 hunk |
+| M-HANDOFF | M-HANDOFF | `git diff --name-only main \| rg -F "docs/PROJECT_HANDOFF.md"` | exit 0 | Handoff 同期義務（AGENTS.md）の未実施 |
 
 ## State Lifecycle Matrix
 
-本 PR は workflow-state の**規範文**を変更する（実装 state machine 自体は不変）ため、workflow-state changes の明示行を記載する:
+本 PR は workflow-state の規範文を**変更しない**（D5 defer により Workflow State 節は不改変 = M-D5N が guard）。workflow-state changes の明示行:
 
 | State / subject | 検証内容 | Evidence |
 |---|---|---|
-| content candidate -> L1 / independent review -> state-only human-confirm commit | 本 packet 自体がこの遷移列を実走して規範文の自己適用を確認（dogfood） | packet State Narrative + PR body |
-| owner authorization -> Draft state-only Ready commit -> exact-HEAD L1 -> PR body -> Ready/dispatch -> merge | docs-only のため dispatch 明示 1 run。三点 SHA 一致 | PR body |
-| state-only violation 検査 | state-only commit の file allowlist + `git diff --unified=0` hunk 検査（Scope/AC/契約の混入で implementing へ戻す） | review evidence |
-| hosted-not-required incidental failure | 非該当（本 PR は Hosted CI Requirement: required） | — |
-
-D5 追記（cap 枯渇時 = closeout narrative 実体化）は上記 1 行目の遷移列で cap を消費し尽くした場合の分岐として、追記文と本 packet の実運用が一致することを Double Audit で確認する。
+| content candidate -> L1 / independent review -> state-only human-confirm commit | 本 packet 自体がこの遷移列を実走（dogfood） | packet State Narrative + PR body |
+| owner authorization -> Draft state-only Ready commit -> exact-HEAD L1 -> PR body -> Ready/dispatch -> merge | docs-only のため dispatch 明示 1 run + 三点 SHA 一致 | PR body |
+| state-only violation 検査 | state-only commit の file allowlist + `git diff --unified=0` hunk 検査 | review evidence |
+| hosted-not-required incidental failure | 非該当（Hosted CI Requirement: required） | — |
 
 ## Adjacent Pattern Audit
 
-not applicable — 借用パターンなし（IME / Enter / focus / formatter / query invalidation / error-kind / route state / a11y のいずれも非該当）。類似の「規範文追記」precedent（Public PR #7 = UI-13 WER 正本化）とは追記スタイル（既存節への箇条書き追加、出典 lesson 併記）を踏襲する。
+| Source pattern / contract | Repository sites inspected | Ported sites | Explicit exclusions and reason | Test / evidence |
+|---|---|---|---|---|
+| anti-tautology 文言（D4 の隣接） | `docs/DEV_WORKFLOW.md` Contract Audit / `docs/templates/subagent-review-packet.md:137` / `.agents/skills/inventory-code-review/SKILL.md:58`（Plan Gate F4 で全数列挙） | 3 箇所全て実 mutation 要求へ追随 | なし | M-D4 + M-D4A |
+| 規範文追記スタイル | Public PR #7（UI-13 WER 正本化）の既存節追記 + 出典 lesson 併記 | 本 PR の全追記 | — | review evidence |
 
 ## Negative Paths
 
-- missing input: WER 原文に存在しない項目の創作追記 → M-DIFF + Review Focus（意味等価性）で検出
-- invalid input: 行番号ズレ（実装時に対象節が移動）→ 節名アンカーで特定、行番号は参考値
-- duplicate/ambiguous input: 同一規範の二重追記（DEV_WORKFLOW と template の重複記載が正本二重化しないか）→ Review Focus
-- unknown reference: 規範文中のファイル参照が実在しない → doc-consistency-check full
-- dependency missing: 非該当
-- permission/write failure: 非該当
-- dry-run side effect: 非該当
+- missing input: WER 原文にない創作追記 → M-DIFF + Double Audit（意味等価突合）
+- invalid input: 行番号ズレ → 全 assertion は節名 sed range で位置独立
+- duplicate/ambiguous input: anchor phrase の二重追記 → 各 rg の hit 数異常は Double Audit で検分（正本二重化の検査）
+- unknown reference: 規範文中の参照先不在 → doc-consistency-check full
+- dependency missing / permission failure / dry-run: 非該当
 
 ## Boundary Checks
 
-非該当（数値・enum・wire 境界なし。唯一の境界 = D6 の negative lookahead パターンが `:92` の clone URL 形式 `inventory-system.git` を誤検出しないこと — パス形 `projects\` 限定で回避済み）
+非該当（唯一の境界 = M-D6(3) の negative lookahead が `:92` の `inventory-system.git` 形式を誤検出しないこと — パス形 `projects\` 限定で回避、M-D6(4) が別途 guard）
 
 ## Compatibility Checks
 
-- old schema/input: 既存規範文（:105 backtrack 契約 / :120 cap 定義 / :334 anti-tautology）が無変更で残ること = M-DIFF
-- new schema/input: 追記規範が既存規範と同一節内で矛盾なく読めること = M-D5 通し読み + Double Audit
-- output order: 非該当
-- optional field behavior: 非該当
+- old schema/input: 既存規範の不変 = M-D5N（Workflow State）+ M-D9A（ci.md）+ M-DIFF（削除行ゼロ）+ M-D7 不変 guard（cutoff 行）
+- new schema/input: 追記規範が既存節内で矛盾なく読めること = Double Audit 通し読み
+- output order / optional field: 非該当
 
 ## Data Safety Checks
 
-- source-derived data: 非該当（実データなし）
 - generated outputs: `.local/ci-evidence/` を commit しない
-- secrets: 非該当
 - local-only files: `.local/`
-- synthetic sample boundaries: 非該当
+- source-derived / secrets / synthetic: 非該当
 
 ## Main Wiring / Integration Checks
 
-- helper connected to main path: 非該当（script 変更なし）
-- output reaches manifest/report: 非該当
-- effective config reaches runtime: 非該当
-- CLI arg reaches implementation: doc-consistency-check --target plan が本 packet を検査対象にすること（active plan 検出）
+- doc-consistency-check --target plan が本 packet を active plan として検査すること
+- `bash scripts/local-ci.sh full` green（completed HEAD、evidence SHA は PR body）
+- hosted: workflow_dispatch 明示 1 run + 三点 SHA 一致
 
 ## Mutation-style Adequacy Questions
 
-doc 検証型のため「実装 mutation」は「規範文の意図的改変」に読み替える:
+各 anchor phrase を実装後に一時削除（または節外へ移動）した場合、対応する M-* assertion が red になるか:
 
-- D2 の 3 要素（修正案添付 / 相互採否裁定 / 異議窓口）から 1 つを削って M-D2 が fail するか → する（3 要素の rg AND 確認）
-- D5 の追記を Evidence Ownership 段落外へ移して M-D5 が fail するか → する（段落内 rg + diff hunk 位置）
-- D6 で `:252` を誤置換して M-D6 が fail するか → する（対象外無変更の diff 確認）
-- D9 の「L3 を Human Gate に含む packet」条件を削って M-D9 が fail するか → する（条件語の rg）
-- D-050 から不採用 1 件を消して M-D12 が fail するか → する（3 区分 + 3 件の存在確認）
-- 既存行を 1 行書き換えて M-DIFF が fail するか → する（削除行ゼロ判定）
-- tracked Workflow State に exact-HEAD SHA を書いて検査が fail するか → する（Evidence Ownership、Data Safety 節で禁止明記）
+- D2 の 3 anchor のうち 1 つを削る → M-D2 の該当コマンドが exit 1 になる（3 要素個別 assert のため他 2 つでは代償されない）
+- D4 の anchor を Contract Audit 節外へ移す → sed range 限定により M-D4 が exit 1
+- D5N: Workflow State の既存行を 1 語でも変更 → diff に STATECAP/state-only 語が出て M-D5N が hit（fail）
+- D6: `:252` を誤置換 → numstat が `2 2` を超えて M-D6(1) fail
+- D7 の exclusion（固定契約定数の対象外化）を落とす → 意味等価性は Double Audit 担保（rg では検出不能と明示 — 本 Matrix は検出可能範囲を「存在・位置・不変」に限定する）
+- D12 から defer (iv) を消す → M-D12 の `(iv)` assert が exit 1
+- D13: stale 1 件を残す → 該当 rg が exit 0 になり fail
+- tracked Workflow State に exact-HEAD SHA を書く → M-D5N が hit（fail）+ Evidence Ownership 違反として review reject
 
 ## Residual Test Gaps
 
-- 意味等価性（WER 原文 ↔ 規範文）の機械検証は不可能 — Double Audit 2 pass（Codex 独立の原文突合）で人的に閉じる。これが本 Matrix 最大の残余 gap であり、R3 + Double Audit を要求した理由そのもの。
-- 規範文の将来の遵守率（実際に次の PR で相互修正案方式等が実行されるか）は本 PR では検証不能 — 次 PR の WER で観測する。
+- 意味等価性（WER 原文 ↔ 規範文）と「二重追記による正本二重化」は機械検証不能 — Double Audit 2 pass で人的に閉じる（R3 + Double Audit を要求した理由）。
+- 規範文の将来遵守率は本 PR では検証不能 — 次 PR の WER で観測する。

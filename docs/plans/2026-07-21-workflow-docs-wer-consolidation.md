@@ -16,12 +16,13 @@
 - Hosted CI Requirement: required
 - Human Gate: Ready 承認（介入 2 回目 / 予算 2 回）。R3 のため R4 explicit approval は非該当（plan 承認 = 介入 1 回目は 2026-07-21 消化済み）
 - State Narrative（append-only）: 本 packet の plan-first commit で `kickoff -> spec-check -> plan-draft -> plan-gate` を実体化。evidence: spec-check = Risk R3 の分類記録（本 packet Risk 節。plan rally round 1 で `DEV_WORKFLOW.md` `Risk Tiers` の impact 原則により R2 から昇格裁定）/ design skip = Design Readiness が WER 5 本 + 既存 workflow 正本（反映先の節構造を file:line 実在確認済み）を十分と引用（許可された唯一の skip 経路）/ plan-gate = packet + Test Design Matrix complete and committed（本 commit）。plan 本体は harness plan file 上で Plan agent rally 6 round（新規指摘 9→3→3→2→3→1、実体指摘は round 4 で枯渇）を経て owner 承認済み、残余精査は本 packet への Codex Plan Gate へ移管（owner 指示 2026-07-21）。
+- State Narrative 追記（append-only、2026-07-21）: Codex Plan Gate round 1（P1×5 + P2×3 + P3×1、全 accept）反映の plan-gate 修正 commit。D5 は D-050 (iv) へ defer（Workflow State 節 不改変へ変更）、D7 は WER 原文範囲へ限定、D-050 を decision-log へ起票、Ledger 増補（D4-A / D9-A / D13 + D5 defer 行）、Matrix を exact-command / baseline-red 前提へ全面改訂、PROJECT_HANDOFF.md 同期を Scope 追加、「WER 5 本」の count 誤記と repo-relative path 誤りを是正（D7 新規範の自己適用）。
 
 ## Owner Effort Budget
 
 - 介入回数上限: 2
 - 実働時間上限: 15分
-- relay 往復上復: 2
+- relay 往復上限: 2
 
 承認依頼フォーマット: `この change での介入 N 回目 / 予算 M 回` + `承認すると利用者から見て何が完了するか1文`。
 
@@ -52,15 +53,19 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 
 ## Scope
 
-- `docs/DEV_WORKFLOW.md`: 採用 9 項目の規範文追記（Review Rules / Design checklist / Contract Audit / Workflow State / Implementation Rules / Draft PR Checkpoint / Evidence Ownership。既存節への追記のみ、新節なし）
-- `docs/templates/plan-packet.md`: Registration / Generation Obligations 表へ「doc 目次」行（項目 1 残）/ Design Intent Audit 節へ絶対保証自己突合 1 行（項目 8）/ Test Plan 節へ release-profile check 条件行（項目 10）/ Contract Coverage Ledger 節へ adjacent-contract sweep 1 行（項目 14）
-- `docs/templates/test-design-matrix.md`: 既存テスト引用の実在確認 1 行（項目 13）
-- `docs/DEV_SETUP_CHECKLIST.md`: `:248,:251` の Windows clone パスへ `-public` 付与（項目 12。**この 2 箇所のみ**）
-- `docs/decision-log.md`: D-050 起票（採否裁定 bundle、下記 Ledger と Design Intent Trace が正本)
-- `docs/Plans.md`: roadmap 1-1 列挙の是正（消化済み 4 件の整理 + 本 PR の active 反映)
+採否の正本は `docs/decision-log.md` **D-050**（plan-gate 修正 commit で起票済み）。各採用規範文は Test Design Matrix が固定する **anchor phrase を含む文**で実装する（anchor の baseline-red 実証 = 実装前に各 rg が exit 1 であることを PR body に記録）。
+
+- `docs/DEV_WORKFLOW.md`: D-050 採用規範文の追記（Review Rules = D2 / Design checklist = D3, D10 / Contract Audit = D4, D11 / Evidence Ownership 段落 = D7 / Implementation Rules = D9 / Draft PR Checkpoint = D8。既存節への追記のみ、新節なし。**Workflow State は不改変** — D5 は D-050 (iv) で defer）
+- `docs/templates/plan-packet.md`: Registration / Generation Obligations 表へ「doc 目次」行（D1）/ Design Intent Audit 節へ絶対保証自己突合 1 行（D3）/ Test Plan 節へ release-profile check 条件行（D9）/ Contract Coverage Ledger 節へ adjacent-contract sweep 1 行（D11）
+- `docs/templates/test-design-matrix.md`: 既存テスト引用の rg 実在確認 1 行（D10）
+- `docs/templates/subagent-review-packet.md` + `.agents/skills/inventory-code-review/SKILL.md`: D4 の隣接文言追随（旧「mock 可弁別性」のみの anti-tautology 記述へ実 mutation 注入要求を追加。Plan Gate round 1 F4 の adjacent-contract sweep 検出）
+- `docs/DEV_SETUP_CHECKLIST.md`: `:248,:251` の Windows clone パスへ `-public` 付与（D6。**この 2 箇所のみ**）
+- `docs/Plans.md`: roadmap 1-1 列挙の是正（消化済み 4 件の整理 + 本 PR の active 反映）（D13）
+- `docs/PROJECT_HANDOFF.md`: workflow baseline の同期（AGENTS.md「meaningful progress 後に更新」義務。実装 commit で実施）
 
 ## Non-scope
 
+- **D5（STATECAP cap 枯渇時フォールバックの正規手順化）**: D-050 (iv) で defer。narrative-only の正規化は state-only Ready commit 必須・exact-HEAD sequence・`check-workflow-git.sh` の一律計数と両立せず、workflow-state 再設計（script / fixture 込み）が必要なため本 PR では **Workflow State 節を一切変更しない**（Plan Gate round 1 F1）
 - `docs/DEV_SETUP_CHECKLIST.md:92`（§3.1 履歴記録）/`:252`（既に正しい）/`:261`（旧 private repo との意図的対比）の変更
 - 契約文言 drift grep の hook / CI 機械化（D-050 で却下理由を記録）
 - release-profile check の CI gate 化（2026-08-01 CI 再評価へ）
@@ -70,7 +75,8 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 ## Acceptance Criteria
 
 - `bash scripts/doc-consistency-check.sh` full = exit 0（packet 段階は `--target plan docs/plans/2026-07-21-workflow-docs-wer-consolidation.md` = exit 0）
-- D-050 裁定表で「採用」の全項目について、規範文が指定節に存在することを rg で確認し各検索が exit 0 を返す（検索語は Test Design Matrix の各行に記載。固定 count は書かない — Evidence Ownership 準拠、正本は D-050 裁定表）
+- D-050 裁定表で「採用」の全項目について、Test Design Matrix の Test Matrix 表が固定する **exact command** が期待値（exit code / 出力）どおりに pass する。anchor phrase は plan-gate 修正時点で対象ファイル全てで baseline 0 件を実証済み（未実装なら必ず red になる弁別性。実行記録は PR body。固定 count は書かない — Evidence Ownership 準拠、正本は D-050 裁定表）
+- `git diff --name-only main` に `docs/PROJECT_HANDOFF.md` が含まれる（M-HANDOFF、AGENTS.md の meaningful progress 更新義務）
 - `rg -P 'projects\\inventory-system(?!-public)' docs/DEV_SETUP_CHECKLIST.md` = 0 件（exit 1）
 - `git diff main -- docs/DEV_WORKFLOW.md` に既存行の削除・書換が含まれない（追記のみ。例外 = `docs/DEV_SETUP_CHECKLIST.md:248,:251` の 2 行置換）
 - `bash scripts/local-ci.sh full` = green（completed HEAD、local full evidence SHA は PR body 正本）
@@ -83,7 +89,7 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 - Function / command / DTO: 非該当
 - DB: 非該当
 - Screen / UI: 非該当
-- Decision log / ADR: D-034/D-035/D-038（bundle precedent・Evidence Ownership）/ D-039 / D-049、WER 5 本（`archive/plans/2026-07-15-ui13-integrity-check-workflow-effectiveness-review.md` / `archive/plans/2026-07-16-sidebar-pending-links-workflow-effectiveness-review.md` / `archive/plans/2026-07-17-backup-migration-failure-contract-design-workflow-effectiveness-review.md` / `archive/plans/2026-07-18-codex-clone-routing-and-safe-read-boundary-workflow-effectiveness-review.md` / `archive/plans/2026-07-18-backup-migration-failure-contract-impl-pr1-workflow-effectiveness-review.md` / `archive/plans/2026-07-18-backup-migration-failure-contract-impl-pr2-workflow-effectiveness-review.md`）、`research/audit-2026-07/adjudication.md`（(5 残滓) の defer 判断根拠）
+- Decision log / ADR: **D-050**（本 packet の採否裁定正本、plan-gate 修正 commit で起票済み）、D-034/D-035/D-038（bundle precedent・Evidence Ownership）/ D-039 / D-049、WER 群（以下の 6 ファイル。repo-relative path）: `docs/archive/plans/2026-07-15-ui13-integrity-check-workflow-effectiveness-review.md` / `docs/archive/plans/2026-07-16-sidebar-pending-links-workflow-effectiveness-review.md` / `docs/archive/plans/2026-07-17-backup-migration-failure-contract-design-workflow-effectiveness-review.md` / `docs/archive/plans/2026-07-18-codex-clone-routing-and-safe-read-boundary-workflow-effectiveness-review.md` / `docs/archive/plans/2026-07-18-backup-migration-failure-contract-impl-pr1-workflow-effectiveness-review.md` / `docs/archive/plans/2026-07-18-backup-migration-failure-contract-impl-pr2-workflow-effectiveness-review.md`、`docs/research/audit-2026-07/adjudication.md`（(5 残滓) の defer 判断根拠）
 
 ## Required Design Artifacts
 
@@ -94,7 +100,7 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 | DB / transaction / audit / rollback / migration | 非該当 | — |
 | Screen / UI / route state / Japanese wording | 非該当 | — |
 | CSV / TSV / report / import / export format | 非該当 | — |
-| Durable decision / ADR | `decision-log.md` D-050（採否裁定 bundle） | updated in this PR |
+| Durable decision / ADR | `decision-log.md` D-050（採否裁定 bundle） | updated at plan-gate correction commit（起票済み） |
 
 ## Registration / Generation Obligations
 
@@ -102,20 +108,23 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 
 ## Design Intent Trace
 
+Source 列の略記は Design Sources 節に列挙した WER 6 ファイルへの対応（例: `impl-pr1 WER:22` = `docs/archive/plans/2026-07-18-backup-migration-failure-contract-impl-pr1-workflow-effectiveness-review.md` の 22 行目）。
+
 | Spec / requirement ID | Source design doc section | Decision ID | Why / rejected alternatives | Implementation target | Test target |
 |---|---|---|---|---|---|
-| roadmap 1-1（Plans.md） | UI-13 WER Deferred | SPEC-WF-WERC-D1 | doc 目次義務が checklist 表に未反映（8 分類中の残り 1）。代替 = 消化済み扱いで放置 → 積み残しが不可視化するため却下 | `templates/plan-packet.md` Registration 表 | M-D1 |
-| 同上 | PR #14 WER Change 2 | SPEC-WF-WERC-D2 | 相互修正案方式は空転 round ゼロ化の効果実証済み。代替 = 慣行のまま → session 依存で失伝するため却下 | `DEV_WORKFLOW.md` Review Rules | M-D2 |
-| 同上 | PR #14 WER Change 3 | SPEC-WF-WERC-D3 | 絶対保証と escape hatch の自己矛盾は checklist 1 行で防げる（実例 = design 第 6 round） | `DEV_WORKFLOW.md` Design checklist + template Design Intent Audit | M-D3 |
-| 同上 | PR #15 WER Change | SPEC-WF-WERC-D4 | 推論ベース anti-tautology 判定は 5 件見逃しの実証があり、実 mutation 注入を要求に昇格 | `DEV_WORKFLOW.md` Contract Audit（Mutation / anti-tautology check 行） | M-D4 |
-| 同上 | PR #16 WER Adjustment 2 | SPEC-WF-WERC-D5 | gap = cap 枯渇時のフォールバック未規定。選択肢 (a) 再 walk cap 免除は cap の意義を弱めるため却下、(b) closeout narrative 実体化の正規手順化を採用（PR #16 実績追認） | `DEV_WORKFLOW.md` Workflow State（Evidence Ownership 段落末尾に文単位追記） | M-D5 |
-| 同上 | PR #16 WER Adjustment 3 | SPEC-WF-WERC-D6 | §4.6 の Windows clone パス 2 箇所のみ stale。`:92`/`:252`/`:261` は履歴・正・意図的対比のため不改訂 | `DEV_SETUP_CHECKLIST.md:248,:251` | M-D6 |
-| 同上 | PR #9 WER Follow-up | SPEC-WF-WERC-D7 | 可変 count の prose 転記は 5 箇所独立 drift の実証。Evidence Ownership の「test counts」を可変 count 全般へ拡張 | `DEV_WORKFLOW.md` Evidence Ownership 段落 | M-D7 |
-| 同上 | PR #14 WER Change 1 | SPEC-WF-WERC-D8 | 部分採用: 旧文言 grep 0 件の PR evidence 記録を規範化。full 機械化は却下（old-wording 供給規約が未存在で実行不能）— 「4 回再発 = hook 発動条件成立」の事実は認めた上で却下理由を実行可能性に限定 | `DEV_WORKFLOW.md` Draft PR Checkpoint | M-D8 |
-| 同上 | PR #16 WER Adjustment 1 | SPEC-WF-WERC-D9 | norm 昇格のみ採用（PR #17 で効果実証済み）。CI gate 化は 2026-08-01 CI 再評価へ | `DEV_WORKFLOW.md` Implementation Rules + template Test Plan 節 | M-D9 |
-| 同上 | PR #17 WER Adjustment 1 | SPEC-WF-WERC-D10 | Matrix の「既存テストで回帰担保」行は実在しないテスト引用が Double Audit まで潜伏した実例あり。rg 実在確認を起票時要求に | `templates/test-design-matrix.md` + `DEV_WORKFLOW.md` Design checklist | M-D10 |
-| 同上 | PR #17 WER Adjustment 2 | SPEC-WF-WERC-D11 | Ledger 起票時の adjacent-contract sweep。「規律変更なし、検出タイミング前倒しのみ」の WER 制約を遵守した最小文 | `DEV_WORKFLOW.md` Contract Audit + template Contract Coverage Ledger 節 | M-D11 |
-| 同上 | 本 packet 採否裁定 | SPEC-WF-WERC-D12 | 採用 / 部分採用 / 不採用 defer（機械 gate 化・CI gate 化・監査発注書健全性チェック）を D-038 bundle precedent で 1 決定に集約 | `decision-log.md` D-050 | M-D12 |
+| roadmap 1-1（Plans.md） | ui13 WER:83,:96 | SPEC-WF-WERC-D1 | doc 目次義務が checklist 表に未反映（8 分類中の残り 1）。代替 = 消化済み扱いで放置 → 積み残しが不可視化するため却下 | `templates/plan-packet.md` Registration 表 | M-D1 |
+| 同上 | design WER:67 | SPEC-WF-WERC-D2 | 相互修正案方式は空転 round ゼロ化の効果実証済み。代替 = 慣行のまま → session 依存で失伝するため却下 | `DEV_WORKFLOW.md` Review Rules | M-D2 |
+| 同上 | design WER:68 | SPEC-WF-WERC-D3 | 絶対保証と escape hatch の自己矛盾は checklist 1 行で防げる（実例 = design 第 6 round） | `DEV_WORKFLOW.md` Design checklist + template Design Intent Audit | M-D3 |
+| 同上 | clone-routing WER:87,:99 | SPEC-WF-WERC-D4 | 推論ベース anti-tautology 判定は 5 件見逃しの実証があり、実 mutation 注入を要求に昇格。隣接 2 doc（subagent-review-packet / inventory-code-review SKILL）の旧文言も追随（Plan Gate F4） | `DEV_WORKFLOW.md` Contract Audit + 隣接 2 doc | M-D4, M-D4A |
+| 同上 | impl-pr1 WER:22 | SPEC-WF-WERC-D5 | **不採用 defer（D-050 (iv)、Plan Gate F1）**: narrative-only の正規化は state-only Ready commit 必須・exact-HEAD sequence・check-workflow-git.sh の一律計数と両立しない。workflow-state 再設計 PR へ。PR #16 方式は記録付き逸脱のまま | 変更なし（Workflow State 節 不改変） | M-D5N（不変 guard） |
+| 同上 | impl-pr1 WER:23 | SPEC-WF-WERC-D6 | §4.6 の Windows clone パス 2 箇所のみ stale。`:92`/`:252`/`:261` は履歴・正・意図的対比のため不改訂 | `DEV_SETUP_CHECKLIST.md:248,:251` | M-D6 |
+| 同上 | pr9 WER:20,:91,:103 | SPEC-WF-WERC-D7 | **WER 原文範囲に限定（Plan Gate F3）**: 「設計 doc 内の、別正本から導出される volatile count の prose 転記禁止」。固定契約定数（13-phase / STATECAP 3 等）・enum 数・閾値は対象外。2026-07-12 cutoff と archive 非遡及は維持。全 tracked docs への拡張は WER を超える新規裁定になるため不採用 | `DEV_WORKFLOW.md` Evidence Ownership 段落 | M-D7 |
+| 同上 | design WER:66 | SPEC-WF-WERC-D8 | 部分採用: 旧文言 grep 0 件の PR evidence 記録を規範化。full 機械化は却下（発動条件成立の事実と却下理由 = 実行可能性を D-050 (i) で分離記録） | `DEV_WORKFLOW.md` Draft PR Checkpoint | M-D8 |
+| 同上 | impl-pr1 WER:21 | SPEC-WF-WERC-D9 | norm 昇格のみ採用（PR #17 で効果実証済み）。CI gate 化は 2026-08-01 CI 再評価へ（D-050 (ii)）。`docs/ci.md` Risk Routing は不改変 | `DEV_WORKFLOW.md` Implementation Rules + template Test Plan 節 | M-D9, M-D9A |
+| 同上 | impl-pr2 WER:19 | SPEC-WF-WERC-D10 | Matrix の「既存テストで回帰担保」行は実在しないテスト引用が Double Audit まで潜伏した実例あり。rg 実在確認を起票時要求に | `templates/test-design-matrix.md` + `DEV_WORKFLOW.md` Design checklist | M-D10 |
+| 同上 | impl-pr2 WER:20-21 | SPEC-WF-WERC-D11 | Ledger 起票時の adjacent-contract sweep。「規律変更なし、検出タイミング前倒しのみ」の WER 制約を遵守した最小文 | `DEV_WORKFLOW.md` Contract Audit + template Contract Coverage Ledger 節 | M-D11 |
+| 同上 | 本 packet 採否裁定 | SPEC-WF-WERC-D12 | 採用 / 部分採用 / 不採用 defer 4 件を D-038 bundle precedent で D-050 に集約（起票済み） | `decision-log.md` D-050 | M-D12 |
+| 同上 | Plans.md:90,:92 | SPEC-WF-WERC-D13 | roadmap 1-1 列挙の是正（消化済み 4 件除去 + 消化先明記）。Plan Gate F4 で独立契約行に昇格 | `docs/Plans.md` 次の行動 節 | M-D13 |
 
 ## Design Intent Audit
 
@@ -147,18 +156,21 @@ Minimum design checks: 全行 非該当（business-app 実装なし）— Layer 
 
 | Design contract / decision ID | Implementation target | Automated test | L3 or non-scope |
 |---|---|---|---|
-| SPEC-WF-WERC-D1（doc 目次行） | `templates/plan-packet.md` Registration 表 | doc-consistency-check full + M-D1 rg | non-scope（L3 なし） |
-| SPEC-WF-WERC-D2（相互修正案方式） | `DEV_WORKFLOW.md` Review Rules | M-D2 rg + review evidence | non-scope |
-| SPEC-WF-WERC-D3（絶対保証自己突合） | `DEV_WORKFLOW.md` Design checklist + template Design Intent Audit | M-D3 rg | non-scope |
-| SPEC-WF-WERC-D4（実 mutation 注入） | `DEV_WORKFLOW.md` Contract Audit | M-D4 rg | non-scope |
-| SPEC-WF-WERC-D5（cap 枯渇フォールバック） | `DEV_WORKFLOW.md` Workflow State | M-D5 rg + 矛盾通し読み | non-scope |
-| SPEC-WF-WERC-D6（clone パス追随） | `DEV_SETUP_CHECKLIST.md:248,:251` | M-D6 rg negative lookahead | non-scope（owner 実機確認は次回 L3 機会に自然実施） |
-| SPEC-WF-WERC-D7（可変 count 拡張） | `DEV_WORKFLOW.md` Evidence Ownership | M-D7 rg | non-scope |
-| SPEC-WF-WERC-D8（旧文言 grep evidence） | `DEV_WORKFLOW.md` Draft PR Checkpoint | M-D8 rg | non-scope |
-| SPEC-WF-WERC-D9（release-profile check norm） | `DEV_WORKFLOW.md` Implementation Rules + template Test Plan | M-D9 rg | non-scope |
-| SPEC-WF-WERC-D10（Matrix 実在確認） | `templates/test-design-matrix.md` + Design checklist | M-D10 rg | non-scope |
-| SPEC-WF-WERC-D11（adjacent-contract sweep） | `DEV_WORKFLOW.md` Contract Audit + template Ledger 節 | M-D11 rg | non-scope |
-| SPEC-WF-WERC-D12（D-050 採否裁定） | `decision-log.md` | M-D12 rg + doc-consistency-check | non-scope |
+| SPEC-WF-WERC-D1（doc 目次行） | `templates/plan-packet.md` Registration 表 | doc-consistency-check full + M-D1 | non-scope（L3 なし） |
+| SPEC-WF-WERC-D2（相互修正案方式） | `DEV_WORKFLOW.md` Review Rules | M-D2（3 要素の個別 assertion）+ review evidence | non-scope |
+| SPEC-WF-WERC-D3（絶対保証自己突合） | `DEV_WORKFLOW.md` Design checklist + template Design Intent Audit | M-D3 | non-scope |
+| SPEC-WF-WERC-D4（実 mutation 注入） | `DEV_WORKFLOW.md` Contract Audit | M-D4 | non-scope |
+| SPEC-WF-WERC-D4-A（隣接文言追随） | `templates/subagent-review-packet.md:137` + `.agents/skills/inventory-code-review/SKILL.md:58` | M-D4A | non-scope |
+| SPEC-WF-WERC-D5（defer、D-050 (iv)） | 変更なし — Workflow State 節・`check-workflow-git.sh`・fixture は不改変のまま互換維持 | M-D5N（Workflow State 節の diff ゼロ guard） | non-scope（workflow-state 再設計 PR へ defer） |
+| SPEC-WF-WERC-D6（clone パス追随） | `DEV_SETUP_CHECKLIST.md:248,:251` | M-D6（diff hunk 限定 + 対象外 exact 不変 assert） | non-scope（owner 実機確認は次回 L3 機会に自然実施） |
+| SPEC-WF-WERC-D7（volatile count 限定拡張） | `DEV_WORKFLOW.md` Evidence Ownership | M-D7（cutoff 行の不変 guard 込み） | non-scope |
+| SPEC-WF-WERC-D8（旧文言 grep evidence） | `DEV_WORKFLOW.md` Draft PR Checkpoint | M-D8 | non-scope |
+| SPEC-WF-WERC-D9（release-profile check norm） | `DEV_WORKFLOW.md` Implementation Rules + template Test Plan | M-D9 | non-scope |
+| SPEC-WF-WERC-D9-A（CI gate 非変更互換） | 変更なし — `docs/ci.md` Risk Routing（`:39,:159` 相当の workflow 行 / 再評価記述）を不改変で維持、gate 化は 2026-08-01 再評価へ | M-D9A（`docs/ci.md` の diff ゼロ guard） | non-scope |
+| SPEC-WF-WERC-D10（Matrix 実在確認） | `templates/test-design-matrix.md` + Design checklist | M-D10 | non-scope |
+| SPEC-WF-WERC-D11（adjacent-contract sweep） | `DEV_WORKFLOW.md` Contract Audit + template Ledger 節 | M-D11 | non-scope |
+| SPEC-WF-WERC-D12（D-050 採否裁定） | `decision-log.md`（起票済み） | M-D12（3 区分 + defer 4 件の存在 assert）+ doc-consistency-check | non-scope |
+| SPEC-WF-WERC-D13（Plans.md roadmap 是正） | `docs/Plans.md` 次の行動 節 | M-D13（節限定 rg で stale 4 件の不在 assert） | non-scope |
 
 ## Test Plan
 
