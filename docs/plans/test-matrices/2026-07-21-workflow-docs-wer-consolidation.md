@@ -6,7 +6,7 @@ Risk: R3
 
 ## Contracts Under Test
 
-- SPEC-WF-WERC-D1〜D13（packet Contract Coverage Ledger 参照。採用規範文 = anchor phrase 契約、defer/非変更 = 不変 guard 契約）
+- SPEC-WF-WERC-D1〜D13 + SPEC-WF-WERC-HANDOFF（packet Contract Coverage Ledger 参照。採用規範文 = anchor phrase 契約、defer/非変更 = 不変 guard 契約、HANDOFF = current-work sync 契約）
 
 ## 実装制約（M-DIFF 前提）
 
