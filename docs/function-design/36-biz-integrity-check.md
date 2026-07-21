@@ -145,7 +145,7 @@ fn fix_integrity(
 
 4. **TX内: 操作ログ記録（必須、BIZ-07-D3）**
    - system_repo::insert_operation_log(&tx, &NewOperationLog { operation_type: "integrity_fix", summary: "{fixed_count}件の在庫を補正しました", detail_json: Some(補正内容のJSON — adjustments の product_code / old_stock / new_stock / adjustment を必須で含める) })
-   - ログ記録失敗は補正ごと rollback して BizError::DatabaseError を返す。**D-6（操作ログは best-effort）の明示例外**: 補正は movement 行を残さないため操作ログが唯一の監査痕跡であり、痕跡なしの在庫直接書換えを構造的に禁止する（TX 内必須ログの既存 precedent は BIZ-01 product_service の 3 箇所。D-6 例外の現状整理は D-051 audit 小見出し参照）
+   - ログ記録失敗は補正ごと rollback して BizError::DatabaseError を返す。**旧・第4段階先決事項D-6（操作ログは best-effort）の明示例外**: 補正は movement 行を残さないため操作ログが唯一の監査痕跡であり、痕跡なしの在庫直接書換えを構造的に禁止する（TX 内必須ログの既存 precedent は BIZ-01 product_service の商品更新系 + BIZ-02 inventory_service の業務記録 4 系。TX 境界の現状整理は D-051 audit 小見出し参照）
 
 5. **COMMIT**（tx.commit()）
 
@@ -185,7 +185,7 @@ fn fix_integrity(
 | 不変条件 | 本モジュールでの対応 |
 |---------|-----------------|
 | BIZ-07-D1: 原本/cache | inventory_movements = 在庫推移の原本、products.stock_quantity = 派生 cache（D-051）。補正は cache を原本の合計へ直接更新で合わせ、原本には触れない |
-| BIZ-07-D4: 収束性 | fix_integrity 成功直後の run_integrity_check は、補正対象商品について difference = 0 を返す |
+| BIZ-07-D4: 収束性 | fix_integrity 成功直後（介在 write なし）の run_integrity_check の mismatches に補正対象商品が現れない（同関数は difference ≠ 0 の商品のみを返すため、非出現 = difference 0 と等価） |
 | INV-2: stock_after算出責任 | fix_integrity は movement を作らないため stock_after の算出自体が発生しない。stock_quantity を movements_sum へ直接更新する（BIZ-07-D2、apply_stock_change 非経由） |
 | INV-3: 負在庫ポリシー | movements_sum がマイナスになる場合でも補正を実行（movements の合計が真値） |
 | INV-4: is_voided の使用範囲 | SUM 計算で WHERE is_voided = 0 を使用。fix_integrity は is_voided を操作しない |
@@ -196,5 +196,5 @@ fn fix_integrity(
 BIZ-07-D3 / D4 の実装 follow-up PR は、以下の oracle を持つテストを完了条件とする（設計正本はこの節、検査計画は design packet Matrix #12 起源）:
 
 - **失敗系（BIZ-07-D3）**: `integrity_fix` 操作ログの INSERT を注入失敗させ（SQLite trigger 等）、`BizError::DatabaseError` の返却、全対象商品の stock_quantity 不変、inventory_movements 行数増 0 を assert する
-- **成功系（BIZ-07-D3）**: detail_json.adjustments[] の product_code / old_stock / new_stock / adjustment を具体値で検証する
-- **収束系（BIZ-07-D4）**: 補正成功直後に run_integrity_check を実行し、全補正対象商品の difference = 0 を assert する
+- **成功系（BIZ-07-D3 / D2）**: detail_json.adjustments[] の product_code / old_stock / new_stock / adjustment を具体値で検証する。あわせて**補正前後で inventory_movements の総行数と各対象商品の行数が不変**（新規 movement row 不存在）を assert する — D-051 rejected ②（quantity=0 marker 行）の実装を green のまま通さないため（Contract Audit 2 pass P1-2）
+- **収束系（BIZ-07-D4）**: 補正成功直後（介在 write なし）に run_integrity_check を実行し、adjustments[].product_code が result.mismatches に存在しないことを assert する。補助 oracle として同一 committed state で SQL 等式 `stock_quantity = SUM(quantity WHERE is_voided = 0)` を対象商品ごとに検査する（2 pass P2-2 で戻り値形に整合する形へ是正）

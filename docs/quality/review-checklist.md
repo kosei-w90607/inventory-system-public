@@ -28,7 +28,7 @@
 
 ### 3. TX境界・データ整合
 
-- [ ] operation_log がTX外で記録されているか（全TX外方針）
+- [ ] operation_log の TX 境界が設計正本と一致しているか（既定 = TX外 best-effort〈旧・第4段階先決事項D-6〉。source design が明記する例外 = BIZ-01 商品更新系 / BIZ-02 業務記録系 / BIZ-07 fix_integrity〈D-051〉は TX内必須）
 - [ ] TX範囲が明示されているか（開始・コミット・ロールバック）
 - [ ] 上書きフロー（旧void+新commit）が同一TX内か
 - [ ] TOCTOU防止（TX内の再チェック）が必要な箇所に入っているか
