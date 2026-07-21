@@ -35,7 +35,7 @@ If a state-only commit materializes multiple phases, list the complete adjacent 
 Risk: R3
 
 Reason:
-docs-only の design phase だが、[adjudication](../research/audit-2026-07/adjudication.md) が順 3 に「R3 design-first」を明示付与しており、対象は在庫数（`products.stock_quantity`）を直接書き換える destructive 寄りの操作契約と operator 向け文言の正本。PR #14（順 1+2 design phase、R3）の前例に従う。R4 としない理由: 本 PR 自体は destructive 操作を実行せず（docs のみ、git revert で完全に巻き戻せる）、実挙動が変わるのは後続実装 PR 側。R3 の必須物（Spec Contract / Trace Matrix / Data Safety / Test Design Matrix / Contract Coverage Ledger / 独立レビュー）は本 packet で満たす。
+docs-only の design phase だが、[adjudication](../../research/audit-2026-07/adjudication.md) が順 3 に「R3 design-first」を明示付与しており、対象は在庫数（`products.stock_quantity`）を直接書き換える destructive 寄りの操作契約と operator 向け文言の正本。PR #14（順 1+2 design phase、R3）の前例に従う。R4 としない理由: 本 PR 自体は destructive 操作を実行せず（docs のみ、git revert で完全に巻き戻せる）、実挙動が変わるのは後続実装 PR 側。R3 の必須物（Spec Contract / Trace Matrix / Data Safety / Test Design Matrix / Contract Coverage Ledger / 独立レビュー）は本 packet で満たす。
 
 ## Goal
 
