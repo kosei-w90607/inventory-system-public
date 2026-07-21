@@ -358,16 +358,16 @@ REQ-403 / SP-403 の POS 部門別売上照合は別の deferred 要求であり
 
 **【CMD呼び出し】**
 - 「整合性チェック実行」ボタン → CMD-11 run_integrity_check
-- 差異検出時、選択行で「補正確定」→ CMD-11 fix_integrity（棚卸し補正としての inventory_movements 追加）
+- 差異検出時、選択行で「補正確定」→ CMD-11 fix_integrity（stock_quantity を movements_sum へ直接更新。inventory_movements への行追加なし、同一TX内 integrity_fix 操作ログ必須 — BIZ-07-D2/D3）
 
 **【利用者操作フロー】**
 1. 画面表示時は idle 状態。「整合性チェック実行」ボタンのみ表示
 2. 実行中はプログレスバーと処理中メッセージ
 3. 差異なし → 緑色の成功メッセージ、「直近の確認日時」を記録
 4. 差異あり → 差異商品一覧（商品コード/名前/DBのstock_quantity/SUM(movements)/差異数）
-5. 利用者が補正する商品を選択し「棚卸し補正として確定」ボタン
-6. 確認ダイアログ（「現在の在庫数 vs DB記録の差異を棚卸し補正として記録します」）
-7. 確定 → inventory_movements に movement_type='stocktake' で補正行追加、products.stock_quantity を更新
+5. 利用者が補正する商品を選択し「補正を確定」ボタン（文言正本は 75-ui-integrity-check.md 文言表）
+6. 確認ダイアログ（在庫数を入出庫の合計に合わせて補正し、操作ログに記録する旨。文言正本は 75-ui-integrity-check.md 文言表）
+7. 確定 → products.stock_quantity を movements_sum へ直接更新（inventory_movements への行追加なし）+ 同一TX内 integrity_fix 操作ログ必須記録（BIZ-07-D2/D3、D-051）
 
 **【制御構造】**
 - チェック実行は重い処理のため、UIは running 状態で他操作を受け付けない（画面内オーバーレイ）

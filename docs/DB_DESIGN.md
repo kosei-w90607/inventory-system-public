@@ -128,7 +128,7 @@ jan_codeとfile_hash以外に、以下のインデックスを初期設定する
 - **チェックタイミング**: CSV取込み完了時、棚卸し確定時、設定画面からの手動実行
 - **チェック方法**: 各商品について `SUM(inventory_movements.quantity WHERE is_voided=0)` と `products.stock_quantity` を突合
 - **差異発見時**: operation_logsに記録。画面に「在庫数に不整合があります」と警告表示。差異のある商品一覧を表示
-- **復旧方針**: 自動上書きはしない（履歴起点が欠損している可能性があるため危険）。利用者に差異を提示し、「棚卸し補正として現在の在庫数を確定しますか？」と確認。確定した場合のみstocktakeとしてinventory_movementsに補正レコードを追加し、stock_quantityを更新する
+- **復旧方針**: 自動上書きはしない（履歴起点が欠損している可能性があるため危険）。利用者に差異を提示し、在庫数を入出庫の合計に合わせて補正する旨を確認する（文言正本は function-design/75-ui-integrity-check.md 文言表）。確定した場合のみ stock_quantity を movements_sum へ直接更新する。inventory_movements への行追加はしない（挿入すると合計自体が変わり再チェックが収束しないため）。補正は同一TX内の integrity_fix 操作ログへ old/new 付きで必須記録する（BIZ-07-D2/D3、D-051）
 
 ### ファイルパス保存方針（指摘#19対応）
 - receipt_image_path: アプリ管理下の相対パスで保存（例: images/receipts/2026-03-21_001.jpg）

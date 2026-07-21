@@ -508,10 +508,9 @@
 3. 不整合が0件 → 「問題ありません」で完了
 4. 不整合がある場合 → 不整合リストを利用者に表示
 5. 利用者が「補正する」を選択した場合:
-   - 各不整合商品について棚卸し補正として処理（BIZ-06の確定処理と同じ方式）
-   - products.stock_quantityをmovements_sumに合わせる
-   - inventory_movementsにstocktakeレコードを追加（差分を記録）
-6. operation_logsに記録（operation_type='integrity_check', detail_jsonに不整合件数・補正有無）
+   - 各不整合商品について products.stock_quantity を movements_sum へ直接更新する（inventory_movements に行は追加しない — BIZ-07-D2 / D-051、詳細は function-design/36-biz-integrity-check.md §21.4）
+   - 補正内容は同一TX内の operation_logs（operation_type='integrity_fix'、old/new 付き）へ必須記録し、記録失敗時は補正ごとロールバックする（BIZ-07-D3、D-6の明示例外）
+6. チェック実行の operation_logs 記録（operation_type='integrity_check', detail_jsonに不整合件数）はTX外 best-effort のまま（D-6準拠）。補正の記録はステップ5のTX内 'integrity_fix' ログが担う（2ログ分離）
 
 **【制御構造】**
 - チェックタイミング: CSV取込み完了時（自動）、棚卸し確定時（自動）、設定画面から手動実行

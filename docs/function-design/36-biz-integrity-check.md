@@ -107,7 +107,7 @@ fn run_integrity_check(conn: &DbConnection) -> Result<IntegrityResult, BizError>
 
 ### 21.4 fix_integrity
 
-**関数要求**: 指定された商品の stock_quantity を movements_sum に合わせて補正する。棚卸し補正と同じ方式（movement_type='stocktake'）で inventory_movements に補正レコードを追加する
+**関数要求**: 指定された商品の stock_quantity を movements_sum に合わせて**直接更新**で補正する。補正は実入出庫・棚卸しではないため inventory_movements に行を追加しない（BIZ-07-D2）。補正内容は同一 TX 内の `integrity_fix` 操作ログへ old/new 付きで必須記録する（BIZ-07-D3）。意味論の durable 判断は [D-051](../decision-log.md)
 
 **シグネチャ**:
 ```
@@ -137,17 +137,17 @@ fn fix_integrity(
       - 商品が存在しない → スキップ（skipped_count++）
    c. difference = stock_quantity - movements_sum
    d. difference == 0 → 不整合なし、スキップ（skipped_count++）
-   e. difference ≠ 0 → 補正実行:
-      - adjustment = movements_sum - stock_quantity（movements_sum に合わせる方向）
-      - inventory_repo::insert_movement(conn, &NewMovement { product_code, movement_type: "stocktake", quantity: adjustment, stock_after: movements_sum, reference_type: "stocktake", reference_id: 0, note: Some("整合性チェックによる自動補正") })
+   e. difference ≠ 0 → 補正実行（BIZ-07-D2: direct update のみ）:
+      - adjustment = movements_sum - stock_quantity（movements_sum に合わせる方向。結果表示・操作ログ用の導出値）
       - inventory_repo::update_stock_quantity(conn, product_code, movements_sum)
-      - adjustments に追加
+      - adjustments に追加（product_code / old_stock = stock_quantity / new_stock = movements_sum / adjustment）
+      - **movement 行は追加しない**。補正 movement を挿入すると movements_sum 自体が変わり（挿入後の合計 = 2 × movements_sum − stock_quantity）、再チェックが収束しない（監査 P7-1 の算術、[D-051](../decision-log.md)）
 
-4. **COMMIT**（tx.commit()）
+4. **TX内: 操作ログ記録（必須、BIZ-07-D3）**
+   - system_repo::insert_operation_log(&tx, &NewOperationLog { operation_type: "integrity_fix", summary: "{fixed_count}件の在庫を補正しました", detail_json: Some(補正内容のJSON — adjustments の product_code / old_stock / new_stock / adjustment を必須で含める) })
+   - ログ記録失敗は補正ごと rollback して BizError::DatabaseError を返す。**旧・第4段階先決事項D-6（操作ログは best-effort）の明示例外**: 補正は movement 行を残さないため操作ログが唯一の監査痕跡であり、痕跡なしの在庫直接書換えを構造的に禁止する（TX 内必須ログの既存 precedent は BIZ-01 product_service の商品更新系 + BIZ-02 inventory_service の業務記録 4 系。TX 境界の現状整理は D-051 audit 小見出し参照）
 
-5. **TX外: 操作ログ記録**
-   - system_repo::insert_operation_log(conn, &NewOperationLog { operation_type: "integrity_fix", summary: "{fixed_count}件の在庫を補正しました", detail_json: Some(補正内容のJSON) })
-   - ログ記録失敗は警告のみ（先決事項D-6）
+5. **COMMIT**（tx.commit()）
 
 6. **結果返却**
    - IntegrityFixResult { fixed_count, skipped_count, adjustments }
@@ -155,17 +155,16 @@ fn fix_integrity(
 **エラーハンドリング**:
 - 補正対象なし → BizError::ValidationFailed(メッセージ)
 - DB更新失敗 → BizError::DatabaseError(DbError)（TX自動ロールバック）
+- 操作ログ記録失敗 → BizError::DatabaseError(DbError)（TXロールバック、補正は一切確定しない — BIZ-07-D3）
 
-**設計判断 — reference_id=0 の理由（先決事項D-3）**:
-- 整合性チェックによる補正は「仮想棚卸し」として扱う
-- 実際の stocktakes レコードは作成しない（棚卸し画面を経由していないため）
-- reference_type='stocktake', reference_id=0 で「整合性補正」であることを識別
-- DB_DESIGN.md の reference_type CHECK制約（'stocktake' は許容値）に適合
-- note フィールドで「整合性チェックによる自動補正」と明記
+**設計判断 — 「仮想棚卸し」概念の退役（BIZ-07-D5、旧・先決事項D-3の撤回）**:
+- 旧設計は補正を reference_type='stocktake', reference_id=0 の「仮想棚卸し」movement として記録するとしていたが、movement を作らない意味論（BIZ-07-D2 / D-051）では識別設計そのものが不要になった
+- 補正の識別は operation_logs の operation_type='integrity_fix' が担う
+- このため補正は在庫変動履歴（[65-inventory-record-traceability.md](65-inventory-record-traceability.md) の追跡対象）に現れず、追跡は operation_logs（UI-11c 操作ログ画面）で行う
 
-**設計判断 — movements_sum に合わせる方向**:
+**設計判断 — movements_sum に合わせる方向（BIZ-07-D1）**:
 - architecture/biz-task-specs.md BIZ-07「処理構造」ステップ5: 「products.stock_quantity を movements_sum に合わせる」
-- 理由: inventory_movements は個々の操作ごとに記録されており、stock_quantity は派生値（キャッシュ）。原本は movements 側
+- 理由: inventory_movements は個々の操作ごとに記録されており在庫推移の**原本**、stock_quantity は**派生 cache**。補正は cache を原本の合計へ合わせる操作であり、原本には触れない（D-051 invariant）
 
 ---
 
@@ -185,7 +184,17 @@ fn fix_integrity(
 
 | 不変条件 | 本モジュールでの対応 |
 |---------|-----------------|
-| INV-2: stock_after算出責任 | fix_integrity のステップ3e で stock_after = movements_sum を計算。apply_stock_change は経由せず直接設定（補正は通常の在庫変動と異なり、movements_sum への強制合わせ） |
+| BIZ-07-D1: 原本/cache | inventory_movements = 在庫推移の原本、products.stock_quantity = 派生 cache（D-051）。補正は cache を原本の合計へ直接更新で合わせ、原本には触れない |
+| BIZ-07-D4: 収束性 | fix_integrity 成功直後（介在 write なし）の run_integrity_check の mismatches に補正対象商品が現れない（同関数は difference ≠ 0 の商品のみを返すため、非出現 = difference 0 と等価） |
+| INV-2: stock_after算出責任 | fix_integrity は movement を作らないため stock_after の算出自体が発生しない。stock_quantity を movements_sum へ直接更新する（BIZ-07-D2、apply_stock_change 非経由） |
 | INV-3: 負在庫ポリシー | movements_sum がマイナスになる場合でも補正を実行（movements の合計が真値） |
 | INV-4: is_voided の使用範囲 | SUM 計算で WHERE is_voided = 0 を使用。fix_integrity は is_voided を操作しない |
 | INV-8: products物理DELETE禁止 | stock_quantity の更新のみ。DELETE なし |
+
+### 21.7 テスト方針（実装 follow-up の完了条件）
+
+BIZ-07-D3 / D4 の実装 follow-up PR は、以下の oracle を持つテストを完了条件とする（設計正本はこの節、検査計画は design packet Matrix #12 起源）:
+
+- **失敗系（BIZ-07-D3）**: `integrity_fix` 操作ログの INSERT を注入失敗させ（SQLite trigger 等）、`BizError::DatabaseError` の返却、全対象商品の stock_quantity 不変、inventory_movements 行数増 0 を assert する
+- **成功系（BIZ-07-D3 / D2）**: detail_json.adjustments[] の product_code / old_stock / new_stock / adjustment を具体値で検証する。あわせて**補正前後で inventory_movements の総行数と各対象商品の行数が不変**（新規 movement row 不存在）を assert する — D-051 rejected ②（quantity=0 marker 行）の実装を green のまま通さないため（Contract Audit 2 pass P1-2）
+- **収束系（BIZ-07-D4）**: 補正成功直後（介在 write なし）に run_integrity_check を実行し、adjustments[].product_code が result.mismatches に存在しないことを assert する。補助 oracle として同一 committed state で SQL 等式 `stock_quantity = SUM(quantity WHERE is_voided = 0)` を対象商品ごとに検査する（2 pass P2-2 で戻り値形に整合する形へ是正）
