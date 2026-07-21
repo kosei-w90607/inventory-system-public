@@ -68,6 +68,19 @@ fn prepare_database(app_data: &std::path::Path) -> Result<db::DbConnection, Star
     )
 }
 
+fn run_startup_auto_backup(conn: &db::DbConnection, app_data: &std::path::Path) {
+    match mnt::backup::resolve_backup_dir(conn, app_data) {
+        Ok(backup_dir) => {
+            if let Err(e) = mnt::backup::check_auto_backup(conn, &backup_dir) {
+                tracing::warn!(error = %e, "自動バックアップチェックに失敗");
+            }
+        }
+        Err(e) => {
+            tracing::warn!(error = %e, "バックアップ保存先の設定読取に失敗（自動バックアップをスキップ）");
+        }
+    }
+}
+
 fn prepare_database_with<C, F>(
     app_data: &std::path::Path,
     cwd: C,
@@ -322,6 +335,25 @@ mod bindings_generation_tests {
 
         let normalized = std::fs::read_to_string(path).unwrap();
         assert_eq!(normalized, "type A = {\n\tfield: string,\n}\n");
+    }
+
+    #[test]
+    fn test_startup_req901_d2_resolve_error_warns_and_skips_auto_backup() {
+        // REQ-901 / MNT-01-D2 / Matrix C5
+        let app_data = tempfile::tempdir().unwrap();
+        let db_path = app_data.path().join("inventory.db");
+        let conn = crate::db::init_database(db_path.to_str().unwrap()).unwrap();
+        crate::db::system_repo::upsert_setting(&conn, "backup_enabled", "1").unwrap();
+        let _failure = crate::mnt::backup::fail_setting_read("backup_path");
+
+        let (_, logs) =
+            crate::test_tracing::capture(|| super::run_startup_auto_backup(&conn, app_data.path()));
+
+        assert!(logs.contains("WARN") && logs.contains("自動バックアップをスキップ"));
+        assert!(
+            !app_data.path().join("backups").exists(),
+            "resolve失敗時はcheck_auto_backupを呼んではならない"
+        );
     }
 
     #[test]
@@ -626,10 +658,7 @@ pub fn run() {
             }
 
             // 6. 自動バックアップチェック（起動時。失敗してもアプリ起動は続行）
-            let backup_dir = mnt::backup::resolve_backup_dir(&conn, &app_data);
-            if let Err(e) = mnt::backup::check_auto_backup(&conn, &backup_dir) {
-                tracing::warn!(error = %e, "自動バックアップチェックに失敗");
-            }
+            run_startup_auto_backup(&conn, &app_data);
 
             // 7. State管理（setup 内で manage）
             app.manage(AppState {
