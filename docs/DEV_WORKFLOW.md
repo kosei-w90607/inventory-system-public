@@ -66,6 +66,8 @@ If uncertain between R2 and R3, choose R3 when the change touches a stable contr
 - Completed plans move to `docs/archive/plans/` with evidence preserved.
 - For R2+ work, the Plan Packet's Scope and Test Design Matrix must be authored and committed before implementation code is written — as a change separate from the implementation commit, not folded into it. This applies regardless of who implements (Claude, Codex, or a sub-agent): letting the implementer author the Plan Packet as part of the same commit that adds implementation code removes the independent check that Plan authoring provides. When a Plan Packet is missing or was only written after the fact, treat design-doc contracts (e.g. specific interaction behaviors, not just data/error contracts) as unverified until the implementation and its tests are checked against the source design doc line by line.
 
+**Evidence Ownership — design-document extension** (D-050; the Workflow State contract below remains unchanged): for design documents written from 2026-07-12 forward, do not transcribe volatile counts derived from another source of truth; reference that source instead. Fixed contract constants, enum cardinalities, and thresholds are not volatile counts, and archived packets / WERs remain non-retroactive (error-handling replacement WER lesson).
+
 ## Workflow State
 
 Every R2+ Plan Packet carries a fixed-format `## Workflow State` section as the machine-checkable per-change state (D-034). The format is a fixed Markdown section, not YAML frontmatter: the existing doc checker (`scripts/doc-consistency-check.sh` PK checks) and this repo's plan templates are Markdown-line based, so a future PK4 check can validate this section with the same line-regex mechanism without adding a YAML parser.
@@ -206,6 +208,8 @@ Design checklist:
 - Adjacent-spec consistency: similar flows, sibling routes, return paths, filters, and recovery actions are compared explicitly. If the new behavior is a different scenario, the source doc states the scenario and the accepted differences.
 - Filter / select controls: source of complete option lists, whether options come from master data or current results, and why paginated / filtered result rows are safe or rejected as option sources.
 - Testability: requirement/spec IDs, unit/integration/UI checks, negative cases, fixtures, and whether Windows native or hardware-adjacent verification is needed.
+- Absolute guarantees: when a design says an outcome “cannot happen” or “always happens,” check every exception and escape hatch in the same PR and state how they remain compatible (backup/migration design WER lesson).
+- Cited test existence: before claiming an existing test covers a Matrix row, use `rg` or an equivalent repository search to verify that the cited test actually exists (backup/migration implementation PR2 WER lesson).
 - Scope control: what the completed capability should eventually include, what this PR deliberately defers, why it is safe to defer implementation, and where the follow-up is recorded.
 
 Design completion criteria:
@@ -229,6 +233,7 @@ Design completion criteria:
 - Implementation must not start before a Plan Packet exists and its `Workflow State` Phase has reached plan-approved (see Plan Packet Rules and the Workflow State transition table: Scope + Test Design Matrix committed as a change separate from the implementation commit, independent Plan Reviewer P1/P2 = 0).
 - Do not commit real POS CSV, PLU exports, DB files, backups, logs, receipt images, secrets, or local app data.
 - Session coordination tools such as `goal` or `$agmsg` may organize work, but durable workflow state belongs in repository evidence: `Plans.md`, Plan Packets, PR bodies, archived plans, and source docs.
+- When a Plan Packet includes L3 in its Human Gate, the Writer must run `cargo check --release` before the owner performs the native build; this is a Writer completion condition, not a CI gate (backup/migration implementation PR1 WER lesson).
 - Dashboard-only merge baseline sync can be batched with the next related docs cleanup when there is no blocker, user-facing ambiguity, or stale next action.
 
 ## Subagent Budget
@@ -321,6 +326,7 @@ CI routing:
 - For R4, review-only sub-agent is required and destructive or irreversible actions need explicit human approval.
 - Sub-agent findings are claims. Verify each finding against files, diffs, specs, and test output before accepting or rejecting it.
 - Same-PR fixes are for regressions, contract drift, data safety gaps, missing critical tests, and merge blockers. Future improvements go to the dashboard or archive evidence.
+- For iterative plan or contract review, each finding must attach a concrete fix proposal; the reviewer and Coordinator then use mutual adjudication, and the reviewer retains an objection channel when the proposed disposition would leave the contract unsound (backup/migration design WER lesson).
 - **Findings Freeze** (D-038): ① the finding set is frozen once the initial Broad Audit completes; rounds after that are closure confirmation only. Whenever two Contract Audit passes actually run — the mandatory Double Audit on R4/workflow gate changes, or an R3 change that opted into the Contract Audit section's recommended second pass — both passes together constitute that "initial Broad Audit", and Freeze takes effect only after both passes complete; this proviso is required so a Double Audit still catches what a single pass would miss. ② a new P2 found after Freeze is a blocker only when it is proven by a runtime failure. ③ a new P3 found after Freeze is a follow-up, not a blocker. ④ there is one broad review lane per change, chosen by where the risk sits: cross-layer/contract risk uses the Contract Audit lane, UI-presentation risk uses review-checklist §9 + the operator-ui skill, and both lanes run only when the change genuinely spans both.
 
 ## Contract Audit (R3/R4)
@@ -332,7 +338,9 @@ Standard independent-review step (D-034), introduced after PR #159: design-doc c
 - State Lifecycle Matrix: for stateful UI/data changes, the Test Design Matrix covers initial / pending / success / invalidate / refetch / revisit / restart / failure / retry transitions (miss #13 class: post-commit refetch replaced the "previous stocktake" snapshot).
 - Adjacent Pattern Audit: when porting an established pattern (IME isComposing, Enter handling, focus order, formatter, query invalidation, error-kind mapping, route/search state, accessibility), enumerate every site of the source pattern and verify each was ported or explicitly excluded (miss #10/#15 class).
 - Mutation / anti-tautology check: mock values must be distinguishable from design-doc expected values; verify that a broken implementation cannot stay green when a mock value or the invalidate/refetch order changes (T11/T13 class).
+- Mutation adequacy must inject a real mutation into the implementation or assertion under review and confirm the relevant test turns red; structural reasoning alone is insufficient (clone-routing WER lesson).
 - Negative-space audit: list what the touched source design docs specify that appears nowhere in the ledger, the implementation, or the tests.
+- At Ledger authoring time, run an adjacent-contract sweep across every touched source-doc section and add any contract the Scope can exercise before Plan Gate; this advances detection timing without changing the existing adjudication discipline (backup/migration implementation PR2 WER lesson).
 - Drift-fix sweep: on first receipt of a drift finding, `rg` the finding's keyword across the whole repository and fix every hit in one commit, instead of letting the same drift resurface across later review rounds.
 - Manual verification boundary: assertions not provable by automated tests become explicit L3 checklist items in 画面 / 到達手順 / 観測可能な合格基準 form.
 - PR body freshness: before Ready, re-read the whole PR body against the final state of the change and refresh stale sections.
@@ -344,6 +352,7 @@ After the first implementation pass is complete, Codex should be able to publish
 Definition of first implementation pass complete:
 
 - planned code, tests, generated bindings, route generation, and source docs for the scoped change are in the working tree;
+- When a commit changes contract wording, record PR evidence from a repo-wide grep for the old wording showing zero remaining live hits; archived historical evidence is not rewritten, and this is evidence rather than a generalized hook or CI gate (backup/migration design WER lesson).
 - relevant automated gates have passed, or any failures are understood and recorded as blockers;
 - R3/R4 review-only has run, or the skip reason is recorded;
 - the branch contains only the intended scope.

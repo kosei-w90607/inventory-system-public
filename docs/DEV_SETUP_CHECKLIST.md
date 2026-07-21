@@ -245,10 +245,10 @@ Tauri 2 on Linux IME 制約のため、Phase 2 (UI-00 ホーム画面以降) の
 
 #### L3 利用者デモのコード同期手順（merge 前の feature ブランチを Windows native clone へ取り込む）
 
-Phase 2 以降の L3 利用者デモ（8-0 gate）は WSL2 とは別の Windows 側 clone `C:\Users\Owner\projects\inventory-system` で実施する（IME インライン入力のため）。デモ前に GitHub 経由で feature ブランチを取り込む（PowerShell、merge 前なので feature ブランチを触る・main ではない）:
+Phase 2 以降の L3 利用者デモ（8-0 gate）は WSL2 とは別の Windows 側 clone `C:\Users\Owner\projects\inventory-system-public` で実施する（IME インライン入力のため）。デモ前に GitHub 経由で feature ブランチを取り込む（PowerShell、merge 前なので feature ブランチを触る・main ではない）:
 
 ```powershell
-cd C:\Users\Owner\projects\inventory-system
+cd C:\Users\Owner\projects\inventory-system-public
 git remote get-url origin                # public repo（inventory-system-public）を指しているか必ず確認
 git fetch origin
 git restore package-lock.json            # ローカル変更で出る、捨ててOK（reset --hard で origin 版に揃う）

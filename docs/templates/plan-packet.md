@@ -100,6 +100,7 @@ Use `docs/DEV_WORKFLOW.md` Design artifact selection to decide what must exist b
 |---|---|
 | Tauri command（frontend から呼ぶ） | `lib.rs` の specta `collect_commands` 登録 / command 関数への `#[tauri::command]` + `#[specta::specta]` 属性の対 / `cargo run --bin generate_bindings` での `bindings.ts` 再生成 |
 | function-design doc 新設 | `src-tauri/tests/design_compliance_test.rs` の `build_doc_to_modules_map()` へ entry 追加 / checker が要求する必須セクション（シグネチャ / 処理ステップ / エラーハンドリング）の充足 |
+| source / workflow doc 新設・改名 | 親文書の目次・索引を更新し、リンク先と登録位置を確認する |
 | REQ coverage 追加（設計書・テスト追加） | `cargo run --bin generate_traceability` で `90-traceability.md` 再生成（AUTO-GENERATED、手動編集は禁止のまま） |
 | route 新設 | `npm run generate:routes`（routeTree 生成） |
 | operator 画面新設 | `src/config/navigation.ts` の entry 有効化（`to` + `status: "active"`）+ `navigation.test.ts` に REQ 番号入り到達テスト（ui-11c パターン）。「operator が画面に到達できる」到達導線契約を Contract Coverage Ledger の標準行として必ず立てる — route 直 render テストと doc 整合レビューは到達性を検証しない（UI-13 Amendment 4 の実例） |
@@ -121,6 +122,7 @@ Use spec/requirement IDs as the root. Use child decision IDs such as `UI-01a-D1`
 - Assumptions and constraints:
 - Deferred design gaps, risk, and follow-up target:
 - Test Design Matrix can cite design decision IDs or source doc sections:
+- Absolute guarantee / escape hatch self-check completed, with every exception checked and compatibility stated:
 
 ## Impact Review Lenses
 
@@ -167,6 +169,7 @@ Required for R3/R4 plans that rely on an unverified external premise (external l
 ## Contract Coverage Ledger
 
 Required for R3/R4. Include every contract or design decision in the touched source-doc sections; a missing row is a Plan Gate blocker. Re-verify every row against real implementation at independent-review.
+- Before finalizing the Ledger, run an adjacent-contract sweep of every touched source-doc section and add or explicitly exclude each contract the Scope can exercise.
 
 | Design contract / decision ID | Implementation target | Automated test | L3 or non-scope |
 |---|---|---|---|
@@ -175,6 +178,7 @@ Required for R3/R4. Include every contract or design decision in the touched sou
 ## Test Plan
 
 For R3/R4, include or link a Test Design Matrix.
+- If the Human Gate includes L3, Writer completion includes `cargo check --release` before the owner native build; this is not a CI gate.
 
 - targeted tests:
 - negative tests:
