@@ -134,7 +134,7 @@ For R3/R4, execute `docs/DEV_WORKFLOW.md` `Contract Audit (R3/R4)` from source d
 - re-verify every Contract Coverage Ledger row against actual implementation, tests, and L3/non-scope disposition; row presence alone is insufficient
 - report negative space: every touched source-doc contract absent from the ledger, implementation, or tests
 - verify State Lifecycle Matrix transitions and Adjacent Pattern Audit coverage
-- challenge mutation/anti-tautology adequacy, including distinguishable mock/design values and invalidate/refetch ordering
+- challenge mutation/anti-tautology adequacy by requiring the reviewer to inject a real mutation and confirm the relevant test fails, including distinguishable mock/design values and invalidate/refetch ordering
 - move non-automatable assertions to explicit L3 items with screen, reachability steps, and observable pass criteria
 - check the complete PR body for freshness against the final diff, Workflow State, evidence SHA, manual gates, and residual risks
 - for D-035 state/evidence separation, verify `Reviewed Content HEAD` is only audit traceability; final L1 / hosted evidence lives only in the PR body

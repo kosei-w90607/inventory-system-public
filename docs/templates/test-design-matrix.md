@@ -14,6 +14,8 @@ Risk: <R2|R3|R4>
 
 ## Test Matrix
 
+- Before citing an existing test as regression coverage, use `rg` or an equivalent repository search to verify that the cited test exists.
+
 | Contract | Failure Mode | Test Type | Test Name | Would fail if... |
 |---|---|---|---|---|
 | <contract> | <failure mode> | unit / integration / CLI / schema / data safety / regression | <test name> | <what broken implementation this catches> |
