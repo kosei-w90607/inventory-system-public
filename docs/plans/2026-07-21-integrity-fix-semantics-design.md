@@ -6,7 +6,7 @@ Use the field definitions, enums, transition evidence, packet-selection rule, an
 
 If a state-only commit materializes multiple phases, list the complete adjacent forward sequence and the pre-existing evidence for every intermediate transition in an append-only review/evidence record. Recording compression never permits a gate skip.
 
-- Phase: implementing
+- Phase: human-confirm
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: 1eedb41
@@ -15,7 +15,7 @@ If a state-only commit materializes multiple phases, list the complete adjacent 
 - Writer: Fable 5（design docs 改訂）
 - Plan Reviewer: 独立 subagent（fresh context、Writer と別）
 - Final Reviewer: 独立 fresh context（Plan Reviewer と別）+ Codex 独立 2 pass（Double Audit）
-- Reviewed Content HEAD: pending
+- Reviewed Content HEAD: b180185
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
 - Human Gate: Draft PR の owner 確認 + Ready 承認 + Ready 後の explicit `workflow_dispatch` 1 run（docs-only は paths-ignore で自動 event 対象外のため、ci.md R3 経路の hosted final は owner 指示の dispatch で満たす）+ merge
@@ -270,3 +270,4 @@ If R3 review-only sub-agent is skipped, record an explicit line beginning with `
 - 2026-07-21 packet 起票 commit が kickoff → spec-check → design → plan-draft を materialize（記録圧縮、gate skip なし）。各遷移の evidence: kickoff → spec-check = task scope と Risk R3 を本 packet に記録（adjudication 順 3 の R3 design-first 付与）/ spec-check → design = in-scope source docs を Design Sources に列挙、設計更新が必要（P7-1 の内部矛盾）/ design → plan-draft = 設計方向は owner 裁定 2026-07-21（Design Sources に verbatim 記録）で確定済み、未解決の設計質問なし（残る設計作業 = 本 PR の内容そのもの = 正本文言の執筆）。
 - 2026-07-22 本 content commit に plan-draft → plan-gate 遷移を同乗（Codex round 5 P1-1 の裁定反映）。evidence: packet + Test Design Matrix は plan-first commit `1eedb41` で committed、以後 rally 反映 commit（`efb4724` `6f75507` `6efd334` `faace3b` `9f3e8c2` `b62163f`）を経て独立 Plan Gate rally（Claude 4 round + Codex 1 round）進行中。state-only commit を使わず content commit 同乗としたのは D-038 forward state-only cap 温存のため（Review Response の逸脱裁定依頼参照）。
 - 2026-07-22 state-only 遷移 commit が plan-gate → plan-approved → implementing を materialize（D-038 の plan-approved 進入枠 1/3、記録圧縮の正規例）。evidence: plan-gate → plan-approved = 独立 Plan Reviewer（Codex round 8、Writer と別 vendor）が新規 P1/P2 = 0 を報告し「Plan Gate 通過可」と判定（rally 全 8 round の経過は Review Response 参照。round 8 残 P3×1 は `935b301` で反映済み）、`Plan Commit` = plan-first commit `1eedb41` を設定、実装 commit は未作成のため plan-first 先行が成立 / plan-approved → implementing = 本 commit 直後に design 本文（Scope 列挙 11 doc）の執筆を開始する。
+- 2026-07-22 state-only 遷移 commit が implementing → local-verified → independent-review → human-confirm を materialize（実装後枠 2/3 の 1 本目、記録圧縮）。evidence: implementing → local-verified = 実装 content `9e1e884` に対する L1 full CLEAN（`MERGE_EVIDENCE_VALID=true`、PR #19 body 記載）+ Codex 2 pass が `94fe55b` で L1 full を独立再実行し CLEAN 確認 / local-verified → independent-review = Contract Audit Double Audit 実施（1 pass = 独立 fresh context、P1/P2/P3 = 0 / 2 pass = Codex 独立、P1×2 + P2×3 + P3×1 検出）/ independent-review → human-confirm = 2 pass findings 全 accept・gated amendment `b180185` で是正・Coordinator closure 実 mutation 6/6 RED で回帰感度を実測（PR #17 の same-PR 是正 + gated amendment + closure 方式を踏襲）、Findings Freeze 発効、`Reviewed Content HEAD` = `b180185`（最終 content-bearing commit、closure 検証済み）。残 Human Gate = Ready 承認 + explicit workflow_dispatch + merge。
