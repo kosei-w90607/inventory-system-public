@@ -38,7 +38,7 @@ Risk: R3
 | 7 | P7-1 害経路の全塞ぎ | 証拠箇所の塞ぎ漏れ | review | P7-1 の証拠 8 箇所（integrity_service.rs 4 + 36-biz 4）それぞれ → 改訂後の塞ぐ節 or 実装 follow-up 項目への対応表を PR body に作成し、独立レビューが突合 | 対応表に空欄がある、または「実装 follow-up」への先送りが Plans.md に記録されていない |
 | 8 | 75-ui 文言の operator 品質 | UI-13-D8 / Amendment 5 違反 | review | 新文言が「システム在庫」「入出庫の合計」「操作ログ」の既習語彙で構成され、色非依存・断定的過信文言なしを独立レビューが確認 | 「棚卸し」語彙の再導入、または movement 記録を示唆する文言 |
 | 9 | 74-ui integrity_fix 詳細表示同期 | 唯一の監査痕跡である旨の欠落 | regression (anchor) + review | 74-ui に integrity_fix の detail_json（old/new）が補正の唯一の監査痕跡である旨の追記が存在 | 追記漏れ、または registry 表の既存 entry を破壊 |
-| 10 | 実装現状との接続 | follow-up 作業の不明確化 | review | 実装 follow-up PR の作業列挙（ログ TX 内移動・必須化・逸脱コメント解消・テスト追随・`integrity_cmd.rs` tautological test の吸収検討）が packet Non-scope / Plans.md に存在 | 設計だけ確定し実装差分の追跡先がない |
+| 10 | 実装現状との接続 | follow-up 作業の不明確化 | review | 実装 follow-up PR の作業列挙（ログ TX 内移動・必須化・逸脱コメント解消・**`IntegrityCheckPage.tsx` + `IntegrityCheckPage.test.tsx` の文言同期（round 1 P1）**・テスト追随・`integrity_cmd.rs` tautological test の吸収検討）が packet Non-scope / Plans.md に存在 | 設計だけ確定し実装差分の追跡先がない（例: 75-ui 文言表だけ改訂され実 UI が乖離したまま追跡されない） |
 
 ## State Lifecycle Matrix
 
@@ -48,7 +48,7 @@ not applicable — docs-only design PR で runtime state / UI state / cache / ro
 
 | Source pattern / contract | Repository sites inspected | Ported sites | Explicit exclusions and reason | Test / evidence |
 |---|---|---|---|---|
-| 操作ログ記録の位置と強度（D-6 best-effort） | 36-biz §21.3（integrity_check）/ §21.4（integrity_fix）/ BIZ-06 stocktake 系 / 34-biz 日報系 / 71-mnt backup 系の操作ログ記述 | integrity_fix のみ「同一 TX 必須」へ変更 | 他の全箇所は D-6 の一般原則（best-effort）を維持 — movement 等の一次記録が別に残るか、失敗時に業務操作を止める価値が監査痕跡の完全性を上回らないため | Matrix #4（非変更確認）+ #6（例外理由明記） |
+| 操作ログ記録の位置と強度（D-6 best-effort） | 36-biz §21.3（integrity_check）/ §21.4（integrity_fix）/ BIZ-06 stocktake 系（TX 外 best-effort、`stocktake_service.rs` に明示コメント）/ 34-biz 日報系・CSV 取込み系（`daily_report_import_service/commit.rs` / `csv_import_service/commit.rs` = TX 外 best-effort）/ 71-mnt backup 系 / **BIZ-01 `product_service.rs`（`insert_operation_log(&tx, ...)?` 3 箇所 = 既存の TX 内必須ログ、未文書化の D-6 例外 — Plan Gate round 1 P2/P3 で追加）** | integrity_fix のみ「同一 TX 必須」へ変更（TX 内パターンの precedent は BIZ-01） | 他の全箇所は現状維持 — BIZ-01 以外は D-6 の一般原則（best-effort）のまま、BIZ-01 の既存例外は D-051 で現状整理として文書化のみ（挙動変更なし） | Matrix #4（非変更確認）+ #6（例外理由明記） |
 | 「棚卸し補正」語彙 | 2026-07-21 起票後 sweep（`rg "棚卸し補正" docs/` archive/research 除外）で全数列挙: 75-ui 文言表 / ui-task-specs UI-13 節 / ARCHITECTURE UI-13 行 / DB_DESIGN §整合性チェック復旧方針・pos_stock_sync=0 記述 / 35-biz（BIZ-06）/ tracking-system-tables movement_type 表 / 65-inventory-record-traceability 追跡対象列挙 / PROJECT_HANDOFF REQ-205 行 | 75-ui / ui-task-specs / ARCHITECTURE / DB_DESIGN 復旧方針の 4 系統を改訂 | 35-biz・tracking-system-tables・65・PROJECT_HANDOFF・DB_DESIGN pos_stock_sync=0 記述は実棚卸し（BIZ-06、movement を作る正当な操作）文脈のため不変（pos_stock_sync=0 記述は design 中に文脈再確認 — packet Review Focus） | Matrix #3 / #8 |
 
 ## Negative Paths
