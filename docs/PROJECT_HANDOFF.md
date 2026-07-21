@@ -31,7 +31,7 @@
 **Phase 2 の日常利用 UI 5 画面は code-complete / route active で、PR #75 closeout merge `f44f99a` に `v0.8.0-ui-daily` tag を作成済み。AI Quality Workflow は PR #87 `ef0fd73` で Design Phase を導入済み。Phase 3 商品マスタ UI は完了済み。Phase 4 は UI-11b / UI-11a / UI-10 棚卸し / UI-11c 操作ログが完了し、残りは UI-13。最新のライブ状態は `Plans.md` を優先する。**
 
 ### 直近の作業状態
-- **workflow docs WER consolidation**: **完了**（PR #18 squash merge `bbb61f6`、2026-07-21）。WER Adjustment 積み残しを D-050 裁定で DEV_WORKFLOW / template 群へ正本化。packet は `docs/archive/plans/2026-07-21-workflow-docs-wer-consolidation.md` へ archive 済み。次 = roadmap 1-2 横断アーキテクチャ + コード品質監査
+- **workflow docs WER consolidation**: **完了**（PR #18 squash merge `bbb61f6`、2026-07-21）。WER Adjustment 積み残しを D-050 裁定で DEV_WORKFLOW / template 群へ正本化。packet は `docs/archive/plans/2026-07-21-workflow-docs-wer-consolidation.md` へ archive 済み。次 = roadmap 1-3 是正 順 3（整合性補正の正本確定、R3 design-first。1-2 横断監査は PR #13 `d9e16fe`、2026-07-17 で消化済み — 詳細は Plans.md「次の行動」0 の是正記録）
 - **バックエンド**: 18テーブル DB / 5層分割（UI/CMD/BIZ/IO/MNT）/ Tauri Commands / 業務ロジック / バックアップ / 操作ログ / 診断ログ全て実装完了。テスト 561 本通過、clippy 警告ゼロ、fmt 準拠
 - **フロントエンド基盤**: React 19 + TypeScript + Tauri 2 + TanStack Router + TanStack Query + Tailwind CSS 4 + shadcn/ui + lefthook + ESLint 9 + tauri-specta 採用、UI-12 共通レイアウト + invoke ラッパ完成。Phase 1 残 follow-up: 7-6 Storybook / 7-7b axe or hooks coverage / 7-8a Error Boundary / 7-8b 横断UI / 7-8c unsaved changes
 - **直近 PR**: Public #2（CI `synchronize` trigger修正、merge `f63397c`）
