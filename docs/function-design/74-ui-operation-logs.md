@@ -61,6 +61,7 @@ export function useOperationLogs(args: {
 | UI-11c-D11 | operation_type filter は `<select>` によるドロップダウン選択のみとし、自由入力・IME 対応の検索欄は持たない。 | Owner Decision #3 は個別 exact value の選択を要求しており、`InventoryRecordsPage` の商品名部分一致検索のような自由入力欄は不要。IME `isComposing` 対応は本画面に適用対象がない（§74.13 で明示）。 |
 | UI-11c-D12 | REQ-902 を操作ログの record/list/自動削除の canonical ID として確定する。既存 `settings_cmd.rs` の `test_list_logs_req905_pagination` / `test_list_logs_req905_filter` / `test_list_logs_req905_invalid_page_to_cmderror` は REQ-905（設定CRUD/エラー変換）ではなく REQ-902 に是正する（テスト名・コメントの是正は本 Design Phase では実施せず、次の実装 PR のタスクとして明記する）。 | `docs/spec/requirements.md` は REQ-902=「ログ管理（操作ログ記録/一覧/自動削除）」/ REQ-905=「設定管理（設定CRUD/エラー変換）」と定義し、`system_repo.rs` の IO 層テストは既に log 系関数を REQ-902、settings 系関数を REQ-905 で正しく分離している（`rg` 実測）。`65-inventory-record-traceability.md` §65.11 も「REQ-902 / TRACE-D3」を canonical として使用済み。CMD 層 3 テストだけが REQ-905（CMD-11 全体のタスク表マッピング）を機械的に継承しており、`list_logs` の呼び出し・エラー変換テストという中身は REQ-902 の対象。「REQ-905 のままエイリアスとして残す」案は、REQ-905 の定義（設定CRUD）と `list_logs`（ログ一覧）の実体が一致しないため棄却。 |
 | UI-11c-D13 | `SCREEN_DESIGN.md` の QR-06 行にあった旧 CSV export/archive 記述を、閲覧 MVP + 365日 cleanup（archive 不要）に同期する。CSV 出力と MNT-04 診断ログ導線は別 task として明記する。 | Owner Decision #1 + Missing UI item 13。`72-mnt-log-manager.md` の実装済み `cleanup_old_logs` は物理削除のみで archive を作らない（DB設計上の事実）。 |
+| UI-11c-D14 | `integrity_fix` の detail_json（adjustments の product_code / old_stock / new_stock / adjustment）は在庫整合性補正の**唯一の監査痕跡**（補正は inventory_movements に行を残さない — BIZ-07-D2/D3、[D-051](../decision-log.md)）。詳細表示は既知 key 要約（UI-11c-D6）に加え、adjustments を「商品コード / 旧在庫 → 新在庫 / 差分」の operator-readable な一覧として表示し、生 JSON は折りたたみ「技術情報」に残す。 | 非IT operator が唯一の監査痕跡を読めることは、movement を残さない直接更新意味論の説明可能性の前提。rejected: 生 JSON のみの現状維持 = operator が補正内容を読めない。365日 cleanup（D-051 retention）までが閲覧可能期間である点は D-051 に従う。実装は follow-up PR（`OperationLogsPage.tsx` + test）。 |
 
 ---
 
@@ -170,6 +171,7 @@ export interface NormalizedOperationLogsSearch {
 - **拡張ルール**: 新しい operation_type を biz/mnt 層で導入する実装 PR は、同じ PR で `operation-type-labels.ts` にカテゴリ + 日本語ラベルを追加する。追加を怠っても機能は壊れない（raw fallback）が、operator 可読性が下がるためレビュー観点に加える。
 - **未知値 fallback**: registry 未収載の値は「その他（`{raw_value}`）」の形式でカテゴリ「その他」にグルーピングして表示する。フィルタ選択肢としても `{raw_value}` のまま選べる。
 - **フィルタ選択肢のソース**: `typesQuery`（`list_log_operation_types` の結果）と `operation-type-labels.ts` を突き合わせ、`typesQuery` に実在する値だけを選択肢にする（未来のいつか使われるかもしれない registry entry を実在しないのに選べる状態にしない）。
+- **`integrity_fix` の特記**: この entry の detail_json は在庫整合性補正の唯一の監査痕跡（補正は inventory_movements に行を残さない — D-051）。表示期待は UI-11c-D14 参照。
 
 ---
 

@@ -6,6 +6,8 @@
 
 本書は、入庫、返品・交換、手動販売出庫、廃棄・破損、CSV取込み、棚卸し補正を「あとから追跡できる」商業用在庫管理の完成形を定義する。各作業画面の下部にある recent list は保存直後の確認 UI であり、業務記録の閲覧・追跡機能の代替ではない。
 
+整合性補正（BIZ-07 fix_integrity）は movement を作らないため在庫変動履歴には現れない。補正の追跡は operation_logs（operation_type='integrity_fix'、old/new 付き、UI-11c 操作ログ画面）で行う（[D-051](../decision-log.md)、36-biz-integrity-check.md §21.4）。
+
 ## 65.0 関数要求 / シグネチャ / 処理ステップの扱い
 
 **関数要求**: 本書は単一関数ではなく、入出庫系の業務記録一覧・詳細、在庫変動履歴、操作ログ連携、取消/訂正をまたぐ完成形 contract を定義する。後続実装では本書の route、query、status、movement reference、cancel/correct 方針を個別 command / BIZ / IO / UI へ分割する。

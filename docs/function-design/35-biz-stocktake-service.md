@@ -268,7 +268,7 @@ fn complete_stocktake(
 
 **TX境界**: ステップ3〜7が1TX。操作ログ記録（ステップ8）・整合性チェック（ステップ9）はTX外。
 
-**設計判断 — operation_log TX外（architecture/biz-task-specs.md との差異）**: architecture/biz-task-specs.md BIZ-06「棚卸し確定」は operation_log をTX内に記載しているが、第4段階の先決事項D-6「operation_log TX境界: 全てTX外」を BIZ-05/06/07 でも継承する。理由: ログ記録失敗で業務TXがロールバックするのは過剰。BIZ-03/BIZ-04 と同じ方針。
+**設計判断 — operation_log TX外（architecture/biz-task-specs.md との差異）**: architecture/biz-task-specs.md BIZ-06「棚卸し確定」は operation_log をTX内に記載しているが、第4段階の先決事項D-6「operation_log TX境界: 全てTX外」を BIZ-05/06/07 でも継承する。理由: ログ記録失敗で業務TXがロールバックするのは過剰。BIZ-03/BIZ-04 と同じ方針。例外: BIZ-07 の fix_integrity のみ D-6 の明示例外として操作ログをTX内必須とする（movement を残さないため操作ログが唯一の監査痕跡になる — BIZ-07-D3 / [D-051](../decision-log.md)、36-biz-integrity-check.md §21.4）。run_integrity_check 側は D-6 継承のまま。BIZ-06 自身のTX外方針は不変。
 
 **エラーハンドリング**:
 - 棚卸しが見つからない → BizError::NotFound
