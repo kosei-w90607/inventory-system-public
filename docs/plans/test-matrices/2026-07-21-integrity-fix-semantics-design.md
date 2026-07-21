@@ -12,6 +12,7 @@ Risk: R3
 - BIZ-07-D4: 収束性不変条件（補正直後の再チェックで対象商品 difference = 0）
 - BIZ-07-D5: 「仮想棚卸し」（reference_id=0）概念の退役
 - 75-ui / 74-ui の operator 向け表現が実挙動と一致
+- D-051 durable adjudication の固定 5 小見出しと内容存在（retention 365 日 / 却下案 3 / revisit 2 条件 / D-6 例外整理）
 - 監査 P7-1 の害経路（証拠 8 箇所）の全塞ぎ
 
 ## Failure Modes
@@ -40,7 +41,7 @@ Risk: R3
 | 9 | 74-ui integrity_fix 詳細表示同期 | 唯一の監査痕跡である旨の欠落 | regression (anchor) + review | 74-ui に integrity_fix の detail_json（old/new）が補正の唯一の監査痕跡である旨の追記が存在 | 追記漏れ、または registry 表の既存 entry を破壊 |
 | 10 | 実装現状との接続 | follow-up 作業の不明確化 | review | 実装 follow-up PR の作業列挙（ログ TX 内移動・必須化・逸脱コメント解消・**`IntegrityCheckPage.tsx` + `IntegrityCheckPage.test.tsx` の文言同期（round 1 P1）**・**`OperationLogsPage.tsx` + test の integrity_fix operator-readable 表示（Codex round 5 P2）**・テスト追随・`integrity_cmd.rs` tautological test の吸収検討）が packet Non-scope / Plans.md に存在 | 設計だけ確定し実装差分の追跡先がない（例: 75-ui 文言表だけ改訂され実 UI が乖離したまま追跡されない） |
 | 11 | 旧語彙の全数照合（round 4 P3 — anchor 選定漏れの構造的対策、round 5 で多 pattern 化、round 6 P2 で 2 command 分離） | 個別 anchor の網から漏れる literal 残存 | regression (全数照合) + review | ①語彙系 `rg -n "棚卸し補正|補正レコード|補正行追加|stocktakeレコードを追加|補正有無" docs/ --glob '!docs/archive/**' --glob '!docs/research/**' --glob '!docs/plans/**'` + ②`rg -n "insert_movement"` を整合性補正文脈 5 ファイル（36-biz / 75-ui / biz-task-specs / ui-task-specs / DB_DESIGN）限定で実行し、全ヒット行を「Scope 改訂対象」or「正当文脈の明示除外」へ 1:1 分類した対応表を PR body に掲載、独立レビューが分類の正しさを突合（insert_movement を docs 全域にしない理由 = 20-io / 30-biz / 31-biz / 10-common 等の正当な repository API 記述の大量ヒット） | 分類不能な行（= Scope にも除外理由にもない旧語彙）が存在するのに green 扱いになる |
-| 12 | BIZ-07-D3 の実装 follow-up テスト契約（Codex round 5 P2 — 最重要失敗経路の oracle 固定） | ログ失敗時に補正だけ確定する / 監査痕跡が形骸化する | 実装 follow-up の test contract（本 PR では設計固定のみ） | 失敗系: `integrity_fix` ログ INSERT を注入失敗させ（SQLite trigger 等）、`BizError::DatabaseError` 返却 + 全対象商品の stock_quantity 不変 + inventory_movements 行数増 0 を assert。成功系: detail_json.adjustments[] の product_code / old_stock / new_stock / adjustment を具体値で検証。収束系: 補正成功直後に run_integrity_check を実行し、全補正対象商品の difference = 0 を assert（Codex round 7 P2 で脱落を是正）。この契約を 36-biz テスト方針節に明文化する | 実装 PR がログ失敗系を tautological に検証、detail_json の中身を検証せず green になる、または補正成功後も対象商品に非 0 difference が残るのに green になる |
+| 12 | BIZ-07-D3 / D4 の実装 follow-up テスト契約（Codex round 5 P2 — 最重要失敗経路の oracle 固定、round 8 P3 で D4 収束系を Contract 名へ反映） | ログ失敗時に補正だけ確定する / 監査痕跡が形骸化する | 実装 follow-up の test contract（本 PR では設計固定のみ） | 失敗系: `integrity_fix` ログ INSERT を注入失敗させ（SQLite trigger 等）、`BizError::DatabaseError` 返却 + 全対象商品の stock_quantity 不変 + inventory_movements 行数増 0 を assert。成功系: detail_json.adjustments[] の product_code / old_stock / new_stock / adjustment を具体値で検証。収束系: 補正成功直後に run_integrity_check を実行し、全補正対象商品の difference = 0 を assert（Codex round 7 P2 で脱落を是正）。この契約を 36-biz テスト方針節に明文化する | 実装 PR がログ失敗系を tautological に検証、detail_json の中身を検証せず green になる、または補正成功後も対象商品に非 0 difference が残るのに green になる |
 | 13 | D-051 durable adjudication の内容存在（Codex round 7 P1 — touched contract の Ledger/Trace 独立行化に伴う検査） | 見出しだけ存在し内容が欠落・別見出しへ迷子 | regression (anchor) + review | `docs/decision-log.md` D-051 が固定 5 小見出し（invariant / audit / retention / rejected / revisit）を持ち、**対応する小見出し内に**: retention = 365 日自動削除の事実 / rejected = 却下案 3 件（movement 挿入・marker 行・stock 原本化）/ revisit = 固定 2 条件 / audit または invariant = D-6 例外現状整理（BIZ-01 既存 + integrity_fix）が記載されていることを独立レビューが確認 | 見出しが揃っていても内容が欠落・誤配置のまま green になる |
 
 ## State Lifecycle Matrix
@@ -56,7 +57,7 @@ not applicable — docs-only design PR で runtime state / UI state / cache / ro
 
 ## Negative Paths
 
-- missing input: D-051 に rejected alternatives が欠落 → Matrix #2 review で red（AC 要件）
+- missing input: D-051 の rejected 内容が欠落・誤配置 → Matrix #13 review で red（round 8 P3 で参照先を是正）
 - invalid input: 収束しない旧手順の部分残存 → Matrix #2 / #3
 - duplicate/ambiguous input: 同一契約が §21.4 と §21.6 で異なる表現 → Matrix #2（単一意味論）
 - unknown reference: 撤回した「先決事項 D-3」への dangling 参照 → doc-consistency + Matrix #3
