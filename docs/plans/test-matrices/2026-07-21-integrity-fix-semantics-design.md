@@ -31,7 +31,7 @@ Risk: R3
 |---|---|---|---|---|---|
 | 1 | packet / docs 整合 | checker 違反・リンク切れ | schema | `bash scripts/doc-consistency-check.sh --target plan` + full | ERROR > 0、または WARN が既存 1 件（75-ui paging 上限）から増加 |
 | 2 | BIZ-07-D1 / D2（単一意味論） | §21.4 と §21.6 の矛盾残存 | review + mutation 感度 | 独立レビューによる §21.4 / §21.6 / biz-task-specs 突合。感度確認: §21.4 に旧 3e（`insert_movement` 行）を仮再注入した状態を red と判定できること | 改訂後も movement 挿入と direct update が別節で並存しても指摘されない |
-| 3 | BIZ-07-D2 / D5 / 75-ui 同期（旧記述の残存ゼロ） | 旧語彙・旧手順の残存 | regression (grep) | `rg "insert_movement" docs/function-design/36-biz-integrity-check.md` = 0 件 / `rg "棚卸し補正として" docs/function-design/75-ui-integrity-check.md` = 0 件 / `rg "BIZ-06の確定処理と同じ方式" docs/architecture/biz-task-specs.md` = 0 件 / `rg "仮想棚卸し" docs/function-design/36-biz-integrity-check.md` の残存が退役説明文脈のみ | 旧意味論の記述が 1 箇所でも実行仕様として残る |
+| 3 | BIZ-07-D2 / D5 / operator 文書同期（旧記述の残存ゼロ） | 旧語彙・旧手順の残存 | regression (grep) | `rg "insert_movement" docs/function-design/36-biz-integrity-check.md` = 0 件 / `rg "棚卸し補正として" docs/function-design/75-ui-integrity-check.md docs/architecture/ui-task-specs.md docs/ARCHITECTURE.md` = 0 件 / `rg "BIZ-06の確定処理と同じ方式" docs/architecture/biz-task-specs.md` = 0 件 / `rg "補正レコードを追加" docs/DB_DESIGN.md` = 0 件 / `rg "仮想棚卸し" docs/function-design/36-biz-integrity-check.md` の残存が退役説明文脈のみ | 旧意味論の記述が 1 箇所でも実行仕様として残る |
 | 4 | 非変更保証（D-6 一般原則 / run_integrity_check / UI-13 flow） | 例外化が一般原則へ波及 | review | 独立レビュー: §21.3・`integrity_check` ログ（best-effort のまま）・75-ui state machine / 選択 flow・74-ui の他 entry に変更がないことの diff 突合 | scope 外の契約が改訂 diff に混入している |
 | 5 | BIZ-07-D1 / D4（収束性不変条件） | 検証不能な散文化 | regression (anchor) + review | §21.6 に原本/cache 行と「fix_integrity 成功直後の run_integrity_check は対象商品で difference = 0」相当の検証可能な文が存在（anchor grep は実文言確定後に PR body へ記録） | 不変条件行が欠落、または実装テストに翻訳できない表現 |
 | 6 | BIZ-07-D3（同一 TX 必須ログ + D-6 例外） | 例外理由の欠落 | regression (anchor) + review | §21.4 ステップ 5 が「同一 TX 内」「必須」「失敗時 rollback」を含み、D-6 例外の理由（唯一の監査痕跡）が明記されている | best-effort のまま、または例外理由なしの黙変更 |
@@ -49,7 +49,7 @@ not applicable — docs-only design PR で runtime state / UI state / cache / ro
 | Source pattern / contract | Repository sites inspected | Ported sites | Explicit exclusions and reason | Test / evidence |
 |---|---|---|---|---|
 | 操作ログ記録の位置と強度（D-6 best-effort） | 36-biz §21.3（integrity_check）/ §21.4（integrity_fix）/ BIZ-06 stocktake 系 / 34-biz 日報系 / 71-mnt backup 系の操作ログ記述 | integrity_fix のみ「同一 TX 必須」へ変更 | 他の全箇所は D-6 の一般原則（best-effort）を維持 — movement 等の一次記録が別に残るか、失敗時に業務操作を止める価値が監査痕跡の完全性を上回らないため | Matrix #4（非変更確認）+ #6（例外理由明記） |
-| 「棚卸し補正」語彙 | 75-ui 文言表 / 73-ui-stocktake（本来の棚卸し）/ 74-ui registry ラベル「整合性補正」 | 75-ui の dialog title / 確定ボタンを改訂 | 73-ui の本来の棚卸し語彙は不変（実棚卸しは movement を作る正当な操作）。74-ui ラベル「整合性補正」は既に中立で不変 | Matrix #3 / #8 |
+| 「棚卸し補正」語彙 | 2026-07-21 起票後 sweep（`rg "棚卸し補正" docs/` archive/research 除外）で全数列挙: 75-ui 文言表 / ui-task-specs UI-13 節 / ARCHITECTURE UI-13 行 / DB_DESIGN §整合性チェック復旧方針・pos_stock_sync=0 記述 / 35-biz（BIZ-06）/ tracking-system-tables movement_type 表 / 65-inventory-record-traceability 追跡対象列挙 / PROJECT_HANDOFF REQ-205 行 | 75-ui / ui-task-specs / ARCHITECTURE / DB_DESIGN 復旧方針の 4 系統を改訂 | 35-biz・tracking-system-tables・65・PROJECT_HANDOFF・DB_DESIGN pos_stock_sync=0 記述は実棚卸し（BIZ-06、movement を作る正当な操作）文脈のため不変（pos_stock_sync=0 記述は design 中に文脈再確認 — packet Review Focus） | Matrix #3 / #8 |
 
 ## Negative Paths
 
