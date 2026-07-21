@@ -19,6 +19,7 @@
 - State Narrative 追記（append-only、2026-07-21）: Codex Plan Gate round 1（P1×5 + P2×3 + P3×1、全 accept）反映の plan-gate 修正 commit。D5 は D-050 (iv) へ defer（Workflow State 節 不改変へ変更）、D7 は WER 原文範囲へ限定、D-050 を decision-log へ起票、Ledger 増補（D4-A / D9-A / D13 + D5 defer 行）、Matrix を exact-command / baseline-red 前提へ全面改訂、PROJECT_HANDOFF.md 同期を Scope 追加、「WER 5 本」の count 誤記と repo-relative path 誤りを是正（D7 新規範の自己適用）。
 - State Narrative 追記（append-only、2026-07-21）: Codex Plan Gate round 2（P1×3 + P2×3、全 accept）反映の plan-gate 修正 commit 第 2 弾。D-050 defer (ii)/(iii) へ発動条件事実・却下理由を補完、M-D5N を Workflow State 節の byte-level diff guard へ強化（3 語検索の迂回反例を Codex が実演）、M-DIFF の regex escape 欠陥を fenced literal command 化で解消、Matrix を per-assertion literal command（M-D2a〜M-HANDOFF）へ再構成、D1 anchor を義務 phrase「親文書の目次・索引を更新」へ変更、packet 後半（Risk / Design Intent Audit / Design Readiness / Test Plan / Review Focus / Trace Matrix）の round 1 前 stale 記述を全同期。**訂正明示**: 初期 narrative の「WER 5 本」は誤記（正 = 6 ファイル、Design Sources 列挙が正本）— append-only 原則により初期行は書き換えず本行で訂正を宣言する。
 - State Narrative 追記（append-only、2026-07-21）: Codex Plan Gate round 3（P1×0 + P2×3 + P3×1、全 accept）反映の plan-gate 修正 commit 第 3 弾。純追記例外の節間矛盾を Matrix「実装制約」基準に統一（M-DIFF 3 ファイル純追記 / 例外 = D6 2 行 + D4-A 隣接 2 ファイル / D13・Handoff は対象外）、M-D12a〜f の抽出範囲を awk で D-050 節に閉包（D-051 追加時の誤集計を mock 実証で遮断）、PROJECT_HANDOFF.md 同期を §2 実質同期（branch / packet path / 次 action の 3 要素、M-HANDOFFa〜c）へ具体化（Codex 推奨案を採用）、M-D4A 表記を M-D4Aa〜b へ統一。Matrix literal 全 36 本の baseline 整合は Codex round 3 が全数実行で確認済み。
+- State Narrative 追記（append-only、2026-07-21）: Codex Plan Gate round 4（P1×0 + P2×1 + P3×0、accept）反映の plan-gate 修正 commit 第 4 弾。M-HANDOFFa〜c の 3 分割 assert は token 分散・遷移列欠落を検出できない（Codex 反例実演）ため、§2 節内・同一 bullet 行・完全遷移列（`Double Audit.*Ready.*merge`）を一括検証する単一 M-HANDOFF へ置換（Codex 提案コマンドをそのまま採用 — `/^### /` 終端は `:63` の次見出しで正しく閉じることを Coordinator が実測確認、baseline exit 1 追認済み）。packet Scope / AC / Matrix overview を新 assertion 名へ同期。
 
 ## Owner Effort Budget
 
@@ -63,7 +64,7 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 - `docs/templates/subagent-review-packet.md` + `.agents/skills/inventory-code-review/SKILL.md`: D4 の隣接文言追随（旧「mock 可弁別性」のみの anti-tautology 記述へ実 mutation 注入要求を追加。Plan Gate round 1 F4 の adjacent-contract sweep 検出）
 - `docs/DEV_SETUP_CHECKLIST.md`: `:248,:251` の Windows clone パスへ `-public` 付与（D6。**この 2 箇所のみ**）
 - `docs/Plans.md`: roadmap 1-1 列挙の是正（消化済み 4 件の整理 + 本 PR の active 反映）（D13）
-- `docs/PROJECT_HANDOFF.md`: §2「現在地（ここから再開）」の「直近の作業状態」へ現在作業の同期 bullet を**追加**（AGENTS.md「meaningful progress 後に更新」義務。実装 commit で実施。既存 bullet の書換不要）。必須 3 要素 = 作業 branch `impl/workflow-docs-wer-consolidation` / active packet path `docs/plans/2026-07-21-workflow-docs-wer-consolidation.md` / 次 action（Double Audit → Ready → merge）— M-HANDOFFa〜c が各要素を追加行 assert する
+- `docs/PROJECT_HANDOFF.md`: §2「現在地（ここから再開）」の「直近の作業状態」へ現在作業の同期 bullet を**追加**（AGENTS.md「meaningful progress 後に更新」義務。実装 commit で実施。既存 bullet の書換不要）。必須 = **単一 bullet 行**に 3 要素を同居させる: 作業 branch `impl/workflow-docs-wer-consolidation` / active packet path `docs/plans/2026-07-21-workflow-docs-wer-consolidation.md` / 完全な次 action 遷移列（`Double Audit` → `Ready` → `merge` の語順）— M-HANDOFF が節内・同一行・遷移列を一括 assert する（round 4 F1）
 
 ## Non-scope
 
@@ -78,7 +79,7 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 
 - `bash scripts/doc-consistency-check.sh` full = exit 0（packet 段階は `--target plan docs/plans/2026-07-21-workflow-docs-wer-consolidation.md` = exit 0）
 - D-050 裁定表で「採用」の全項目について、Test Design Matrix の Test Matrix 表が固定する **exact command** が期待値（exit code / 出力）どおりに pass する。anchor phrase は plan-gate 修正時点で対象ファイル全てで baseline 0 件を実証済み（未実装なら必ず red になる弁別性。実行記録は PR body。固定 count は書かない — Evidence Ownership 準拠、正本は D-050 裁定表）
-- PROJECT_HANDOFF.md の実質同期: M-HANDOFFa〜c（追加行に branch 名 / packet path / `Double Audit` を含む 3 assert、Matrix literal command 参照）が全て exit 0
+- PROJECT_HANDOFF.md の実質同期: M-HANDOFF（§2「直近の作業状態」節内・同一 bullet 行に branch / packet path / 完全遷移列を一括 assert、Matrix literal command 参照）= exit 0
 - `rg -P 'projects\\inventory-system(?!-public)' docs/DEV_SETUP_CHECKLIST.md` = 0 件（exit 1）
 - M-DIFF（Matrix literal command と同一）: `git diff main --unified=0 -- docs/DEV_WORKFLOW.md docs/templates/plan-packet.md docs/templates/test-design-matrix.md | rg '^-([^-]|$)'` = exit 1。M-DIFF 対象 3 ファイルは純追記。既存行改訂の例外 = D6 の `DEV_SETUP_CHECKLIST.md:248,:251` 置換（M-D6 が個別 guard）と D4-A の隣接 2 ファイル（M-DIFF 対象外パス）。D13 の `Plans.md` / `PROJECT_HANDOFF.md` も M-DIFF 対象外
 - `bash scripts/local-ci.sh full` = green（completed HEAD、local full evidence SHA は PR body 正本）

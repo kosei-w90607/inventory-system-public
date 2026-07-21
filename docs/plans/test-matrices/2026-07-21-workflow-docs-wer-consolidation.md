@@ -104,12 +104,8 @@ sed -n '/^1\. 中期 roadmap/,/^2\./p' docs/Plans.md | rg -F 'materialize 局所
 sed -n '/^1\. 中期 roadmap/,/^2\./p' docs/Plans.md | rg -F 'read-safe-file.sh'
 # M-DIFF 期待: 1（純追記 guard。対象 = DEV_WORKFLOW + plan-packet + test-design-matrix template。subagent-review-packet.md は D4-A 改訂許可のため対象外）
 git diff main --unified=0 -- docs/DEV_WORKFLOW.md docs/templates/plan-packet.md docs/templates/test-design-matrix.md | rg '^-([^-]|$)'
-# M-HANDOFFa 期待: 0（追加行に作業 branch 名。§2「直近の作業状態」への実質同期を assert — ファイル名 diff だけの tautology を排除、round 3 F3）
-git diff --unified=0 main -- docs/PROJECT_HANDOFF.md | rg '^\+.*impl/workflow-docs-wer-consolidation'
-# M-HANDOFFb 期待: 0（追加行に active packet path）
-git diff --unified=0 main -- docs/PROJECT_HANDOFF.md | rg '^\+.*2026-07-21-workflow-docs-wer-consolidation'
-# M-HANDOFFc 期待: 0（追加行に次 action token）
-git diff --unified=0 main -- docs/PROJECT_HANDOFF.md | rg '^\+.*Double Audit'
+# M-HANDOFF 期待: 0（§2「直近の作業状態」節内・同一 bullet 行に 3 要素 + 完全遷移列を一括 assert。節外配置・要素分散・遷移列欠落は exit 1 — round 4 F1、baseline exit 1 / 正配置 exit 0 / 誤配置 exit 1 を実測済み）
+sed -n '/^### 直近の作業状態/,/^### /p' docs/PROJECT_HANDOFF.md | rg -F 'impl/workflow-docs-wer-consolidation' | rg -F 'docs/plans/2026-07-21-workflow-docs-wer-consolidation.md' | rg 'Double Audit.*Ready.*merge'
 ```
 
 ## Test Matrix（overview — 正本は上の Assertion Commands）
@@ -129,7 +125,7 @@ git diff --unified=0 main -- docs/PROJECT_HANDOFF.md | rg '^\+.*Double Audit'
 | D11 | M-D11a〜b | sweep 要求が対象節外 or 片側未追加 |
 | D12 | M-D12a〜f | 区分 marker 不正 / defer 4 件の事実・却下理由・revisit の欠落 |
 | D13 | M-D13a〜d | 消化済み項目が roadmap 1-1 に残存 |
-| 全体 | M-DIFF, M-HANDOFFa〜c | 純追記制約違反 / Handoff の実質同期（branch / packet path / 次 action の 3 要素）未実施 |
+| 全体 | M-DIFF, M-HANDOFF | 純追記制約違反 / Handoff の実質同期（§2 節内・同一 bullet に branch / packet path / 完全遷移列）未実施・誤配置・要素分散 |
 
 ## State Lifecycle Matrix
 
