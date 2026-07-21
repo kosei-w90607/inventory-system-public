@@ -6,10 +6,10 @@ Use the field definitions, enums, transition evidence, packet-selection rule, an
 
 If a state-only commit materializes multiple phases, list the complete adjacent forward sequence and the pre-existing evidence for every intermediate transition in an append-only review/evidence record. Recording compression never permits a gate skip.
 
-- Phase: plan-gate
+- Phase: implementing
 - Risk: R3
 - Execution Mode: fable-window
-- Plan Commit: pending
+- Plan Commit: 1eedb41
 - Amendments: none
 - Coordinator: Fable 5（本 session）
 - Writer: Fable 5（design docs 改訂）
@@ -263,3 +263,4 @@ If R3 review-only sub-agent is skipped, record an explicit line beginning with `
 
 - 2026-07-21 packet 起票 commit が kickoff → spec-check → design → plan-draft を materialize（記録圧縮、gate skip なし）。各遷移の evidence: kickoff → spec-check = task scope と Risk R3 を本 packet に記録（adjudication 順 3 の R3 design-first 付与）/ spec-check → design = in-scope source docs を Design Sources に列挙、設計更新が必要（P7-1 の内部矛盾）/ design → plan-draft = 設計方向は owner 裁定 2026-07-21（Design Sources に verbatim 記録）で確定済み、未解決の設計質問なし（残る設計作業 = 本 PR の内容そのもの = 正本文言の執筆）。
 - 2026-07-22 本 content commit に plan-draft → plan-gate 遷移を同乗（Codex round 5 P1-1 の裁定反映）。evidence: packet + Test Design Matrix は plan-first commit `1eedb41` で committed、以後 rally 反映 commit（`efb4724` `6f75507` `6efd334` `faace3b` `9f3e8c2` `b62163f`）を経て独立 Plan Gate rally（Claude 4 round + Codex 1 round）進行中。state-only commit を使わず content commit 同乗としたのは D-038 forward state-only cap 温存のため（Review Response の逸脱裁定依頼参照）。
+- 2026-07-22 state-only 遷移 commit が plan-gate → plan-approved → implementing を materialize（D-038 の plan-approved 進入枠 1/3、記録圧縮の正規例）。evidence: plan-gate → plan-approved = 独立 Plan Reviewer（Codex round 8、Writer と別 vendor）が新規 P1/P2 = 0 を報告し「Plan Gate 通過可」と判定（rally 全 8 round の経過は Review Response 参照。round 8 残 P3×1 は `935b301` で反映済み）、`Plan Commit` = plan-first commit `1eedb41` を設定、実装 commit は未作成のため plan-first 先行が成立 / plan-approved → implementing = 本 commit 直後に design 本文（Scope 列挙 11 doc）の執筆を開始する。
