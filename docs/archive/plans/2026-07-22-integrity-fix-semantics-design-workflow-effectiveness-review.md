@@ -64,7 +64,7 @@ Claude subagent 5 体（Plan Gate 4 + Contract Audit 1 pass + L1 実行系 3）+
 
 ## Retired / Consolidated Rules
 
-none — 理由: 本 PR は workflow 規律の新設・統合・退役を行っていない（適用済み規律 = D-050 の adjacent-contract sweep / 相互修正案方式 / anti-tautology 実 mutation はいずれも既存正本のまま。product 設計側の退役 = 「仮想棚卸し」概念は BIZ-07-D5 として 36-biz に記録済みで workflow 規律ではない）。
+- none — 理由: 本 PR は workflow 規律の新設・統合・退役を行っていない（適用済み規律 = D-050 の adjacent-contract sweep / 相互修正案方式 / anti-tautology 実 mutation はいずれも既存正本のまま。product 設計側の退役 = 「仮想棚卸し」概念は BIZ-07-D5 として 36-biz に記録済みで workflow 規律ではない）。
 
 ## Applied / Deferred Workflow Changes
 
