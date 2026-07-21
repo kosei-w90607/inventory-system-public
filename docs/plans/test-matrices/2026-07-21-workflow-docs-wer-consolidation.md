@@ -81,18 +81,19 @@ sed -n '/Design checklist/,/^## /p' docs/DEV_WORKFLOW.md | rg -F 'cited test'
 sed -n '/^## Contract Audit/,/^## /p' docs/DEV_WORKFLOW.md | rg -F 'adjacent-contract sweep'
 # M-D11b 期待: 0
 sed -n '/^## Contract Coverage Ledger/,/^## /p' docs/templates/plan-packet.md | rg -F 'adjacent-contract sweep'
+# M-D12 共通: 抽出範囲は D-050 節のみ（次の decision 見出しの直前で閉じる。round 3 F2 — D-051 追加時の誤集計を遮断、mock 実証済み）
 # M-D12a 期待: 0（区分 marker の完全一致 3 種）
-sed -n '/^## D-050/,$p' docs/decision-log.md | rg -F '**採用** ='
+awk '/^## D-050$/{d050=1; next} d050 && /^## D-[0-9]+$/{exit} d050' docs/decision-log.md | rg -F '**採用** ='
 # M-D12b 期待: 0
-sed -n '/^## D-050/,$p' docs/decision-log.md | rg -F '**部分採用** ='
+awk '/^## D-050$/{d050=1; next} d050 && /^## D-[0-9]+$/{exit} d050' docs/decision-log.md | rg -F '**部分採用** ='
 # M-D12c 期待: 0
-sed -n '/^## D-050/,$p' docs/decision-log.md | rg -F '**不採用 defer** ='
+awk '/^## D-050$/{d050=1; next} d050 && /^## D-[0-9]+$/{exit} d050' docs/decision-log.md | rg -F '**不採用 defer** ='
 # M-D12d 期待出力: 4（defer (i)〜(iv) の各「発動条件事実:」構造形。コロン付きで Why/Revisit 行のメタ言及を除外。4 = defer 件数の構造定数）
-sed -n '/^## D-050/,$p' docs/decision-log.md | rg -o -F '発動条件事実:' | rg -c .
+awk '/^## D-050$/{d050=1; next} d050 && /^## D-[0-9]+$/{exit} d050' docs/decision-log.md | rg -o -F '発動条件事実:' | rg -c .
 # M-D12e 期待出力: 4（同・「却下理由:」）
-sed -n '/^## D-050/,$p' docs/decision-log.md | rg -o -F '却下理由:' | rg -c .
+awk '/^## D-050$/{d050=1; next} d050 && /^## D-[0-9]+$/{exit} d050' docs/decision-log.md | rg -o -F '却下理由:' | rg -c .
 # M-D12f 期待出力: 4（同・「revisit:」小文字コロン付き）
-sed -n '/^## D-050/,$p' docs/decision-log.md | rg -o -F 'revisit:' | rg -c .
+awk '/^## D-050$/{d050=1; next} d050 && /^## D-[0-9]+$/{exit} d050' docs/decision-log.md | rg -o -F 'revisit:' | rg -c .
 # M-D13a 期待: 1（stale 不在。範囲 = roadmap item 1 のみ、完了履歴節は範囲外）
 sed -n '/^1\. 中期 roadmap/,/^2\./p' docs/Plans.md | rg -F 'checklist の template 昇格'
 # M-D13b 期待: 1
@@ -103,8 +104,12 @@ sed -n '/^1\. 中期 roadmap/,/^2\./p' docs/Plans.md | rg -F 'materialize 局所
 sed -n '/^1\. 中期 roadmap/,/^2\./p' docs/Plans.md | rg -F 'read-safe-file.sh'
 # M-DIFF 期待: 1（純追記 guard。対象 = DEV_WORKFLOW + plan-packet + test-design-matrix template。subagent-review-packet.md は D4-A 改訂許可のため対象外）
 git diff main --unified=0 -- docs/DEV_WORKFLOW.md docs/templates/plan-packet.md docs/templates/test-design-matrix.md | rg '^-([^-]|$)'
-# M-HANDOFF 期待: 0
-git diff --name-only main | rg -F 'docs/PROJECT_HANDOFF.md'
+# M-HANDOFFa 期待: 0（追加行に作業 branch 名。§2「直近の作業状態」への実質同期を assert — ファイル名 diff だけの tautology を排除、round 3 F3）
+git diff --unified=0 main -- docs/PROJECT_HANDOFF.md | rg '^\+.*impl/workflow-docs-wer-consolidation'
+# M-HANDOFFb 期待: 0（追加行に active packet path）
+git diff --unified=0 main -- docs/PROJECT_HANDOFF.md | rg '^\+.*2026-07-21-workflow-docs-wer-consolidation'
+# M-HANDOFFc 期待: 0（追加行に次 action token）
+git diff --unified=0 main -- docs/PROJECT_HANDOFF.md | rg '^\+.*Double Audit'
 ```
 
 ## Test Matrix（overview — 正本は上の Assertion Commands）
@@ -124,7 +129,7 @@ git diff --name-only main | rg -F 'docs/PROJECT_HANDOFF.md'
 | D11 | M-D11a〜b | sweep 要求が対象節外 or 片側未追加 |
 | D12 | M-D12a〜f | 区分 marker 不正 / defer 4 件の事実・却下理由・revisit の欠落 |
 | D13 | M-D13a〜d | 消化済み項目が roadmap 1-1 に残存 |
-| 全体 | M-DIFF, M-HANDOFF | 純追記制約違反 / Handoff 同期未実施 |
+| 全体 | M-DIFF, M-HANDOFFa〜c | 純追記制約違反 / Handoff の実質同期（branch / packet path / 次 action の 3 要素）未実施 |
 
 ## State Lifecycle Matrix
 
@@ -190,5 +195,5 @@ git diff --name-only main | rg -F 'docs/PROJECT_HANDOFF.md'
 ## Residual Test Gaps
 
 - 意味等価性（WER 原文 ↔ 規範文）と「二重追記による正本二重化」は機械検証不能 — Double Audit 2 pass で人的に閉じる（R3 + Double Audit を要求した理由）。
-- M-D12d〜f の期待値 4 は defer 件数の構造定数（D7 の「固定契約定数は対象外」に該当）— D-050 の defer 件数が変わる改訂時は本 Matrix も同時改訂する。
+- M-D12d〜f の期待値 4 は defer 件数の構造定数（D7 の「固定契約定数は対象外」に該当）— D-050 の defer 件数が変わる改訂時は本 Matrix も同時改訂する。抽出範囲は awk で次 decision 見出しの直前に閉じてあり、D-051 以降の追加では silent break しない（mock 実証済み）。
 - 規範文の将来遵守率は本 PR では検証不能 — 次 PR の WER で観測する。
