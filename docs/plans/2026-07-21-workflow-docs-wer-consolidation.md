@@ -6,7 +6,7 @@
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: 7f09ed8
-- Amendments: none
+- Amendments: 1efe836（Double Audit 2 pass P1 = Handoff Ledger 行 + D7 cutoff 是正 + Trace 略記是正）
 - Coordinator: Claude Code（Fable、main thread）
 - Writer: Codex（発注、public-writer clone。発注 prompt は Coordinator 作成）
 - Plan Reviewer: Codex 独立 fresh context（相互修正案方式 — findings に修正案添付、Coordinator が採否裁定）
