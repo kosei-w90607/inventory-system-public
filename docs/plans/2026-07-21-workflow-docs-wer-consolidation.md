@@ -2,10 +2,10 @@
 
 ## Workflow State
 
-- Phase: plan-gate
+- Phase: implementing
 - Risk: R3
 - Execution Mode: fable-window
-- Plan Commit: pending
+- Plan Commit: 7f09ed8
 - Amendments: none
 - Coordinator: Claude Code（Fable、main thread）
 - Writer: Codex（発注、public-writer clone。発注 prompt は Coordinator 作成）
@@ -20,6 +20,7 @@
 - State Narrative 追記（append-only、2026-07-21）: Codex Plan Gate round 2（P1×3 + P2×3、全 accept）反映の plan-gate 修正 commit 第 2 弾。D-050 defer (ii)/(iii) へ発動条件事実・却下理由を補完、M-D5N を Workflow State 節の byte-level diff guard へ強化（3 語検索の迂回反例を Codex が実演）、M-DIFF の regex escape 欠陥を fenced literal command 化で解消、Matrix を per-assertion literal command（M-D2a〜M-HANDOFF）へ再構成、D1 anchor を義務 phrase「親文書の目次・索引を更新」へ変更、packet 後半（Risk / Design Intent Audit / Design Readiness / Test Plan / Review Focus / Trace Matrix）の round 1 前 stale 記述を全同期。**訂正明示**: 初期 narrative の「WER 5 本」は誤記（正 = 6 ファイル、Design Sources 列挙が正本）— append-only 原則により初期行は書き換えず本行で訂正を宣言する。
 - State Narrative 追記（append-only、2026-07-21）: Codex Plan Gate round 3（P1×0 + P2×3 + P3×1、全 accept）反映の plan-gate 修正 commit 第 3 弾。純追記例外の節間矛盾を Matrix「実装制約」基準に統一（M-DIFF 3 ファイル純追記 / 例外 = D6 2 行 + D4-A 隣接 2 ファイル / D13・Handoff は対象外）、M-D12a〜f の抽出範囲を awk で D-050 節に閉包（D-051 追加時の誤集計を mock 実証で遮断）、PROJECT_HANDOFF.md 同期を §2 実質同期（branch / packet path / 次 action の 3 要素、M-HANDOFFa〜c）へ具体化（Codex 推奨案を採用）、M-D4A 表記を M-D4Aa〜b へ統一。Matrix literal 全 36 本の baseline 整合は Codex round 3 が全数実行で確認済み。
 - State Narrative 追記（append-only、2026-07-21）: Codex Plan Gate round 4（P1×0 + P2×1 + P3×0、accept）反映の plan-gate 修正 commit 第 4 弾。M-HANDOFFa〜c の 3 分割 assert は token 分散・遷移列欠落を検出できない（Codex 反例実演）ため、§2 節内・同一 bullet 行・完全遷移列（`Double Audit.*Ready.*merge`）を一括検証する単一 M-HANDOFF へ置換（Codex 提案コマンドをそのまま採用 — `/^### /` 終端は `:63` の次見出しで正しく閉じることを Coordinator が実測確認、baseline exit 1 追認済み）。packet Scope / AC / Matrix overview を新 assertion 名へ同期。
+- State Narrative 追記（append-only、2026-07-21）: state-only commit で隣接 forward 2 遷移 `plan-gate -> plan-approved -> implementing` を実体化。evidence: plan-approved = Codex Plan Gate 独立 5 round 収束（round 5 = 新規 P1/P2/P3 全ゼロ + Matrix literal 全数実行の baseline 整合 + M-HANDOFF 感度実証。findings 推移 9→6→4→1→0、全件 Coordinator 実証裏取りの上で採否裁定）+ `Plan Commit` = plan-first commit `7f09ed8` 記入（実装 commit は本遷移時点でゼロであり plan-first commit が全実装 commit に先行する）/ implementing = owner の plan 承認（2026-07-21、介入 1 回目 / 予算 2 回。R3 のため R4 explicit approval は非該当、plan 承認が実装開始 authorization を兼ねる）。実装 = Codex 発注（発注書は Coordinator 作成、Writer 向け注意点 = Plan Gate round 5 の引き継ぎ事項を含む）。
 
 ## Owner Effort Budget
 
