@@ -10,7 +10,7 @@ If a state-only commit materializes multiple phases, list the complete adjacent 
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: 1eedb41
-- Amendments: none
+- Amendments: b180185
 - Coordinator: Fable 5（本 session）
 - Writer: Fable 5（design docs 改訂）
 - Plan Reviewer: 独立 subagent（fresh context、Writer と別）
@@ -257,11 +257,13 @@ Do not transcribe exact-HEAD SHA or test counts here (D-035/D-038 Evidence Owner
 
 Fill after review.
 If R3 review-only sub-agent is skipped, record an explicit line beginning with `Review-only skipped because:` and the reason.
-- Findings Freeze: not yet frozen; post-freeze exceptions: none.
+- Findings Freeze: frozen after Broad Audit（Double Audit 両 pass + closure 実測完了、2026-07-22 — 下記 2 pass 記録参照）; post-freeze exceptions: none.
 - Plan Gate rally 記録: round 1〜4 = Claude 独立 subagent（各 round fresh context）。r1 P1×1+P2×1+P3×2 / r2 P2×1+P3×1 / r3 P1×1+P2×1 / r4 P1×1+P2×1+P3×1 — 全件 accept・反映済み、各 round で前 round の反映を第三者検証。round 5 = Codex（vendor 切替、相互修正案方式）: P1×2 + P2×5 + P3×2 全件 accept・反映済み。round 6 = Codex: 新規 P2×4 + P3×1（round 5 反映の packet 後半同期漏れ）全件 accept、`68f471a` + `bd05273` で反映。逸脱 2 点（plan-gate 遷移の content commit 同乗 / 改善提案採否）は Codex 同意。round 7 = Codex: 新規 P1×1（D-051 の Ledger/Trace 独立行欠落 = R3 blocker 該当）+ P2×3 + P3×1 全件 accept、本 commit で反映（Ledger/Trace の D-051 行 + Matrix #13 新設 + #12 収束系 oracle + operator 表現行の #10 接続 + Adjacent Pattern Audit 6 系統化）。
 - Codex round 5 改善提案の採否（D-050 方式の分離記録）: **採用** = D-051 固定小見出し（invariant/audit/retention/rejected/revisit）。**部分採用** = 全数照合の多 pattern 化（AC の最終ゲート command へ反映。語彙+データフロー二軸の完全化は allowlist 保守込みの将来改善）。**不採用 defer** = (a) sweep の機械可読 manifest 化 — 本 PR は PR body 対応表 + Matrix #11 で足り、設定ファイル新設は保守対象を増やす。revisit: 同型 sweep を次に必要とする監査/是正 PR 起票時 / (b) Scope の契約単位再編 — rally 5 round 済み構造の再編は churn リスクが利得を上回る。revisit: 次の design packet 起票時に初期構造として検討 / (c) REQ ID lint の PK check 化 — workflow gate change であり本 PR の scope 外。revisit: 次の workflow docs / checker PR 起票時（Plans.md 次の行動 3 の slice 2 follow-up 群と同系統）。
 - Coordinator の逸脱裁定依頼（相互修正案方式、次 round で Codex の採否を問う）: round 5 P1-1 の修正案は「state-only commit で plan-gate へ遷移」だが、D-038 Evidence Ownership の forward state-only cap 3（plan-approved 進入 1 + 実装後 2）を温存するため、**本 content commit に plan-draft → plan-gate 遷移を同乗させる方式**で反映した（DEV_WORKFLOW「every other transition rides an adjacent content commit」準拠）。→ round 6 で Codex 同意済み。
 - Contract Audit 1 pass（2026-07-22、独立 fresh context、Writer・Plan Gate 全 reviewer と別）: Ledger 全 10 行 PASS（実 doc 突合）、Matrix #1/#3/#5/#6/#11/#13 実行 PASS（全数照合 = 語彙系 9 hits 全分類・未分類 0 / insert_movement 文脈 5 ファイル 0 件）、**実 mutation 3 種注入で anchor red を実測**（①3e insert_movement 再注入 ②D-051 365 日文削除 ③UI-13-D9 旧語彙差し戻し — 全て検知、復元後 working tree clean）、PR #19 body evidence（旧文言 grep 表 / 全数照合表 / P7-1 対応表）は再実行と完全一致。設計内部整合（ステップ番号 / TX 境界 / D-6 例外限定）に矛盾なし。**P1 = 0 / P2 = 0 / P3 = 0、1 pass 合格**。blocker 外観察 1 件: §21.4 ステップ 3b の `conn` 表記は実コード `&tx` と異なる既存記法（本 PR diff 対象外）— 実装 follow-up PR で §21.4 反映時に自然解消。
+- Contract Audit 2 pass（2026-07-22、Codex 独立 fresh context = Double Audit 第 2 監査）: 独立 mutation testing 6 種で **survivor 5 件**（§21.7 失敗 oracle / D-051 rejected / 35-biz 例外注記 / UI-11c-D14 / 65 追跡行の削除・劣化が全て doc gate を素通り）+ 事実誤記 2 件（D-051「BIZ-01 の 2 例目」= BIZ-02 業務記録 4 系の TX 内必須が欠落、実コード `insert_operation_log(&tx,)?` と 31-biz で実証 / review-checklist §3「全TX外方針」= 実態と乖離し follow-up 実装を誤拒否する）を検出。verdict = P1×2 + P2×3 + P3×1、2 pass 不合格。**全件 accept**し gated amendment `b180185` で反映（TX 境界現状整理の是正 + review-checklist §3 の scope 追加 + 収束性 oracle の戻り値形整合 + 成功系 movement 不変 oracle + ステップ番号同期 + exact-count 構造 anchor を Matrix #6/#7/#9/#12/#13 付与・#14 新設 + bare D-6 の qualify）。**closure 実 mutation 6/6 RED**（commit 済み tree に survivor と同型の mutation を再注入し、新 anchor が全て検知することを実測。復元後 `git diff --exit-code` clean）。1 pass（推論 + 3 mutation）が見逃した survivor を 2 pass の系統的 mutation testing が検出した — Double Audit を waive しない規律（PR #15/#16/#17 の教訓）の 4 度目の実証。
+- Findings Freeze: 2 pass findings の全 accept・反映・closure 実測完了をもって発効（2026-07-22）。post-freeze exceptions: none。
 
 ## Review / Evidence Record（append-only）
 
