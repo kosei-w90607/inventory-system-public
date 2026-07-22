@@ -40,7 +40,7 @@ Risk: R3
 | stockMovements.root | F3 | unit 新設 | query-keys: stockMovements.product(id) / list(...) が root() の prefix 配下にあることの構造検査 | root が別 prefix になり prefix invalidate が届かない |
 | 返品分岐 | F5 | unit 既存拡張 | ReturnExchangePage: register_processed=true では在庫系 key が invalidate されない negative 検査 | 分岐を無視して無条件 invalidate に変えた実装 |
 | SSOT shape | F2 の前提 | unit 新設 | invalidation-contract: 全 mutation エントリが非空集合であることの meta 検査 | 空集合エントリの混入 |
-| SSOT 経由の強制 | F7 | regression（vitest 静的走査、fail-closed — Codex round 1 P2-2） | `invalidation-contract.static.test.ts`（仮名）: src/features + src/lib の全 invalidateQueries 呼び出しを走査し、SSOT helper 本体 / backupRestore 系 / stocktake error-path named helper 以外を 1 件でも検出したら fail | SSOT 非経由の直接呼び出し（success-path 直書きを含む）が production に新規追加される |
+| SSOT 経由の強制 | F7 | regression（vitest 静的走査、fail-closed — Codex round 1 P2-2、**2 pass P1-2/P1-3 で AST/import-graph 検査へ強化**） | `invalidation-contract.static.test.ts`: ①allowlist 外の invalidateQueries（computed member call 含む）拒否 ②helper 第二引数は `invalidationContract.<entry>(...)` 直接形のみ許可（.concat / spread / conditional / wrapper 拒否）③oracle・test → production contract の推移的 import 到達（re-export 経由含む）を禁止 ④re-export / concat / computed call の fixture regression | SSOT 非経由・変形経由の呼び出しや oracle の間接接続が新規追加される（M7/M8 で感度実測） |
 | doc 同期 | F6 | CLI | `bash scripts/doc-consistency-check.sh` pass + Ledger の doc 突合 | UI_TECH_STACK §2.5 の原則・除外表と SSOT の乖離 |
 
 ## 契約感度の実測（M 行）
@@ -53,6 +53,10 @@ Findings Freeze 前に Writer が clean tree 上で実施し、結果を packet 
 | M2 | **production の**整合性補正エントリから lowStock を除去（test oracle は触らない） | IntegrityCheckPage 新設 test が独立 oracle との差分で red |
 | M3 | 閾値エントリの部分成功適用を全成功時のみに戻す（P5b-3 の現行バグ再注入） | ThresholdSettingsPage 部分成功 test が red |
 | M4 | stockMovements.root の prefix を別値に変更 | prefix 構造検査が red |
+| M5 | **production の** PLU エントリから lowStock を除去（2 pass P1-1 の新規 key） | PluExportPage test が独立 oracle との差分で red |
+| M6 | **production の** PLU エントリから stockInquiryRoot を除去（同上） | 同上 |
+| M7 | 非 test module で production contract を re-export し oracle をそこへ接続（2 pass P1-2 の survivor 再注入） | 強化後の静的 gate（import graph 推移検査）が red |
+| M8 | helper 第二引数へ `.concat(...)` 追加 / computed member call 追加（2 pass P1-3 の survivor 再注入） | 強化後の静的 gate（AST 検査）が red |
 
 ## State Lifecycle Matrix
 
@@ -66,7 +70,7 @@ Findings Freeze 前に Writer が clean tree 上で実施し、結果を packet 
 
 | Source pattern / contract | Repository sites inspected | Ported sites | Explicit exclusions and reason | Test / evidence |
 |---|---|---|---|---|
-| query invalidation（onSuccess 集約） | `rg -n "invalidateQueries" src/features src/lib --glob '!*.test.*'` 全 69 呼び出し行 / 12 file（2026-07-22 実測） | 契約表 16 mutation | backupRestore 系 6 呼び出し（対象外 domain、契約表収載の例外）/ stocktake 画面内 error-path invalidate（named helper へ集約、成功時契約の対象外） | 静的 regression test（F7 行の `invalidation-contract.static.test.ts`） |
+| query invalidation（onSuccess 集約） | `rg -n "invalidateQueries" src/features src/lib --glob '!*.test.*'` 全 69 呼び出し行 / 12 file（2026-07-22 実測） | 契約表 16 mutation | backupRestore 系 6 呼び出し（対象外 domain、契約表収載の例外）/ stocktake 画面内 error-path invalidate（named helper へ集約、成功時契約の対象外） | 静的 regression test（F7 行、2 pass P1-2/P1-3 強化後） |
 | prefix helper パターン（csvImportLists / stockInquiryRoot / monthlySalesRoot） | query-keys.ts 全 domain | stockMovements.root + productForm.root + dailySales root 新設（productForm は一括 import の bulk 上書きが要求 = rally round 1 P2-2、dailySales は literal 4 箇所 = csv-import 2 + daily-report-import 2 の factory 化 = round 2 A、箇所数は round 3 P2-C 実測） | 単一 key domain（thresholdSettings 等）は prefix 不要。operation-logs 系 literal は P5-4 保全で非接触 | prefix 構造検査 test（3 domain） |
 
 ## Negative Paths
