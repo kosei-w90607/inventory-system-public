@@ -90,7 +90,7 @@
 
 ## 次の行動
 
-0. **次に着手（次候補）**: **順 4 = mutation→consumer query 契約**（R3。監査 adjudication の順 4 是正、順 3 の design（PR #19）+ 実装（PR #20）完了で先行条件クリア — 上記完了リスト参照。scope の一次入力 = [adjudication](research/audit-2026-07/adjudication.md) の順 4 単位。UI-13 の補正成功後 invalidation 契約は順 3 で現行維持としており、本是正の入力になる。着手時に packet 起票。design-first か直実装かは scope 精査時に Risk 判定）。
+0. **着手中**: **順 4 = mutation→consumer query 契約**（R3、単一 PR = design 更新 + 実装 + 独立 oracle test。active packet = [plans/2026-07-22-mutation-consumer-query-contract.md](plans/2026-07-22-mutation-consumer-query-contract.md) / [Matrix](plans/test-matrices/2026-07-22-mutation-consumer-query-contract.md)、branch `audit-fix-4-mutation-query-contract`。2026-07-22 起票、self rally 5 round 収束 → Codex plan review round 1 の P1×3/P2×5/P3×1 を裁定・反映済み。次 = Codex round 2（反映確認）→ owner plan 承認。scope の一次入力 = [adjudication](research/audit-2026-07/adjudication.md) の順 4 単位。UI-13 の補正成功後 invalidation 契約は順 3 で現行維持としており、本是正の入力になる）。
    **是正記録（2026-07-21）**: closeout `8a36224` は「次 = roadmap 1-2 横断監査」としていたが、1-2 は **PR #13 squash merge `d9e16fe`（2026-07-17）で消化済み**（上記完了リスト参照。監査発注書 [00-order.md](research/audit-2026-07/00-order.md) 自身が roadmap 1-2 と明記）。roadmap リストの取り消し線漏れに起因して PR #17 closeout 以降 3 closeout 連続で「1-2 は未着手」扱いの drift が伝播していたため、owner 確認の上で是正。D-050 (iii) の revisit 先「roadmap 1-2 横断監査の発注書作成時」は「次回の横断監査発注書作成時」と読み替える。
 1. 中期 roadmap（owner 裁定 2026-07-16、実施順。backlog は系統ごとに 1 PR ずつ束ねる）:
    1. ~~workflow docs PR~~（**完了: PR #18 squash merge `bbb61f6`、2026-07-21**。WER Adjustment は D-050 裁定で正本化・消化、defer 4 件は D-050 の revisit 条件で追跡。先行消化 4 件 = Public PR #7 `a75be5d` + PR #15 `b47cd5a`。上記完了リスト参照）

@@ -8,7 +8,7 @@ Risk: R3
 
 ## Contracts Under Test
 
-- SPEC-INV-CONTRACT-01: 全 production mutation の成功時 invalidation は `src/lib/invalidation-contract.ts` の SSOT 集合に一致する（導出原則 = 書いた table を読む query は invalidate、除外は UI_TECH_STACK §2.5 除外表に明示）
+- SPEC-INV-CONTRACT-01: 全 production mutation の成功時 invalidation は `src/lib/invalidation-contract.ts` の SSOT 集合に一致する（導出原則 = 確定した table.column を読む query は invalidate、除外は E1〜E6）。**test oracle は契約表 D-052-Cn からの独立転記で、production SSOT を import しない**（Codex round 1 P1-1）
 - 契約表 v1 の 16 mutation 行（packet Scope 参照。P5-1 / P5-2 / P5-3 / P5b-1 / P5b-2 / P5b-3 の欠落解消と、棚卸し開始・明細個数更新の SSOT 経由化 — rally round 2 C — を含む）
 - `queryKeys.stockMovements` root/prefix helper の prefix 整合（product / list が root 配下）
 - P8-2: テストは SSOT から期待を導出し、実装列挙の写しにならない
@@ -16,7 +16,7 @@ Risk: R3
 ## Failure Modes
 
 - F1: mutation 成功後も consumer query が fresh cache のまま旧値を表示する（invalidate 欠落）
-- F2: SSOT から key を除去してもテストが green のまま（契約感度なし = tautology 再来）
+- F2: production contract から key を除去・追加・重複させてもテストが green のまま（契約感度なし。共有 SSOT を test が import すると mutant の両側が同時に縮む — Codex round 1 P1-1 の共有 tautology を含む）
 - F3: stockMovements.root が既存 key shape の prefix にならず、prefix invalidate が product/list に届かない
 - F4: 閾値部分成功分岐（succeededFields≥1 + failedField あり）だけ invalidation が発火しない（P5b-3 再発）
 - F5: 返品 register_processed=true（レジ処理済み）で在庫系 invalidate が誤発火する（backend が在庫を書かない経路）
@@ -30,16 +30,16 @@ Risk: R3
 
 | Contract | Failure Mode | Test Type | Test Name | Would fail if... |
 |---|---|---|---|---|
-| 契約表 16 行 | F1 | unit（各 page test、invalidateSpy） | 各 mutation page test の契約遵守検査（期待 key 集合を invalidation-contract.ts から導出して全件 assert） | いずれかの mutation で SSOT 集合の invalidate が 1 key でも欠ける |
+| 契約表 16 行（18 success handler、oracle は経路単位） | F1, F2 | unit（各 page test、invalidateSpy） | 各 mutation page test の契約遵守検査 — 期待 key 集合は**契約表 D-052-Cn から転記した独立 oracle**（invalidation-contract.ts を import しない）。実呼出し集合と順序非依存・重複検出付きで**完全一致比較**し、欠落・余分・重複いずれも red | production 実装の invalidate が oracle と 1 key でも異なる（不足・過剰・重複を含む） |
 | P5-3（整合性補正） | F1 | unit 新設 | IntegrityCheckPage: fix 成功時に SSOT 集合（productList.root / lowStock / stockInquiryRoot / stockMovements.root）が invalidate される（latest-check literal は rally round 1 P2-1 裁定で対象外） | fix 成功後に QueryClient へ触れない現行実装のまま |
-| P5-1（商品 form） | F1 | unit 新設 | ProductFormPage: create / update 成功時の SSOT 集合検査 | productList.root のみ invalidate の現行実装のまま |
+| P5-1（商品 form） | F1 | unit 新設 | ProductFormPage: create / update / **廃番化・復帰 toggle**（Codex round 1 P1-3 — 現行 test は toggleDiscontinue が mock 宣言のみ）成功時の独立 oracle 完全一致検査 + 失敗時不発火 | productList.root のみ invalidate の現行実装のまま、または toggle 経路の SSOT helper 呼出し削除 |
 | P5b-3（閾値部分成功） | F4 | unit 新設 | ThresholdSettingsPage: succeededFields≥1 + failedField あり分岐で lowStock / stockInquiryRoot が invalidate される | 部分成功分岐が refetch のみの現行実装のまま |
 | P5b-1（棚卸し確定） | F1 | unit 既存拡張 | StocktakePage: 確定成功時に stocktake 3 key + 在庫系 + stockMovements.root が invalidate される（latest-check は rally round 2 B 裁定で対象外） | stocktake domain 3 key のみの現行実装のまま |
 | P5b-2（CSV commit/rollback） | F1 | unit **新設**（renderHook + QueryClient wiring — hook 実行 test は現状不在、page test は idle mock 全置換。useDailyReportImportFlow.test.tsx パターン。rally round 1 P1-2） | useCsvImportFlow: commit / rollback 成功時に productList.root / monthlySalesRoot / stockMovements.root を含む SSOT 集合検査 | 現行 5 key のままの実装 |
 | stockMovements.root | F3 | unit 新設 | query-keys: stockMovements.product(id) / list(...) が root() の prefix 配下にあることの構造検査 | root が別 prefix になり prefix invalidate が届かない |
 | 返品分岐 | F5 | unit 既存拡張 | ReturnExchangePage: register_processed=true では在庫系 key が invalidate されない negative 検査 | 分岐を無視して無条件 invalidate に変えた実装 |
 | SSOT shape | F2 の前提 | unit 新設 | invalidation-contract: 全 mutation エントリが非空集合であることの meta 検査 | 空集合エントリの混入 |
-| SSOT 経由の強制 | F7 | regression（rg ベース） | AC の `rg -n "invalidateQueries" src/features` 全ヒット分類（SSOT helper 経由 or 契約表収載例外のみ） | SSOT 非経由の直接呼び出しが production に新規追加される |
+| SSOT 経由の強制 | F7 | regression（vitest 静的走査、fail-closed — Codex round 1 P2-2） | `invalidation-contract.static.test.ts`（仮名）: src/features + src/lib の全 invalidateQueries 呼び出しを走査し、SSOT helper 本体 / backupRestore 系 / stocktake error-path named helper 以外を 1 件でも検出したら fail | SSOT 非経由の直接呼び出し（success-path 直書きを含む）が production に新規追加される |
 | doc 同期 | F6 | CLI | `bash scripts/doc-consistency-check.sh` pass + Ledger の doc 突合 | UI_TECH_STACK §2.5 の原則・除外表と SSOT の乖離 |
 
 ## 契約感度の実測（M 行）
@@ -48,8 +48,8 @@ Findings Freeze 前に Writer が clean tree 上で実施し、結果を packet 
 
 | M | 実 mutation | 期待 |
 |---|---|---|
-| M1 | invalidation-contract.ts の入庫エントリから stockMovements.root を除去 | 入庫 page test が red |
-| M2 | 整合性補正エントリから lowStock を除去 | IntegrityCheckPage 新設 test が red |
+| M1 | **production の** invalidation-contract.ts の入庫エントリから stockMovements.root を除去（test oracle は触らない — Codex round 1 P1-1） | 入庫 page test が独立 oracle との差分で red |
+| M2 | **production の**整合性補正エントリから lowStock を除去（test oracle は触らない） | IntegrityCheckPage 新設 test が独立 oracle との差分で red |
 | M3 | 閾値エントリの部分成功適用を全成功時のみに戻す（P5b-3 の現行バグ再注入） | ThresholdSettingsPage 部分成功 test が red |
 | M4 | stockMovements.root の prefix を別値に変更 | prefix 構造検査が red |
 
@@ -111,7 +111,7 @@ Findings Freeze 前に Writer が clean tree 上で実施し、結果を packet 
 
 ## Mutation-style Adequacy Questions
 
-- If a mock value is changed so it differs from the design-doc expected value, which assertion proves the implementation used the correct source and not the mock's accidental constant? → 契約遵守テストの期待は SSOT から導出するため、mock 定数の偶然一致では通らない。SSOT 自体の正しさは Ledger の backend 書込み根拠（file:line）で人間レビュー
+- If a mock value is changed so it differs from the design-doc expected value, which assertion proves the implementation used the correct source and not the mock's accidental constant? → 契約遵守テストの期待は契約表 D-052-Cn から転記した独立 oracle（production SSOT 非 import）のため、production 側の変更は oracle との差分で必ず露出する（Codex round 1 P1-1 で共有 SSOT 方式を廃止）。oracle 自体の正しさは Ledger の backend 書込み根拠（file:line）で人間レビュー
 - If invalidate/refetch changes the value before versus after the operation, which test proves the lifecycle order and preserved snapshot are correct? → invalidate は onSuccess 後のみ（State Lifecycle Matrix 1 行目）。mutation 失敗時に不発火の negative 検査
 - If a key branch is inverted, which test fails? → F5（返品 register_processed 分岐の両側検査）
 - If a guard is removed, which test fails? → M3（部分成功適用を全成功時のみへ戻す再注入で red）
@@ -122,3 +122,4 @@ Findings Freeze 前に Writer が clean tree 上で実施し、結果を packet 
 
 - 「invalidate 後に画面が実際に新値を再描画する」E2E は本 change に含めない（vitest は invalidate 発火までを検査、refetch→再描画は TanStack Query の既検証挙動）。roadmap 1-4 受入テストの一気通貫台本が実機検証点
 - SSOT と UI_TECH_STACK §2.5 除外表の突合は機械検査でなく Ledger + レビューで担保（除外表は自然文のため。機械化は過剰と判断、rally で妥当性を確認）
+- 独立 test oracle（D-052-Cn 転記）と契約表の同期は手動 — oracle 転記 drift は Ledger 再検証（independent-review 時の row 突合）と M1/M2 実測で検出する。production SSOT と oracle の両方を同時に同方向へ誤る変更は人間レビューが最後の防衛線（Codex round 1 P1-1 の残余リスクとして明示）
