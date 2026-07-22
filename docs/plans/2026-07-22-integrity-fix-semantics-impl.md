@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: implementing
+- Phase: independent-review
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: 62a4b16
@@ -261,9 +261,12 @@ Do not transcribe exact-HEAD SHA or test counts here (D-035/D-038 Evidence Owner
 
 - Double Audit 1 pass（Fable inline 契約突合、2026-07-22、対象 = `dadfd86`）: **blocker 0**。Ledger 全行を diff 実読で突合 — TX 順序（補正 → ログ → commit、`&tx` 渡し）/ 逸脱コメントの D-051・BIZ-07-D2 参照化 / T1 trigger 注入 + stock・movements 不変 / T2 detail_json 具体値 + skipped 2 系 + voided・zero-movement fixture / T3 snapshot 不変（INV-8）/ T4 非出現 / T5 COALESCE SQL 等式 / T6 mock_builder 実呼び化 / T7・T8 可視 + sr-only 分離 assert / T9 container scope + hostile text-only + 汎用列挙への重複否定 / T10 raw 保持 / T11 汎用表示不変 / T12 it.each malformed degrade / T13 20・21 両側境界。AC rg 2 種を Coordinator 実走査 0 件、INV-3 既存 regression 維持、traceability の生成差分が REQ-904 行のみであることを確認（件数は PR body を正とする — D-038）。X3 / X5 実 mutation は 2 pass で実測予定。visual confirmation 素材は Writer 環境で採取不可（Playwright 未導入、供給網ガード遵守で新規取得回避）→ Coordinator 差し戻し受領、Ready 承認時に owner へ方式を提示する。
 - Double Audit 2 pass（Codex 独立 fresh context、2026-07-22、対象 = `dadfd86`）: **P1×2 + P2×7 + P3×1、survivor mutation 10 件（S1〜S10）検出 — 全件 accept**。P1-1 = T3 の snapshot 列不足（stock_after 改変・product name 改変が全 suite green で素通り = INV-8 oracle の実質未達）。P1-2 = `Reviewed Content HEAD` の設定タイミング契約違反（independent-review → human-confirm の state-only commit でのみ設定が正 — Coordinator の運用誤り、DEV_WORKFLOW 実文言で確認）。P2 群 = T12 field 対称性 / operation type guard 感度 / sr-only 可視判定の jsdom 限界 / details 到達可能性 / T13 残数一般性 / Ledger の BIZ-07-D5・Retention 行欠落 / D-038 違反（件数転記）。製品実装コード自体の正本逸脱は 0（X3/X5 含む追加 mutation 11 種 red 確認済み）。対応 = state-backtrack `independent-review->implementing` + 本 gated amendment（Matrix T3/T8/T10/T11/T12/T13 強化 + S1〜S10 回帰群 + Ledger 2 行 + D-038 定性化）+ テスト強化を Codex へ再発注。
+- Fix round（Codex Writer、2026-07-22、`9b3552b`）: 2 pass 対応のテスト強化を実装（T3 全列 snapshot + product 不変列 / T8 sr-only・hidden 否定 / T10 到達可能性 / T11 guard fixture / T12 対称 malformed + 汎用要約残存 / T13 25 件境界）。着手時に T3 契約と共有 `update_stock_quantity` の updated_at 意味論の衝突を fail-closed 検出 → Coordinator 実読裏取りで Writer 相互修正案を accept（gated amendment 2 = `096d212`）。製品コード・Workflow State 非接触、S1〜S10 全件 red 実測 + 全 gate green + `local-ci.sh full` CLEAN（詳細は PR body — D-038）。PR body 全面 refresh 済み（2 pass P3-1 解消）。
+- Closure 検証（Coordinator、2026-07-22、対象 = `9b3552b`）: 三点一致（local = remote ref = PR head）実確認。fix diff が test module 内に限定されることを hunk 位置で確認。代表 survivor 2 件（S1 = Rust 側 / S8 = frontend 側）を独立 subagent で再注入・再実測し**両件 red**・復元後 clean tree を第三者確認。2 pass findings は P1/P2 とも全件解消と裁定。
+- **State compression record 3（append-only、2026-07-22）**: independent-review への再遷移は implementing → local-verified → independent-review を content commit 同乗で実体化する（backtrack 後の forward 再 walk）。local-verified の証跡 = Writer の `local-ci.sh full` exact-commit CLEAN（`9b3552b`、PR body 記載）。independent-review の証跡 = 2 pass 監査（実施済み）+ 上記 fix + closure 検証。gate skip なし。
 - Owner Effort Budget 超過記録（2026-07-22）: relay 実績が上限 2 を超過（plan review / 実装 / 2 pass audit / fix の各発注 relay。試行フロー = Codex 先行 plan review の追加 relay に起因）。owner は各 relay を能動的に実施しており継続合意と判断、超過は本記録で明示。予算設計の見直しは closeout WER で扱う。
 
 Fill after review.
 If R3 review-only sub-agent is skipped, record an explicit line beginning with `Review-only skipped because:` and the reason.
 
-- Findings Freeze: not yet frozen; post-freeze exceptions: none.
+- Findings Freeze: frozen after Broad Audit（2026-07-22、2 pass + fix + closure 完了時点。以後の新規 findings は不可逆 4 項目のみ受理）; post-freeze exceptions: none.
