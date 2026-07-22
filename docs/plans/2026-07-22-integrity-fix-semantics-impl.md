@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: human-confirm
+- Phase: ready-hosted-final
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: 62a4b16
