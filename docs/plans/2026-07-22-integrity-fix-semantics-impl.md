@@ -6,7 +6,7 @@
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: 62a4b16
-- Amendments: none
+- Amendments: 3787234
 - Coordinator: Fable（main thread）
 - Writer: Codex（実装発注、レビュー前に PR 作成）
 - Plan Reviewer: Codex 先行 plan review（考慮漏れ観点付き）→ Fable 裁定・修正 → Plan agent self rally（Codex findings 非開示の独立 critique、新規指摘 0 まで）。今回の試行順序（通常の rally 先行と逆順）。
