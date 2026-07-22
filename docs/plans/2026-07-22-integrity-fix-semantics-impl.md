@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: implementing
+- Phase: independent-review
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: 62a4b16
@@ -11,7 +11,7 @@
 - Writer: Codex（実装発注、レビュー前に PR 作成）
 - Plan Reviewer: Codex 先行 plan review（考慮漏れ観点付き）→ Fable 裁定・修正 → Plan agent self rally（Codex findings 非開示の独立 critique、新規指摘 0 まで）。今回の試行順序（通常の rally 先行と逆順）。
 - Final Reviewer: 独立 fresh context（Double Audit 2 pass 想定: 1 pass = Fable inline 契約突合 / 2 pass = Codex 独立 + 実 mutation）
-- Reviewed Content HEAD: pending
+- Reviewed Content HEAD: dadfd86（1 pass inline 契約突合済み、2 pass Codex 独立 audit 待ち）
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
 - Human Gate: Ready 承認 + operator 可視変更の human visual confirmation（Writer が synthetic fixture で用意した UI-13 確定 dialog / UI-11c 詳細表示のスクリーンショットを owner が目視確認）。Windows native L3 は not-required — 画面別の独立根拠: **UI-13** = 75-ui §75.12 が「差異あり → 選択補正」を DB 直接操作の fault injection 要のため L3 対象外と規定済み（Codex 先行 review P1-2）。**UI-11c** = 到達に補正実行 or sqlite3 synthetic INSERT（§74.15 L3-8 方式）が必要で、DEV_WORKFLOW `L3 Eligibility` 条件 (3) が synthetic row insertion 等の fault-injection 級手動手順を L3 に置かず自動テストへ route すると規定済み（UI-11c L3-7/L3-8 の waive 実績がこの規則の起源と明記されている）。よって T9〜T13 の自動テスト + synthetic fixture visual confirmation で担保する。§74.15 への機能別 L3 行追加（L3-4/L3-5 の既存規律）と roadmap 1-4 受入テスト台本への操作ログ確認ステップ追加は、1-4 の台本作成時に検討する将来事項とし、本判断の根拠にはしない。本 PR では Non-scope を維持（rally round 1 指摘の反映、round 3 で根拠を一次規定へ差替え）
@@ -254,6 +254,10 @@ Do not transcribe exact-HEAD SHA or test counts here (D-035/D-038 Evidence Owner
 - Self rally round 2（同上、2026-07-22）: 重要×3 + 軽微×2 — ①adjustments の汎用 dt/dd 重複表示リスク → Scope 4 に除外指示 + T9 否定 assert ②T12 の hostile 文字列 degrade が Boundary Contract と矛盾 → 構造的欠陥のみ degrade、型正当な hostile 文字列は text-only 安全描画（T9 ②）へ分離 ③テスト命名の `_req904_` 保持を明記（generate_traceability の抽出 regex を実読確認）④Plans.md の plan commit SHA 複製を廃止（packet を正に）⑤AC の検査コマンドを実行可能形式へ分離。全件 accept・反映済み。観点 1/5/7 は新規指摘なし、Ledger 全行の T カバレッジ確認済み。
 - Self rally round 3（同上、2026-07-22）: 重要×2（いずれも round 1 是正が生んだ新矛盾）— ①Matrix Residual Gaps の L3 根拠が §75.12 単独のまま未伝播 → 画面別根拠へ同期 ②「roadmap 1-4 で操作ログ確認を一気通貫」は Plans.md 実文言に存在しない未検証前提 → 一次根拠を DEV_WORKFLOW `L3 Eligibility` 条件 (3)（synthetic row insertion は自動テストへ route、L3-7/L3-8 waive がこの規則の起源）へ差替え、1-4 台本への追加は将来の検討事項へ降格（本判断の根拠から除外）。両件 accept・正本実読で裏取り・反映済み。観点 2/4/5/6/7 は新規指摘なし、round 1〜2 是正の有効性は確認済み。
 - Self rally round 4（closure 確認、2026-07-22）: **新規指摘なし、収束**（致命 0 + 重要 0）。round 3 是正の三者突合（packet Human Gate ↔ Matrix Residual Gaps ↔ DEV_WORKFLOW L3 Eligibility 実文言）クリーン、Contract Probe 3 前提・現状コード記述・Ledger/T/X の 1:1 対応・traceability 抽出仕様を独立再確認。実装発注可の判定。
+
+**State compression record 2（append-only、2026-07-22）**: independent-review への state commit は implementing → local-verified → independent-review を一括実体化する。local-verified の既存証跡 = Writer 報告（Rust workspace 全 green + frontend 683 green + typecheck/lint/format/build + clippy -D warnings + cargo check --release + doc-consistency + `local-ci.sh full` exact-commit clean-tree pass、X1/X2/X4 実 mutation red、詳細は PR #20 body）。三点一致（local = remote ref = PR head `dadfd86`）を Coordinator が実確認。gate skip なし。
+
+- Double Audit 1 pass（Fable inline 契約突合、2026-07-22、対象 = `dadfd86`）: **blocker 0**。Ledger 全行を diff 実読で突合 — TX 順序（補正 → ログ → commit、`&tx` 渡し）/ 逸脱コメントの D-051・BIZ-07-D2 参照化 / T1 trigger 注入 + stock・movements 不変 / T2 detail_json 具体値 + skipped 2 系 + voided・zero-movement fixture / T3 snapshot 不変（INV-8）/ T4 非出現 / T5 COALESCE SQL 等式 / T6 mock_builder 実呼び化 / T7・T8 可視 + sr-only 分離 assert / T9 container scope + hostile text-only + 汎用列挙への重複否定 / T10 raw 保持 / T11 汎用表示不変 / T12 it.each malformed degrade / T13 20・21 両側境界。AC rg 2 種を Coordinator 実走査 0 件、INV-3 既存 regression 維持、traceability REQ-904 13→18 件のみの差分を確認。X3 / X5 実 mutation は 2 pass で実測予定。visual confirmation 素材は Writer 環境で採取不可（Playwright 未導入、供給網ガード遵守で新規取得回避）→ Coordinator 差し戻し受領、Ready 承認時に owner へ方式を提示する。
 
 Fill after review.
 If R3 review-only sub-agent is skipped, record an explicit line beginning with `Review-only skipped because:` and the reason.
