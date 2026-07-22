@@ -32,7 +32,7 @@
 
 ### 直近の作業状態
 - **workflow docs WER consolidation**: **完了**（PR #18 squash merge `bbb61f6`、2026-07-21）。WER Adjustment 積み残しを D-050 裁定で DEV_WORKFLOW / template 群へ正本化。packet は `docs/archive/plans/2026-07-21-workflow-docs-wer-consolidation.md` へ archive 済み
-- **整合性補正の意味論正本確定（監査是正 順 3）**: **完了**（PR #19 squash merge `384fcc8`、2026-07-22）。D-051 として 11 doc + review-checklist へ正本化（movements 原本 / 直接更新 / 同一 TX 必須 integrity_fix ログ）。packet は `docs/archive/plans/2026-07-21-integrity-fix-semantics-design.md` へ archive 済み。次 = 順 3 実装 follow-up PR（詳細は Plans.md「次の行動」0）
+- **整合性補正の意味論正本確定（監査是正 順 3）**: **完了**（PR #19 squash merge `384fcc8`、2026-07-22）。D-051 として 11 doc + review-checklist へ正本化（movements 原本 / 直接更新 / 同一 TX 必須 integrity_fix ログ）。packet は `docs/archive/plans/2026-07-21-integrity-fix-semantics-design.md` へ archive 済み。順 3 実装 follow-up は active packet に沿って Writer gate 完了、Draft PR 作成待ち（詳細は Plans.md「次の行動」0）。
 - **バックエンド**: 18テーブル DB / 5層分割（UI/CMD/BIZ/IO/MNT）/ Tauri Commands / 業務ロジック / バックアップ / 操作ログ / 診断ログ全て実装完了。テスト 561 本通過、clippy 警告ゼロ、fmt 準拠
 - **フロントエンド基盤**: React 19 + TypeScript + Tauri 2 + TanStack Router + TanStack Query + Tailwind CSS 4 + shadcn/ui + lefthook + ESLint 9 + tauri-specta 採用、UI-12 共通レイアウト + invoke ラッパ完成。Phase 1 残 follow-up: 7-6 Storybook / 7-7b axe or hooks coverage / 7-8a Error Boundary / 7-8b 横断UI / 7-8c unsaved changes
 - **直近 PR**: Public #2（CI `synchronize` trigger修正、merge `f63397c`）

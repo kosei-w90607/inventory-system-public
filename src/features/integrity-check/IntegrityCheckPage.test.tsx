@@ -80,7 +80,7 @@ async function selectForFix(code: string) {
 }
 
 async function openFixDialog() {
-  await userEvent.setup().click(screen.getByRole("button", { name: "棚卸し補正として確定" }));
+  await userEvent.setup().click(screen.getByRole("button", { name: "補正を確定" }));
 }
 
 async function confirmFix() {
@@ -104,7 +104,7 @@ describe("UI-13 REQ-904 在庫整合性検証", () => {
     expect(screen.getByRole("button", { name: "整合性チェック実行" })).toBeEnabled();
     expect(screen.queryByText("差異はありません")).not.toBeInTheDocument();
     expect(screen.queryByText("差異が見つかりました")).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "棚卸し補正として確定" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "補正を確定" })).toBeNull();
   });
 
   it("test_integrity_page_req904_remount_resets_to_idle", async () => {
@@ -129,7 +129,7 @@ describe("UI-13 REQ-904 在庫整合性検証", () => {
     await userEvent.setup().click(screen.getByRole("button", { name: "再度チェック" }));
     expect(await screen.findByText("合成商品 SYN-NEW")).toBeInTheDocument();
     expect(screen.queryByText("合成商品 SYN-OLD")).toBeNull();
-    expect(screen.getByRole("button", { name: "棚卸し補正として確定" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "補正を確定" })).toBeDisabled();
   });
 
   it("test_integrity_page_req904_last_checked_from_integrity_check_log", async () => {
@@ -185,6 +185,45 @@ describe("UI-13 REQ-904 在庫整合性検証", () => {
     expect(fixIntegrity).toHaveBeenCalledWith(["SYN-001"]);
   });
 
+  it("test_integrity_page_req904_t7_uses_integrity_fix_button_copy", async () => {
+    runIntegrityCheck.mockResolvedValue(checkResult([mismatch("SYN-001")]));
+    renderPage();
+    await runCheck();
+
+    expect(screen.getByRole("button", { name: "補正を確定" })).toBeVisible();
+    const retiredLabel = ["棚卸し", "補正として確定"].join("");
+    expect(screen.queryByRole("button", { name: retiredLabel })).toBeNull();
+  });
+
+  it("test_integrity_page_req904_t8_dialog_copy_is_visible_and_accessible", async () => {
+    runIntegrityCheck.mockResolvedValue(checkResult([mismatch("SYN-001")]));
+    renderPage();
+    await runCheck();
+    await selectForFix("SYN-001");
+    await openFixDialog();
+
+    const dialog = screen.getByRole("alertdialog");
+    const dialogTitle = within(dialog).getByRole("heading", {
+      name: "在庫数を入出庫の合計に合わせて補正します",
+    });
+    const warningTitle = within(dialog).getByText("補正すると元に戻せません");
+    const warningDescription = within(dialog).getByText(
+      "選択した商品のシステム在庫を入出庫の合計に合わせて更新し、操作ログに記録します。",
+    );
+    for (const visibleCopy of [dialogTitle, warningTitle, warningDescription]) {
+      expect(visibleCopy).toBeVisible();
+      expect(visibleCopy).not.toHaveClass("sr-only");
+      expect(visibleCopy).not.toHaveAttribute("hidden");
+      expect(visibleCopy).not.toHaveAttribute("aria-hidden");
+    }
+    expect(
+      within(dialog).getByText(
+        "補正すると元に戻せません。選択した商品のシステム在庫を入出庫の合計に合わせて更新し、操作ログに記録します。",
+      ),
+    ).toHaveClass("sr-only");
+    expect(within(dialog).getByText("補正する商品（システム在庫 → 入出庫の合計）")).toBeVisible();
+  });
+
   it("test_integrity_page_req904_no_select_all_and_disabled_when_none_selected", async () => {
     runIntegrityCheck.mockResolvedValue(
       checkResult([mismatch("SYN-001"), mismatch("SYN-002", 3, 8)]),
@@ -193,7 +232,7 @@ describe("UI-13 REQ-904 在庫整合性検証", () => {
     await runCheck();
     expect(screen.getAllByRole("checkbox")).toHaveLength(2);
     expect(screen.queryByRole("checkbox", { name: /すべて|全選択/ })).toBeNull();
-    expect(screen.getByRole("button", { name: "棚卸し補正として確定" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "補正を確定" })).toBeDisabled();
   });
 
   it("test_integrity_page_req904_confirm_dialog_lists_selected_adjustments", async () => {

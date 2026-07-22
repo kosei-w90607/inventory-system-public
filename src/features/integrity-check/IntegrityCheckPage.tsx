@@ -293,7 +293,7 @@ export function IntegrityCheckPage() {
                     setDialogOpen(true);
                   }}
                 >
-                  棚卸し補正として確定
+                  補正を確定
                 </Button>
               </div>
 
@@ -380,21 +380,21 @@ export function IntegrityCheckPage() {
       <AlertDialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>棚卸し補正として記録します</AlertDialogTitle>
+            <AlertDialogTitle>在庫数を入出庫の合計に合わせて補正します</AlertDialogTitle>
             <AlertDialogDescription className="sr-only">
-              補正すると元に戻せません。選択した商品だけ、現在の在庫数を移動記録の合計に合わせて棚卸し補正として記録します。
+              補正すると元に戻せません。選択した商品のシステム在庫を入出庫の合計に合わせて更新し、操作ログに記録します。
             </AlertDialogDescription>
           </AlertDialogHeader>
           <Alert className="border-warning bg-warning-soft text-warning-strong">
             <AlertTriangle aria-hidden="true" />
             <AlertTitle>補正すると元に戻せません</AlertTitle>
             <AlertDescription>
-              選択した商品だけ、現在の在庫数を移動記録の合計に合わせて記録します。
+              選択した商品のシステム在庫を入出庫の合計に合わせて更新し、操作ログに記録します。
             </AlertDescription>
           </Alert>
           <div className="space-y-2">
             <p className="text-sm text-muted-foreground">
-              補正する商品（現在の在庫数 → 補正後の在庫数）
+              補正する商品（システム在庫 → 入出庫の合計）
             </p>
             <div className="max-h-72 overflow-y-auto rounded-md border">
               <ul className="divide-y">
