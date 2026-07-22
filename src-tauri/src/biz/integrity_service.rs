@@ -168,10 +168,7 @@ pub fn fix_integrity(
             continue;
         }
 
-        // 3e. 補正実行（stock_quantity を movements_sum に合わせる）
-        // 設計書からの逸脱: movement 挿入を行わない。
-        // 理由: correction movement を追加すると movements_sum 自体が変わり、
-        // 再チェック時に差異が残る（P1指摘）。audit trail は operation_logs で記録する。
+        // 3e. D-051 / BIZ-07-D2: movement を追加せず、派生 cache を原本の合計へ直接補正する。
         let adjustment = movements_sum - stock_quantity;
         inventory_repo::update_stock_quantity(&tx, product_code, movements_sum)?;
 
@@ -184,11 +181,7 @@ pub fn fix_integrity(
         fixed_count += 1;
     }
 
-    // 4. COMMIT
-    tx.commit()
-        .map_err(|e| BizError::DatabaseError(DbError::from(e)))?;
-
-    // 5. TX外: 操作ログ記録
+    // 4. TX内: 操作ログ記録（BIZ-07-D3、失敗時は補正ごと rollback）
     let detail = serde_json::json!({
         "fixed_count": fixed_count,
         "skipped_count": skipped_count,
@@ -207,9 +200,11 @@ pub fn fix_integrity(
         summary: format!("{}件の在庫を補正しました", fixed_count),
         detail_json: Some(detail),
     };
-    if let Err(e) = system_repo::insert_operation_log(conn, &log) {
-        tracing::warn!(error = %e, "操作ログ記録に失敗");
-    }
+    system_repo::insert_operation_log(&tx, &log)?;
+
+    // 5. COMMIT
+    tx.commit()
+        .map_err(|e| BizError::DatabaseError(DbError::from(e)))?;
 
     Ok(IntegrityFixResult {
         fixed_count,
@@ -272,6 +267,58 @@ mod tests {
             },
         )
         .unwrap();
+    }
+
+    fn add_voided_movement(conn: &DbConnection, product_code: &str, quantity: i64) {
+        let movement_id = inventory_repo::insert_movement(
+            conn,
+            &NewMovement {
+                product_code: product_code.to_string(),
+                movement_type: MovementType::Receiving,
+                quantity,
+                stock_after: quantity,
+                reference_type: None,
+                reference_id: None,
+                note: None,
+            },
+        )
+        .unwrap();
+        conn.execute(
+            "UPDATE inventory_movements SET is_voided = 1 WHERE id = ?1",
+            [movement_id],
+        )
+        .unwrap();
+    }
+
+    fn stock_quantity(conn: &DbConnection, product_code: &str) -> i64 {
+        conn.query_row(
+            "SELECT stock_quantity FROM products WHERE product_code = ?1",
+            [product_code],
+            |row| row.get(0),
+        )
+        .unwrap()
+    }
+
+    fn movement_count(conn: &DbConnection) -> i64 {
+        conn.query_row("SELECT COUNT(*) FROM inventory_movements", [], |row| {
+            row.get(0)
+        })
+        .unwrap()
+    }
+
+    fn movement_snapshot(conn: &DbConnection) -> Vec<(i64, String, i64, bool)> {
+        let mut stmt = conn
+            .prepare(
+                "SELECT id, product_code, quantity, is_voided
+                 FROM inventory_movements ORDER BY id",
+            )
+            .unwrap();
+        stmt.query_map([], |row| {
+            Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?))
+        })
+        .unwrap()
+        .collect::<Result<Vec<_>, _>>()
+        .unwrap()
     }
 
     // ===== run_integrity_check テスト =====
@@ -351,6 +398,175 @@ mod tests {
     }
 
     // ===== fix_integrity テスト =====
+
+    #[test]
+    fn test_fix_integrity_req904_t1_log_insert_failure() {
+        // REQ-904 / BIZ-07-D3 / T1: 操作ログ失敗時は全補正をロールバックする
+        let (_dir, mut conn) = setup_test_db();
+        seed_product(&conn, "T1-A", 10);
+        seed_product(&conn, "T1-B", 3);
+        add_movement(&conn, "T1-A", 7);
+        add_movement(&conn, "T1-B", 8);
+        let stocks_before = [stock_quantity(&conn, "T1-A"), stock_quantity(&conn, "T1-B")];
+        let movements_before = movement_count(&conn);
+        conn.execute_batch(
+            "CREATE TRIGGER fail_integrity_fix_log
+             BEFORE INSERT ON operation_logs
+             WHEN NEW.operation_type = 'integrity_fix'
+             BEGIN
+                 SELECT RAISE(ABORT, 'synthetic integrity_fix log failure');
+             END;",
+        )
+        .unwrap();
+
+        let result = fix_integrity(&mut conn, &["T1-A".to_string(), "T1-B".to_string()]);
+
+        assert!(matches!(result, Err(BizError::DatabaseError(_))));
+        assert_eq!(
+            [stock_quantity(&conn, "T1-A"), stock_quantity(&conn, "T1-B"),],
+            stocks_before
+        );
+        assert_eq!(movement_count(&conn), movements_before);
+    }
+
+    #[test]
+    fn test_fix_integrity_req904_t2_audit_detail_and_skips() {
+        // REQ-904 / BIZ-07-D3 / INV-4 / T2: 具体値の監査ログと skipped 契約
+        let (_dir, mut conn) = setup_test_db();
+        seed_product(&conn, "T2-DOWN", 10);
+        seed_product(&conn, "T2-UP", 3);
+        seed_product(&conn, "T2-VOID", 6);
+        seed_product(&conn, "T2-ZERO", 5);
+        seed_product(&conn, "T2-SAME", 2);
+        add_movement(&conn, "T2-DOWN", 7);
+        add_movement(&conn, "T2-UP", 8);
+        add_movement(&conn, "T2-VOID", 4);
+        add_voided_movement(&conn, "T2-VOID", 100);
+        add_movement(&conn, "T2-SAME", 2);
+
+        let result = fix_integrity(
+            &mut conn,
+            &[
+                "T2-DOWN".to_string(),
+                "T2-UP".to_string(),
+                "T2-VOID".to_string(),
+                "T2-ZERO".to_string(),
+                "T2-SAME".to_string(),
+                "T2-MISSING".to_string(),
+            ],
+        )
+        .unwrap();
+
+        assert_eq!(result.fixed_count, 4);
+        assert_eq!(result.skipped_count, 2);
+        let (log_count, detail_json): (i64, String) = conn
+            .query_row(
+                "SELECT COUNT(*), detail_json FROM operation_logs
+                 WHERE operation_type = 'integrity_fix'",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .unwrap();
+        assert_eq!(log_count, 1);
+        let detail: serde_json::Value = serde_json::from_str(&detail_json).unwrap();
+        assert_eq!(detail["fixed_count"], serde_json::json!(4));
+        assert_eq!(detail["skipped_count"], serde_json::json!(2));
+        assert_eq!(
+            detail["adjustments"],
+            serde_json::json!([
+                {"product_code": "T2-DOWN", "old_stock": 10, "new_stock": 7, "adjustment": -3},
+                {"product_code": "T2-UP", "old_stock": 3, "new_stock": 8, "adjustment": 5},
+                {"product_code": "T2-VOID", "old_stock": 6, "new_stock": 4, "adjustment": -2},
+                {"product_code": "T2-ZERO", "old_stock": 5, "new_stock": 0, "adjustment": -5}
+            ])
+        );
+    }
+
+    #[test]
+    fn test_fix_integrity_req904_t3_movements_and_products_unchanged() {
+        // REQ-904 / BIZ-07-D2 / INV-8 / T3: movement 原本と product 行を破壊しない
+        let (_dir, mut conn) = setup_test_db();
+        seed_product(&conn, "T3-A", 10);
+        seed_product(&conn, "T3-B", 3);
+        add_movement(&conn, "T3-A", 7);
+        add_movement(&conn, "T3-B", 8);
+        add_voided_movement(&conn, "T3-B", 20);
+        let before = movement_snapshot(&conn);
+
+        fix_integrity(&mut conn, &["T3-A".to_string(), "T3-B".to_string()]).unwrap();
+
+        assert_eq!(movement_snapshot(&conn), before);
+        for product_code in ["T3-A", "T3-B"] {
+            let product_count: i64 = conn
+                .query_row(
+                    "SELECT COUNT(*) FROM products WHERE product_code = ?1",
+                    [product_code],
+                    |row| row.get(0),
+                )
+                .unwrap();
+            let per_product_before = before
+                .iter()
+                .filter(|(_, code, _, _)| code == product_code)
+                .count() as i64;
+            let per_product_after: i64 = conn
+                .query_row(
+                    "SELECT COUNT(*) FROM inventory_movements WHERE product_code = ?1",
+                    [product_code],
+                    |row| row.get(0),
+                )
+                .unwrap();
+            assert_eq!(product_count, 1);
+            assert_eq!(per_product_after, per_product_before);
+        }
+    }
+
+    #[test]
+    fn test_fix_integrity_req904_t4_recheck_converges() {
+        // REQ-904 / BIZ-07-D4 / T4: 成功直後は補正対象が mismatch に現れない
+        let (_dir, mut conn) = setup_test_db();
+        seed_product(&conn, "T4-A", 10);
+        seed_product(&conn, "T4-B", 3);
+        add_movement(&conn, "T4-A", 7);
+        add_movement(&conn, "T4-B", 8);
+
+        let fixed = fix_integrity(&mut conn, &["T4-A".to_string(), "T4-B".to_string()]).unwrap();
+        let rechecked = run_integrity_check(&conn).unwrap();
+
+        for adjustment in fixed.adjustments {
+            assert!(rechecked
+                .mismatches
+                .iter()
+                .all(|mismatch| mismatch.product_code != adjustment.product_code));
+        }
+    }
+
+    #[test]
+    fn test_fix_integrity_req904_t5_stock_equals_non_voided_sum() {
+        // REQ-904 / BIZ-07-D1 / INV-4 / T5: DB の派生関係を SQL で直接検査する
+        let (_dir, mut conn) = setup_test_db();
+        seed_product(&conn, "T5-MOVED", 10);
+        seed_product(&conn, "T5-ZERO", 5);
+        add_movement(&conn, "T5-MOVED", 7);
+        add_voided_movement(&conn, "T5-MOVED", 100);
+
+        fix_integrity(&mut conn, &["T5-MOVED".to_string(), "T5-ZERO".to_string()]).unwrap();
+
+        for product_code in ["T5-MOVED", "T5-ZERO"] {
+            let (stock, movements_sum): (i64, i64) = conn
+                .query_row(
+                    "SELECT p.stock_quantity,
+                            COALESCE((SELECT SUM(im.quantity)
+                                      FROM inventory_movements im
+                                      WHERE im.product_code = p.product_code
+                                        AND im.is_voided = 0), 0)
+                     FROM products p WHERE p.product_code = ?1",
+                    [product_code],
+                    |row| Ok((row.get(0)?, row.get(1)?)),
+                )
+                .unwrap();
+            assert_eq!(stock, movements_sum, "{product_code}");
+        }
+    }
 
     #[test]
     fn test_fix_integrity_req904_normal() {

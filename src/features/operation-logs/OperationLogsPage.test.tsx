@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -373,6 +373,186 @@ describe("UI-11c REQ-902", () => {
     expect(screen.getByText("<script>alert(1)</script>")).toBeInTheDocument();
     expect(document.querySelector("script")).toBeNull();
     expect(screen.getByText("技術情報（JSON）")).toBeInTheDocument();
+  });
+
+  it("test_operation_logs_req902_t9_renders_integrity_adjustments_as_scoped_plain_text", async () => {
+    const detail = {
+      fixed_count: 2,
+      skipped_count: 0,
+      adjustments: [
+        { product_code: "SYN-DOWN", old_stock: 10, new_stock: 7, adjustment: -3 },
+        {
+          product_code: "<script>synthetic</script>",
+          old_stock: 3,
+          new_stock: 8,
+          adjustment: 5,
+        },
+      ],
+    };
+    listLogs.mockResolvedValue({
+      status: "ok",
+      data: {
+        items: [{ ...log(JSON.stringify(detail)), operation_type: "integrity_fix" }],
+        total_count: 1,
+        page: 1,
+        per_page: 20,
+      },
+    });
+    renderPage();
+    await userEvent.setup().click(await screen.findByRole("button", { name: "詳細を表示" }));
+
+    const region = screen.getByRole("region", { name: "整合性補正の内容" });
+    const rows = within(region).getAllByRole("listitem");
+    expect(rows).toHaveLength(2);
+    expect(rows[0]).toHaveTextContent("SYN-DOWN");
+    expect(rows[0]).toHaveTextContent("旧在庫 10 → 新在庫 7");
+    expect(rows[0]).toHaveTextContent("差分 -3");
+    expect(rows[1]).toHaveTextContent("<script>synthetic</script>");
+    expect(rows[1]).toHaveTextContent("旧在庫 3 → 新在庫 8");
+    expect(rows[1]).toHaveTextContent("差分 +5");
+    expect(document.querySelector("script")).toBeNull();
+    const summary = screen.getByRole("group", { name: "ログ詳細の要約" });
+    expect(within(summary).queryByText(JSON.stringify(detail.adjustments))).toBeNull();
+  });
+
+  it("test_operation_logs_req902_t10_keeps_raw_integrity_json_in_technical_details", async () => {
+    const detail = {
+      fixed_count: 1,
+      adjustments: [{ product_code: "SYN-RAW", old_stock: 10, new_stock: 7, adjustment: -3 }],
+    };
+    listLogs.mockResolvedValue({
+      status: "ok",
+      data: {
+        items: [{ ...log(JSON.stringify(detail)), operation_type: "integrity_fix" }],
+        total_count: 1,
+        page: 1,
+        per_page: 20,
+      },
+    });
+    renderPage();
+    await userEvent.setup().click(await screen.findByRole("button", { name: "詳細を表示" }));
+
+    const technical = screen.getByText("技術情報（JSON）").closest("details");
+    expect(technical).not.toBeNull();
+    expect(
+      within(technical as HTMLElement).getByText(/"product_code": "SYN-RAW"/),
+    ).toBeInTheDocument();
+  });
+
+  it("test_operation_logs_req902_t11_keeps_generic_detail_for_other_operation_types", async () => {
+    listLogs.mockResolvedValue({
+      status: "ok",
+      data: {
+        items: [
+          {
+            ...log('{"product_code":"SYN-GENERIC","count":3}'),
+            operation_type: "csv_import",
+          },
+        ],
+        total_count: 1,
+        page: 1,
+        per_page: 20,
+      },
+    });
+    renderPage();
+    await userEvent.setup().click(await screen.findByRole("button", { name: "詳細を表示" }));
+
+    expect(screen.queryByRole("region", { name: "整合性補正の内容" })).toBeNull();
+    const summary = screen.getByRole("group", { name: "ログ詳細の要約" });
+    expect(within(summary).getByText("商品コード")).toBeVisible();
+    expect(within(summary).getByText("SYN-GENERIC")).toBeVisible();
+    expect(within(summary).getByText("件数")).toBeVisible();
+    expect(within(summary).getByText("3")).toBeVisible();
+  });
+
+  it.each([
+    ["missing", { fixed_count: 1 }],
+    ["empty", { adjustments: [] }],
+    ["not array", { adjustments: "invalid" }],
+    ["missing field", { adjustments: [{ product_code: "SYN", old_stock: 1, new_stock: 2 }] }],
+    [
+      "null field",
+      { adjustments: [{ product_code: "SYN", old_stock: null, new_stock: 2, adjustment: 1 }] },
+    ],
+    [
+      "wrong type",
+      { adjustments: [{ product_code: "SYN", old_stock: "1", new_stock: 2, adjustment: 1 }] },
+    ],
+    [
+      "mixed valid and invalid",
+      {
+        adjustments: [
+          { product_code: "SYN-OK", old_stock: 1, new_stock: 2, adjustment: 1 },
+          { product_code: "SYN-BAD", old_stock: 1, new_stock: 2 },
+        ],
+      },
+    ],
+    [
+      "unsafe integer",
+      {
+        adjustments: [
+          {
+            product_code: "SYN-UNSAFE",
+            old_stock: Number.MAX_SAFE_INTEGER + 1,
+            new_stock: 2,
+            adjustment: 1,
+          },
+        ],
+      },
+    ],
+  ])("test_operation_logs_req902_t12_degrades_malformed_adjustments_%s", async (_name, detail) => {
+    listLogs.mockResolvedValue({
+      status: "ok",
+      data: {
+        items: [{ ...log(JSON.stringify(detail)), operation_type: "integrity_fix" }],
+        total_count: 1,
+        page: 1,
+        per_page: 20,
+      },
+    });
+    renderPage();
+    await userEvent.setup().click(await screen.findByRole("button", { name: "詳細を表示" }));
+
+    expect(screen.queryByRole("region", { name: "整合性補正の内容" })).toBeNull();
+    expect(screen.getByText("技術情報（JSON）")).toBeInTheDocument();
+  });
+
+  it.each([
+    [20, null],
+    [21, "他 1 件は技術情報（JSON）で確認"],
+  ])("test_operation_logs_req902_t13_limits_adjustments_to_twenty_%s", async (count, remainder) => {
+    const adjustments = Array.from({ length: count }, (_, index) => ({
+      product_code: `SYN-${String(index).padStart(2, "0")}`,
+      old_stock: index + 10,
+      new_stock: index,
+      adjustment: -10,
+    }));
+    listLogs.mockResolvedValue({
+      status: "ok",
+      data: {
+        items: [
+          {
+            ...log(JSON.stringify({ adjustments })),
+            operation_type: "integrity_fix",
+          },
+        ],
+        total_count: 1,
+        page: 1,
+        per_page: 20,
+      },
+    });
+    renderPage();
+    await userEvent.setup().click(await screen.findByRole("button", { name: "詳細を表示" }));
+
+    const region = screen.getByRole("region", { name: "整合性補正の内容" });
+    expect(within(region).getAllByRole("listitem")).toHaveLength(20);
+    expect(within(region).getByText("SYN-19")).toBeVisible();
+    expect(within(region).queryByText("SYN-20")).toBeNull();
+    if (remainder) {
+      expect(within(region).getByText(remainder)).toBeVisible();
+    } else {
+      expect(within(region).queryByText(/他 \d+ 件は技術情報/)).toBeNull();
+    }
   });
 
   it("toggles detail exactly once through native Enter and Space keyboard paths", async () => {

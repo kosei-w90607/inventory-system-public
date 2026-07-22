@@ -53,27 +53,30 @@ pub fn fix_integrity(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::db::test_support::setup_test_db;
+    use std::collections::HashMap;
+    use std::sync::Mutex;
+    use tauri::Manager;
+
+    fn app_state_for_test(conn: crate::db::DbConnection) -> AppState {
+        AppState {
+            db: Mutex::new(conn),
+            preview_cache: Mutex::new(HashMap::new()),
+            daily_report_preview_cache: Mutex::new(HashMap::new()),
+        }
+    }
 
     #[test]
-    fn test_fix_integrity_req904_empty_codes_validation() {
-        // REQ-904: 整合性チェック（在庫数突合/修復）
-        // 空の product_codes で CmdError { kind: "validation" } が返ることを検証
-        // AppState 不要 — 防御チェックはDB接続前に実行される
-        let empty: Vec<String> = vec![];
-        assert!(empty.is_empty()); // 前提確認
+    fn test_fix_integrity_req904_t6_empty_codes_validation() {
+        // REQ-904 / T6: 実コマンド関数を空 codes で呼ぶ
+        let (_dir, conn) = setup_test_db();
+        let app = tauri::test::mock_builder()
+            .manage(app_state_for_test(conn))
+            .build(tauri::test::mock_context(tauri::test::noop_assets()))
+            .unwrap();
 
-        // 直接ロジック検証: 空配列は validation error になるべき
-        // Tauri State のモックが難しいため、ロジック部分だけテスト
-        let result: Result<(), CmdError> = if empty.is_empty() {
-            Err(CmdError {
-                kind: "validation".to_string(),
-                message: "補正対象の商品が指定されていません".to_string(),
-                field: None,
-            })
-        } else {
-            Ok(())
-        };
-        let err = result.unwrap_err();
+        let err = fix_integrity(app.state::<AppState>(), vec![]).unwrap_err();
+
         assert_eq!(err.kind, "validation");
         assert!(err.message.contains("補正対象"));
     }

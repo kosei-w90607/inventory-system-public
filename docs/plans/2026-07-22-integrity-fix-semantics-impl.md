@@ -239,7 +239,9 @@ Contract ID: SPEC-BIZ07-IMPL-1
 
 ## Implementation Results
 
-Fill after implementation.
+- `fix_integrity` の補正・`integrity_fix` ログ・commit を同一 TX に統合し、ログ失敗時に補正全体が rollback される実装とした。D-051 / BIZ-07-D2 の直接補正コメントへ同期し、CMD validation test は実コマンド呼び出しへ置換した。
+- UI-13 の確定 flow を UI-13-D9 の operator 可視・accessible copy へ同期し、UI-11c に adjustments の operator-readable 一覧、件数上限、構造不正時の安全な degrade、raw JSON の技術情報表示を実装した。
+- T1〜T13、旧語彙 grep、traceability 再生成、Rust/frontend/docs/release の Writer gate を通過した。visual confirmation 素材は新規 npm package の取得なしでは採取できないため、PR body で Coordinator へ差し戻す。
 
 Do not transcribe exact-HEAD SHA or test counts here (D-035/D-038 Evidence Ownership). Record a qualitative summary and the PR link only.
 

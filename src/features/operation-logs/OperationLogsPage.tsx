@@ -61,6 +61,45 @@ function parseDetail(raw: string | null) {
   }
 }
 
+interface IntegrityAdjustment {
+  productCode: string;
+  oldStock: number;
+  newStock: number;
+  adjustment: number;
+}
+
+function parseIntegrityAdjustments(
+  log: OperationLog,
+  detail: ReturnType<typeof parseDetail>,
+): IntegrityAdjustment[] | null {
+  if (log.operation_type !== "integrity_fix" || detail.kind !== "object") return null;
+  const value = detail.parsed.adjustments;
+  if (!Array.isArray(value) || value.length === 0) return null;
+  const adjustments: IntegrityAdjustment[] = [];
+  for (const item of value) {
+    if (!item || typeof item !== "object" || Array.isArray(item)) return null;
+    const candidate = item as Record<string, unknown>;
+    if (
+      typeof candidate.product_code !== "string" ||
+      typeof candidate.old_stock !== "number" ||
+      !Number.isSafeInteger(candidate.old_stock) ||
+      typeof candidate.new_stock !== "number" ||
+      !Number.isSafeInteger(candidate.new_stock) ||
+      typeof candidate.adjustment !== "number" ||
+      !Number.isSafeInteger(candidate.adjustment)
+    ) {
+      return null;
+    }
+    adjustments.push({
+      productCode: candidate.product_code,
+      oldStock: candidate.old_stock,
+      newStock: candidate.new_stock,
+      adjustment: candidate.adjustment,
+    });
+  }
+  return adjustments;
+}
+
 function Detail({ log }: { log: OperationLog }) {
   const detail = parseDetail(log.detail_json);
   if (detail.kind === "empty") return <p>詳細情報はありません</p>;
@@ -68,7 +107,9 @@ function Detail({ log }: { log: OperationLog }) {
   const truncatedRaw =
     raw.length > 50_000 ? `${raw.slice(0, 50_000)}\n以降は長すぎるため省略しました` : raw;
   const entries = detail.kind === "object" ? Object.entries(detail.parsed) : [];
-  const shown = detail.raw.length > 10_000 ? entries.slice(0, 20) : entries;
+  const adjustments = parseIntegrityAdjustments(log, detail);
+  const summaryEntries = adjustments ? entries.filter(([key]) => key !== "adjustments") : entries;
+  const shown = detail.raw.length > 10_000 ? summaryEntries.slice(0, 20) : summaryEntries;
   const recordType =
     detail.kind === "object" && typeof detail.parsed.record_type === "string"
       ? detail.parsed.record_type
@@ -86,7 +127,11 @@ function Detail({ log }: { log: OperationLog }) {
       {detail.kind === "invalid" ? (
         <p>詳細情報を解析できませんでした</p>
       ) : (
-        <dl className="grid gap-2 sm:grid-cols-[10rem_1fr]">
+        <dl
+          role="group"
+          aria-label="ログ詳細の要約"
+          className="grid gap-2 sm:grid-cols-[10rem_1fr]"
+        >
           {shown.map(([key, value]) => (
             <div className="contents" key={key}>
               <dt className="font-medium">{KNOWN_KEYS[key] ?? key}</dt>
@@ -95,8 +140,34 @@ function Detail({ log }: { log: OperationLog }) {
           ))}
         </dl>
       )}
-      {entries.length > shown.length && (
-        <p>他 {entries.length - shown.length} 件のフィールドは技術情報でご確認ください</p>
+      {summaryEntries.length > shown.length && (
+        <p>他 {summaryEntries.length - shown.length} 件のフィールドは技術情報でご確認ください</p>
+      )}
+      {adjustments && (
+        <section aria-label="整合性補正の内容" className="space-y-2 rounded-md border p-3">
+          <h4 className="font-medium">補正内容</h4>
+          <ul className="divide-y">
+            {adjustments.slice(0, 20).map((adjustment, index) => (
+              <li
+                key={`${adjustment.productCode}-${String(index)}`}
+                className="grid gap-1 py-2 sm:grid-cols-[minmax(8rem,1fr)_auto_auto] sm:items-center sm:gap-4"
+              >
+                <span className="font-mono font-medium break-all">{adjustment.productCode}</span>
+                <span className="tabular-nums">
+                  旧在庫 {adjustment.oldStock.toLocaleString("ja-JP")} → 新在庫{" "}
+                  {adjustment.newStock.toLocaleString("ja-JP")}
+                </span>
+                <span className="tabular-nums">
+                  差分 {adjustment.adjustment > 0 ? "+" : ""}
+                  {adjustment.adjustment.toLocaleString("ja-JP")}
+                </span>
+              </li>
+            ))}
+          </ul>
+          {adjustments.length > 20 && (
+            <p>他 {adjustments.length - 20} 件は技術情報（JSON）で確認</p>
+          )}
+        </section>
       )}
       {recordType && recordId && RELATED[recordType] && (
         <Button asChild variant="outline" size="sm">
