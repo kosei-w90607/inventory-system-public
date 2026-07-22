@@ -61,7 +61,7 @@ export function ResultStep({ result, settlementDate, onRollback, isRollingBack }
         {/* UI-09a 着手済 (Phase 2 8-3、PR #65 Round 1 P1 fix): settlementDate を
             URL state で渡すことで、当日 !== settlementDate のケース (例: 前日分 CSV を
             翌日取り込み) でも取込み済データを直接表示。invalidation は useCsvImportFlow
-            の commit/rollback success で ["daily-sales"] prefix 実施済。 */}
+            の commit/rollback success で queryKeys.dailySalesRoot() prefix 実施済。 */}
         <Button
           variant="outline"
           onClick={() => {

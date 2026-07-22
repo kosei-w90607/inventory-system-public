@@ -15,6 +15,7 @@ import {
   type ProductUpdateRequest_Deserialize,
   type ProductWithRelations,
 } from "@/lib/bindings";
+import { invalidateByContract, invalidationContract } from "@/lib/invalidation-contract";
 import { isInvokeError, toCmdError, unwrapResult } from "@/lib/invoke";
 import { queryKeys } from "@/lib/query-keys";
 import { ProductForm } from "./components/ProductForm";
@@ -80,11 +81,6 @@ export function ProductFormPage({
     }
   }, [mode, productQuery.data]);
 
-  const finishSave = async () => {
-    await queryClient.invalidateQueries({ queryKey: queryKeys.productList.root() });
-    onNavigateToList(safeReturnTo);
-  };
-
   const createMutation = useMutation({
     mutationFn: async () => {
       const built = buildCreateProductRequest(values, departments);
@@ -95,7 +91,7 @@ export function ProductFormPage({
         cmd: "create_product",
       });
     },
-    onSuccess: (result) => {
+    onSuccess: async (result) => {
       setSaveError(null);
       // UI-01b-D14: 保存成功 toast は navigate より前に発火する
       toast.success(
@@ -105,7 +101,8 @@ export function ProductFormPage({
           duration: 5000,
         },
       );
-      void finishSave();
+      await invalidateByContract(queryClient, invalidationContract.productCreate());
+      onNavigateToList(safeReturnTo);
     },
     onError: (error) => {
       if (error instanceof Error && error.message === "validation") return;
@@ -130,14 +127,18 @@ export function ProductFormPage({
         },
       );
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       setSaveError(null);
       // UI-01b-D14: 保存成功 toast は navigate より前に発火する
       toast.success(`商品「${values.name.trim()}」を保存しました`, {
         id: "product-save-success",
         duration: 5000,
       });
-      void finishSave();
+      await invalidateByContract(
+        queryClient,
+        invalidationContract.productUpdate(productCode ?? ""),
+      );
+      onNavigateToList(safeReturnTo);
     },
     onError: (error) => {
       if (error instanceof Error && error.message === "validation") return;
@@ -156,7 +157,10 @@ export function ProductFormPage({
     },
     onSuccess: async () => {
       await productQuery.refetch();
-      await queryClient.invalidateQueries({ queryKey: queryKeys.productList.root() });
+      await invalidateByContract(
+        queryClient,
+        invalidationContract.productUpdate(productCode ?? ""),
+      );
     },
     onError: (error) => {
       const cmdError = isInvokeError(error) ? error.cmdError : toCmdError(error);

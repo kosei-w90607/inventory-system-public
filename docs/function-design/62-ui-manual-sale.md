@@ -30,7 +30,7 @@
 | REQ-203 / idempotency | UI-04-D10 | `idempotency_key` は画面で1保存試行単位に生成し、保存失敗後の同内容再試行では同じ key を再利用する。保存成功、フォームリセット、別伝票開始、または保存失敗後に伝票内容を編集して再送する場合は新しい key にする。 | UI-02 と同じ二重登録防止方針。BIZ fingerprint は `note` を除外するため、同じ key のまま note だけ変えても保存済み伝票へ反映されない。 |
 | REQ-203 / submit | UI-04-D11 | 保存中はヘッダ、明細、商品追加、戻る/リセット導線を disabled にし、中断可能に見せない。 | backend は単一 TX。UI だけで cancel 可能に見せると売上・在庫反映状態を誤認させる。 |
 | REQ-203 / result | UI-04-D12 | 保存成功後は sale_id、登録明細数、PLU警告件数、stock_warnings、`idempotent_replay` の有無を表示し、「続けて手動販売」「詳細を見る」「日次売上へ」「在庫照会へ戻る」の導線を出す。 | 手動販売は売上帳票にも影響する。保存後に日次売上で「手動」バッジを確認でき、同時に業務記録詳細であとから追える導線を持たせる。 |
-| REQ-203 / cache | UI-04-D13 | 保存成功時は `queryKeys.productList.root()`、`queryKeys.lowStock(false)`、`queryKeys.stockInquiryRoot()`、`queryKeys.dailySales(saleDate)`、`queryKeys.monthlySalesRoot()`、`queryKeys.inventoryRecords.root()` を invalidate する。`queryKeys.pluDirty()` は無効化しない。 | 手動販売で在庫数、在庫警告、日次/月次売上、入出庫履歴が変わる。商品マスタや PLU dirty 状態は変わらない。 |
+| REQ-203 / cache | UI-04-D13 | 保存成功時の invalidation は [D-052](../decision-log.md) C6 と `src/lib/invalidation-contract.ts` を正本とする。 | 手動販売で変わる売上・在庫・履歴 consumer を一貫して stale 化し、画面側の key 列挙を廃止する。 |
 | REQ-203 / UI-04 | UI-04-D14 | Windows native L3 は owner 目視確認を必須にする。確認対象は navigation、商品検索/スキャン相当 Enter 追加、同一商品数量加算、validation、PLU警告確認フロー、保存結果、日次売上への遷移、日次売上の「手動」Badge 可読性、在庫照会へ戻る導線。 | 新規 operator-facing screen であり、PLU警告文言、連続入力、フォーカス戻し、手動 Badge の可読性は CI だけでは判断しづらい。PR #99 で手動 Badge は UI-04 実装時 L3 へ持ち越している。 |
 | REQ-203 / REQ-206 / UI-04 | UI-04-D15 | 手動販売出庫にも保存直後確認用の recent list を置く。表示は直近数件の業務日付、記録ID、代表商品、明細数、状態、記録日時、詳細導線とし、`すべての履歴を見る` は `/inventory/records?recordType=manual_sale` へ遷移する。 | UI-02/03/05 と同じ「保存直後の確認」体験にそろえる。作成画面内で検索・取消・訂正まで扱う案は、入力作業を重くし、調査責務を `入出庫履歴` と重複させるため採用しない。 |
 
@@ -134,8 +134,8 @@ UI-04 実装 PR では以下を generated binding に出す。
 
 ## 62.7 Cache / Navigation
 
-- 保存成功時に `queryKeys.productList.root()`、`queryKeys.lowStock(false)`、`queryKeys.stockInquiryRoot()`、`queryKeys.dailySales(saleDate)`、`queryKeys.monthlySalesRoot()`、`queryKeys.inventoryRecords.root()` を invalidate する。`queryKeys.monthlySalesRoot()` は UI-04 実装 PR で `src/lib/query-keys.ts` に追加済み。
-- recent list は `queryKeys.inventoryRecords.list({ recordType: "manual_sale", page: 1, perPage: 5 })` 相当の stable key を使う。`per_page` は 5 固定で、既存 `listInventoryRecords` の上限 100 内に収める。保存成功時の `queryKeys.inventoryRecords.root()` invalidation により、recent list と入出庫履歴ハブの両方を更新対象にする。
+- 保存成功時は D-052-C6 の SSOT helper を適用する。具体的な query key 集合は `src/lib/invalidation-contract.ts` だけに置く。
+- recent list は `queryKeys.inventoryRecords.list({ recordType: "manual_sale", page: 1, perPage: 5 })` 相当の stable key を使う。`per_page` は 5 固定で、既存 `listInventoryRecords` の上限 100 内に収める。保存成功後の追随は D-052-C6 が担う。
 - `navigation.ts` の UI-04 は `to: "/inventory/manual-sale"`, `status: "active"` に切り替える。
 - result panel の `詳細を見る` は `/inventory/manual-sale/records/{sale_id}` へ遷移する。`sale_id=null` の PLU確認待ちでは表示しない。
 - result panel の `日次売上へ` は `/reports/daily?date={saleDate}` へ遷移する。
@@ -162,7 +162,7 @@ UI-04 実装 PR では以下を generated binding に出す。
 - UI-04-D10: 同内容 retry 時に `idempotency_key` を再利用し、成功/リセット/編集再送後は新規 key になる。
 - UI-04-D11: submitting 中は戻る/リセット/入力/商品追加が disabled になる。
 - UI-04-D12: result で sale_id、明細数、warning、idempotent replay が読め、業務記録詳細と日次売上へ遷移でき、保存成功時にページ先頭へスクロールする。
-- UI-04-D13: 保存成功時に product / lowStock / stockInquiry / dailySales / monthlySales / inventoryRecords query が invalidated される。
+- UI-04-D13: 保存成功時の実呼出し集合が D-052-C6 の独立 test oracle と完全一致する。
 - UI-04-D14: Windows native L3 で連続入力、フォーカス戻し、日本語表示、PLU警告確認、保存結果、日次売上の「手動」Badge を確認する。
 - UI-04-D15: recent list に `すべての履歴を見る` と `詳細を見る` が表示され、保存成功後に recent list が更新される。取得失敗時も入力フォームは継続できる。
 

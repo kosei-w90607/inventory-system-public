@@ -3,8 +3,8 @@ import { useBlocker } from "@tanstack/react-router";
 import { useCallback, useReducer, useState } from "react";
 import { toast } from "sonner";
 import { commands } from "@/lib/bindings";
+import { invalidateByContract, invalidationContract } from "@/lib/invalidation-contract";
 import { CMD_ERROR_KIND, InvokeError, isInvokeError, unwrapResult } from "@/lib/invoke";
-import { queryKeys } from "@/lib/query-keys";
 import { open } from "@tauri-apps/plugin-dialog";
 import { readFile } from "@tauri-apps/plugin-fs";
 import { dailyReportImportReducer } from "../reducer";
@@ -113,11 +113,7 @@ export function useDailyReportImportFlow() {
     retry: 0,
     onSuccess: async (result, vars) => {
       dispatch({ type: "import_succeeded", result, reportDate: vars.reportDate });
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: queryKeys.dailyReportImportLists() }),
-        queryClient.invalidateQueries({ queryKey: ["daily-sales"] }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.monthlySalesRoot() }),
-      ]);
+      await invalidateByContract(queryClient, invalidationContract.dailyReportImport());
     },
     onError: (error: unknown) => {
       const e = ensureInvokeError(error, "commit_daily_report_import");
@@ -135,11 +131,7 @@ export function useDailyReportImportFlow() {
     onSuccess: async () => {
       dispatch({ type: "rollback_succeeded" });
       toast.success("日報取込みを取り消しました");
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: queryKeys.dailyReportImportLists() }),
-        queryClient.invalidateQueries({ queryKey: ["daily-sales"] }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.monthlySalesRoot() }),
-      ]);
+      await invalidateByContract(queryClient, invalidationContract.dailyReportImport());
     },
     onError: () => {
       toast.error("取り消しに失敗しました。もう一度お試しください");

@@ -27,7 +27,7 @@
 | REQ-104 / duplicate | UI-01c-D7 | `上書き` を 1 件以上選んで「取り込む」を押した場合は確認ダイアログを出す。全件新規または重複全スキップなら確認なしで commit する。 | 上書きは破壊的に近い状態変更で、DSR-07 の確認境界に該当する。新規登録だけなら通常の保存操作であり、不要な確認は挟まない。 |
 | REQ-104 / UI-01c | UI-01c-D8 | `error_rows.length > 0` でも commit は許可する。ただし取り込む対象は `valid_rows` + 上書き選択済み duplicate のみで、エラー行は取り込まない。 | IO/BIZ はエラー行と正常行を同じ preview に返す。正常行まで止めると初期投入作業が進まない。エラー行の除外は件数と文言で明示する。 |
 | REQ-104 / UI-01c | UI-01c-D9 | `valid_rows.length === 0` かつ上書き選択 0 件の場合、「取り込む」ボタンは disabled にし、理由を日本語で表示する。 | 操作可能に見えて何も起きない状態は避ける。disabled だけにせず、何が不足しているかをテキストで伝える。 |
-| REQ-104 / products cache | UI-01c-D10 | commit 成功後は `['product']` 配下 query と在庫系 query を invalidate し、結果画面から `/products` へ戻る導線を出す。 | 商品マスタ・在庫数・在庫照会が変わる。UI-01a / UI-06a の stale 表示を避けるため、mutation 成功時に集約して invalidate する。 |
+| REQ-104 / products cache | UI-01c-D10 | commit 成功後の invalidation は [D-052](../decision-log.md) C3 と `src/lib/invalidation-contract.ts` を正本とし、結果画面から `/products` へ戻る導線を出す。 | 商品 master・在庫・PLU・棚卸し consumer を一貫して stale 化し、画面側の key 列挙を廃止する。 |
 | REQ-104 / UI-01c | UI-01c-D11 | 完了画面は `created_count` / `updated_count` / `skipped_count` をサマリカードまたは数値帯で示し、「商品一覧へ戻る」「別のCSVを取り込む」の 2 動線に絞る。 | 初期投入作業では連続取込もあり得る。完了後の次の一手を明示しつつ、余分な action を増やさない。 |
 | REQ-104 / UI-01c | UI-01c-D12 | 画面を離れても DB 書込み途中の cancel/resume は提供しない。`committing` 中は画面内操作を disabled にし、commit 完了後の結果で確認する。 | backend commit は単一 TX。途中 cancel は設計されておらず、UI だけでキャンセル可能に見せると誤認を招く。 |
 | REQ-104 / UI-01c | UI-01c-D13 | Windows native L3 は owner 目視確認を必須にする。確認対象は file input / drag&drop、エラー行と重複行の区別、上書き確認、日本語文言、結果サマリ、商品一覧への戻り導線。 | 新規 operator-facing screen であり、CSV 作業は初期導入時に失敗影響が大きい。CI / unit test だけでは視認性と操作の分かりやすさを判断できない。 |
@@ -116,7 +116,7 @@ UI-01c 実装 PR では以下を generated binding に出す。
 
 ## 60.7 Cache / Navigation
 
-- commit 成功時に次の既存 helper を使って invalidate する: `queryKeys.productList.root()`（商品一覧）、`queryKeys.lowStock(false)`（ホーム在庫切れ/在庫少）、`queryKeys.stockInquiryRoot()`（在庫照会 list/detail）、`queryKeys.pluDirty()`（PLU未反映通知）。
+- commit 成功時は D-052-C3 の SSOT helper を適用する。具体的な query key 集合は `src/lib/invalidation-contract.ts` だけに置く。
 - `/products` への戻りは既定検索条件でよい。UI-01c は一覧検索条件の `returnTo` を持たない。
 - `navigation.ts` の UI-01c は `to: "/products/import"`, `status: "active"` に切り替える。
 
@@ -139,7 +139,7 @@ UI-01c 実装 PR では以下を generated binding に出す。
 - UI-01c-D5: preview 件数サマリ、エラー行、重複行が日本語ラベルで読める。
 - UI-01c-D6/D7: 重複行は既定スキップ、上書き選択時のみ確認ダイアログが出る。
 - UI-01c-D8/D9: エラー行があっても正常行 commit は可能、対象 0 件では commit disabled + 理由表示。
-- UI-01c-D10: commit 成功時に product / inventory 系 query が invalidated される。
+- UI-01c-D10: commit 成功時の実呼出し集合が D-052-C3 の独立 test oracle と完全一致する。
 - UI-01c-D11: result で `created_count` / `updated_count` / `skipped_count` と次の導線が表示される。
 - UI-01c-D12: committing 中は操作が disabled になり、cancel 可能に見せない。
 - UI-01c-D13: Windows native L3 で file input / dragdrop、エラー・重複の見分け、上書き確認、結果導線を確認する。

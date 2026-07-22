@@ -9,7 +9,7 @@ import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { commands } from "@/lib/bindings";
-import { queryKeys } from "@/lib/query-keys";
+import { d052InvalidationOracle, expectExactInvalidations } from "@/test/invalidation-oracle";
 
 import { ThresholdSettingsPage } from "./ThresholdSettingsPage";
 
@@ -206,11 +206,7 @@ describe("ThresholdSettingsPage (UI-11a / QR系 / D-4)", () => {
       );
     });
 
-    expect(invalidateSpy).toHaveBeenCalledWith({
-      queryKey: queryKeys.thresholdSettings.settings(),
-    });
-    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: queryKeys.lowStock(false) });
-    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: queryKeys.stockInquiryRoot() });
+    expectExactInvalidations(invalidateSpy.mock.calls, d052InvalidationOracle.thresholdSave());
 
     // 保存成功後はフォームが pristine 化し、保存ボタンが再び disabled になる
     await waitFor(() => {
@@ -220,7 +216,7 @@ describe("ThresholdSettingsPage (UI-11a / QR系 / D-4)", () => {
 
   it("ui11a partial save failure shows the failed field name and keeps the saved fact for the other field", async () => {
     const user = userEvent.setup();
-    await renderReady();
+    const { invalidateSpy } = await renderReady();
     mockUpdateSetting.mockResolvedValueOnce(ok(null));
     mockUpdateSetting.mockResolvedValueOnce(cmdError("保存できませんでした"));
 
@@ -238,6 +234,30 @@ describe("ThresholdSettingsPage (UI-11a / QR系 / D-4)", () => {
       ),
     ).toBeInTheDocument();
     expect(mockUpdateSetting).toHaveBeenCalledTimes(2);
+    await waitFor(() => {
+      expectExactInvalidations(invalidateSpy.mock.calls, d052InvalidationOracle.thresholdSave());
+    });
+  });
+
+  it("D-052-C13 does not invalidate when no threshold field was saved", async () => {
+    const user = userEvent.setup();
+    const { invalidateSpy } = await renderReady();
+    mockUpdateSetting.mockResolvedValueOnce(cmdError("保存できませんでした"));
+
+    const generalInput = screen.getByLabelText("一般商品の基準（必須）");
+    const fabricInput = screen.getByLabelText("生地の基準（必須）");
+    await user.clear(generalInput);
+    await user.type(generalInput, "5");
+    await user.clear(fabricInput);
+    await user.type(fabricInput, "600");
+    await user.click(screen.getByRole("button", { name: "保存する" }));
+
+    await waitFor(() => {
+      expect(mockUpdateSetting).toHaveBeenCalledTimes(1);
+      expect(screen.getByRole("button", { name: "保存する" })).toBeEnabled();
+    });
+    expect(invalidateSpy).not.toHaveBeenCalled();
+    expect(screen.getByText("保存に失敗しました。もう一度保存してください")).toBeInTheDocument();
   });
 
   it("ui11a getSettings failure shows a top alert with a retry action", async () => {

@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -36,6 +36,7 @@ import {
 } from "@/components/ui/table";
 import { ProductPagination } from "@/features/products/components/ProductPagination";
 import { commands, type IntegrityFixResult, type IntegrityResult } from "@/lib/bindings";
+import { invalidateByContract, invalidationContract } from "@/lib/invalidation-contract";
 import { isInvokeError, unwrapResult } from "@/lib/invoke";
 
 const PER_PAGE = 100;
@@ -63,6 +64,7 @@ function differenceLabel(difference: number): string {
 }
 
 export function IntegrityCheckPage() {
+  const queryClient = useQueryClient();
   const [phase, setPhase] = useState<IntegrityPhase>("idle");
   const [pendingOperation, setPendingOperation] = useState<PendingOperation>(null);
   const [result, setResult] = useState<IntegrityResult | null>(null);
@@ -149,6 +151,7 @@ export function IntegrityCheckPage() {
       setSelectedCodes(
         (current) => new Set(Array.from(current).filter((code) => !adjustedCodes.has(code))),
       );
+      await invalidateByContract(queryClient, invalidationContract.integrityFix());
     } catch (error) {
       setOperationError({ operation: "fix", message: describeError(error) });
     } finally {

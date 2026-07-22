@@ -26,6 +26,7 @@ import { EmptyState } from "@/components/patterns/EmptyState";
 import { PageHeader } from "@/components/patterns/PageHeader";
 import { formatDateTime, formatRecordStatus } from "@/features/inventory-records/types";
 import { commands, type ManualSaleCreateResult, type ProductWithRelations } from "@/lib/bindings";
+import { invalidateByContract, invalidationContract } from "@/lib/invalidation-contract";
 import { isInvokeError, toCmdError, unwrapResult } from "@/lib/invoke";
 import { scrollPageToTop } from "@/lib/page-scroll";
 import { queryKeys } from "@/lib/query-keys";
@@ -181,12 +182,7 @@ export function ManualSalePage() {
       setFailedSignature(null);
       setIdempotencyKey(createManualSaleIdempotencyKey());
       toast.success("手動販売を保存しました", { id: "manual-sale-save-success" });
-      await queryClient.invalidateQueries({ queryKey: queryKeys.inventoryRecords.root() });
-      await queryClient.invalidateQueries({ queryKey: queryKeys.productList.root() });
-      await queryClient.invalidateQueries({ queryKey: queryKeys.lowStock(false) });
-      await queryClient.invalidateQueries({ queryKey: queryKeys.stockInquiryRoot() });
-      await queryClient.invalidateQueries({ queryKey: queryKeys.dailySales(values.saleDate) });
-      await queryClient.invalidateQueries({ queryKey: queryKeys.monthlySalesRoot() });
+      await invalidateByContract(queryClient, invalidationContract.manualSale(values.saleDate));
     },
     onError: (error) => {
       if (error instanceof Error && error.message === "validation") return;

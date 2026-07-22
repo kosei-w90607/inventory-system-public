@@ -8,8 +8,8 @@ import { useBlocker } from "@tanstack/react-router";
 import { useCallback, useReducer } from "react";
 import { toast } from "sonner";
 import { commands } from "@/lib/bindings";
+import { invalidateByContract, invalidationContract } from "@/lib/invalidation-contract";
 import { CMD_ERROR_KIND, InvokeError, isInvokeError, unwrapResult } from "@/lib/invoke";
-import { queryKeys } from "@/lib/query-keys";
 import { extractFilename } from "../lib/extractFilename";
 import { csvImportReducer } from "../reducer";
 import type { CsvImportState, ErrorRecoverTo } from "../types";
@@ -109,21 +109,7 @@ export function useCsvImportFlow(): UseCsvImportFlowResult {
         result,
         settlementDate: vars.settlementDate,
       });
-      // §55.3 4 件 invalidation: csvImportLists (prefix) + dailySales(date) + lowStock(false) + pluDirty()
-      await Promise.all([
-        queryClient.invalidateQueries({
-          queryKey: queryKeys.csvImportLists(),
-        }),
-        // §55.3 + UI-09a 着手: ["daily-sales"] prefix invalidate で UI-09a (today) +
-        // UI-00 ホーム (yesterday) 両方を refetch。取込み直後 UX 上望ましい波及 (Round 2 β-3)。
-        queryClient.invalidateQueries({
-          queryKey: ["daily-sales"],
-        }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.lowStock(false) }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.pluDirty() }),
-        // UI-06a 在庫照会: 取込み直後に在庫数を即時反映（§58.5 CSV 取込み後 invalidation）
-        queryClient.invalidateQueries({ queryKey: queryKeys.stockInquiryRoot() }),
-      ]);
+      await invalidateByContract(queryClient, invalidationContract.csvImportCommit());
     },
     onError: (error: unknown) => {
       const e = ensureInvokeError(error, "commit_csv_import");
@@ -141,21 +127,7 @@ export function useCsvImportFlow(): UseCsvImportFlowResult {
     onSuccess: async () => {
       dispatch({ type: "rollback_succeeded" });
       toast.success("取込みを取り消しました");
-      // commit 成功時と同じ 4 件 invalidation (帳簿への影響範囲は同じ、§55.3)
-      await Promise.all([
-        queryClient.invalidateQueries({
-          queryKey: queryKeys.csvImportLists(),
-        }),
-        // §55.3 + UI-09a 着手: ["daily-sales"] prefix invalidate で UI-09a (today) +
-        // UI-00 ホーム (yesterday) 両方を refetch。取込み直後 UX 上望ましい波及 (Round 2 β-3)。
-        queryClient.invalidateQueries({
-          queryKey: ["daily-sales"],
-        }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.lowStock(false) }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.pluDirty() }),
-        // UI-06a 在庫照会: rollback 直後に在庫数を即時反映（§58.5 CSV 取込み後 invalidation）
-        queryClient.invalidateQueries({ queryKey: queryKeys.stockInquiryRoot() }),
-      ]);
+      await invalidateByContract(queryClient, invalidationContract.csvImportRollback());
     },
     onError: () => {
       // §55.9 rollback 失敗の UX: トーストのみ + state 据え置き (result variant 維持して再試行可能)

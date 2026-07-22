@@ -221,6 +221,7 @@ export function useDailySalesReport(args: Args): Result;
 
 - `today useQuery`: `queryKeys.dailySales(args.date)` / `staleTime: 5 * 60_000`（UI-00 と統一）/ `gcTime: 10 * 60_000`
 - `yesterday useQuery`: `queryKeys.dailySales(addDays(args.date, -1))` / 同 staleTime、**`enabled: true` 常時**（UI-00 部分障害許容パターン `53-ui-home.md §53.4 D-3` と整合）
+- 本 query を stale 化する mutation 集合は [D-052](../decision-log.md) と `src/lib/invalidation-contract.ts` を正本とし、本書へ producer 一覧を複製しない。`dailySalesRoot()` は日付別 key の prefix factory とする。
 - 派生計算は `useQuery` 完了後に同期実行（5 純関数を順次適用、React Compiler 自動 memoize）
 - `partialError.yesterday` を SummaryCardsBar に渡し、前日比カードのみ「比較データなし」描画（他 3 カード + テーブルは正常）
 

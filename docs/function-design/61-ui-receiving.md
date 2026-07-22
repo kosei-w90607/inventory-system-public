@@ -29,7 +29,7 @@
 | REQ-201 / submit | UI-02-D9 | 保存中はヘッダ、明細、商品追加、戻る/リセット導線を disabled にし、中断可能に見せない。 | backend は単一 TX。UI だけで cancel 可能に見せると在庫反映状態を誤認させる。 |
 | REQ-201 / result | UI-02-D10 | 保存成功後は record_id、登録明細数、stock_warnings、`idempotent_replay` の有無を表示し、「続けて入庫」「在庫照会へ戻る」の導線を出す。 | 店頭作業では連続入庫があり得る。保存済みの証跡は record_id と件数で確認できるようにする。 |
 | REQ-201 / list | UI-02-D11 | 画面下部に最近の入庫記録を `listReceivings(1, 10, null, null)` で表示する。詳細表示・編集・削除は初回実装では扱わない。 | CMD-02 の一覧契約を UI から疎通確認でき、直近伝票の保存結果も確認しやすい。詳細/取消は業務影響が大きく別設計にする。 |
-| REQ-201 / cache | UI-02-D12 | 保存成功時は `queryKeys.receivings.root()`（実装PRで追加）、`queryKeys.productList.root()`、`queryKeys.lowStock(false)`、`queryKeys.stockInquiryRoot()` を invalidate する。PLU dirty は入庫で商品マスタや売価を変えないため invalidate しない。 | 入庫で在庫数と最終入庫日が変わる。商品一覧・在庫照会・ホーム在庫警告の stale 表示を避ける。PLU 書出し対象は商品マスタ変更ではない。 |
+| REQ-201 / cache | UI-02-D12 | 保存成功時の invalidation は [D-052](../decision-log.md) C4 と `src/lib/invalidation-contract.ts` を正本とする。 | 入庫で変わる在庫・履歴とその consumer を table.column 導出で一貫して stale 化し、画面側の key 列挙を廃止する。 |
 | REQ-201 / UI-02 | UI-02-D13 | Windows native L3 は owner 目視確認を必須にする。確認対象は navigation、取引先候補、商品検索/スキャン相当 Enter 追加、同一商品数量加算、cm 表示、validation、保存中 disable、結果表示、recent list、在庫照会/商品登録導線。 | 新規 operator-facing screen であり、連続入力・日本語商品名・フォーカス戻しは CI だけでは判断しづらい。 |
 
 ## 61.2 Component / Route 構成
@@ -123,7 +123,7 @@ UI-02 実装 PR では以下を generated binding に出す。
 
 ## 61.7 Cache / Navigation
 
-- 保存成功時に `queryKeys.receivings.root()`、`queryKeys.productList.root()`、`queryKeys.lowStock(false)`、`queryKeys.stockInquiryRoot()` を invalidate する。`queryKeys.receivings.root()` / `queryKeys.receivings.recent()` は UI-02 実装 PR で `src/lib/query-keys.ts` に追加する。
+- 保存成功時は D-052-C4 の SSOT helper を適用する。具体的な query key 集合は `src/lib/invalidation-contract.ts` だけに置く。
 - `navigation.ts` の UI-02 は `to: "/inventory/receiving"`, `status: "active"` に切り替える。
 - 在庫照会の詳細カードから入庫へ遷移する場合、将来 `?productCode=...` で初期商品追加する余地を残す。ただし初回実装では query 初期追加は非 scope とし、route だけ active にする。
 
@@ -149,7 +149,7 @@ UI-02 実装 PR では以下を generated binding に出す。
 - UI-02-D9: submitting 中は戻る/リセット/入力/商品追加が disabled になる。
 - UI-02-D10: result で record_id、明細数、warning、idempotent replay が読め、保存成功時にページ先頭へスクロールする。
 - UI-02-D11: 最近の入庫一覧を取得し、空/取得失敗/成功を表示できる。
-- UI-02-D12: 保存成功時に receiving / product / lowStock / stockInquiry query が invalidated される。
+- UI-02-D12: 保存成功時の実呼出し集合が D-052-C4 の独立 test oracle と完全一致する。
 - UI-02-D13: Windows native L3 で連続入力、フォーカス戻し、日本語表示、保存結果を確認する。
 
 ## 61.10 変更履歴

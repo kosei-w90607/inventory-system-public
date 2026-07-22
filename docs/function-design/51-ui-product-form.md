@@ -26,6 +26,7 @@
 | REQ-101 / REQ-102 | UI-01b-D12 | 必須項目（商品名・部門・売価・原価、create 時は初期在庫）のラベルに `（必須）` を付ける。色で必須を符号化しない。JANコードは対象外。 | 非IT利用者には必須項目が分かりやすい方がよい。色（赤 * 等）だけの符号化は [design-system/00-foundations.md §業務ステータスの視認性](../design-system/00-foundations.md) に反するため、テキストで明示する。JAN は任意（独自コード発番経路がある）ため必須にしない。 |
 | REQ-102 | UI-01b-D13 | 「廃番にする」操作は確認ダイアログ（`DiscontinueConfirmDialog`、shadcn AlertDialog）を通す。「表示に戻す」は確認なしで直接実行する。 | 廃番化は一覧の通常表示から外れる片方向の状態変更で、誤操作の影響が大きいため確認する。復帰は影響が小さく、戻す操作にさらに確認を挟むと操作が重くなるため直接実行する。先例は CSV 取込みの `OverwriteConfirmDialog`。 |
 | REQ-101 / REQ-102 | UI-01b-D14 | 保存成功は `toast.success`（`id: "product-save-success"`、`duration: 5000`）で示し、navigate より前に発火する。create は登録した商品コードを含め、edit は保存完了を伝える。 | 保存後すぐ一覧へ戻るため、成功は一覧に遷移してからでなく form 上の通知で確実に伝える。id 固定で連打時に通知が積み重ならないようにする。alert を画面内に残すと遷移と二重になるため toast を使う。 |
+| REQ-101 / REQ-102 | UI-01b-D15 | create、update、廃番化・復帰の成功時 invalidation は [D-052](../decision-log.md) C1/C2 と `src/lib/invalidation-contract.ts` を正本とし、form 内に query key 集合を列挙しない。 | 商品・在庫・PLU・棚卸し consumer への追随を mutation 単位の SSOT で保証し、page と設計書の二重管理を避ける。 |
 
 ## 7.2 Component / Route 構成
 

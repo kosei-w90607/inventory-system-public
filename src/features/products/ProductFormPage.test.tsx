@@ -7,6 +7,7 @@ import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { commands } from "@/lib/bindings";
+import { d052InvalidationOracle, expectExactInvalidations } from "@/test/invalidation-oracle";
 import { toast } from "sonner";
 import {
   makeMockDepartment,
@@ -37,12 +38,16 @@ const mockListSuppliers = vi.mocked(commands.listSuppliers);
 const mockGetProduct = vi.mocked(commands.getProduct);
 const mockCreateProduct = vi.mocked(commands.createProduct);
 const mockUpdateProduct = vi.mocked(commands.updateProduct);
+const mockToggleDiscontinue = vi.mocked(commands.toggleDiscontinue);
 
 function renderWithClient(ui: ReactNode) {
   const qc = new QueryClient({
     defaultOptions: { queries: { retry: false, gcTime: Number.POSITIVE_INFINITY } },
   });
-  return render(<QueryClientProvider client={qc}>{ui}</QueryClientProvider>);
+  return {
+    queryClient: qc,
+    ...render(<QueryClientProvider client={qc}>{ui}</QueryClientProvider>),
+  };
 }
 
 beforeEach(() => {
@@ -51,6 +56,7 @@ beforeEach(() => {
   mockGetProduct.mockReset();
   mockCreateProduct.mockReset();
   mockUpdateProduct.mockReset();
+  mockToggleDiscontinue.mockReset();
   mockToastSuccess.mockReset();
 });
 
@@ -93,13 +99,14 @@ describe("ProductFormPage (UI-01b)", () => {
       data: { product_code: "Y-0001", warnings: [] },
     });
 
-    renderWithClient(
+    const { queryClient } = renderWithClient(
       <ProductFormPage
         mode="create"
         returnTo="/products?q=布"
         onNavigateToList={onNavigateToList}
       />,
     );
+    const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries");
 
     await user.type(await screen.findByLabelText(/^商品名/), "テスト商品");
     await user.selectOptions(screen.getByLabelText(/^部門/), "1");
@@ -122,6 +129,7 @@ describe("ProductFormPage (UI-01b)", () => {
       expect.stringContaining("Y-0001"),
       expect.objectContaining({ id: "product-save-success" }),
     );
+    expectExactInvalidations(invalidateSpy.mock.calls, d052InvalidationOracle.productCreate());
   });
 
   it("blocks save when department options fail", async () => {
@@ -177,9 +185,10 @@ describe("ProductFormPage (UI-01b)", () => {
       error: { kind: "duplicate", message: "この商品コードは既に使用されています", field: null },
     });
 
-    renderWithClient(
+    const { queryClient } = renderWithClient(
       <ProductFormPage mode="edit" productCode="P-001" onNavigateToList={vi.fn()} />,
     );
+    const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries");
 
     const name = await screen.findByLabelText(/^商品名/);
     await user.clear(name);
@@ -191,5 +200,93 @@ describe("ProductFormPage (UI-01b)", () => {
     });
     expect(await screen.findByText("この商品コードは既に使用されています")).toBeInTheDocument();
     expect(screen.getByDisplayValue("変更後")).toBeInTheDocument();
+    expect(invalidateSpy).not.toHaveBeenCalled();
+  });
+
+  it("D-052-C2a update success invalidates the exact independent oracle set", async () => {
+    const user = userEvent.setup();
+    const onNavigateToList = vi.fn();
+    mockListDepartments.mockResolvedValue({ status: "ok", data: [makeMockDepartment()] });
+    mockListSuppliers.mockResolvedValue({ status: "ok", data: [] });
+    mockGetProduct.mockResolvedValue({
+      status: "ok",
+      data: makeMockProductWithRelations({ product_code: "P-001", name: "変更前" }),
+    });
+    mockUpdateProduct.mockResolvedValue({ status: "ok", data: { warnings: [] } });
+
+    const { queryClient } = renderWithClient(
+      <ProductFormPage mode="edit" productCode="P-001" onNavigateToList={onNavigateToList} />,
+    );
+    const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries");
+
+    const name = await screen.findByLabelText(/^商品名/);
+    await user.clear(name);
+    await user.type(name, "変更後");
+    await user.click(screen.getByRole("button", { name: "保存する" }));
+
+    await waitFor(() => {
+      expect(onNavigateToList).toHaveBeenCalled();
+      expectExactInvalidations(
+        invalidateSpy.mock.calls,
+        d052InvalidationOracle.productUpdate("P-001"),
+      );
+    });
+  });
+
+  it("D-052-C2b discontinue toggle invalidates the same exact update oracle set", async () => {
+    const user = userEvent.setup();
+    mockListDepartments.mockResolvedValue({ status: "ok", data: [makeMockDepartment()] });
+    mockListSuppliers.mockResolvedValue({ status: "ok", data: [] });
+    mockGetProduct.mockResolvedValue({
+      status: "ok",
+      data: makeMockProductWithRelations({ product_code: "P-001", name: "廃番対象" }),
+    });
+    mockToggleDiscontinue.mockResolvedValue({ status: "ok", data: true });
+
+    const { queryClient } = renderWithClient(
+      <ProductFormPage mode="edit" productCode="P-001" onNavigateToList={vi.fn()} />,
+    );
+    const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries");
+
+    await user.click(await screen.findByRole("button", { name: "廃番にする" }));
+    await user.click(screen.getByRole("button", { name: "廃番にする" }));
+
+    await waitFor(() => {
+      expect(mockToggleDiscontinue).toHaveBeenCalledWith("P-001");
+      expectExactInvalidations(
+        invalidateSpy.mock.calls,
+        d052InvalidationOracle.productUpdate("P-001"),
+      );
+    });
+  });
+
+  it("D-052-C2b restore toggle invalidates the same exact update oracle set", async () => {
+    const user = userEvent.setup();
+    mockListDepartments.mockResolvedValue({ status: "ok", data: [makeMockDepartment()] });
+    mockListSuppliers.mockResolvedValue({ status: "ok", data: [] });
+    mockGetProduct.mockResolvedValue({
+      status: "ok",
+      data: makeMockProductWithRelations({
+        product_code: "P-001",
+        name: "復帰対象",
+        is_discontinued: true,
+      }),
+    });
+    mockToggleDiscontinue.mockResolvedValue({ status: "ok", data: false });
+
+    const { queryClient } = renderWithClient(
+      <ProductFormPage mode="edit" productCode="P-001" onNavigateToList={vi.fn()} />,
+    );
+    const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries");
+
+    await user.click(await screen.findByRole("button", { name: "表示に戻す" }));
+
+    await waitFor(() => {
+      expect(mockToggleDiscontinue).toHaveBeenCalledWith("P-001");
+      expectExactInvalidations(
+        invalidateSpy.mock.calls,
+        d052InvalidationOracle.productUpdate("P-001"),
+      );
+    });
   });
 });

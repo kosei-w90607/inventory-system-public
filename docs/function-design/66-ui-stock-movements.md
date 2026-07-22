@@ -86,6 +86,8 @@ type StockMovementsSearch = {
 
 ### 66.4 Data Flow
 
+本 query を stale 化する mutation 集合は [D-052](../decision-log.md) と `src/lib/invalidation-contract.ts` を正本とし、本書へ producer 一覧を複製しない。`queryKeys.stockMovements.root()` は product / list key の共通 prefix とする。
+
 ```
 Route params: code
 Route search: dateFrom, dateTo, type, page

@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { commands, type IntegrityMismatch } from "@/lib/bindings";
+import { d052InvalidationOracle, expectExactInvalidations } from "@/test/invalidation-oracle";
 import { IntegrityCheckPage } from "./IntegrityCheckPage";
 
 vi.mock("@/lib/bindings", () => ({
@@ -64,11 +65,14 @@ function fixResult(
 
 function renderPage() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return render(
-    <QueryClientProvider client={client}>
-      <IntegrityCheckPage />
-    </QueryClientProvider>,
-  );
+  return {
+    client,
+    ...render(
+      <QueryClientProvider client={client}>
+        <IntegrityCheckPage />
+      </QueryClientProvider>,
+    ),
+  };
 }
 
 async function runCheck() {
@@ -183,6 +187,22 @@ describe("UI-13 REQ-904 在庫整合性検証", () => {
       expect(fixIntegrity).toHaveBeenCalledTimes(1);
     });
     expect(fixIntegrity).toHaveBeenCalledWith(["SYN-001"]);
+  });
+
+  it("D-052-C12 fix success invalidates the exact independent oracle set", async () => {
+    runIntegrityCheck.mockResolvedValue(checkResult([mismatch("SYN-001")]));
+    fixIntegrity.mockResolvedValue(fixResult());
+    const { client } = renderPage();
+    const invalidateSpy = vi.spyOn(client, "invalidateQueries");
+
+    await runCheck();
+    await selectForFix("SYN-001");
+    await openFixDialog();
+    await confirmFix();
+
+    await waitFor(() => {
+      expectExactInvalidations(invalidateSpy.mock.calls, d052InvalidationOracle.integrityFix());
+    });
   });
 
   it("test_integrity_page_req904_t7_uses_integrity_fix_button_copy", async () => {

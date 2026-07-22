@@ -6,7 +6,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { makeMockProductWithRelations } from "@/features/products/lib/test-fixtures";
 import { commands } from "@/lib/bindings";
-import { queryKeys } from "@/lib/query-keys";
+import { d052InvalidationOracle, expectExactInvalidations } from "@/test/invalidation-oracle";
 import { ReturnExchangePage } from "./ReturnExchangePage";
 
 vi.mock("@tanstack/react-router", () => ({
@@ -146,11 +146,10 @@ describe("ReturnExchangePage (UI-03 / REQ-202)", () => {
       "/inventory/return/records/30",
     );
     await waitFor(() => {
-      expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: queryKeys.returns.root() });
-      expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: queryKeys.productList.root() });
-      expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: queryKeys.lowStock(false) });
-      expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: queryKeys.stockInquiryRoot() });
-      expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: queryKeys.inventoryRecords.root() });
+      expectExactInvalidations(
+        invalidateSpy.mock.calls,
+        d052InvalidationOracle.returnExchange(false),
+      );
     });
   });
 
@@ -262,12 +261,11 @@ describe("ReturnExchangePage (UI-03 / REQ-202)", () => {
     expect(within(resultRegion).getByText("備考なし")).toBeInTheDocument();
     expect(screen.getAllByText(registerProcessedStockDescription).length).toBeGreaterThan(0);
     await waitFor(() => {
-      expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: queryKeys.returns.root() });
-      expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: queryKeys.inventoryRecords.root() });
+      expectExactInvalidations(
+        invalidateSpy.mock.calls,
+        d052InvalidationOracle.returnExchange(true),
+      );
     });
-    expect(invalidateSpy).not.toHaveBeenCalledWith({ queryKey: queryKeys.productList.root() });
-    expect(invalidateSpy).not.toHaveBeenCalledWith({ queryKey: queryKeys.lowStock(false) });
-    expect(invalidateSpy).not.toHaveBeenCalledWith({ queryKey: queryKeys.stockInquiryRoot() });
   });
 
   it("can add the same product as both return-in and exchange-out rows", async () => {

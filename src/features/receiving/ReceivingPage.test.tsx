@@ -9,7 +9,7 @@ import {
   makeMockSupplier,
 } from "@/features/products/lib/test-fixtures";
 import { commands } from "@/lib/bindings";
-import { queryKeys } from "@/lib/query-keys";
+import { d052InvalidationOracle, expectExactInvalidations } from "@/test/invalidation-oracle";
 import { ReceivingPage } from "./ReceivingPage";
 
 vi.mock("@tanstack/react-router", () => ({
@@ -242,12 +242,7 @@ describe("ReceivingPage (UI-02 / REQ-201)", () => {
     await user.click(screen.getByRole("button", { name: "入庫を保存" }));
     expect(mockCreateReceiving).toHaveBeenCalledTimes(1);
     await waitFor(() => {
-      expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: queryKeys.receivings.root() });
-      expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: queryKeys.productList.root() });
-      expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: queryKeys.lowStock(false) });
-      expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: queryKeys.stockInquiryRoot() });
-      expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: queryKeys.inventoryRecords.root() });
-      expect(invalidateSpy).not.toHaveBeenCalledWith({ queryKey: queryKeys.pluDirty() });
+      expectExactInvalidations(invalidateSpy.mock.calls, d052InvalidationOracle.receiving());
     });
   });
 

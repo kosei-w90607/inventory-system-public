@@ -5,7 +5,7 @@ import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { commands } from "@/lib/bindings";
-import { queryKeys } from "@/lib/query-keys";
+import { d052InvalidationOracle, expectExactInvalidations } from "@/test/invalidation-oracle";
 import { save } from "@tauri-apps/plugin-dialog";
 import { writeFile } from "@tauri-apps/plugin-fs";
 import { PLU_EXPORT_PENDING_STORAGE_KEY, PluExportPage } from "./PluExportPage";
@@ -426,7 +426,7 @@ describe("PluExportPage (UI-08 / REQ-402)", () => {
     expect(mockScrollTo).toHaveBeenCalledWith({ top: 0, behavior: "smooth" });
   });
 
-  it("REQ-402 invalidates PLU and product queries after confirmation", async () => {
+  it("REQ-402 D-052-C14 invalidates the exact six-key oracle after confirmation", async () => {
     const user = userEvent.setup();
     mockSave.mockResolvedValue("/home/kosei/PLU_20260701.txt");
     mockWriteFile.mockResolvedValue(undefined);
@@ -438,13 +438,8 @@ describe("PluExportPage (UI-08 / REQ-402)", () => {
     await user.click(await screen.findByRole("button", { name: "この書出しを未反映から外す" }));
 
     await waitFor(() => {
-      expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: queryKeys.pluDirty() });
-      expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: queryKeys.productList.root() });
+      expectExactInvalidations(invalidateSpy.mock.calls, d052InvalidationOracle.pluExportConfirm());
     });
-    expect(invalidateSpy).not.toHaveBeenCalledWith({
-      queryKey: queryKeys.dailySales("2026-07-01"),
-    });
-    expect(invalidateSpy).not.toHaveBeenCalledWith({ queryKey: queryKeys.monthlySalesRoot() });
   });
 
   it("REQ-402 shows full export backup warning and rejects scanning PLU limit overflow", async () => {

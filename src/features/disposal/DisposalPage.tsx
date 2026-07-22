@@ -25,6 +25,7 @@ import {
 import { EmptyState } from "@/components/patterns/EmptyState";
 import { PageHeader } from "@/components/patterns/PageHeader";
 import { commands, type DisposalCreateResult, type ProductWithRelations } from "@/lib/bindings";
+import { invalidateByContract, invalidationContract } from "@/lib/invalidation-contract";
 import { isInvokeError, toCmdError, unwrapResult } from "@/lib/invoke";
 import { scrollPageToTop } from "@/lib/page-scroll";
 import { queryKeys } from "@/lib/query-keys";
@@ -161,11 +162,7 @@ export function DisposalPage() {
       setFailedSignature(null);
       setIdempotencyKey(createDisposalIdempotencyKey());
       toast.success("廃棄・破損を保存しました", { id: "disposal-save-success" });
-      await queryClient.invalidateQueries({ queryKey: queryKeys.disposals.root() });
-      await queryClient.invalidateQueries({ queryKey: queryKeys.inventoryRecords.root() });
-      await queryClient.invalidateQueries({ queryKey: queryKeys.productList.root() });
-      await queryClient.invalidateQueries({ queryKey: queryKeys.lowStock(false) });
-      await queryClient.invalidateQueries({ queryKey: queryKeys.stockInquiryRoot() });
+      await invalidateByContract(queryClient, invalidationContract.disposal());
     },
     onError: (error) => {
       if (error instanceof Error && error.message === "validation") return;

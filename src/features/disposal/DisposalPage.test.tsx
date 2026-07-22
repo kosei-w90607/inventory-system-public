@@ -7,7 +7,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { makeMockProductWithRelations } from "@/features/products/lib/test-fixtures";
 import { commands } from "@/lib/bindings";
 import type { DisposalCreateRequest } from "@/lib/bindings";
-import { queryKeys } from "@/lib/query-keys";
+import { d052InvalidationOracle, expectExactInvalidations } from "@/test/invalidation-oracle";
 import { DisposalPage } from "./DisposalPage";
 
 vi.mock("@tanstack/react-router", () => ({
@@ -274,15 +274,8 @@ describe("DisposalPage (UI-05 / REQ-204)", () => {
       },
     ]);
     await waitFor(() => {
-      expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: queryKeys.disposals.root() });
-      expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: queryKeys.inventoryRecords.root() });
-      expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: queryKeys.productList.root() });
-      expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: queryKeys.lowStock(false) });
-      expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: queryKeys.stockInquiryRoot() });
+      expectExactInvalidations(invalidateSpy.mock.calls, d052InvalidationOracle.disposal());
     });
-    expect(invalidateSpy).not.toHaveBeenCalledWith({ queryKey: ["daily-sales"] });
-    expect(invalidateSpy).not.toHaveBeenCalledWith({ queryKey: queryKeys.monthlySalesRoot() });
-    expect(invalidateSpy).not.toHaveBeenCalledWith({ queryKey: queryKeys.pluDirty() });
   });
 
   it("REQ-204 keeps the idempotency key for same-content retry and rotates it after edits or reset", async () => {

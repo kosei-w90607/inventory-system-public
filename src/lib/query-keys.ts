@@ -5,9 +5,12 @@
  *
  * D-4 採用: オブジェクト形式の第 3 要素で命名衝突回避 + 直書き禁止
  * （タイポによる cache miss を防ぐため、すべて本 helper 経由で参照）。
+ * 期限付き例外: operation-logs 画面の 2 key と integrity latest-check の計 3 literal key は
+ * 監査是正 P5-4 で factory 収容するまで現状維持する（D-052-E1）。
  */
 export const queryKeys = {
   // UI-00 ホーム画面
+  dailySalesRoot: () => ["daily-sales"] as const,
   dailySales: (date: string) => ["daily-sales", "detail", { date }] as const,
   lowStock: (includeDiscontinued: boolean) =>
     ["products", "low-stock", { includeDiscontinued }] as const,
@@ -41,6 +44,7 @@ export const queryKeys = {
   // UI-06c 商品別在庫変動履歴
   // 設計: docs/function-design/66-ui-stock-movements.md §66.4
   stockMovements: {
+    root: () => ["stock-movements"] as const,
     product: (productCode: string) => ["stock-movements", "product", { productCode }] as const,
     list: (productCode: string, search: object) =>
       ["stock-movements", "list", { productCode, ...search }] as const,
@@ -68,6 +72,7 @@ export const queryKeys = {
   },
   // UI-01b 商品登録・修正
   productForm: {
+    root: () => ["product-form"] as const,
     product: (productCode: string) => ["product-form", "product", { productCode }] as const,
     suppliers: () => ["product-form", "suppliers"] as const,
   },

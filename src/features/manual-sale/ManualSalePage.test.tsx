@@ -6,7 +6,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { makeMockProductWithRelations } from "@/features/products/lib/test-fixtures";
 import { commands } from "@/lib/bindings";
-import { queryKeys } from "@/lib/query-keys";
+import { d052InvalidationOracle, expectExactInvalidations } from "@/test/invalidation-oracle";
 import { ManualSalePage } from "./ManualSalePage";
 
 const mockNavigate = vi.fn();
@@ -470,13 +470,10 @@ describe("ManualSalePage (UI-04 / REQ-203)", () => {
     );
     expect(screen.getByRole("button", { name: "手動販売を保存" })).toBeDisabled();
     await waitFor(() => {
-      expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: queryKeys.productList.root() });
-      expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: queryKeys.lowStock(false) });
-      expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: queryKeys.stockInquiryRoot() });
-      expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: queryKeys.dailySales(saleDate) });
-      expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: queryKeys.monthlySalesRoot() });
-      expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: queryKeys.inventoryRecords.root() });
-      expect(invalidateSpy).not.toHaveBeenCalledWith({ queryKey: queryKeys.pluDirty() });
+      expectExactInvalidations(
+        invalidateSpy.mock.calls,
+        d052InvalidationOracle.manualSale(saleDate),
+      );
     });
 
     await user.click(screen.getByRole("button", { name: "日次売上へ" }));
