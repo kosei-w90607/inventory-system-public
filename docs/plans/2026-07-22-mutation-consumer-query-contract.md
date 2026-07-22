@@ -2,7 +2,8 @@
 
 ## Workflow State
 
-- Phase: plan-gate
+- Phase: implementing
+- 遷移記録（state-only 圧縮の append-only 記載）: plan-gate → plan-approved の evidence = owner plan 承認（2026-07-23、介入 1/2、Plan Gate 収束 `48bf156` に対する承認）/ plan-approved → implementing の evidence = Coordinator による Codex 実装発注書交付（本 commit 直後）。圧縮記録は gate skip を許可しない
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: 746ce6e
@@ -14,7 +15,7 @@
 - Reviewed Content HEAD: pending
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
-- Human Gate: plan 承認 / Ready 承認。Windows native L3 は not-required — cache invalidation は視覚意匠変更を伴わず、「mutation 後に旧値が fresh 扱いで表示されない」は vitest の invalidateSpy 検査 + 実 mutation 感度実測で完結する（DEV_WORKFLOW L3 Eligibility: 自動テストで検証可能な挙動は L3 に置かない）。roadmap 1-4 受入テスト（一気通貫台本）が実機での事後検証点を兼ねる
+- Human Gate: Ready 承認のみ残（plan 承認は 2026-07-23 消化、介入 1/2）。Windows native L3 は not-required — cache invalidation は視覚意匠変更を伴わず、「mutation 後に旧値が fresh 扱いで表示されない」は vitest の invalidateSpy 検査 + 実 mutation 感度実測で完結する（DEV_WORKFLOW L3 Eligibility: 自動テストで検証可能な挙動は L3 に置かない）。roadmap 1-4 受入テスト（一気通貫台本）が実機での事後検証点を兼ねる
 
 ## Owner Effort Budget
 
