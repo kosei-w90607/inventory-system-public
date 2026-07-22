@@ -2,10 +2,10 @@
 
 ## Workflow State
 
-- Phase: plan-draft
+- Phase: implementing
 - Risk: R3
 - Execution Mode: fable-window
-- Plan Commit: pending
+- Plan Commit: 62a4b16
 - Amendments: none
 - Coordinator: Fable（main thread）
 - Writer: Codex（実装発注、レビュー前に PR 作成）
@@ -14,7 +14,7 @@
 - Reviewed Content HEAD: pending
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
-- Human Gate: Ready 承認 + operator 可視変更の human visual confirmation（Writer が synthetic fixture で用意した UI-13 確定 dialog / UI-11c 詳細表示のスクリーンショットを owner が目視確認）。Windows native L3 は not-required — 画面別の独立根拠: **UI-13** = 75-ui §75.12 が「差異あり → 選択補正」を DB 直接操作の fault injection 要のため L3 対象外と規定済み（Codex 先行 review P1-2）。**UI-11c** = 到達に補正実行 or sqlite3 synthetic INSERT（§74.15 L3-8 方式）が必要で、DEV_WORKFLOW `L3 Eligibility` 条件 (3) が synthetic row insertion 等の fault-injection 級手動手順を L3 に置かず自動テストへ route すると規定済み（UI-11c L3-7/L3-8 の waive 実績がこの規則の起源と明記されている）。よって T9〜T13 の自動テスト + synthetic fixture visual confirmation で担保する。§74.15 への機能別 L3 行追加（L3-4/L3-5 の既存規律）と roadmap 1-4 受入テスト台本への操作ログ確認ステップ追加は、1-4 の台本作成時に検討（未確定事項として扱い、本判断の根拠にはしない）。本 PR では Non-scope を維持（rally round 1 指摘の反映、round 3 で根拠を一次規定へ差替え）
+- Human Gate: Ready 承認 + operator 可視変更の human visual confirmation（Writer が synthetic fixture で用意した UI-13 確定 dialog / UI-11c 詳細表示のスクリーンショットを owner が目視確認）。Windows native L3 は not-required — 画面別の独立根拠: **UI-13** = 75-ui §75.12 が「差異あり → 選択補正」を DB 直接操作の fault injection 要のため L3 対象外と規定済み（Codex 先行 review P1-2）。**UI-11c** = 到達に補正実行 or sqlite3 synthetic INSERT（§74.15 L3-8 方式）が必要で、DEV_WORKFLOW `L3 Eligibility` 条件 (3) が synthetic row insertion 等の fault-injection 級手動手順を L3 に置かず自動テストへ route すると規定済み（UI-11c L3-7/L3-8 の waive 実績がこの規則の起源と明記されている）。よって T9〜T13 の自動テスト + synthetic fixture visual confirmation で担保する。§74.15 への機能別 L3 行追加（L3-4/L3-5 の既存規律）と roadmap 1-4 受入テスト台本への操作ログ確認ステップ追加は、1-4 の台本作成時に検討する将来事項とし、本判断の根拠にはしない。本 PR では Non-scope を維持（rally round 1 指摘の反映、round 3 で根拠を一次規定へ差替え）
 
 ## Owner Effort Budget
 
@@ -245,12 +245,13 @@ Do not transcribe exact-HEAD SHA or test counts here (D-035/D-038 Evidence Owner
 
 ## Review Response
 
-- Self rally round 1（Plan agent 独立 context、Codex findings 非開示、2026-07-22）: 重要×2 + 軽微×1 — ①UI-11c への L3 not-required 根拠が §75.12 の誤用（UI-13 限定規定の拡張適用）→ 画面別独立根拠へ是正 + 実機確認を roadmap 1-4 へ集約 ②可視 AlertDescription を契約全文にすると AlertTitle と同一フレーズ 2 連続 → StocktakePage 確立パターン（Title/Description 分割 + sr-only 結合文）採用 ③T13 の件数境界が Writer 裁量 → §74.8 の 20 key 方式に倣う先頭 20 件 + 残数行で確定。全件 accept・実読裏取り済み・反映済み。観点 1/2/3/7 は新規指摘なし（Contract Probe 3 前提の precedent 成立を独立実読で再確認）。
-- Self rally round 4（closure 確認、2026-07-22）: **新規指摘なし、収束**（致命 0 + 重要 0）。round 3 是正の三者突合（packet Human Gate ↔ Matrix Residual Gaps ↔ DEV_WORKFLOW L3 Eligibility 実文言）クリーン、Contract Probe 3 前提・現状コード記述・Ledger/T/X の 1:1 対応・traceability 抽出仕様を独立再確認。実装発注可の判定。
-- Self rally round 3（同上、2026-07-22）: 重要×2（いずれも round 1 是正が生んだ新矛盾）— ①Matrix Residual Gaps の L3 根拠が §75.12 単独のまま未伝播 → 画面別根拠へ同期 ②「roadmap 1-4 で操作ログ確認を一気通貫」は Plans.md 実文言に存在しない未検証前提 → 一次根拠を DEV_WORKFLOW `L3 Eligibility` 条件 (3)（synthetic row insertion は自動テストへ route、L3-7/L3-8 waive がこの規則の起源）へ差替え、1-4 台本への追加は未確定の検討事項へ降格。両件 accept・正本実読で裏取り・反映済み。観点 2/4/5/6/7 は新規指摘なし、round 1〜2 是正の有効性は確認済み。
-- Self rally round 2（同上、2026-07-22）: 重要×3 + 軽微×2 — ①adjustments の汎用 dt/dd 重複表示リスク → Scope 4 に除外指示 + T9 否定 assert ②T12 の hostile 文字列 degrade が Boundary Contract と矛盾 → 構造的欠陥のみ degrade、型正当な hostile 文字列は text-only 安全描画（T9 ②）へ分離 ③テスト命名の `_req904_` 保持を明記（generate_traceability の抽出 regex を実読確認）④Plans.md の plan commit SHA 複製を廃止（packet を正に）⑤AC の検査コマンドを実行可能形式へ分離。全件 accept・反映済み。観点 1/5/7 は新規指摘なし、Ledger 全行の T カバレッジ確認済み。
+**State compression record（append-only、2026-07-22）**: implementing への state commit は plan-draft → plan-gate → plan-approved → implementing の隣接 forward 連続を一括実体化する。中間遷移の既存証跡: plan-gate = Codex 先行 plan review + self rally 4 round（`e7939f5`〜`62a4b16`、round 4 で新規指摘 0 収束 — 下記各 round 記録参照）。plan-approved = owner 承認 2026-07-22（介入 1/2、「plan 承認 → implementing 遷移 + Codex 実装発注」を明示承認）。gate skip なし。
+
 - Plan Review round 1（Codex 先行、2026-07-22、read-only 発注）: P1×3（PK2/PK4 機械 gate 失敗 + probe の precedent 未反映 / L3 が 75-ui §75.12 の対象外規定と衝突 / UI-13 の可視・sr-only 文言の捕捉漏れ）+ P2×3（§74.8 共通防御の迂回リスクと T9 の screen-wide assert 弱点 / §21.6 隣接契約〈D1・INV-2/3/4/8・skipped〉の Ledger 不足 / traceability 再生成を条件付きとした誤り）+ P3×2（i64→JS number 境界 / 誤字）。Coordinator が全主張を実コード・正本の実読で裏取りし**全 accept**（P3-1 は 74-ui 非改訂の縮小採用 = 既存 degrade 契約の instance 扱い）、本 packet / Matrix / Plans.md へ反映済み。
-- 次: self rally（Plan agent 独立 critique、Codex findings 非開示で独立性確保、新規指摘 0 まで）。
+- Self rally round 1（Plan agent 独立 context、Codex findings 非開示、2026-07-22）: 重要×2 + 軽微×1 — ①UI-11c への L3 not-required 根拠が §75.12 の誤用（UI-13 限定規定の拡張適用）→ 画面別独立根拠へ是正 ②可視 AlertDescription を契約全文にすると AlertTitle と同一フレーズ 2 連続 → StocktakePage 確立パターン（Title/Description 分割 + sr-only 結合文）採用 ③T13 の件数境界が Writer 裁量 → §74.8 の 20 key 方式に倣う先頭 20 件 + 残数行で確定。全件 accept・実読裏取り済み・反映済み。観点 1/2/3/7 は新規指摘なし（Contract Probe 3 前提の precedent 成立を独立実読で再確認）。
+- Self rally round 2（同上、2026-07-22）: 重要×3 + 軽微×2 — ①adjustments の汎用 dt/dd 重複表示リスク → Scope 4 に除外指示 + T9 否定 assert ②T12 の hostile 文字列 degrade が Boundary Contract と矛盾 → 構造的欠陥のみ degrade、型正当な hostile 文字列は text-only 安全描画（T9 ②）へ分離 ③テスト命名の `_req904_` 保持を明記（generate_traceability の抽出 regex を実読確認）④Plans.md の plan commit SHA 複製を廃止（packet を正に）⑤AC の検査コマンドを実行可能形式へ分離。全件 accept・反映済み。観点 1/5/7 は新規指摘なし、Ledger 全行の T カバレッジ確認済み。
+- Self rally round 3（同上、2026-07-22）: 重要×2（いずれも round 1 是正が生んだ新矛盾）— ①Matrix Residual Gaps の L3 根拠が §75.12 単独のまま未伝播 → 画面別根拠へ同期 ②「roadmap 1-4 で操作ログ確認を一気通貫」は Plans.md 実文言に存在しない未検証前提 → 一次根拠を DEV_WORKFLOW `L3 Eligibility` 条件 (3)（synthetic row insertion は自動テストへ route、L3-7/L3-8 waive がこの規則の起源）へ差替え、1-4 台本への追加は将来の検討事項へ降格（本判断の根拠から除外）。両件 accept・正本実読で裏取り・反映済み。観点 2/4/5/6/7 は新規指摘なし、round 1〜2 是正の有効性は確認済み。
+- Self rally round 4（closure 確認、2026-07-22）: **新規指摘なし、収束**（致命 0 + 重要 0）。round 3 是正の三者突合（packet Human Gate ↔ Matrix Residual Gaps ↔ DEV_WORKFLOW L3 Eligibility 実文言）クリーン、Contract Probe 3 前提・現状コード記述・Ledger/T/X の 1:1 対応・traceability 抽出仕様を独立再確認。実装発注可の判定。
 
 Fill after review.
 If R3 review-only sub-agent is skipped, record an explicit line beginning with `Review-only skipped because:` and the reason.
