@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: independent-review
+- Phase: implementing
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: 62a4b16
@@ -11,7 +11,7 @@
 - Writer: Codex（実装発注、レビュー前に PR 作成）
 - Plan Reviewer: Codex 先行 plan review（考慮漏れ観点付き）→ Fable 裁定・修正 → Plan agent self rally（Codex findings 非開示の独立 critique、新規指摘 0 まで）。今回の試行順序（通常の rally 先行と逆順）。
 - Final Reviewer: 独立 fresh context（Double Audit 2 pass 想定: 1 pass = Fable inline 契約突合 / 2 pass = Codex 独立 + 実 mutation）
-- Reviewed Content HEAD: dadfd86（1 pass inline 契約突合済み、2 pass Codex 独立 audit 待ち）
+- Reviewed Content HEAD: pending
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
 - Human Gate: Ready 承認 + operator 可視変更の human visual confirmation（Writer が synthetic fixture で用意した UI-13 確定 dialog / UI-11c 詳細表示のスクリーンショットを owner が目視確認）。Windows native L3 は not-required — 画面別の独立根拠: **UI-13** = 75-ui §75.12 が「差異あり → 選択補正」を DB 直接操作の fault injection 要のため L3 対象外と規定済み（Codex 先行 review P1-2）。**UI-11c** = 到達に補正実行 or sqlite3 synthetic INSERT（§74.15 L3-8 方式）が必要で、DEV_WORKFLOW `L3 Eligibility` 条件 (3) が synthetic row insertion 等の fault-injection 級手動手順を L3 に置かず自動テストへ route すると規定済み（UI-11c L3-7/L3-8 の waive 実績がこの規則の起源と明記されている）。よって T9〜T13 の自動テスト + synthetic fixture visual confirmation で担保する。§74.15 への機能別 L3 行追加（L3-4/L3-5 の既存規律）と roadmap 1-4 受入テスト台本への操作ログ確認ステップ追加は、1-4 の台本作成時に検討する将来事項とし、本判断の根拠にはしない。本 PR では Non-scope を維持（rally round 1 指摘の反映、round 3 で根拠を一次規定へ差替え）
