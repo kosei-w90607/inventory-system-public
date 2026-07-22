@@ -9,7 +9,7 @@ Risk: R3
 ## Contracts Under Test
 
 - SPEC-INV-CONTRACT-01: 全 production mutation の成功時 invalidation は `src/lib/invalidation-contract.ts` の SSOT 集合に一致する（導出原則 = 書いた table を読む query は invalidate、除外は UI_TECH_STACK §2.5 除外表に明示）
-- 契約表 v1 の 14 mutation 行（packet Scope 参照。P5-1 / P5-2 / P5-3 / P5b-1 / P5b-2 / P5b-3 の欠落解消を含む）
+- 契約表 v1 の 16 mutation 行（packet Scope 参照。P5-1 / P5-2 / P5-3 / P5b-1 / P5b-2 / P5b-3 の欠落解消と、棚卸し開始・明細個数更新の SSOT 経由化 — rally round 2 C — を含む）
 - `queryKeys.stockMovements` root/prefix helper の prefix 整合（product / list が root 配下）
 - P8-2: テストは SSOT から期待を導出し、実装列挙の写しにならない
 
@@ -34,7 +34,7 @@ Risk: R3
 | P5-3（整合性補正） | F1 | unit 新設 | IntegrityCheckPage: fix 成功時に SSOT 集合（productList.root / lowStock / stockInquiryRoot / stockMovements.root）が invalidate される（latest-check literal は rally round 1 P2-1 裁定で対象外） | fix 成功後に QueryClient へ触れない現行実装のまま |
 | P5-1（商品 form） | F1 | unit 新設 | ProductFormPage: create / update 成功時の SSOT 集合検査 | productList.root のみ invalidate の現行実装のまま |
 | P5b-3（閾値部分成功） | F4 | unit 新設 | ThresholdSettingsPage: succeededFields≥1 + failedField あり分岐で lowStock / stockInquiryRoot が invalidate される | 部分成功分岐が refetch のみの現行実装のまま |
-| P5b-1（棚卸し確定） | F1 | unit 既存拡張 | StocktakePage: 確定成功時に stocktake 3 key + 在庫系 + stockMovements.root + latest-check が invalidate される | stocktake domain 3 key のみの現行実装のまま |
+| P5b-1（棚卸し確定） | F1 | unit 既存拡張 | StocktakePage: 確定成功時に stocktake 3 key + 在庫系 + stockMovements.root が invalidate される（latest-check は rally round 2 B 裁定で対象外） | stocktake domain 3 key のみの現行実装のまま |
 | P5b-2（CSV commit/rollback） | F1 | unit **新設**（renderHook + QueryClient wiring — hook 実行 test は現状不在、page test は idle mock 全置換。useDailyReportImportFlow.test.tsx パターン。rally round 1 P1-2） | useCsvImportFlow: commit / rollback 成功時に productList.root / monthlySalesRoot / stockMovements.root を含む SSOT 集合検査 | 現行 5 key のままの実装 |
 | stockMovements.root | F3 | unit 新設 | query-keys: stockMovements.product(id) / list(...) が root() の prefix 配下にあることの構造検査 | root が別 prefix になり prefix invalidate が届かない |
 | 返品分岐 | F5 | unit 既存拡張 | ReturnExchangePage: register_processed=true では在庫系 key が invalidate されない negative 検査 | 分岐を無視して無条件 invalidate に変えた実装 |
@@ -59,14 +59,14 @@ Findings Freeze 前に Writer が clean tree 上で実施し、結果を packet 
 |---|---|---|---|---|---|---|---|---|---|---|
 | consumer query cache（在庫系 / 売上系 / 履歴系） | 画面 mount 時 fetch | mutation 中は現 cache 表示 | onSuccess で SSOT 集合 invalidate | SSOT 経由のみ | active query は即 refetch、inactive は次回 mount | mutation 後の画面遷移で旧値を表示しない（本 change の中核） | app 再起動で cache 消滅（変更なし） | mutation 失敗時は invalidate しない（現行維持） | TanStack 既定 retry（変更なし） | 各 page test + M1〜M4 |
 | 閾値保存の部分成功 state | — | — | succeededFields 反映 + SSOT invalidate | 全成功と同一集合 | settings refetch（現行維持） | 在庫少画面へ遷移して新閾値判定 | — | failedField 表示（現行維持） | operator 再操作 | P5b-3 test |
-| 棚卸し確定後の integrity latest-check 表示 | 前回チェック表示 | — | 確定連動チェックのログを invalidate で反映 | latest-check literal key | integrity 画面 mount / active 時 | 確定後に integrity 画面で最新チェック日時が見える | — | チェック失敗でも確定は成立（現行契約維持） | — | StocktakePage 拡張 test |
+| 棚卸し確定後の integrity latest-check 表示 | 前回チェック表示 | — | invalidate 不要（rally round 2 B: staleTime:0 のため次回 mount で必ず refetch、確定連動チェックの結果は integrity 画面遷移時に自然反映） | 対象外 | mount 時必ず refetch（staleTime:0） | 確定後に integrity 画面へ遷移すれば最新チェック日時が見える | — | チェック失敗でも確定は成立（現行契約維持） | — | 契約表行 13 の対象外注記 |
 
 ## Adjacent Pattern Audit
 
 | Source pattern / contract | Repository sites inspected | Ported sites | Explicit exclusions and reason | Test / evidence |
 |---|---|---|---|---|
 | query invalidation（onSuccess 集約） | `rg -n "invalidateQueries" src/features src/lib --glob '!*.test.*'` 全 69 呼び出し行 / 12 file（2026-07-22 実測） | 契約表 13 mutation | backupRestore 系 6 呼び出し（対象外 domain、契約表収載の例外）/ stocktake 画面内 error-path invalidate（列 refresh 用途、成功時契約の対象外） | AC の rg 全ヒット分類 |
-| prefix helper パターン（csvImportLists / stockInquiryRoot / monthlySalesRoot） | query-keys.ts 全 domain | stockMovements.root + productForm.root 新設（後者は一括 import の bulk 上書きが要求 — rally round 1 P2-2 で確定） | 単一 key domain（thresholdSettings 等）は prefix 不要 | prefix 構造検査 test（両 domain） |
+| prefix helper パターン（csvImportLists / stockInquiryRoot / monthlySalesRoot） | query-keys.ts 全 domain | stockMovements.root + productForm.root + dailySales root 新設（productForm は一括 import の bulk 上書きが要求 = rally round 1 P2-2、dailySales は literal 3 箇所の factory 化 = round 2 A） | 単一 key domain（thresholdSettings 等）は prefix 不要。operation-logs 系 literal は P5-4 保全で非接触 | prefix 構造検査 test（3 domain） |
 
 ## Negative Paths
 
