@@ -66,7 +66,7 @@ Findings Freeze 前に Writer が clean tree 上で実施し、結果を packet 
 | Source pattern / contract | Repository sites inspected | Ported sites | Explicit exclusions and reason | Test / evidence |
 |---|---|---|---|---|
 | query invalidation（onSuccess 集約） | `rg -n "invalidateQueries" src/features src/lib --glob '!*.test.*'` 全 69 呼び出し行 / 12 file（2026-07-22 実測） | 契約表 13 mutation | backupRestore 系 6 呼び出し（対象外 domain、契約表収載の例外）/ stocktake 画面内 error-path invalidate（列 refresh 用途、成功時契約の対象外） | AC の rg 全ヒット分類 |
-| prefix helper パターン（csvImportLists / stockInquiryRoot / monthlySalesRoot） | query-keys.ts 全 domain | stockMovements.root + productForm.root + dailySales root 新設（productForm は一括 import の bulk 上書きが要求 = rally round 1 P2-2、dailySales は literal 3 箇所の factory 化 = round 2 A） | 単一 key domain（thresholdSettings 等）は prefix 不要。operation-logs 系 literal は P5-4 保全で非接触 | prefix 構造検査 test（3 domain） |
+| prefix helper パターン（csvImportLists / stockInquiryRoot / monthlySalesRoot） | query-keys.ts 全 domain | stockMovements.root + productForm.root + dailySales root 新設（productForm は一括 import の bulk 上書きが要求 = rally round 1 P2-2、dailySales は literal 4 箇所 = csv-import 2 + daily-report-import 2 の factory 化 = round 2 A、箇所数は round 3 P2-C 実測） | 単一 key domain（thresholdSettings 等）は prefix 不要。operation-logs 系 literal は P5-4 保全で非接触 | prefix 構造検査 test（3 domain） |
 
 ## Negative Paths
 
