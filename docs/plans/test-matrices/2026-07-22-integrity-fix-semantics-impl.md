@@ -109,4 +109,4 @@ Writer 完了条件 = X1/X2/X4 の実 mutation red 実測。X3/X5 は independen
 
 - ログ INSERT 以外の TX 内失敗（stock UPDATE 自体の失敗）は rusqlite の標準エラー経路で、既存の TX rollback に委ねる（専用注入テストなし。理由: §21.7 の指定 oracle は ログ失敗系のみで、UPDATE 失敗は SQLite 層の一般保証）。
 - 同時実行（single-instance ガード前提、PR #16 で導入済み）による補正競合はテスト対象外。
-- Windows native L3 は実施しない（75-ui §75.12 の規定どおり、差異注入は fault injection 要のため自動テスト + synthetic fixture の human visual confirmation で代替）。
+- Windows native L3 は実施しない。画面別根拠（packet Workflow State `Human Gate` 欄と同一）: UI-13 = 75-ui §75.12 が「差異あり → 選択補正」を fault injection 要のため L3 対象外と規定。UI-11c = 到達に synthetic row insertion が必要で DEV_WORKFLOW `L3 Eligibility` 条件 (3) により自動テストへ route（L3-7/L3-8 waive 実績が同規則の起源）。両画面とも synthetic fixture の human visual confirmation は実施する。
