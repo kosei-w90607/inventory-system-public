@@ -9,7 +9,7 @@ Risk: R3
 ## Contracts Under Test
 
 - SPEC-INV-CONTRACT-01: 全 production mutation の成功時 invalidation は `src/lib/invalidation-contract.ts` の SSOT 集合に一致する（導出原則 = 確定した table.column を読む query は invalidate、除外は E1〜E6）。**test oracle は契約表 D-052-Cn からの独立転記で、production SSOT を import しない**（Codex round 1 P1-1）
-- 契約表 の 16 mutation 行（packet Scope 参照。P5-1 / P5-2 / P5-3 / P5b-1 / P5b-2 / P5b-3 の欠落解消と、棚卸し開始・明細個数更新の SSOT 経由化 — rally round 2 C — を含む）
+- 契約表の 16 mutation 行（packet Scope 参照。P5-1 / P5-2 / P5-3 / P5b-1 / P5b-2 / P5b-3 の欠落解消と、棚卸し開始・明細個数更新の SSOT 経由化 — rally round 2 C — を含む）
 - `queryKeys.stockMovements` root/prefix helper の prefix 整合（product / list が root 配下）
 - P8-2: 期待集合は D-052-Cn から test 側へ独立転記する。production の invalidation-contract.ts およびその契約集合を import・参照してはならない。実呼出し集合との順序非依存・重複検出付き完全一致を行う（Codex round 2 P1 で旧共有-SSOT 文言を全箇所置換）
 
