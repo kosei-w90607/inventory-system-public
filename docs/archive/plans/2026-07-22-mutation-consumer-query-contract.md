@@ -2,7 +2,8 @@
 
 ## Workflow State
 
-- Phase: ready-hosted-final
+- Phase: archive
+- 遷移記録（ready-hosted-final → merge → archive、2026-07-23、圧縮記録）: merge evidence = 三点一致（PR HEAD = final L1 SHA = hosted success headSha = `2a2f017`）+ owner 委任に基づく Coordinator squash merge（PR #21、merge commit `fa21954`）。archive = 本 closeout commit（packet/Matrix の archive 移動 + WER + Plans.md/PROJECT_HANDOFF 同期）
 - 遷移記録（append-only 圧縮記録、2026-07-23）: implementing → local-verified（evidence = 実装 commit `e72ccec` 上の `local-ci.sh full` CLEAN + M1〜M4 red 実測 + Draft PR #21 三点一致。件数・SHA 証跡は PR body / .local/ci-evidence が authority — Evidence Ownership に基づき 2 pass P2-2 で本行から件数を除去）→ local-verified → independent-review（Double Audit 1 pass = Fable inline 突合 blocker 0、2 pass = Codex 独立 mutation testing）→ **2 pass が P1×3 検出により implementing へ差し戻し**（P1/P2=0 不成立のため human-confirm 遷移は発生せず、Reviewed Content HEAD は pending へ復帰 = 2 pass P2-1。この往復は未 push の非 canonical state commit 2 件を soft reset し本 content commit へ圧縮記録 — 2 pass P2-2。gate skip なし: 両 pass とも実施済み）
 - 旧遷移記録（state-only 圧縮の append-only 記載）: plan-gate → plan-approved の evidence = owner plan 承認（2026-07-23、介入 1/2、Plan Gate 収束 `48bf156` に対する承認）/ plan-approved → implementing の evidence = Coordinator による Codex 実装発注書交付（本 commit 直後）。圧縮記録は gate skip を許可しない
 - Risk: R3
@@ -258,7 +259,12 @@ Contract ID: SPEC-INV-CONTRACT-01
 
 ## Implementation Results
 
-（実装後に記入）
+（件数・exact-HEAD SHA は PR body が authority — D-035/D-038 Evidence Ownership）
+
+- 全 16 mutation / 18 success handler の invalidation を `invalidation-contract.ts`（D-052 SSOT）経由へ統一し、監査 findings P5-1〜P5b-3 の欠落全件と、契約化過程で発見した過剰（CSV の pluDirty）・網羅漏れ（棚卸し開始/明細更新）・C14 拡張を解消。prefix helper 3 domain 新設、stocktake error-path の named helper 集約、literal `["daily-sales"]` の factory 化
+- テストは契約表 D-052-Cn 独立転記 oracle との完全一致比較へ全面書換え。静的 gate は AST/import-graph 検査（transitive re-export 遮断・helper 引数変形拒否・computed call 検出 + survivor 3 形の fixture regression）。M1〜M8 の production-only mutation 感度を clean tree で実測（記録は PR body）
+- 設計正本: UI_TECH_STACK §2.5 へ導出原則（table.column 粒度・列カテゴリ基準・過剰禁止・prefix collateral 許容）+ 除外表 E1〜E6 を正本化、decision-log D-052 新設、function-design 15 doc + 45-cmd を SSOT 参照へ同期
+- PR: https://github.com/kosei-w90607/inventory-system-public/pull/21（squash merge `fa21954`、2026-07-23）
 
 ## Review Response
 
