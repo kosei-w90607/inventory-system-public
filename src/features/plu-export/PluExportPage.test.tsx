@@ -426,7 +426,7 @@ describe("PluExportPage (UI-08 / REQ-402)", () => {
     expect(mockScrollTo).toHaveBeenCalledWith({ top: 0, behavior: "smooth" });
   });
 
-  it("REQ-402 invalidates PLU and product queries after confirmation", async () => {
+  it("REQ-402 D-052-C14 invalidates the exact six-key oracle after confirmation", async () => {
     const user = userEvent.setup();
     mockSave.mockResolvedValue("/home/kosei/PLU_20260701.txt");
     mockWriteFile.mockResolvedValue(undefined);

@@ -136,6 +136,8 @@ export const d052InvalidationOracle = {
     queryKeys.productList.root(),
     queryKeys.stockMovements.root(),
     queryKeys.productForm.root(),
+    queryKeys.lowStock(false),
+    queryKeys.stockInquiryRoot(),
   ],
 } satisfies Record<string, (...args: never[]) => InvalidationKey[]>;
 
