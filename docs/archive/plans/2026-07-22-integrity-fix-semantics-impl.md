@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: ready-hosted-final
+- Phase: archive
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: 62a4b16
@@ -265,6 +265,7 @@ Do not transcribe exact-HEAD SHA or test counts here (D-035/D-038 Evidence Owner
 - Closure 検証（Coordinator、2026-07-22、対象 = `9b3552b`）: 三点一致（local = remote ref = PR head）実確認。fix diff が test module 内に限定されることを hunk 位置で確認。代表 survivor 2 件（S1 = Rust 側 / S8 = frontend 側）を独立 subagent で再注入・再実測し**両件 red**・復元後 clean tree を第三者確認。2 pass findings は P1/P2 とも全件解消と裁定。
 - **State compression record 3（append-only、2026-07-22）**: independent-review への再遷移は implementing → local-verified → independent-review を content commit 同乗で実体化する（backtrack 後の forward 再 walk）。local-verified の証跡 = Writer の `local-ci.sh full` exact-commit CLEAN（`9b3552b`、PR body 記載）。independent-review の証跡 = 2 pass 監査（実施済み）+ 上記 fix + closure 検証。gate skip なし。
 - Visual confirmation 裁定（owner、2026-07-22、介入 2/2 に同梱）: **skip + 残余リスク受容**。owner 判断 =「後で手動の大型テスト（roadmap 1-4 業務シナリオ受入テスト）の流れの中で確認する」。受容根拠 = UI-13 確定 dialog は差異注入なしに表示不能（75-ui §75.12 の L3 除外理由と同一）/ 文言は完全一致 assert（T7/T8、sr-only・hidden 否定込み）で機械固定済み / UI 構造は既存確立 component（StocktakePage Alert パターン、既存 Detail 拡張）の再利用で新規レイアウトなし。実機視認は 1-4 の synthetic DB 台本（差異を作って整合性検証 → 補正 → 操作ログ確認）に組み込む。DEV_WORKFLOW「If it is skipped, record who accepted the residual risk and why」に基づく記録。
+- **State compression record 4（closeout、2026-07-22）**: ready-hosted-final → merge → archive を本 closeout commit で一括実体化。merge の証跡 = hosted final run success（headSha = PR HEAD = PR body の Local full evidence SHA `509d85e`、三点一致）+ owner merge（squash `739b117`、2026-07-22）。archive の証跡 = 本 commit で packet / Matrix を `docs/archive/plans/` へ移動、Plans.md / PROJECT_HANDOFF 同期、[WER](2026-07-22-integrity-fix-semantics-impl-workflow-effectiveness-review.md) 作成。gate skip なし。
 - Owner Effort Budget 超過記録（2026-07-22）: relay 実績が上限 2 を超過（plan review / 実装 / 2 pass audit / fix の各発注 relay。試行フロー = Codex 先行 plan review の追加 relay に起因）。owner は各 relay を能動的に実施しており継続合意と判断、超過は本記録で明示。予算設計の見直しは closeout WER で扱う。
 
 Fill after review.
