@@ -24,7 +24,7 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PageHeader } from "@/components/patterns/PageHeader";
 import { FormSection } from "@/components/patterns/FormSection";
-import { queryKeys } from "@/lib/query-keys";
+import { invalidateByContract, invalidationContract } from "@/lib/invalidation-contract";
 
 import {
   THRESHOLD_FIELD_LABELS,
@@ -136,11 +136,7 @@ export function ThresholdSettingsPage() {
           if (result.failedField === null) {
             setSavedValues(submittedValues);
             setSaveAlertMessage(null);
-            void queryClient.invalidateQueries({
-              queryKey: queryKeys.thresholdSettings.settings(),
-            });
-            void queryClient.invalidateQueries({ queryKey: queryKeys.lowStock(false) });
-            void queryClient.invalidateQueries({ queryKey: queryKeys.stockInquiryRoot() });
+            void invalidateByContract(queryClient, invalidationContract.thresholdSave());
             toast.success(
               `在庫少の基準を保存しました（一般商品: ${submittedValues.stockLowThreshold}個以下 / 生地: ${submittedValues.stockLowThresholdFabric}cm以下）`,
               { id: "threshold-save-success" },
@@ -159,6 +155,7 @@ export function ThresholdSettingsPage() {
           void settingsQuery.refetch();
 
           if (result.succeededFields.length > 0) {
+            void invalidateByContract(queryClient, invalidationContract.thresholdSave());
             const succeededField = result.succeededFields[0];
             const message = `${THRESHOLD_FIELD_LABELS[failedField]}の保存に失敗しました。${THRESHOLD_FIELD_LABELS[succeededField]}は保存済みです。もう一度保存してください`;
             setSaveAlertMessage(message);

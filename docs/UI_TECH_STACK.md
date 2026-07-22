@@ -231,22 +231,33 @@ spike branch: `spike/invoke-specta`。
 | 棚卸し進行中（UI-10） | 0 | 5min | カウント入力は常に最新を参照 |
 | 設定（UI-11a） | Infinity | Infinity | 明示 `invalidate` 時のみ再取得 |
 
-**invalidation pattern**:
-- CMD 成功後、該当 entity の全 query を invalidate（例: 商品登録成功 → `queryClient.invalidateQueries({ queryKey: ['product'] })` で配下全無効化）
-- 大量 invalidate は mutation の `onSuccess` に集約、UI コンポーネント側にはばらまかない
-- 棚卸し確定 / CSV 取込み完了は複数 entity を同時 invalidate（`['inventory']` + `['product']` + `['sales']`）
+**invalidation contract（D-052）**:
 
-**判定**: 本表は初期案。v0.7.0 完了後の実運用で `refetchOnWindowFocus` / `refetchOnMount` 動作込みで再調整する。
+- mutation 成功時の invalidation 集合は `src/lib/invalidation-contract.ts` を実装 SSOT とし、各 success handler はその適用 helper を経由する。page / hook への key 列挙の分散を禁止する。
+- 集合は table.column 粒度で導出する。mutation が確定した列を query result が読む場合は invalidate し、除外は次表 E1〜E6 に明示したものだけとする。逆に、invalidate 対象の key / prefix 配下に書込み列を読む正当な consumer が一つもなければ過剰 invalidation として契約違反になる。正当な consumer を一つでも含む prefix invalidate は正当であり、同 prefix 配下の他 child query が巻き込まれる collateral は許容する。`staleTime` の値は除外根拠にしない。
+- `src/lib/query-keys.ts` の root/prefix helper を使い、literal key を success handler に書かない。D-052-S1 の静的回帰テストは、SSOT helper 本体、backup/restore domain、棚卸し conflict/error 防御 helper 以外の直接 `invalidateQueries` を fail-closed で拒否する。
+- test oracle は D-052-C1〜C16 から test 側へ独立転記し、production SSOT を import しない。実呼出し集合とは順序非依存・重複検出付きで完全一致比較する。
 
-**Phase 1 時点の確定値: 本表そのまま採用 + 補強 6 項目**（2026-04-20）
+| 除外 | 契約 |
+|---|---|
+| E1 operation_logs 系 query | 全 mutation で invalidate しない。管理画面は遷移時取得で足り、integrity latest-check も同じ分類とする。 |
+| E2 prefix collateral 全般 | 書込み列を読む正当な consumer を一つでも含む prefix invalidate は正当とし、同 prefix 配下の他 child query の collateral refetch を許容する。leaf 単位への厳密化は全 root の再設計を要するため本契約の対象外とする。`productForm.root()` が巻き込む supplier query は個別事例である。 |
+| E3 商品 master 表示列の JOIN stale | name / 部門 / 単位 / 価格だけの stale は自然回復を許容する。数量列・状態列は除外しない。 |
+| E4 閾値保存から backup 設定 query | 同じ `app_settings` table でも業務影響がないため除外する。 |
+| E5 新規商品 create から売上 query | 新規商品には売上行が存在しないため除外する。 |
+| E6 `departments.next_seq` | departments query の DTO には含まれるが現 UI は利用しないため除外する。発番は server TX 内で完結する。UI が利用し始める場合は再評価する。 |
+
+**staleTime / gcTime 表の判定**: 上表は初期案。v0.7.0 完了後の実運用で `refetchOnWindowFocus` / `refetchOnMount` 動作込みで再調整する。
+
+**Phase 1 時点の staleTime / gcTime 確定値: 上表を採用 + 補強 6 項目**（2026-04-20）
 
 補強事項:
 1. queryKey 第 3 要素はオブジェクト形式（`['product', 'list', { page, keyword }]`）で統一、tauri-specta の `commands.searchProducts(query)` と同形状
 2. TanStack Router `loader` との統合は `queryOptions` ヘルパーで key + fn を 1 箇所に集約
 3. `typedError<T, E>` wrapper の `res.status === 'ok'` 分岐を mutation `onSuccess` で必須
 4. グローバル `defaultOptions`: `refetchOnWindowFocus: false`（デスクトップアプリ）, `retry: 1`（CmdError は業務ロジック由来）
-5. invalidation は mutation の onSuccess に集約、UI コンポーネント側にばらまかない
-6. 複数 entity の同時 invalidate は明示リスト化（例: CSV 取込み完了 → `['inventory']` + `['product']` + `['sales']`）
+5. invalidation は mutation の onSuccess から D-052 SSOT helper を適用し、UI コンポーネント側に key 列挙をばらまかない
+6. 複数 entity の集合は `src/lib/invalidation-contract.ts` にだけ定義し、function-design 側は D-052-Cn を参照して重複列挙しない
 
 再調整トリガー 6 項目と Phase 2 完了時の実測再評価ポリシーは [ADR-003](research/2026-04-20-query-cache-adr.md) 参照。
 

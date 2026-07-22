@@ -34,7 +34,7 @@
 | REQ-202 / submit | UI-03-D14 | 画像保存中と返品保存中はヘッダ、明細、商品追加、画像選択、戻る/リセット導線を disabled にし、中断可能に見せない。 | backend DB は単一 TX だが画像保存は別操作。UI だけで cancel 可能に見せると、画像保存済み / DB未保存の状態を誤認させる。 |
 | REQ-202 / result | UI-03-D15 | 保存成功後は record_id、登録明細数、レジ戻し済みか、画像添付有無、stock_warnings、`idempotent_replay` の有無を表示し、「続けて返品・交換」「在庫照会へ戻る」を出す。 | 返品・交換は売上帳票ではなく在庫と帳面記録の確認が主目的。レジ戻し済みかどうかを保存後にも読めるようにする。 |
 | REQ-202 / list | UI-03-D16 | 画面下部に最近の返品・交換記録を `listReturns(1, 10, null, null)` で表示する。詳細表示・編集・取消・画像再表示は初回実装では扱わない。 | CMD-03 の一覧契約を UI から疎通確認でき、直近記録の保存結果も確認しやすい。詳細/取消は在庫・画像ファイル扱いが絡むため別設計にする。 |
-| REQ-202 / cache | UI-03-D17 | 保存成功時は `queryKeys.returns.root()` を invalidate する。`register_processed=false` の場合だけ `queryKeys.productList.root()`、`queryKeys.lowStock(false)`、`queryKeys.stockInquiryRoot()` も invalidate する。 | レジ戻し済みの返品はこの画面では在庫を動かさない。レジ未処理の返品・交換だけ在庫数と在庫警告を stale にする。 |
+| REQ-202 / cache | UI-03-D17 | 保存成功時の invalidation は [D-052](../decision-log.md) C5 と `src/lib/invalidation-contract.ts` を正本とし、`register_processed=true` では在庫系 consumer を対象外にする。 | レジ戻し済みの返品は在庫を書かないため、条件分岐も含めて mutation 契約で固定する。 |
 | REQ-202 / UI-03 | UI-03-D18 | Windows native L3 は owner 目視確認を必須にする。確認対象は navigation、種別切替、レジ戻し済みフラグの意味、商品検索/スキャン相当 Enter 追加、同一商品+direction 数量加算、validation、画像選択/プレビュー、保存結果、recent list、在庫照会へ戻る導線。 | 新規 operator-facing screen であり、レジ戻し済みの二重計上防止説明、連続入力、画像選択、フォーカス戻しは CI だけでは判断しづらい。 |
 | REQ-202 / note visibility | UI-03-D19 | 備考は返品・交換の確認優先度が高い項目として、入力時は複数行欄にし、保存結果・recent list・詳細画面では「備考」と分かる独立ラベル付き領域で表示する。本文は `text-foreground` 以上の濃さで、入力なしの場合は「備考なし」を muted 表示する。 | Windows native L3 で、備考が項目立てされず薄い文字で内容を判別しづらいことを確認した。返品理由、交換理由、顧客対応メモは後日の問い合わせ・月末確認で読むため、添付画像や補助説明に埋もれさせない。 |
 
@@ -145,8 +145,7 @@ UI-03 実装 PR では以下を generated binding に出す。
 
 ## 63.7 Cache / Navigation
 
-- 保存成功時に `queryKeys.returns.root()` を invalidate する。`queryKeys.returns.root()` / `queryKeys.returns.recent()` は UI-03 実装 PR で `src/lib/query-keys.ts` に追加する。
-- `register_processed=false` の保存成功時だけ、`queryKeys.productList.root()`、`queryKeys.lowStock(false)`、`queryKeys.stockInquiryRoot()` も invalidate する。
+- 保存成功時は D-052-C5 の SSOT helper を `register_processed` とともに適用する。具体的な query key 集合は `src/lib/invalidation-contract.ts` だけに置く。
 - `navigation.ts` の UI-03 は `to: "/inventory/return"`, `status: "active"` に切り替える。
 - 在庫照会の詳細カードから返品・交換へ遷移する場合、将来 `?productCode=...&direction=in` で初期商品追加する余地を残す。ただし初回実装では query 初期追加は非 scope とし、route だけ active にする。
 
@@ -176,7 +175,7 @@ UI-03 実装 PR では以下を generated binding に出す。
 - UI-03-D14: 画像保存中 / 返品保存中は戻る/リセット/入力/商品追加/画像選択が disabled になる。
 - UI-03-D15: result で record_id、明細数、レジ戻し済み、画像添付有無、warning、idempotent replay が読め、保存成功時にページ先頭へスクロールする。
 - UI-03-D16: 最近の返品・交換一覧を取得し、空/取得失敗/成功を表示できる。
-- UI-03-D17: 保存成功時に returns query を invalidate し、`register_processed=false` の時だけ在庫系 query を invalidate する。
+- UI-03-D17: `register_processed` の true/false 両経路で実呼出し集合が D-052-C5 の独立 test oracle と完全一致する。
 - UI-03-D18: Windows native L3 で連続入力、フォーカス戻し、日本語表示、レジ戻し済み説明、画像選択/プレビュー、保存結果を確認する。
 - UI-03-D19: 備考が入力、保存結果、recent list、返品・交換詳細で独立ラベル付き・通常本文色で読める。入力なしの場合は `備考なし` と表示する。
 

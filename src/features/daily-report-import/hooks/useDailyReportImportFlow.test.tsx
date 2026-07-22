@@ -9,7 +9,7 @@ import type {
   DailyReportPreviewData,
   DailyReportRollbackResult,
 } from "@/lib/bindings";
-import { queryKeys } from "@/lib/query-keys";
+import { d052InvalidationOracle, expectExactInvalidations } from "@/test/invalidation-oracle";
 import { open } from "@tauri-apps/plugin-dialog";
 import { readFile } from "@tauri-apps/plugin-fs";
 import {
@@ -418,10 +418,7 @@ describe("useDailyReportImportFlow_req401", () => {
     });
 
     expect(mockCommit).toHaveBeenCalledWith("preview-token-req401", false);
-    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: queryKeys.dailyReportImportLists() });
-    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ["daily-sales"] });
-    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: queryKeys.monthlySalesRoot() });
-    expect(invalidateSpy).not.toHaveBeenCalledWith({ queryKey: queryKeys.csvImportLists() });
+    expectExactInvalidations(invalidateSpy.mock.calls, d052InvalidationOracle.dailyReportImport());
   });
 
   it("REQ-401: rollback invalidates the same daily report and sales caches", async () => {
@@ -449,6 +446,7 @@ describe("useDailyReportImportFlow_req401", () => {
     await waitFor(() => {
       expect(result.current.state.status).toBe("result");
     });
+    invalidateSpy.mockClear();
 
     act(() => {
       result.current.rollback(501);
@@ -458,9 +456,6 @@ describe("useDailyReportImportFlow_req401", () => {
     });
 
     expect(mockRollback).toHaveBeenCalledWith(501);
-    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: queryKeys.dailyReportImportLists() });
-    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ["daily-sales"] });
-    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: queryKeys.monthlySalesRoot() });
-    expect(invalidateSpy).not.toHaveBeenCalledWith({ queryKey: queryKeys.csvImportLists() });
+    expectExactInvalidations(invalidateSpy.mock.calls, d052InvalidationOracle.dailyReportImport());
   });
 });

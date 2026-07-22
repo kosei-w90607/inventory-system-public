@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { commands, type PluExportPrepareResponse } from "@/lib/bindings";
+import { invalidateByContract, invalidationContract } from "@/lib/invalidation-contract";
 import { isInvokeError, unwrapResult } from "@/lib/invoke";
 import { scrollPageToTop } from "@/lib/page-scroll";
 import { queryKeys } from "@/lib/query-keys";
@@ -265,8 +266,7 @@ export function PluExportPage() {
         source: "commands",
         cmd: "confirm_plu_export_saved",
       });
-      await queryClient.invalidateQueries({ queryKey: queryKeys.pluDirty() });
-      await queryClient.invalidateQueries({ queryKey: queryKeys.productList.root() });
+      await invalidateByContract(queryClient, invalidationContract.pluExportConfirm());
       clearPendingPluExport();
       setPendingExport(null);
       setStatus("confirmed");

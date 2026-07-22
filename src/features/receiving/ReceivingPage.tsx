@@ -25,6 +25,7 @@ import {
 import { EmptyState } from "@/components/patterns/EmptyState";
 import { PageHeader } from "@/components/patterns/PageHeader";
 import { commands, type ProductWithRelations, type ReceivingCreateResult } from "@/lib/bindings";
+import { invalidateByContract, invalidationContract } from "@/lib/invalidation-contract";
 import { isInvokeError, toCmdError, unwrapResult } from "@/lib/invoke";
 import { scrollPageToTop } from "@/lib/page-scroll";
 import { queryKeys } from "@/lib/query-keys";
@@ -161,11 +162,7 @@ export function ReceivingPage() {
       setFailedSignature(null);
       setIdempotencyKey(createReceivingIdempotencyKey());
       toast.success("入庫記録を保存しました", { id: "receiving-save-success" });
-      await queryClient.invalidateQueries({ queryKey: queryKeys.receivings.root() });
-      await queryClient.invalidateQueries({ queryKey: queryKeys.inventoryRecords.root() });
-      await queryClient.invalidateQueries({ queryKey: queryKeys.productList.root() });
-      await queryClient.invalidateQueries({ queryKey: queryKeys.lowStock(false) });
-      await queryClient.invalidateQueries({ queryKey: queryKeys.stockInquiryRoot() });
+      await invalidateByContract(queryClient, invalidationContract.receiving());
     },
     onError: (error) => {
       if (error instanceof Error && error.message === "validation") return;

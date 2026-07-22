@@ -32,7 +32,7 @@ function PluExportPage(): JSX.Element
 6. 保存成功後は `target_product_codes`、保存先、件数、文字コード、保存日時を復帰用 `localStorage` に保存する。PLUファイル本文 (`bytes_base64`) は保存しない
 7. 画面再表示時に保存済み未確認の復帰状態があれば、ページ上部に `保存済みで未確認のPLU書出しがあります` を表示し、同じ exact product_code set で未反映解除できる導線を出す
 8. 利用者が保存済み扱いを確認した場合だけ `commands.confirmPluExportSaved({ product_codes })` を呼ぶ。復帰状態がある場合は復帰状態の `targetProductCodes` を使い、現在の差分一覧から再計算しない
-9. confirm成功後に差分対象と商品一覧をinvalidateし、復帰状態を削除して未反映解除結果を表示する
+9. confirm成功後に D-052-C14 の SSOT helper を適用し、復帰状態を削除して未反映解除結果を表示する
 
 ## 67.5 Design Decisions
 
@@ -83,7 +83,7 @@ function PluExportPage(): JSX.Element
 |---|---|---|---|
 | `commands.listPluDirty()` | none | `ProductResponse[]` | 差分対象一覧（`plu_target=1` かつ `plu_dirty=1`、D-028）。0件は空状態でエラーではない |
 | `commands.preparePluExport({ mode })` | `"diff"` / `"full"` | `bytes_base64`, `suggested_filename`, `content_type`, `encoding`, `count`, `target_product_codes`, `excluded`, `over_limit_warning` | CV17 1.1.1用 `.txt` 保存用。JAN不備・同一JAN価格不一致は `excluded`（要修正一覧）で返り生成はブロックしない。4,784件超過と生成行0件はエラー。`target_product_codes` は dedup 群の全メンバーを含むため `count` と長さが一致しないことがある。DB状態は変わらない |
-| `commands.confirmPluExportSaved({ product_codes })` | prepare結果の `target_product_codes` | `updated_count`, `confirmed_at` | 保存済み確認。成功後に `queryKeys.pluDirty()` と `queryKeys.productList.root()` をinvalidate |
+| `commands.confirmPluExportSaved({ product_codes })` | prepare結果の `target_product_codes` | `updated_count`, `confirmed_at` | 保存済み確認。成功後は D-052-C14 の SSOT helper を適用 |
 
 `target_product_codes` はprepare時のexact setである。confirm時にUIが現在の差分一覧から再計算しない。
 
@@ -134,9 +134,7 @@ function PluExportPage(): JSX.Element
 
 - prepare成功: invalidateしない。`plu_dirty` は変わらない
 - save cancel / save failure: invalidateしない
-- confirm成功: `queryKeys.pluDirty()`、`queryKeys.productList.root()`、ホームPLU通知用query keyをinvalidateする
-
-在庫、売上、入出庫履歴は変わらないためinvalidateしない。
+- confirm成功: [D-052](../decision-log.md) C14 と `src/lib/invalidation-contract.ts` を正本として SSOT helper を適用する。具体的な query key 集合と除外判断は本書へ複製しない。
 
 ## 67.11 Error / Recovery
 

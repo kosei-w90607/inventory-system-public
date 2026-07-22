@@ -101,7 +101,7 @@ fn rollback_daily_report_import(
 ) -> Result<DailyReportRollbackResult, CmdError>
 ```
 
-BIZ-08 `rollback_daily_report_import` を呼ぶ。成功時は日報関連queryをinvalidateするための結果を返す。sale_records / inventory_movements / products は変わらない。
+BIZ-08 `rollback_daily_report_import` を呼ぶ。成功時の frontend query invalidation は [D-052](../decision-log.md) C10 と `src/lib/invalidation-contract.ts` を正本とする。sale_records / inventory_movements / products は変わらない。
 
 ### 45.6 list_daily_report_imports
 

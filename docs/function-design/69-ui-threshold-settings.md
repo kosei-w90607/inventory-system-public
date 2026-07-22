@@ -101,7 +101,7 @@ function useSaveThresholds(): UseMutationResult<ThresholdSaveResult, InvokeError
 1. 画面表示時に `commands.getSettings()` を実行し、`extract-thresholds` で 2 key を抽出してフォーム初期値にする
 2. 利用者が数値を編集する（既存フォームパターン = useState + errors record。dirty 判定を未保存フラグとして保持。react-hook-form は本 repo で不使用のため導入しない）
 3. 「保存する」押下 → zod 検証（§69.7）→ dirty key のみ順に `commands.updateSetting()`
-4. 全件成功 → 成功 toast + query invalidation（§69.10）+ フォームを保存値で pristine 化
+4. 全件成功 → 成功 toast + D-052-C13 適用（§69.10）+ フォームを保存値で pristine 化。部分成功でも成功 field が 1 件以上なら同じ C13 を適用する
 5. 一部失敗 → §69.8 の部分失敗表示
 
 **画面状態**: `loading`（Skeleton）/ `load-error`（上部 Alert + 再試行）/ `ready`（pristine: 保存ボタン disabled、dirty: enabled）/ `saving`（保存ボタン disabled + 入力 disabled、二重送信防止）。UI-11b のような多段 state machine は持たない（get/update のみの単純画面）。
@@ -158,12 +158,7 @@ function useSaveThresholds(): UseMutationResult<ThresholdSaveResult, InvokeError
 
 ## 69.10 Query Invalidation
 
-保存成功後に invalidate する:
-
-- settings 取得 query（この画面と UI-11b が使う `getSettings` 系）
-- 在庫少判定を参照する query: UI-00 ホームサマリの在庫少件数、UI-06a 在庫照会の在庫少一覧（`list_low_stock` 系）
-
-具体的な query key は実装 PR で既存定義（UI-00 / UI-06a / UI-11b の実装）に従って列挙する。
+1 件以上の設定保存に成功した場合（全成功・部分成功の両方）、[D-052](../decision-log.md) C13 の SSOT helper を適用する。具体的な query key 集合は `src/lib/invalidation-contract.ts` だけに置き、失敗だけで成功 field が 0 件の場合は invalidate しない。
 
 ## 69.11 テスト設計の起点
 
@@ -171,7 +166,7 @@ RTL（text / role / value assertion、色 class のみの assert は不可）:
 
 - 検証 4 系統（空欄 / 非整数 / 0 / 100000）で FieldError 文言が出て `updateSetting` が呼ばれない
 - pristine では保存ボタン disabled、編集で enabled
-- 保存成功で toast 文言（保存値入り）と invalidation が発火する
+- 全成功と部分成功（成功 field 1 件以上）の両方で、実呼出し集合が D-052-C13 の独立 test oracle と完全一致する
 - 片方の key だけ編集して保存 → `updateSetting` が該当 key のみ 1 回呼ばれる（UI-11a-D2）
 - 部分失敗で失敗フィールド名を含む Alert が出る（§69.8 文言）
 - `getSettings` 失敗で上部 Alert + 再試行が出る

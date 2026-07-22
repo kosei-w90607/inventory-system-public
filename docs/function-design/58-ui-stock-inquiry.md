@@ -131,7 +131,7 @@ export type PaginatedResult<T> = {
 |---|---|---|
 | 更新 | `src/lib/query-keys.ts` | `stockInquiry.list(status, q, dept)` / `stockInquiry.detail(productCode)` helper + `stockInquiryRoot()` prefix helper 追加 |
 | 更新 | `src/config/navigation.ts` | UI-06a entry の `to: null → "/stock"` / `status: "pending" → "active"` |
-| 更新 | `src/features/csv-import/hooks/useCsvImportFlow.ts` | commit success / rollback success invalidation block に `stockInquiryRoot()` 追加（CSV 取込み後の在庫照会即時反映） |
+| 更新 | `src/features/csv-import/hooks/useCsvImportFlow.ts` | commit / rollback success は D-052-C8/C9 の SSOT helper を適用（在庫照会 consumer を含む） |
 
 合計: 新規 18 + 更新 3 = **21 file** + Vitest 8 = **29 file 実体**。frontend code 1100-1500 行 + 関数設計 450-550 行 + test 350-450 行。
 
@@ -308,7 +308,7 @@ export function useStockInquiry(params: {
 
 #### CSV 取込み後の invalidation（`useCsvImportFlow.ts` への追加）
 
-`commands.commitCsvImport` 成功時 / `commands.rollbackCsvImport` 成功時の invalidation block（既存で `lowStock(false)` まで invalidate）に `queryClient.invalidateQueries({ queryKey: queryKeys.stockInquiryRoot() })` を 1 行追加。`stockInquiryRoot()` は `["stock-inquiry"]` prefix helper で list / detail 両方を一括無効化（`csvImportLists` パターン踏襲）。
+`commands.commitCsvImport` / `rollbackCsvImport` 成功時は D-052-C8/C9 の SSOT helper を適用する。`stockInquiryRoot()` は list / detail を一括無効化する prefix factory だが、mutation 集合の具体列挙は `src/lib/invalidation-contract.ts` だけに置く。
 
 ### 58.6 純関数（テスト対象 4 + factory 1）
 

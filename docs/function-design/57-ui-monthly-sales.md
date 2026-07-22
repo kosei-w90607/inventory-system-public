@@ -228,6 +228,8 @@ export function useMonthlySalesReport(params: {
 }
 ```
 
+本 query を stale 化する mutation 集合は [D-052](../decision-log.md) と `src/lib/invalidation-contract.ts` を正本とし、本書へ producer 一覧を複製しない。`monthlySalesRoot()` は月・mode 別 key の prefix factory とする。
+
 #### useExportFile（8-7 共通化、`SalesReportType` 引数化）
 
 ```ts

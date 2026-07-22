@@ -2,8 +2,8 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useMemo, useReducer } from "react";
 import { toast } from "sonner";
 import { commands, type ImportPreview, type ImportRow } from "@/lib/bindings";
+import { invalidateByContract, invalidationContract } from "@/lib/invalidation-contract";
 import { CMD_ERROR_KIND, InvokeError, isInvokeError, unwrapResult } from "@/lib/invoke";
-import { queryKeys } from "@/lib/query-keys";
 import { extractFilename } from "@/features/csv-import/lib/extractFilename";
 import { PRODUCT_IMPORT_INITIAL_STATE, productImportReducer } from "./reducer";
 import type { ProductImportRecoverTo, ProductImportState } from "./types";
@@ -79,12 +79,7 @@ export function useProductImportFlow(): UseProductImportFlowResult {
     onSuccess: async (result) => {
       dispatch({ type: "commit_succeeded", result });
       toast.success("商品マスタをインポートしました", { id: "product-import-success" });
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: queryKeys.productList.root() }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.lowStock(false) }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.stockInquiryRoot() }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.pluDirty() }),
-      ]);
+      await invalidateByContract(queryClient, invalidationContract.productImport());
     },
     onError: (error: unknown) => {
       const invokeError = ensureInvokeError(error, "commit_import");

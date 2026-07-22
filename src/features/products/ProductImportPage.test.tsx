@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { commands, type ImportPreview, type ImportRow } from "@/lib/bindings";
-import { queryKeys } from "@/lib/query-keys";
+import { d052InvalidationOracle, expectExactInvalidations } from "@/test/invalidation-oracle";
 import { ProductImportPage } from "./ProductImportPage";
 
 vi.mock("@tanstack/react-router", () => ({
@@ -115,10 +115,7 @@ describe("ProductImportPage (UI-01c / REQ-104)", () => {
     expect(screen.getByText("1 件")).toBeInTheDocument();
     expect(screen.getAllByText("0 件")).toHaveLength(2);
     await waitFor(() => {
-      expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: queryKeys.productList.root() });
-      expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: queryKeys.lowStock(false) });
-      expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: queryKeys.stockInquiryRoot() });
-      expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: queryKeys.pluDirty() });
+      expectExactInvalidations(invalidateSpy.mock.calls, d052InvalidationOracle.productImport());
     });
   });
 

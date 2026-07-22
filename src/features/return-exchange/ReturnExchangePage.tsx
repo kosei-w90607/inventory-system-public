@@ -25,6 +25,7 @@ import {
 import { EmptyState } from "@/components/patterns/EmptyState";
 import { PageHeader } from "@/components/patterns/PageHeader";
 import { commands, type ProductWithRelations, type ReturnCreateResult } from "@/lib/bindings";
+import { invalidateByContract, invalidationContract } from "@/lib/invalidation-contract";
 import { isInvokeError, toCmdError, unwrapResult } from "@/lib/invoke";
 import { scrollPageToTop } from "@/lib/page-scroll";
 import { queryKeys } from "@/lib/query-keys";
@@ -229,13 +230,10 @@ export function ReturnExchangePage() {
       setFailedSignature(null);
       setIdempotencyKey(createReturnExchangeIdempotencyKey());
       toast.success("返品・交換を保存しました", { id: "return-save-success" });
-      await queryClient.invalidateQueries({ queryKey: queryKeys.returns.root() });
-      await queryClient.invalidateQueries({ queryKey: queryKeys.inventoryRecords.root() });
-      if (!values.registerProcessed) {
-        await queryClient.invalidateQueries({ queryKey: queryKeys.productList.root() });
-        await queryClient.invalidateQueries({ queryKey: queryKeys.lowStock(false) });
-        await queryClient.invalidateQueries({ queryKey: queryKeys.stockInquiryRoot() });
-      }
+      await invalidateByContract(
+        queryClient,
+        invalidationContract.returnExchange(values.registerProcessed),
+      );
     },
     onError: (error) => {
       if (error instanceof Error && error.message === "validation") return;

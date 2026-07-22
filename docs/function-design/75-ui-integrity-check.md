@@ -43,6 +43,7 @@ export function IntegrityCheckPage(): JSX.Element;
 | UI-13-D7 | frontendは生成済み`commands.*`と`unwrapResult`のみを使う。手書き`invoke`とfrontend独自DTOを禁止する。 | Rust型をwire contractのSSOTにする。 |
 | UI-13-D8 | 「差異なし」「差異あり」「システム在庫が多い」「入出庫の合計が多い」「補正済み」「一部未補正」を日本語で示し、icon/Badge/Alert/位置とsemantic色を併用する。 | 非IT・高齢operatorが色識別に依存せず状態を言い分けられることを機能要件とする。 |
 | UI-13-D9 | 確定ボタン・確認dialogから「棚卸し」語彙を排する。確定ボタンは「補正を確定」、dialog titleは「在庫数を入出庫の合計に合わせて補正します」、説明は「補正すると元に戻せません。選択した商品のシステム在庫を入出庫の合計に合わせて更新し、操作ログに記録します。」とする。 | 旧dialog title（棚卸し方式での記録をoperatorに約束する文言）は、movementを作らない直接更新 + 操作ログ記録という実挙動（BIZ-07-D2/D3、[D-051](../decision-log.md)）と乖離していた。表現と実挙動の一致を優先し、既習語彙（システム在庫 / 入出庫の合計 / 操作ログ）で構成する。UI-13-D8の色非依存原則とAmendment 5語彙は維持。実装反映は follow-up PR（`IntegrityCheckPage.tsx` + test）。 |
+| UI-13-D10 | fix 成功時の consumer query invalidation は [D-052](../decision-log.md) C12 と `src/lib/invalidation-contract.ts` を正本とする。latest-check query は D-052-E1 の operation_logs 系除外に従う。 | `products.stock_quantity` の直接補正を読む consumer を一貫して stale 化し、page 側の key 列挙を禁止する。 |
 
 ### 75.3 State / Lifecycle
 

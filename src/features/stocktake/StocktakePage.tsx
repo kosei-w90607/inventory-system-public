@@ -48,6 +48,7 @@ import {
   type StocktakeResult,
 } from "@/lib/bindings";
 import { isInvokeError, unwrapResult } from "@/lib/invoke";
+import { invalidateByContract, invalidationContract } from "@/lib/invalidation-contract";
 import { queryKeys } from "@/lib/query-keys";
 
 import { useCompleteStocktake } from "./hooks/useCompleteStocktake";
@@ -61,6 +62,10 @@ import { useLastCompletedStocktake } from "./hooks/useLastCompletedStocktake";
 import { useStocktakeItems } from "./hooks/useStocktakeItems";
 import { useStocktakeStatus } from "./hooks/useStocktakeStatus";
 import { useUpdateCount } from "./hooks/useUpdateCount";
+import {
+  refreshStocktakeItemsAfterValidation,
+  refreshStocktakeStateAfterConflict,
+} from "./stocktake-error-invalidation";
 import type { StocktakeSearch } from "./types";
 
 interface StocktakePageProps {
@@ -135,8 +140,7 @@ export function StocktakePage({ search, onSearchChange }: StocktakePageProps) {
   useEffect(() => {
     if (!itemsQuery.isError || !isStocktakeNotInProgressError(itemsQuery.error)) return;
     setErrorMessage(STOCKTAKE_NOT_IN_PROGRESS_MESSAGE);
-    void queryClient.invalidateQueries({ queryKey: queryKeys.stocktake.status() });
-    void queryClient.invalidateQueries({ queryKey: queryKeys.stocktake.itemsRoot() });
+    void refreshStocktakeStateAfterConflict(queryClient);
   }, [itemsQuery.error, itemsQuery.isError, queryClient]);
 
   function updateSearch(updater: (prev: StocktakeSearch) => StocktakeSearch) {
@@ -153,12 +157,10 @@ export function StocktakePage({ search, onSearchChange }: StocktakePageProps) {
         source: "commands",
         cmd: "start_stocktake",
       });
-      await queryClient.invalidateQueries({ queryKey: queryKeys.stocktake.status() });
-      await queryClient.invalidateQueries({ queryKey: queryKeys.stocktake.itemsRoot() });
+      await invalidateByContract(queryClient, invalidationContract.stocktakeStart());
     } catch (error) {
       if (isInvokeError(error) && error.cmdError.kind === "stocktake_in_progress") {
-        await queryClient.invalidateQueries({ queryKey: queryKeys.stocktake.status() });
-        await queryClient.invalidateQueries({ queryKey: queryKeys.stocktake.itemsRoot() });
+        await refreshStocktakeStateAfterConflict(queryClient);
         return;
       }
       setErrorMessage(describeError(error));
@@ -178,19 +180,16 @@ export function StocktakePage({ search, onSearchChange }: StocktakePageProps) {
       });
       setLastStocktakeSnapshot(lastCompletedQuery.data);
       setCompletedResult(result);
-      await queryClient.invalidateQueries({ queryKey: queryKeys.stocktake.status() });
-      await queryClient.invalidateQueries({ queryKey: queryKeys.stocktake.itemsRoot() });
-      await queryClient.invalidateQueries({ queryKey: queryKeys.stocktake.lastCompleted() });
+      await invalidateByContract(queryClient, invalidationContract.stocktakeComplete());
     } catch (error) {
       if (isStocktakeNotInProgressError(error)) {
         setErrorMessage(STOCKTAKE_NOT_IN_PROGRESS_MESSAGE);
-        await queryClient.invalidateQueries({ queryKey: queryKeys.stocktake.status() });
-        await queryClient.invalidateQueries({ queryKey: queryKeys.stocktake.itemsRoot() });
+        await refreshStocktakeStateAfterConflict(queryClient);
         return;
       }
       // validation エラー（force_fill 未入力超過等）は一覧を invalidate し、
       // 次回の確定操作で最新の uncounted_items に基づいた判定ができるようにする
-      void queryClient.invalidateQueries({ queryKey: queryKeys.stocktake.itemsRoot() });
+      void refreshStocktakeItemsAfterValidation(queryClient);
       setErrorMessage(describeError(error));
     }
   }
@@ -270,7 +269,7 @@ export function StocktakePage({ search, onSearchChange }: StocktakePageProps) {
             updateMutation={updateMutation}
             onError={setErrorMessage}
             onUpdated={() =>
-              void queryClient.invalidateQueries({ queryKey: queryKeys.stocktake.itemsRoot() })
+              void invalidateByContract(queryClient, invalidationContract.stocktakeCountUpdate())
             }
           />
 
@@ -493,8 +492,7 @@ export function StocktakeCountEntry({
     } catch (error) {
       if (isStocktakeNotInProgressError(error)) {
         onError(STOCKTAKE_NOT_IN_PROGRESS_MESSAGE);
-        void queryClient.invalidateQueries({ queryKey: queryKeys.stocktake.status() });
-        void queryClient.invalidateQueries({ queryKey: queryKeys.stocktake.itemsRoot() });
+        void refreshStocktakeStateAfterConflict(queryClient);
         return;
       }
       onError(describeError(error));

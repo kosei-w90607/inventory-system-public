@@ -66,7 +66,7 @@ UI-00 ([53-ui-home.md](53-ui-home.md)) が「4 useQuery 並列 + 部分障害許
 | `src/features/daily-report-import/DailyReportImportPage.tsx` | 日報取込みタブ。native dialog による Z001/Z002/Z005 3ファイル選択、プレビュー、上書き確認、取込み結果、論理取消を描画する |
 | `src/features/daily-report-import/types.ts` | `DailyReportImportState`（6 variant discriminated union）+ `DailyReportImportAction` 等の日報画面ローカル型 |
 | `src/features/daily-report-import/reducer.ts` | 日報取込み state 遷移の純関数。preview snapshot を importing/error 復帰に保持する |
-| `src/features/daily-report-import/hooks/useDailyReportImportFlow.ts` | `useReducer + useMutation × 3 + useBlocker` を束ねる日報取込み hook。日報ファイル選択は `@tauri-apps/plugin-dialog.open` + `@tauri-apps/plugin-fs.readFile` で行い、CMD-12 を呼ぶ。ファイル選択ダイアログは前回選択フォルダ（localStorage key `inventory:daily-report-import:last-dir:v1`、選択パスから導出し件数チェック前に保存）を `defaultPath` に渡して開く。localStorage 不可の環境では記憶のみ無効化し選択フローは継続する（issue #135 派生。CASIO PCツール保存領域の深い年/月ディレクトリを毎回辿る operator 負担の除去）。commit/rollback 成功時に `dailyReportImportLists()`、`["daily-sales"]`、`monthlySalesRoot()` をinvalidateする |
+| `src/features/daily-report-import/hooks/useDailyReportImportFlow.ts` | `useReducer + useMutation × 3 + useBlocker` を束ねる日報取込み hook。日報ファイル選択は `@tauri-apps/plugin-dialog.open` + `@tauri-apps/plugin-fs.readFile` で行い、CMD-12 を呼ぶ。ファイル選択ダイアログは前回選択フォルダ（localStorage key `inventory:daily-report-import:last-dir:v1`、選択パスから導出し件数チェック前に保存）を `defaultPath` に渡して開く。localStorage 不可の環境では記憶のみ無効化し選択フローは継続する（issue #135 派生。CASIO PCツール保存領域の深い年/月ディレクトリを毎回辿る operator 負担の除去）。commit/rollback 成功時は D-052-C10 の SSOT helper を適用する |
 | `src/features/daily-report-import/reducer.test.ts` | REQ-401 日報取込み UI state の focused unit tests |
 | `src/features/csv-import/CsvImportPage.tsx` 内 `CsvImportFlowPanel` | 既存Z004取込みフローの本体。`useCsvImportFlow()` の戻り値を子コンポーネントに分配し、`state.status` で 4 step UI を切替（`ParseStep` / `PreviewStep` / `ImportingStep` / `ResultStep`）+ `error` variant 重ね描き |
 | `src/features/csv-import/types.ts` | `CsvImportState`（6 variant discriminated union）+ `CsvImportAction`（9 variant）+ `ErrorRecoverTo` 等の画面ローカル型 |
@@ -176,19 +176,19 @@ invalid 遷移（例: `idle` で `parse_succeeded`）は reducer 内で現 state
 
 ### 55.3 CMD 呼び出しパターン
 
-D-4 採用 → 既存 `src/lib/query-keys.ts`（[53-ui-home.md §53.3](53-ui-home.md) で commit 3 新設）に prefix helper を追加し、commit 成功時の invalidation を helper 経由で呼ぶ。直書きはタイポで cache miss が起きるため禁止。
+D-4 / D-052 採用 → query key は `src/lib/query-keys.ts`、mutation ごとの invalidation 集合は `src/lib/invalidation-contract.ts` を正本とする。success handler の直書きはタイポと契約 drift を生むため禁止する。
 
 #### 3 useMutation の queryKey 不要 / onSuccess invalidation
 
-useMutation には queryKey を持たせない（TanStack Query v5 仕様、mutation は cache 対象外）。代わりに `onSuccess` で `queryClient.invalidateQueries(...)` を呼ぶ。
+useMutation には queryKey を持たせない（TanStack Query v5 仕様、mutation は cache 対象外）。書込み成功時は D-052 SSOT の適用 helper を呼ぶ。
 
 | useMutation | mutationFn | onSuccess invalidation 対象 |
 |---|---|---|
 | `parseAndValidateMutation` | `(args) => unwrapResult(commands.parseAndValidateCsv(args.fileBytes, args.filename))` | なし（preview はキャッシュ非対象、CMD 層内部 memory cache に保持） |
-| `commitMutation` | `(args) => unwrapResult(commands.commitCsvImport(args.previewToken, args.overwriteConfirmed))` | `queryKeys.csvImportLists()`（prefix match で `["csv-imports", "list", ...]` 配下全 invalidate）+ `["daily-sales"]` prefix（UI-09a 着手で `dailySales(settlementDate)` 単一 → prefix 化、UI-00 ホームの `dailySales(yesterday)` + UI-09a の `dailySales(today)` 両方 refetch、取込み直後 UX 上望ましい波及）+ `queryKeys.lowStock(false)` + `queryKeys.pluDirty()` |
-| `rollbackMutation` | `(args) => unwrapResult(commands.rollbackCsvImport(args.csvImportId))` | commit と同じ 4 件（rollback は逆方向だが帳簿への影響範囲は同じ） |
+| `commitMutation` | `(args) => unwrapResult(commands.commitCsvImport(args.previewToken, args.overwriteConfirmed))` | D-052-C8 の SSOT helperを適用 |
+| `rollbackMutation` | `(args) => unwrapResult(commands.rollbackCsvImport(args.csvImportId))` | D-052-C9 の SSOT helperを適用（集合は C8 と同じでも mutation entry は分離） |
 
-**prefix helper 追加の根拠**: UI-00 ホーム画面は `queryKeys.csvImports(1, 1)`（最終取込み 1 件取得）を購読するが、UI-07 一覧側は `queryKeys.csvImports(1, 5)` 等の別 page/perPage を想定する。page/perPage 違いで cache key が分かれるため、`csvImportLists: () => ["csv-imports", "list"] as const` という prefix helper を `query-keys.ts` に追加し（commit 3 同梱）、commit / rollback 成功時は `invalidateQueries({ queryKey: queryKeys.csvImportLists() })` で `["csv-imports", "list", ...]` 配下を一括 invalidate する。これは UI-00 の `lowStock` / `pluDirty` パターンと同じ TanStack Query v5 標準の prefix match 仕様（[v5 docs](https://tanstack.com/query/v5/docs/framework/react/guides/query-invalidation)）。
+**prefix helper の根拠**: page/perPage で分かれる query を mutation 後に一括で stale 化するため、root/prefix factory を `query-keys.ts` に置く。どの prefix を C8/C9 に含めるかは D-052 SSOT が所有する（TanStack Query v5 の [prefix match](https://tanstack.com/query/v5/docs/framework/react/guides/query-invalidation)）。
 
 #### 1 useQuery（一覧側は本 PR ではホーム画面が既購読のため新設しない）
 
@@ -196,7 +196,7 @@ UI-07 画面内には CSV 取込み履歴の表示はない（PreviewStep が du
 
 #### settlementDate 抽出の責務
 
-`commitMutation.onSuccess` で `queryKeys.dailySales(settlementDate)` を invalidate する際の `settlementDate` は、`state.status === "preview"` の `preview.file_info.settlement_date` から `useCsvImportFlow` 内で取り出して action に詰める。`import_succeeded` action に `settlementDate` を含めるのはこのため（§55.2 reducer 遷移表）。
+`settlementDate` は結果表示・rollback state のため、`state.status === "preview"` の `preview.file_info.settlement_date` から `useCsvImportFlow` 内で取り出して action に詰める。daily sales の invalidation は個別日付ではなく D-052-C8/C9 の root/prefix 契約が担う。
 
 #### CMD エラー経路
 
@@ -243,7 +243,7 @@ Phase 2 closeout で `typedInvoke` fallback / baseline 監視は撤去済み。C
 11. `dispatch({ type: "confirm_import", overwriteConfirmed })` → `commitMutation.mutate({ previewToken, overwriteConfirmed })`
 12. importing 中: `ImportingStep` が `Loader2 + animate-spin` + 「取込み中…数百行で約 N 秒かかります」+ 離脱不可バナー
 13. `useBlocker` が `state.status === "importing"` 期間 navigation を block（§55.7）
-14. 成功時: `dispatch({ type: "import_succeeded", result, settlementDate })` → `result` state へ遷移 + 4 件 invalidation
+14. 成功時: `dispatch({ type: "import_succeeded", result, settlementDate })` → `result` state へ遷移 + D-052-C8 の SSOT helper 適用
 
 **結果確認**:
 

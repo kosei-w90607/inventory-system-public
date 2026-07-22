@@ -82,7 +82,7 @@
 - **Why**: BIZ-06/CMD-10 は既に 3 つの意味あるエラー種別（`StocktakeInProgress` / `StocktakeNotInProgress` / `ValidationFailed`）を返すため、UI 側で汎用エラー表示にまとめると回復導線が失われる。
 - **Rejected**: 全エラーを共通の destructive Alert にまとめる（`stocktake_in_progress` は実は「継続表示に戻ればよいだけ」の非エラー的状況であり、汎用エラー表示では誤解を招く）。
 - **契約監査追記（2026-07-08）**: PR #159 の実装レビューで、UI-10-D11（フォーカス管理漏れ）を owner 確認質問で発見した後、73 全体を実装コードと突き合わせる監査を行った結果、`stocktake_not_in_progress` の実装漏れが追加で見つかった。`get_stocktake_items`（一覧取得）の `stocktake_not_in_progress` は invalidate 処理があったが、`update_count`（カウント保存）と `complete_stocktake`（確定）で発生した場合は kind 判定・invalidate ともに未実装で、汎用エラー表示のまま画面が完了済み状態に固まっていた。加えて表示文言もバックエンドのエラーメッセージ文字列をそのまま出しており（たまたま UI 側の想定文言と一致していたため既存テストでは検出できなかった）、UI 固定文言としてハードコードされていなかった。3 箇所（一覧取得・カウント保存・確定）すべてで共通ヘルパー `isStocktakeNotInProgressError` による kind 判定 + UI 固定文言 + invalidate に統一した。§73.9 のエラーテーブルに詳細を追記。
-- **追記2（2026-07-08、owner 指摘起因）**: force_fill 未入力超過 `validation` エラーについて、owner から「発生条件がそこまで珍しくないのでは」という指摘を受けて再検討した。`useStocktakeItems` は `staleTime: 0` で画面再訪時に自動再取得されるため大半のケースは緩和されるが、商品登録画面（`ProductFormPage.tsx`）は自身の商品一覧クエリしか invalidate しておらず、棚卸し関連クエリには触れない。確定直前に新商品登録を挟み、棚卸し画面へ戻った直後の自動再取得が完了する前に確定 CTA を押すと到達しうる。kind 判別不能という制約は変わらないため専用の再試行ボタンは作らないが、`handleCompleteConfirm` の `validation` エラー catch に `itemsRoot` invalidate を追加した。これにより次回の確定操作は最新の `uncounted_items` に基づいて正しく動作し、実質的な再試行導線として機能する。T20 追加。
+- **追記2（2026-07-08、owner 指摘起因）**: force_fill 未入力超過 `validation` エラーについて、owner から「発生条件がそこまで珍しくないのでは」という指摘を受けて再検討した。当時の商品登録画面（`ProductFormPage.tsx`）は自身の商品一覧クエリしか invalidate しておらず、確定直前に新商品登録を挟んだ場合に到達し得た。D-052-C1/C3 で商品登録・一括 import から棚卸し一覧への追随を追加した後も、別端末更新や race への防御として `handleCompleteConfirm` の validation error refresh は維持する。kind 判別不能という制約から専用再試行ボタンは作らず、次回操作を最新 `uncounted_items` に収束させる。T20 で検証する。
 
 ### UI-10-D9: カウント中の明細自動追加は通知なしで自然反映
 
@@ -257,7 +257,7 @@ function useFindStocktakeItem(): UseMutationResult<StocktakeItemDetail | null, I
 | `stocktake_not_in_progress`（カウント/確定時、完了済み棚卸しに対する操作） | UI 固定文言「この棚卸しは既に完了しています」を表示する（バックエンドのエラーメッセージ文字列をそのまま出さない）。`get_active_stocktake` / `get_stocktake_items` query を invalidate/再取得して `not_started` 表示へ切り替える。`update_count` / `complete_stocktake` どちらの呼び出しで発生した場合も同じ回復を行う。**結果表示への自動切り替えはしない**: 他端末で完了した棚卸しの `total_cost` / `adjusted_items` はこのクライアントの `complete_stocktake` レスポンスとしてしか得られず、技術的に再現できないため（実装レビュー起因、2026-07-08 契約監査）。 |
 | `find_stocktake_item` が `None`（棚卸し対象に存在しないコード/JAN） | 検索欄直下に「この商品は棚卸しの対象にありません。商品コードまたはJANを確認してください。新しく登録した商品は自動で追加されます」を表示する。エラー扱いにせず次の入力を受け付ける。 |
 | `validation`（`actual_count` 負数） | 発生源直近の FieldError「0以上の数値を入力してください」（DSR-03）。送信しない。 |
-| `validation`（`complete_stocktake` の未入力超過 + `force_fill=false`） | 通常はクライアント側で `uncounted_items` を見て事前に確認ダイアログへ誘導するため到達しない。到達しうるのは、確定直前に別画面で新商品登録を行い（UI-10-D9 の自動追加）、棚卸し画面へ戻った直後・`staleTime: 0` の自動再取得が完了する前に確定 CTA を押した場合。専用の kind 別再試行導線は実装しない（`CmdError.kind` は `validation` 共通で `actual_count` 負数と区別できず、message 文字列判別は UI-10-D1 で却下したアンチパターンに該当するため）。到達時は汎用エラー表示（`describeError`、バックエンドのメッセージには「force_fill=true で確定する」旨の案内を含む）に加え、一覧 query（`itemsRoot`）を invalidate/再取得する。これにより次回の確定 CTA 押下では最新の `uncounted_items` に基づいて正しいダイアログ文言・`force_fill` 値になり、実質的な再試行導線として機能する（2026-07-08 owner 指摘起因）。 |
+| `validation`（`complete_stocktake` の未入力超過 + `force_fill=false`） | 通常はクライアント側で `uncounted_items` を見て事前に確認ダイアログへ誘導するため到達しない。到達しうるのは、別端末更新、または mutation 後の invalidation/refetch と確定操作の race により、表示中の `uncounted_items` が最新 DB 状態へ追随する前に確定 CTA を押した場合である。確定直前に別画面で新商品登録を行い（UI-10-D9 の自動追加）、棚卸し画面へ戻った直後はその一例である。専用の kind 別再試行導線は実装しない（`CmdError.kind` は `validation` 共通で `actual_count` 負数と区別できず、message 文字列判別は UI-10-D1 で却下したアンチパターンに該当するため）。到達時は汎用エラー表示（`describeError`、バックエンドのメッセージには「force_fill=true で確定する」旨の案内を含む）に加え、一覧 query（`itemsRoot`）を invalidate/再取得する。これにより次回の確定 CTA 押下では最新の `uncounted_items` に基づいて正しいダイアログ文言・`force_fill` 値になり、実質的な再試行導線として機能する（2026-07-08 owner 指摘起因）。 |
 | `integrity_result: null` | 結果画面に「整合性チェックは実行できませんでした」を表示する。棚卸し確定自体は成功として扱う（BIZ 側で確定 TX とは独立して整合性チェックが実行されるため）。 |
 | 一覧/状態取得の通信エラー | 上部 Alert（destructive）+ 再試行ボタン。 |
 
@@ -302,12 +302,12 @@ function useFindStocktakeItem(): UseMutationResult<StocktakeItemDetail | null, I
 
 | Event | Query handling |
 |---|---|
-| `start_stocktake` 成功 | 棚卸し状態 query・一覧 query を invalidate。 |
-| `update_count` 成功 | 一覧 query・進捗を invalidate（該当行は楽観的更新でも可）。 |
-| `complete_stocktake` 成功 | 棚卸し状態 query・一覧 query・前回完了棚卸し query（`get_last_completed_stocktake`）を invalidate。 |
-| 商品登録・一括インポートによる自動追加 | 既存の商品/在庫系 invalidation に相乗りする形で一覧 query が再取得される（UI-10-D9、専用 invalidation は追加しない）。 |
+| `start_stocktake` 成功 | D-052-C15 の SSOT helper を適用。 |
+| `update_count` 成功 | D-052-C16 の SSOT helper を適用。 |
+| `complete_stocktake` 成功 | D-052-C11 の SSOT helper を適用。 |
+| 商品登録・一括インポートによる自動追加 | D-052-C1/C3 が棚卸し consumer を対象に含めるため一覧が再取得される（UI-10-D9、棚卸し画面から専用通知は出さない）。 |
 
-具体的な query key は実装 PR で既存命名規約（UI-06a/UI-09a 等）に従って列挙する。
+成功時の具体的な query key 集合は `src/lib/invalidation-contract.ts` だけに置く。conflict / not-in-progress と validation error の防御 refresh は success-path 契約の対象外で、named helper に隔離する。
 
 ## 73.12 テスト設計の起点
 

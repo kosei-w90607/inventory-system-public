@@ -30,7 +30,7 @@
 | REQ-204 / submit | UI-05-D10 | 保存中はヘッダ、明細、商品追加、戻る/リセット導線を disabled にし、中断可能に見せない。 | backend は単一 TX。UI だけで cancel 可能に見せると在庫反映状態を誤認させる。 |
 | REQ-204 / result | UI-05-D11 | 保存成功後は record_id、登録明細数、ロス原価合計、stock_warnings、`idempotent_replay` の有無を表示し、「続けて廃棄・破損」「在庫照会へ戻る」の導線を出す。 | 廃棄・破損は売上帳票ではなく在庫とロス把握が主目的。保存後にロス原価合計を読めるようにする。 |
 | REQ-204 / list | UI-05-D12 | 画面下部に最近の廃棄・破損記録を `listDisposals(1, 10, null, null)` で表示する。詳細表示・編集・取消は初回実装では扱わない。 | CMD-05 の一覧契約を UI から疎通確認でき、直近記録の保存結果も確認しやすい。詳細/取消は在庫復元が絡むため別設計にする。 |
-| REQ-204 / cache | UI-05-D13 | 保存成功時は `queryKeys.disposals.root()`、`queryKeys.productList.root()`、`queryKeys.lowStock(false)`、`queryKeys.stockInquiryRoot()` を invalidate する。売上・PLU dirty は無効化しない。 | 廃棄・破損で在庫数と在庫警告が変わる。売上帳票や PLU dirty 状態は変わらない。 |
+| REQ-204 / cache | UI-05-D13 | 保存成功時の invalidation は [D-052](../decision-log.md) C7 と `src/lib/invalidation-contract.ts` を正本とする。 | 廃棄で変わる在庫・履歴 consumer を一貫して stale 化し、画面側の key 列挙を廃止する。 |
 | REQ-204 / UI-05 | UI-05-D14 | Windows native L3 は owner 目視確認を必須にする。確認対象は navigation、商品検索/スキャン相当 Enter 追加、同一商品+種別+理由の数量加算、種別/理由/原価 validation、保存中 disable、保存結果、recent list、在庫照会へ戻る導線。 | 新規 operator-facing screen であり、ロス理由の入力、連続入力、フォーカス戻し、保存結果の可読性は CI だけでは判断しづらい。 |
 
 ## 64.2 Component / Route 構成
@@ -123,7 +123,7 @@ UI-05 実装 PR では以下を generated binding に出す。
 
 ## 64.7 Cache / Navigation
 
-- 保存成功時に `queryKeys.disposals.root()`、`queryKeys.productList.root()`、`queryKeys.lowStock(false)`、`queryKeys.stockInquiryRoot()` を invalidate する。`queryKeys.disposals.root()` / `queryKeys.disposals.recent()` は UI-05 実装 PR で `src/lib/query-keys.ts` に追加する。
+- 保存成功時は D-052-C7 の SSOT helper を適用する。具体的な query key 集合は `src/lib/invalidation-contract.ts` だけに置く。
 - `navigation.ts` の UI-05 は `to: "/inventory/disposal"`, `status: "active"` に切り替える。
 - 在庫照会の詳細カードから廃棄・破損へ遷移する場合、将来 `?productCode=...` で初期商品追加する余地を残す。ただし初回実装では query 初期追加は非 scope とし、route だけ active にする。
 
@@ -149,7 +149,7 @@ UI-05 実装 PR では以下を generated binding に出す。
 - UI-05-D10: submitting 中は戻る/リセット/入力/商品追加が disabled になる。
 - UI-05-D11: result で record_id、明細数、ロス原価合計、warning、idempotent replay が読め、保存成功時にページ先頭へスクロールする。
 - UI-05-D12: 最近の廃棄・破損一覧を取得し、空/取得失敗/成功を表示できる。
-- UI-05-D13: 保存成功時に disposal / product / lowStock / stockInquiry query が invalidated される。
+- UI-05-D13: 保存成功時の実呼出し集合が D-052-C7 の独立 test oracle と完全一致する。
 - UI-05-D14: Windows native L3 で連続入力、フォーカス戻し、日本語表示、種別/理由/原価 validation、保存結果を確認する。
 
 ## 64.10 変更履歴

@@ -11,7 +11,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { makeMockProductWithRelations } from "@/features/products/lib/test-fixtures";
 import { commands } from "@/lib/bindings";
 import type { Department, Stocktake, StocktakeItemDetail } from "@/lib/bindings";
-import { queryKeys } from "@/lib/query-keys";
+import { d052InvalidationOracle, expectExactInvalidations } from "@/test/invalidation-oracle";
 
 import { StocktakePage } from "./StocktakePage";
 import type { StocktakeSearch } from "./types";
@@ -203,7 +203,7 @@ describe("StocktakePage (UI-10)", () => {
   it("T2 start CTA calls startStocktake once and enters counting screen", async () => {
     const user = userEvent.setup();
     mockGetActive.mockResolvedValueOnce(ok(null)).mockResolvedValue(ok(activeStocktake()));
-    await renderPage();
+    const { invalidateSpy } = await renderPage();
 
     await user.click(await screen.findByRole("button", { name: "棚卸しを開始する" }));
 
@@ -212,6 +212,7 @@ describe("StocktakePage (UI-10)", () => {
     });
     expect(await screen.findByText("棚卸し中（開始日: 2026-10-01 09:00:00）")).toBeInTheDocument();
     expect(mockGetItems).toHaveBeenCalledWith(77, null, null, 1, 200);
+    expectExactInvalidations(invalidateSpy.mock.calls, d052InvalidationOracle.stocktakeStart());
   });
 
   it("T3 department filter and uncounted toggle change getStocktakeItems params", async () => {
@@ -394,7 +395,7 @@ describe("StocktakePage (UI-10)", () => {
     mockGetItems.mockResolvedValueOnce(
       listResponse({ progress: { total_items: 2, counted_items: 2, uncounted_items: 0 } }),
     );
-    await renderPage();
+    const { invalidateSpy } = await renderPage();
 
     await user.click(await screen.findByRole("button", { name: "棚卸しを確定する" }));
     expect(await screen.findByRole("heading", { name: "棚卸しの確定" })).toBeInTheDocument();
@@ -413,6 +414,10 @@ describe("StocktakePage (UI-10)", () => {
 
     await waitFor(() => {
       expect(mockComplete).toHaveBeenCalledWith(77, false);
+      expectExactInvalidations(
+        invalidateSpy.mock.calls,
+        d052InvalidationOracle.stocktakeComplete(),
+      );
     });
   });
 
@@ -686,7 +691,10 @@ describe("StocktakePage (UI-10)", () => {
     await user.click(screen.getByRole("button", { name: "数を保存" }));
 
     await waitFor(() => {
-      expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: queryKeys.stocktake.itemsRoot() });
+      expectExactInvalidations(
+        invalidateSpy.mock.calls,
+        d052InvalidationOracle.stocktakeCountUpdate(),
+      );
     });
     expect(screen.queryByText("新しい商品を追加しました")).not.toBeInTheDocument();
     expect(within(screen.getByRole("table")).getByText("青い糸")).toBeInTheDocument();
