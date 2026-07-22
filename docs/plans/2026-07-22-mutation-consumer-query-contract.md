@@ -7,7 +7,7 @@
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: 746ce6e
-- Amendments: e1ed3d4
+- Amendments: e1ed3d4, 2fa288f
 - Coordinator: Fable（main thread）
 - Writer: Codex（実装発注、レビュー前に PR 作成）
 - Plan Reviewer: Plan agent self rally（独立 context、新規指摘 0 まで）→ Codex plan review。順 3 実装 follow-up で試行した逆順（Codex 先行）は「正本確定済み実装 follow-up」条件付きの手法であり、本 change は契約が未正本のためオーソドックス順に戻す
