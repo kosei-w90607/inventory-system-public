@@ -2,10 +2,10 @@
 
 ## Workflow State
 
-- Phase: plan-draft
+- Phase: plan-gate
 - Risk: R3
 - Execution Mode: fable-window
-- Plan Commit: pending
+- Plan Commit: 746ce6e
 - Amendments: none
 - Coordinator: Fable（main thread）
 - Writer: Codex（実装発注、レビュー前に PR 作成）
