@@ -9,9 +9,9 @@ Risk: R3
 ## Contracts Under Test
 
 - SPEC-INV-CONTRACT-01: 全 production mutation の成功時 invalidation は `src/lib/invalidation-contract.ts` の SSOT 集合に一致する（導出原則 = 確定した table.column を読む query は invalidate、除外は E1〜E6）。**test oracle は契約表 D-052-Cn からの独立転記で、production SSOT を import しない**（Codex round 1 P1-1）
-- 契約表 v1 の 16 mutation 行（packet Scope 参照。P5-1 / P5-2 / P5-3 / P5b-1 / P5b-2 / P5b-3 の欠落解消と、棚卸し開始・明細個数更新の SSOT 経由化 — rally round 2 C — を含む）
+- 契約表 の 16 mutation 行（packet Scope 参照。P5-1 / P5-2 / P5-3 / P5b-1 / P5b-2 / P5b-3 の欠落解消と、棚卸し開始・明細個数更新の SSOT 経由化 — rally round 2 C — を含む）
 - `queryKeys.stockMovements` root/prefix helper の prefix 整合（product / list が root 配下）
-- P8-2: テストは SSOT から期待を導出し、実装列挙の写しにならない
+- P8-2: 期待集合は D-052-Cn から test 側へ独立転記する。production の invalidation-contract.ts およびその契約集合を import・参照してはならない。実呼出し集合との順序非依存・重複検出付き完全一致を行う（Codex round 2 P1 で旧共有-SSOT 文言を全箇所置換）
 
 ## Failure Modes
 
@@ -31,11 +31,11 @@ Risk: R3
 | Contract | Failure Mode | Test Type | Test Name | Would fail if... |
 |---|---|---|---|---|
 | 契約表 16 行（18 success handler、oracle は経路単位） | F1, F2 | unit（各 page test、invalidateSpy） | 各 mutation page test の契約遵守検査 — 期待 key 集合は**契約表 D-052-Cn から転記した独立 oracle**（invalidation-contract.ts を import しない）。実呼出し集合と順序非依存・重複検出付きで**完全一致比較**し、欠落・余分・重複いずれも red | production 実装の invalidate が oracle と 1 key でも異なる（不足・過剰・重複を含む） |
-| P5-3（整合性補正） | F1 | unit 新設 | IntegrityCheckPage: fix 成功時に SSOT 集合（productList.root / lowStock / stockInquiryRoot / stockMovements.root）が invalidate される（latest-check literal は rally round 1 P2-1 裁定で対象外） | fix 成功後に QueryClient へ触れない現行実装のまま |
+| P5-3（整合性補正） | F1 | unit 新設 | IntegrityCheckPage: fix 成功時の D-052-C12 独立 oracle 完全一致検査（全 6 key = productList.root / lowStock / stockInquiryRoot / stockMovements.root / productForm.root / stocktake.itemsRoot。latest-check literal は対象外） | fix 成功後に QueryClient へ触れない現行実装のまま、または C12 のいずれかの key 欠落 |
 | P5-1（商品 form） | F1 | unit 新設 | ProductFormPage: create / update / **廃番化・復帰 toggle**（Codex round 1 P1-3 — 現行 test は toggleDiscontinue が mock 宣言のみ）成功時の独立 oracle 完全一致検査 + 失敗時不発火 | productList.root のみ invalidate の現行実装のまま、または toggle 経路の SSOT helper 呼出し削除 |
-| P5b-3（閾値部分成功） | F4 | unit 新設 | ThresholdSettingsPage: succeededFields≥1 + failedField あり分岐で lowStock / stockInquiryRoot が invalidate される | 部分成功分岐が refetch のみの現行実装のまま |
-| P5b-1（棚卸し確定） | F1 | unit 既存拡張 | StocktakePage: 確定成功時に stocktake 3 key + 在庫系 + stockMovements.root が invalidate される（latest-check は rally round 2 B 裁定で対象外） | stocktake domain 3 key のみの現行実装のまま |
-| P5b-2（CSV commit/rollback） | F1 | unit **新設**（renderHook + QueryClient wiring — hook 実行 test は現状不在、page test は idle mock 全置換。useDailyReportImportFlow.test.tsx パターン。rally round 1 P1-2） | useCsvImportFlow: commit / rollback 成功時に productList.root / monthlySalesRoot / stockMovements.root を含む SSOT 集合検査 | 現行 5 key のままの実装 |
+| P5b-3（閾値部分成功） | F4 | unit 新設 | ThresholdSettingsPage: succeededFields≥1 + failedField あり分岐で D-052-C13 独立 oracle 完全一致（全 3 key = thresholdSettings.settings / lowStock / stockInquiryRoot） | 部分成功分岐が refetch のみの現行実装のまま |
+| P5b-1（棚卸し確定） | F1 | unit 既存拡張 | StocktakePage: 確定成功時の D-052-C11 独立 oracle 完全一致検査（stocktake 3 key + productList.root / lowStock / stockInquiryRoot / stockMovements.root / productForm.root の全量。latest-check は対象外） | stocktake domain 3 key のみの現行実装のまま |
+| P5b-2（CSV commit/rollback） | F1 | unit **新設**（renderHook + QueryClient wiring — hook 実行 test は現状不在、page test は idle mock 全置換。useDailyReportImportFlow.test.tsx パターン。rally round 1 P1-2） | useCsvImportFlow: commit / rollback 成功時の D-052-C8/C9 独立 oracle 完全一致検査（productList.root / monthlySalesRoot / stockMovements.root / productForm.root / stocktake.itemsRoot の追加分を含む全量） | 現行 5 key のままの実装 |
 | stockMovements.root | F3 | unit 新設 | query-keys: stockMovements.product(id) / list(...) が root() の prefix 配下にあることの構造検査 | root が別 prefix になり prefix invalidate が届かない |
 | 返品分岐 | F5 | unit 既存拡張 | ReturnExchangePage: register_processed=true では在庫系 key が invalidate されない negative 検査 | 分岐を無視して無条件 invalidate に変えた実装 |
 | SSOT shape | F2 の前提 | unit 新設 | invalidation-contract: 全 mutation エントリが非空集合であることの meta 検査 | 空集合エントリの混入 |
@@ -65,7 +65,7 @@ Findings Freeze 前に Writer が clean tree 上で実施し、結果を packet 
 
 | Source pattern / contract | Repository sites inspected | Ported sites | Explicit exclusions and reason | Test / evidence |
 |---|---|---|---|---|
-| query invalidation（onSuccess 集約） | `rg -n "invalidateQueries" src/features src/lib --glob '!*.test.*'` 全 69 呼び出し行 / 12 file（2026-07-22 実測） | 契約表 16 mutation | backupRestore 系 6 呼び出し（対象外 domain、契約表収載の例外）/ stocktake 画面内 error-path invalidate（列 refresh 用途、成功時契約の対象外） | AC の rg 全ヒット分類 |
+| query invalidation（onSuccess 集約） | `rg -n "invalidateQueries" src/features src/lib --glob '!*.test.*'` 全 69 呼び出し行 / 12 file（2026-07-22 実測） | 契約表 16 mutation | backupRestore 系 6 呼び出し（対象外 domain、契約表収載の例外）/ stocktake 画面内 error-path invalidate（named helper へ集約、成功時契約の対象外） | 静的 regression test（F7 行の `invalidation-contract.static.test.ts`） |
 | prefix helper パターン（csvImportLists / stockInquiryRoot / monthlySalesRoot） | query-keys.ts 全 domain | stockMovements.root + productForm.root + dailySales root 新設（productForm は一括 import の bulk 上書きが要求 = rally round 1 P2-2、dailySales は literal 4 箇所 = csv-import 2 + daily-report-import 2 の factory 化 = round 2 A、箇所数は round 3 P2-C 実測） | 単一 key domain（thresholdSettings 等）は prefix 不要。operation-logs 系 literal は P5-4 保全で非接触 | prefix 構造検査 test（3 domain） |
 
 ## Negative Paths
