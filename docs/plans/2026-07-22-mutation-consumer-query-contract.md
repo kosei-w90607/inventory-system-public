@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: implementing
+- Phase: human-confirm
 - 遷移記録（append-only 圧縮記録、2026-07-23）: implementing → local-verified（evidence = 実装 commit `e72ccec` 上の `local-ci.sh full` CLEAN + M1〜M4 red 実測 + Draft PR #21 三点一致。件数・SHA 証跡は PR body / .local/ci-evidence が authority — Evidence Ownership に基づき 2 pass P2-2 で本行から件数を除去）→ local-verified → independent-review（Double Audit 1 pass = Fable inline 突合 blocker 0、2 pass = Codex 独立 mutation testing）→ **2 pass が P1×3 検出により implementing へ差し戻し**（P1/P2=0 不成立のため human-confirm 遷移は発生せず、Reviewed Content HEAD は pending へ復帰 = 2 pass P2-1。この往復は未 push の非 canonical state commit 2 件を soft reset し本 content commit へ圧縮記録 — 2 pass P2-2。gate skip なし: 両 pass とも実施済み）
 - 旧遷移記録（state-only 圧縮の append-only 記載）: plan-gate → plan-approved の evidence = owner plan 承認（2026-07-23、介入 1/2、Plan Gate 収束 `48bf156` に対する承認）/ plan-approved → implementing の evidence = Coordinator による Codex 実装発注書交付（本 commit 直後）。圧縮記録は gate skip を許可しない
 - Risk: R3
@@ -13,7 +13,7 @@
 - Writer: Codex（実装発注、レビュー前に PR 作成）
 - Plan Reviewer: Plan agent self rally（独立 context、新規指摘 0 まで）→ Codex plan review。順 3 実装 follow-up で試行した逆順（Codex 先行）は「正本確定済み実装 follow-up」条件付きの手法であり、本 change は契約が未正本のためオーソドックス順に戻す
 - Final Reviewer: Double Audit（1 pass = Fable inline 契約突合 / 2 pass = Codex 独立 + 実 mutation testing）。R3 だが operator-visible state lifecycle（stale 表示の解消契約）に触れるため DEV_WORKFLOW Contract Audit の recommended second pass を採用
-- Reviewed Content HEAD: pending
+- Reviewed Content HEAD: 1cf1bbd
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
 - Human Gate: Ready 承認のみ残（plan 承認は 2026-07-23 消化、介入 1/2）。Windows native L3 は not-required — cache invalidation は視覚意匠変更を伴わず、「mutation 後に旧値が fresh 扱いで表示されない」は vitest の invalidateSpy 検査 + 実 mutation 感度実測で完結する（DEV_WORKFLOW L3 Eligibility: 自動テストで検証可能な挙動は L3 に置かない）。roadmap 1-4 受入テスト（一気通貫台本）が実機での事後検証点を兼ねる
