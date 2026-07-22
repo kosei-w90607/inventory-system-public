@@ -430,22 +430,32 @@ describe("UI-11c REQ-902", () => {
       },
     });
     renderPage();
-    await userEvent.setup().click(await screen.findByRole("button", { name: "詳細を表示" }));
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("button", { name: "詳細を表示" }));
 
     const technical = screen.getByText("技術情報（JSON）").closest("details");
     expect(technical).not.toBeNull();
-    expect(
-      within(technical as HTMLElement).getByText(/"product_code": "SYN-RAW"/),
-    ).toBeInTheDocument();
+    const technicalDetails = technical as HTMLElement;
+    const summary = within(technicalDetails).getByText("技術情報（JSON）");
+    const rawJson = within(technicalDetails).getByText(/"product_code": "SYN-RAW"/);
+    expect(technicalDetails).not.toHaveAttribute("hidden");
+    expect(summary).toBeVisible();
+    expect(technicalDetails).not.toHaveAttribute("open");
+    await user.click(summary);
+    expect(technicalDetails).toHaveAttribute("open");
+    expect(rawJson).toBeVisible();
   });
 
   it("test_operation_logs_req902_t11_keeps_generic_detail_for_other_operation_types", async () => {
+    const adjustments = [
+      { product_code: "SYN-GENERIC", old_stock: 3, new_stock: 5, adjustment: 2 },
+    ];
     listLogs.mockResolvedValue({
       status: "ok",
       data: {
         items: [
           {
-            ...log('{"product_code":"SYN-GENERIC","count":3}'),
+            ...log(JSON.stringify({ product_code: "SYN-GENERIC", count: 3, adjustments })),
             operation_type: "csv_import",
           },
         ],
@@ -463,63 +473,115 @@ describe("UI-11c REQ-902", () => {
     expect(within(summary).getByText("SYN-GENERIC")).toBeVisible();
     expect(within(summary).getByText("件数")).toBeVisible();
     expect(within(summary).getByText("3")).toBeVisible();
+    expect(within(summary).getByText("adjustments")).toBeVisible();
+    expect(within(summary).getByText(JSON.stringify(adjustments))).toBeVisible();
   });
 
-  it.each([
-    ["missing", { fixed_count: 1 }],
-    ["empty", { adjustments: [] }],
-    ["not array", { adjustments: "invalid" }],
-    ["missing field", { adjustments: [{ product_code: "SYN", old_stock: 1, new_stock: 2 }] }],
-    [
-      "null field",
-      { adjustments: [{ product_code: "SYN", old_stock: null, new_stock: 2, adjustment: 1 }] },
-    ],
-    [
-      "wrong type",
-      { adjustments: [{ product_code: "SYN", old_stock: "1", new_stock: 2, adjustment: 1 }] },
-    ],
+  const validAdjustment = {
+    product_code: "SYN",
+    old_stock: 1,
+    new_stock: 2,
+    adjustment: 1,
+  };
+  const fieldDefects = (["product_code", "old_stock", "new_stock", "adjustment"] as const).flatMap(
+    (field) => {
+      const wrongType = field === "product_code" ? 123 : "1";
+      return [
+        [
+          `${field} missing`,
+          {
+            adjustments: [
+              Object.fromEntries(Object.entries(validAdjustment).filter(([key]) => key !== field)),
+            ],
+          },
+        ],
+        [`${field} null`, { adjustments: [{ ...validAdjustment, [field]: null }] }],
+        [`${field} wrong type`, { adjustments: [{ ...validAdjustment, [field]: wrongType }] }],
+      ] satisfies [string, Record<string, unknown>][];
+    },
+  );
+  const malformedAdjustmentCases: [string, Record<string, unknown>][] = [
+    ["adjustments missing", { fixed_count: 1 }],
+    ["adjustments empty", { adjustments: [] }],
+    ["adjustments not array", { adjustments: "invalid" }],
     [
       "mixed valid and invalid",
       {
         adjustments: [
-          { product_code: "SYN-OK", old_stock: 1, new_stock: 2, adjustment: 1 },
+          { ...validAdjustment, product_code: "SYN-OK" },
           { product_code: "SYN-BAD", old_stock: 1, new_stock: 2 },
         ],
       },
     ],
     [
-      "unsafe integer",
+      "old_stock unsafe integer",
       {
         adjustments: [
           {
-            product_code: "SYN-UNSAFE",
+            ...validAdjustment,
             old_stock: Number.MAX_SAFE_INTEGER + 1,
-            new_stock: 2,
-            adjustment: 1,
           },
         ],
       },
     ],
-  ])("test_operation_logs_req902_t12_degrades_malformed_adjustments_%s", async (_name, detail) => {
-    listLogs.mockResolvedValue({
-      status: "ok",
-      data: {
-        items: [{ ...log(JSON.stringify(detail)), operation_type: "integrity_fix" }],
-        total_count: 1,
-        page: 1,
-        per_page: 20,
+    [
+      "new_stock unsafe integer",
+      {
+        adjustments: [
+          {
+            ...validAdjustment,
+            new_stock: Number.MAX_SAFE_INTEGER + 1,
+          },
+        ],
       },
-    });
-    renderPage();
-    await userEvent.setup().click(await screen.findByRole("button", { name: "詳細を表示" }));
+    ],
+    [
+      "adjustment unsafe integer",
+      {
+        adjustments: [
+          {
+            ...validAdjustment,
+            adjustment: Number.MAX_SAFE_INTEGER + 1,
+          },
+        ],
+      },
+    ],
+    ...fieldDefects,
+  ];
 
-    expect(screen.queryByRole("region", { name: "整合性補正の内容" })).toBeNull();
-    expect(screen.getByText("技術情報（JSON）")).toBeInTheDocument();
-  });
+  it.each(malformedAdjustmentCases)(
+    "test_operation_logs_req902_t12_degrades_malformed_adjustments_%s",
+    async (_name, detail) => {
+      listLogs.mockResolvedValue({
+        status: "ok",
+        data: {
+          items: [{ ...log(JSON.stringify(detail)), operation_type: "integrity_fix" }],
+          total_count: 1,
+          page: 1,
+          per_page: 20,
+        },
+      });
+      renderPage();
+      await userEvent.setup().click(await screen.findByRole("button", { name: "詳細を表示" }));
+
+      expect(screen.queryByRole("region", { name: "整合性補正の内容" })).toBeNull();
+      expect(screen.getByText("技術情報（JSON）")).toBeInTheDocument();
+      const summary = screen.getByRole("group", { name: "ログ詳細の要約" });
+      expect(summary).toBeVisible();
+      if ("adjustments" in detail) {
+        expect(within(summary).getByText("adjustments")).toBeVisible();
+        const adjustments = detail.adjustments;
+        const renderedAdjustments =
+          typeof adjustments === "string" ? adjustments : JSON.stringify(adjustments);
+        expect(within(summary).getByText(renderedAdjustments)).toBeVisible();
+      }
+    },
+  );
 
   it.each([
     [20, null],
     [21, "他 1 件は技術情報（JSON）で確認"],
+    [25, "他 5 件は技術情報（JSON）で確認"],
   ])("test_operation_logs_req902_t13_limits_adjustments_to_twenty_%s", async (count, remainder) => {
     const adjustments = Array.from({ length: count }, (_, index) => ({
       product_code: `SYN-${String(index).padStart(2, "0")}`,

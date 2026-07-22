@@ -306,19 +306,66 @@ mod tests {
         .unwrap()
     }
 
-    fn movement_snapshot(conn: &DbConnection) -> Vec<(i64, String, i64, bool)> {
+    #[derive(Debug, PartialEq, Eq)]
+    struct MovementSnapshot {
+        id: i64,
+        product_code: String,
+        movement_type: String,
+        quantity: i64,
+        stock_after: i64,
+        reference_type: Option<String>,
+        reference_id: Option<i64>,
+        note: Option<String>,
+        is_voided: bool,
+        created_at: String,
+    }
+
+    fn movement_snapshot(conn: &DbConnection) -> Vec<MovementSnapshot> {
         let mut stmt = conn
             .prepare(
-                "SELECT id, product_code, quantity, is_voided
+                "SELECT id, product_code, movement_type, quantity, stock_after,
+                        reference_type, reference_id, note, is_voided, created_at
                  FROM inventory_movements ORDER BY id",
             )
             .unwrap();
         stmt.query_map([], |row| {
-            Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?))
+            Ok(MovementSnapshot {
+                id: row.get(0)?,
+                product_code: row.get(1)?,
+                movement_type: row.get(2)?,
+                quantity: row.get(3)?,
+                stock_after: row.get(4)?,
+                reference_type: row.get(5)?,
+                reference_id: row.get(6)?,
+                note: row.get(7)?,
+                is_voided: row.get(8)?,
+                created_at: row.get(9)?,
+            })
         })
         .unwrap()
         .collect::<Result<Vec<_>, _>>()
         .unwrap()
+    }
+
+    fn product_snapshot(
+        conn: &DbConnection,
+        product_code: &str,
+    ) -> (serde_json::Value, i64, String) {
+        let product = product_repo::find_by_product_code(conn, product_code)
+            .unwrap()
+            .unwrap()
+            .product;
+        let stock_quantity = product.stock_quantity;
+        let updated_at = product.updated_at.clone();
+        let mut invariant_columns = serde_json::to_value(product).unwrap();
+        let invariant_columns = invariant_columns.as_object_mut().unwrap();
+        invariant_columns.remove("stock_quantity");
+        invariant_columns.remove("updated_at");
+        (
+            serde_json::Value::Object(invariant_columns.clone()),
+            stock_quantity,
+            updated_at,
+        )
     }
 
     // ===== run_integrity_check テスト =====
@@ -491,22 +538,23 @@ mod tests {
         add_movement(&conn, "T3-A", 7);
         add_movement(&conn, "T3-B", 8);
         add_voided_movement(&conn, "T3-B", 20);
-        let before = movement_snapshot(&conn);
+        let movements_before = movement_snapshot(&conn);
+        let movement_count_before = movement_count(&conn);
+        let products_before = [
+            ("T3-A", product_snapshot(&conn, "T3-A"), 7),
+            ("T3-B", product_snapshot(&conn, "T3-B"), 8),
+        ];
 
         fix_integrity(&mut conn, &["T3-A".to_string(), "T3-B".to_string()]).unwrap();
 
-        assert_eq!(movement_snapshot(&conn), before);
-        for product_code in ["T3-A", "T3-B"] {
-            let product_count: i64 = conn
-                .query_row(
-                    "SELECT COUNT(*) FROM products WHERE product_code = ?1",
-                    [product_code],
-                    |row| row.get(0),
-                )
-                .unwrap();
-            let per_product_before = before
+        assert_eq!(movement_count(&conn), movement_count_before);
+        assert_eq!(movement_snapshot(&conn), movements_before);
+        for (product_code, (invariant_before, stock_before, updated_at_before), expected_stock) in
+            products_before
+        {
+            let per_product_before = movements_before
                 .iter()
-                .filter(|(_, code, _, _)| code == product_code)
+                .filter(|movement| movement.product_code == product_code)
                 .count() as i64;
             let per_product_after: i64 = conn
                 .query_row(
@@ -515,8 +563,14 @@ mod tests {
                     |row| row.get(0),
                 )
                 .unwrap();
-            assert_eq!(product_count, 1);
             assert_eq!(per_product_after, per_product_before);
+
+            let (invariant_after, stock_after, updated_at_after) =
+                product_snapshot(&conn, product_code);
+            assert_eq!(stock_after, expected_stock, "{product_code}");
+            assert_ne!(stock_after, stock_before, "{product_code}");
+            assert!(updated_at_after >= updated_at_before, "{product_code}");
+            assert_eq!(invariant_after, invariant_before, "{product_code}");
         }
     }
 

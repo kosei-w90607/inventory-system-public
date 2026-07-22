@@ -203,17 +203,19 @@ describe("UI-13 REQ-904 在庫整合性検証", () => {
     await openFixDialog();
 
     const dialog = screen.getByRole("alertdialog");
-    expect(
-      within(dialog).getByRole("heading", {
-        name: "在庫数を入出庫の合計に合わせて補正します",
-      }),
-    ).toBeVisible();
-    expect(within(dialog).getByText("補正すると元に戻せません")).toBeVisible();
-    expect(
-      within(dialog).getByText(
-        "選択した商品のシステム在庫を入出庫の合計に合わせて更新し、操作ログに記録します。",
-      ),
-    ).toBeVisible();
+    const dialogTitle = within(dialog).getByRole("heading", {
+      name: "在庫数を入出庫の合計に合わせて補正します",
+    });
+    const warningTitle = within(dialog).getByText("補正すると元に戻せません");
+    const warningDescription = within(dialog).getByText(
+      "選択した商品のシステム在庫を入出庫の合計に合わせて更新し、操作ログに記録します。",
+    );
+    for (const visibleCopy of [dialogTitle, warningTitle, warningDescription]) {
+      expect(visibleCopy).toBeVisible();
+      expect(visibleCopy).not.toHaveClass("sr-only");
+      expect(visibleCopy).not.toHaveAttribute("hidden");
+      expect(visibleCopy).not.toHaveAttribute("aria-hidden");
+    }
     expect(
       within(dialog).getByText(
         "補正すると元に戻せません。選択した商品のシステム在庫を入出庫の合計に合わせて更新し、操作ログに記録します。",
