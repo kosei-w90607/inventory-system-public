@@ -490,7 +490,9 @@ describe("DisposalPage (UI-05 / REQ-204)", () => {
 
     await act(async () => {
       await deferredSearch.promise;
-      await Promise.resolve();
+      await new Promise<void>((resolve) => {
+        window.setTimeout(resolve, 0);
+      });
     });
     expect(screen.queryByText("保存event競合商品")).not.toBeInTheDocument();
     expect(screen.queryByText("DP-002")).not.toBeInTheDocument();

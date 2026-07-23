@@ -74,8 +74,9 @@ UI-11c-D15 testは次のproduction component経路を使う。
 1. 商品Aを明細へ追加し、商品B検索をdeferredにする。
 2. save click直前からTanStack Queryの実notification schedulerをtest内queueへ一時退避し、
    `createDisposal` mock内で商品B検索を解決、save Promise自体はpendingに保つ。
-3. 1 microtaskを明示的に進め、保存eventは実行済みだがmutation pending通知が未flushの
-   async gapで、B候補/message/明細が反映されないことを検査する。
+3. 商品Bのdeferred Promiseと次のevent-loop turnまで明示的に進め、保存eventは実行済み
+   だがmutation pending通知が未flushのasync gapで、B候補/message/明細が
+   反映されないことを検査する。
 4. schedulerをproduction defaultへ戻してpending通知をflushし、保存中表示へ到達する。
 5. save failureを返した後、literal keywordで再検索できることを検査する。
 
