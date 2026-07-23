@@ -454,7 +454,9 @@ fn restore_backup_with_ops(
         phase: ManifestPhase::Active,
     };
     if let Err((message, _renamed)) = write_manifest(ops, &paths, &manifest, false) {
-        let _ = remove_if_exists(ops, &paths.manifest_temp);
+        if let Err(error) = remove_if_exists(ops, &paths.manifest_temp) {
+            tracing::warn!(path = %paths.manifest_temp.display(), error = %error, "復元manifest一時ファイルのcleanupに失敗（継続）");
+        }
         return Err(RestoreError::Recovered(message));
     }
 

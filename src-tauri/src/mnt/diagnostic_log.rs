@@ -93,22 +93,40 @@ pub fn init_diagnostics(config: &DiagnosticLogConfig) -> Result<(), DiagnosticLo
 /// §70.5 cleanup_old_log_files
 /// アプリ起動時に呼ばれる（ログ初期化の後）。
 pub fn cleanup_old_log_files(config: &DiagnosticLogConfig) -> Result<u32, std::io::Error> {
-    if !config.log_dir.exists() {
-        return Ok(0);
-    }
-
     let today = chrono::Local::now().date_naive();
+    let entries = match std::fs::read_dir(&config.log_dir) {
+        Ok(entries) => entries
+            .map(|entry| entry.map(|entry| entry.path()))
+            .collect::<Vec<_>>(),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(0),
+        Err(error) => return Err(error),
+    };
+    Ok(cleanup_log_entries(config, today, entries))
+}
+
+fn cleanup_log_entries<I>(config: &DiagnosticLogConfig, today: chrono::NaiveDate, entries: I) -> u32
+where
+    I: IntoIterator<Item = std::io::Result<PathBuf>>,
+{
     let mut deleted_count = 0u32;
-
-    for entry in std::fs::read_dir(&config.log_dir)? {
-        let entry = match entry {
-            Ok(e) => e,
-            Err(_) => continue,
+    for entry in entries {
+        let path = match entry {
+            Ok(path) => path,
+            Err(error) => {
+                tracing::warn!(error = %error, "診断ログエントリの走査に失敗（継続）");
+                continue;
+            }
         };
-
-        let file_name = match entry.file_name().into_string() {
-            Ok(name) => name,
-            Err(_) => continue,
+        let file_name = match path
+            .file_name()
+            .and_then(|name| name.to_str())
+            .map(str::to_owned)
+        {
+            Some(name) => name,
+            None => {
+                tracing::warn!(path = %path.display(), "診断ログファイル名のUTF-8変換に失敗（継続）");
+                continue;
+            }
         };
 
         // ファイル名パターン: {prefix}.YYYY-MM-DD
@@ -119,12 +137,15 @@ pub fn cleanup_old_log_files(config: &DiagnosticLogConfig) -> Result<u32, std::i
 
         let file_date = match chrono::NaiveDate::parse_from_str(&date_str, "%Y-%m-%d") {
             Ok(d) => d,
-            Err(_) => continue,
+            Err(error) => {
+                tracing::warn!(file = %file_name, error = %error, "診断ログ日付の解析に失敗（継続）");
+                continue;
+            }
         };
 
         let age_days = (today - file_date).num_days();
         if age_days > config.retention_days as i64 {
-            if let Err(e) = std::fs::remove_file(entry.path()) {
+            if let Err(e) = std::fs::remove_file(&path) {
                 tracing::warn!(
                     file = %file_name,
                     error = %e,
@@ -136,7 +157,7 @@ pub fn cleanup_old_log_files(config: &DiagnosticLogConfig) -> Result<u32, std::i
         }
     }
 
-    Ok(deleted_count)
+    deleted_count
 }
 
 /// ファイル名から日付部分を抽出する
@@ -297,5 +318,29 @@ mod tests {
 
         let deleted = cleanup_old_log_files(&config).unwrap();
         assert_eq!(deleted, 0);
+    }
+
+    #[test]
+    fn test_cleanup_req700_entry_error_warns_and_continues() {
+        // REQ-700 / MNT-04-D1: entry単位の走査失敗は記録して継続
+        let dir = tempfile::tempdir().unwrap();
+        let config = DiagnosticLogConfig {
+            log_dir: dir.path().to_path_buf(),
+            retention_days: 30,
+            file_prefix: "app".into(),
+        };
+        let old = dir.path().join("app.2020-01-01");
+        let entries = vec![
+            Err(std::io::Error::new(
+                std::io::ErrorKind::PermissionDenied,
+                "injected",
+            )),
+            Ok(old),
+        ];
+        let today = chrono::Local::now().date_naive();
+        let (deleted, logs) =
+            crate::test_tracing::capture(|| cleanup_log_entries(&config, today, entries));
+        assert_eq!(deleted, 0);
+        assert!(logs.contains("診断ログエントリ") || logs.contains("entry"));
     }
 }

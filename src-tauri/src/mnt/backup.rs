@@ -202,7 +202,7 @@ pub fn create_backup(conn: &DbConnection, backup_dir: &Path) -> Result<BackupRes
     // 4. ファイルサイズ取得
     let size_bytes = std::fs::metadata(&backup_path)
         .map(|m| m.len())
-        .unwrap_or(0);
+        .map_err(|e| DbError::QueryFailed(format!("バックアップサイズ取得に失敗: {}", e)))?;
 
     // 5. 操作ログ記録（失敗してもバックアップは成功扱い）
     if let Err(e) = db::system_repo::insert_operation_log(
@@ -283,7 +283,7 @@ pub fn list_backups(backup_dir: &Path) -> Result<Vec<BackupInfo>, std::io::Error
         let filename_str = filename.to_string_lossy().to_string();
 
         if let Some(created_at) = extract_datetime_from_backup(&filename_str) {
-            let size_bytes = entry.metadata().map(|m| m.len()).unwrap_or(0);
+            let size_bytes = entry.metadata()?.len();
             let file_path = entry.path().to_string_lossy().to_string();
 
             backups.push(BackupInfo {
@@ -319,18 +319,12 @@ pub fn check_auto_backup(conn: &DbConnection, backup_dir: &Path) -> Result<bool,
     let today_prefix = format!("{}{}_", BACKUP_PREFIX, today_str);
 
     // 3. 今日のバックアップファイルを走査
-    let today_files: Vec<String> = match std::fs::read_dir(backup_dir) {
-        Ok(entries) => entries
-            .filter_map(|e| e.ok())
-            .filter_map(|e| {
-                let name = e.file_name().to_string_lossy().to_string();
-                if name.starts_with(&today_prefix) && name.ends_with(BACKUP_EXT) {
-                    Some(name)
-                } else {
-                    None
-                }
-            })
-            .collect(),
+    let today_files = match std::fs::read_dir(backup_dir) {
+        Ok(entries) => collect_today_backup_names(
+            backup_dir,
+            &today_prefix,
+            entries.map(|e| e.map(|entry| entry.path())),
+        )?,
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => vec![],
         Err(e) => {
             return Err(DbError::QueryFailed(format!(
@@ -388,6 +382,34 @@ pub fn check_auto_backup(conn: &DbConnection, backup_dir: &Path) -> Result<bool,
     create_backup(conn, backup_dir)?;
     run_cleanup(conn, backup_dir);
     Ok(true)
+}
+
+fn collect_today_backup_names<I>(
+    backup_dir: &Path,
+    today_prefix: &str,
+    entries: I,
+) -> Result<Vec<String>, DbError>
+where
+    I: IntoIterator<Item = std::io::Result<PathBuf>>,
+{
+    let mut names = Vec::new();
+    for entry in entries {
+        let path = entry.map_err(|error| {
+            DbError::QueryFailed(format!(
+                "バックアップディレクトリのエントリ読み取りに失敗 ({}): {}",
+                backup_dir.display(),
+                error
+            ))
+        })?;
+        let name = path
+            .file_name()
+            .map(|name| name.to_string_lossy().into_owned())
+            .unwrap_or_default();
+        if name.starts_with(today_prefix) && name.ends_with(BACKUP_EXT) {
+            names.push(name);
+        }
+    }
+    Ok(names)
 }
 
 /// cleanup_old_backups を設定値で実行するヘルパー（エラーはwarnのみ）
@@ -1108,5 +1130,20 @@ mod tests {
             }
             other => panic!("QueryFailedが期待されるが、{:?} が返された", other),
         }
+    }
+
+    #[test]
+    fn test_check_auto_backup_req901_entry_error_propagates() {
+        // REQ-901 / MNT-01-D6: entry走査失敗は判定を不確実にするため伝搬
+        let dir = tempfile::tempdir().unwrap();
+        let today = chrono::Local::now().format("%Y%m%d").to_string();
+        let entries = vec![Err(std::io::Error::new(
+            std::io::ErrorKind::PermissionDenied,
+            "injected",
+        ))];
+        let result = collect_today_backup_names(dir.path(), &format!("backup_{}_", today), entries);
+        assert!(
+            matches!(result, Err(DbError::QueryFailed(message)) if message.contains("injected"))
+        );
     }
 }
