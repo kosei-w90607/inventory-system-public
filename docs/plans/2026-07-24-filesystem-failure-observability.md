@@ -2,11 +2,11 @@
 
 ## Workflow State
 
-- Phase: plan-gate
+- Phase: implementing
 - Risk: R3
 - Execution Mode: dual-vendor-no-fable
-- Plan Commit: pending
-- Amendments: none
+- Plan Commit: 94f303b
+- Amendments: c0fd2f0
 - Coordinator: Sol（本 thread、scope 精査・design・packet・実装・検証・PR）
 - Writer: Sol（Plan 承認後の単独 writer）
 - Plan Reviewer: owner が起動する Sonnet 5 fresh context
@@ -14,7 +14,7 @@
 - Reviewed Content HEAD: pending
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
-- Human Gate: Plan 承認 / Ready / merge。Windows native L3 は不要
+- Human Gate: pending Ready / merge。Windows native L3 は不要
 
 - State Narrative（2026-07-24）: public-writer clone、期待 origin、clean `main`、
   基準 HEAD `508db72`、active packet 不在を確認し、fetch / checkout / pull で
@@ -23,6 +23,22 @@
   source design 更新、Plan Packet、Test Design Matrix を同じ plan-first content
   commit にまとめる。`kickoff -> spec-check -> design -> plan-draft -> plan-gate` を
   materialize するが、owner の Plan 承認前には production code を変更しない。
+
+- State Narrative（2026-07-24、gated amendment）: Plan Review一次（Sonnet 5 fresh
+  context）はP1=0 / P2=1 / P3=1、総評「承認可」。P2-1として
+  `cleanup_log_entries<I>(config, today, entries) -> u32` と
+  `collect_today_backup_names<I>(backup_dir, today_prefix, entries) -> Result<Vec<String>, DbError>`
+  （`I: IntoIterator<Item = std::io::Result<PathBuf>>`）をsource design / packetへ追記し、
+  productionとfailure-injection testが同一generic helperを通ることを固定した。
+  P3-1としてMNT-02 retention parse fallbackの除外理由を「P3-1同型のconfig parse
+  fallback（R2/M相当）の別是正単位」へ訂正した。amendment commitは`c0fd2f0`。
+
+- State Narrative（2026-07-24、state-only）: ownerはJ1-J7を全件承認し、J7は
+  `c0fd2f0`反映を条件としてPlan承認した。元のplan-first commit `94f303b`を
+  `Plan Commit`へ固定し、amendmentを`Amendments`へ追記する。
+  `plan-gate -> plan-approved -> implementing`を隣接forward transitionとして
+  materializeし、Sol単独writerのproduction実装を開始する。P1/P2レビュー条件、
+  source design、Matrix、workflow gate evidenceはこのstate-only commitより前に存在する。
 
 ## Owner Effort Budget
 
