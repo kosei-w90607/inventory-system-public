@@ -1169,34 +1169,57 @@ mod tests {
     }
 
     #[test]
-    fn test_check_auto_backup_req901_entry_error_propagates() {
-        // REQ-901 / MNT-01-D6: entry走査失敗は判定を不確実にするため伝搬
+    fn test_check_auto_backup_req901_entry_error_propagates_without_creating_backup() {
+        // REQ-901 / MNT-01-D6: entry走査失敗は判定を不確実にするため伝搬し、
+        // create / cleanup に進まない
         let dir = tempfile::tempdir().unwrap();
-        let today = chrono::Local::now().format("%Y%m%d").to_string();
+        let sentinel = dir.path().join("inventory_backup_20000101_010203.db");
+        std::fs::write(&sentinel, b"synthetic existing backup").unwrap();
+        let before = std::fs::read(&sentinel).unwrap();
         let entries = vec![Err(std::io::Error::new(
             std::io::ErrorKind::PermissionDenied,
             "injected",
         ))];
-        let result = collect_today_backup_names(dir.path(), &format!("backup_{}_", today), entries);
+        let result = collect_today_backup_names(dir.path(), "inventory_backup_20260724_", entries);
         assert!(
             matches!(result, Err(DbError::QueryFailed(message)) if message.contains("injected"))
         );
+        assert_eq!(std::fs::read(&sentinel).unwrap(), before);
+        assert_eq!(std::fs::read_dir(dir.path()).unwrap().count(), 1);
     }
 
     #[test]
     fn test_list_backups_req901_metadata_error_propagates() {
+        // REQ-901 / MNT-01-D6: metadata error で partial list を返さない
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("inventory_backup_20260724_010203.db");
         std::fs::write(&path, b"db").unwrap();
         let _failure = fail_metadata(&path);
-        assert!(list_backups(dir.path()).is_err());
+        let error = list_backups(dir.path()).unwrap_err();
+        assert_eq!(error.kind(), std::io::ErrorKind::PermissionDenied);
+        assert!(error.to_string().contains("injected metadata failure"));
     }
 
     #[test]
     fn test_create_backup_req901_metadata_error_propagates_without_success_log() {
+        // REQ-901 / MNT-01-D6: metadata error は成功 result / operation log にしない
         let (dir, conn) = setup_test_db();
+        let backup_dir = dir.path().join("backups");
         let _failure = fail_any_metadata();
-        let result = create_backup(&conn, dir.path());
+        let result = create_backup(&conn, &backup_dir);
         assert!(matches!(result, Err(DbError::QueryFailed(message)) if message.contains("サイズ")));
+        let success_logs: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM operation_logs WHERE operation_type = 'backup_create'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(success_logs, 0);
+        assert_eq!(
+            std::fs::read_dir(&backup_dir).unwrap().count(),
+            1,
+            "VACUUM output may remain after metadata failure, but must not be reported as success"
+        );
     }
 }

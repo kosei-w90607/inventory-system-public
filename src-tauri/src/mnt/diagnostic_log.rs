@@ -113,7 +113,11 @@ where
         let path = match entry {
             Ok(path) => path,
             Err(error) => {
-                tracing::warn!(error = %error, "診断ログエントリの走査に失敗（継続）");
+                tracing::warn!(
+                    path = %config.log_dir.display(),
+                    error = %error,
+                    "診断ログエントリの走査に失敗（継続）"
+                );
                 continue;
             }
         };
@@ -321,6 +325,28 @@ mod tests {
     }
 
     #[test]
+    fn test_cleanup_req700_distinguishes_not_found_from_read_dir_error() {
+        // REQ-700 / MNT-04-D1: NotFound だけを正常な空状態として扱う
+        let dir = tempfile::tempdir().unwrap();
+        let missing = DiagnosticLogConfig {
+            log_dir: dir.path().join("missing"),
+            retention_days: 30,
+            file_prefix: "app".into(),
+        };
+        assert_eq!(cleanup_old_log_files(&missing).unwrap(), 0);
+
+        let not_a_directory = dir.path().join("not-a-directory");
+        std::fs::write(&not_a_directory, b"synthetic").unwrap();
+        let unreadable = DiagnosticLogConfig {
+            log_dir: not_a_directory,
+            retention_days: 30,
+            file_prefix: "app".into(),
+        };
+        let error = cleanup_old_log_files(&unreadable).unwrap_err();
+        assert_ne!(error.kind(), std::io::ErrorKind::NotFound);
+    }
+
+    #[test]
     fn test_cleanup_req700_entry_error_warns_and_continues() {
         // REQ-700 / MNT-04-D1: entry単位の走査失敗は記録して継続
         let dir = tempfile::tempdir().unwrap();
@@ -330,17 +356,111 @@ mod tests {
             file_prefix: "app".into(),
         };
         let old = dir.path().join("app.2020-01-01");
+        std::fs::write(&old, b"old log").unwrap();
         let entries = vec![
             Err(std::io::Error::new(
                 std::io::ErrorKind::PermissionDenied,
                 "injected",
             )),
-            Ok(old),
+            Ok(old.clone()),
         ];
         let today = chrono::Local::now().date_naive();
         let (deleted, logs) =
             crate::test_tracing::capture(|| cleanup_log_entries(&config, today, entries));
-        assert_eq!(deleted, 0);
+        assert_eq!(deleted, 1, "entry error 後も後続の削除を継続する");
+        assert!(!old.exists());
         assert!(logs.contains("診断ログエントリ") || logs.contains("entry"));
+        assert!(
+            logs.contains(dir.path().to_string_lossy().as_ref()),
+            "entry error must include the directory context: {logs:?}"
+        );
+    }
+
+    #[test]
+    fn test_cleanup_req700_invalid_calendar_date_warns_and_continues() {
+        // REQ-700 / MNT-04-D1: owned filename の暦日不正は記録して後続を処理
+        let dir = tempfile::tempdir().unwrap();
+        let config = DiagnosticLogConfig {
+            log_dir: dir.path().to_path_buf(),
+            retention_days: 30,
+            file_prefix: "app".into(),
+        };
+        let invalid = dir.path().join("app.2026-02-30");
+        let old = dir.path().join("app.2020-01-01");
+        std::fs::write(&invalid, b"invalid date").unwrap();
+        std::fs::write(&old, b"old log").unwrap();
+
+        let (deleted, logs) = crate::test_tracing::capture(|| {
+            cleanup_log_entries(
+                &config,
+                chrono::Local::now().date_naive(),
+                vec![Ok(invalid.clone()), Ok(old.clone())],
+            )
+        });
+
+        assert_eq!(deleted, 1);
+        assert!(invalid.exists());
+        assert!(!old.exists());
+        assert!(logs.contains("app.2026-02-30") && logs.contains("解析に失敗"));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn test_cleanup_req700_non_unicode_filename_warns_and_continues() {
+        // REQ-700 / MNT-04-D1: non-Unicode filename は記録して後続を処理
+        use std::ffi::OsString;
+        use std::os::unix::ffi::OsStringExt;
+
+        let dir = tempfile::tempdir().unwrap();
+        let config = DiagnosticLogConfig {
+            log_dir: dir.path().to_path_buf(),
+            retention_days: 30,
+            file_prefix: "app".into(),
+        };
+        let invalid = dir.path().join(OsString::from_vec(b"app.\xff".to_vec()));
+        let old = dir.path().join("app.2020-01-01");
+        std::fs::write(&invalid, b"non-unicode").unwrap();
+        std::fs::write(&old, b"old log").unwrap();
+
+        let (deleted, logs) = crate::test_tracing::capture(|| {
+            cleanup_log_entries(
+                &config,
+                chrono::Local::now().date_naive(),
+                vec![Ok(invalid.clone()), Ok(old.clone())],
+            )
+        });
+
+        assert_eq!(deleted, 1);
+        assert!(invalid.exists());
+        assert!(!old.exists());
+        assert!(logs.contains("UTF-8変換に失敗"));
+    }
+
+    #[test]
+    fn test_cleanup_req700_delete_failure_warns_and_continues() {
+        // REQ-700 / MNT-04-D1: 個別 remove failure は記録して後続を処理
+        let dir = tempfile::tempdir().unwrap();
+        let config = DiagnosticLogConfig {
+            log_dir: dir.path().to_path_buf(),
+            retention_days: 30,
+            file_prefix: "app".into(),
+        };
+        let undeletable = dir.path().join("app.2020-01-01");
+        let deletable = dir.path().join("app.2019-01-01");
+        std::fs::create_dir(&undeletable).unwrap();
+        std::fs::write(&deletable, b"old log").unwrap();
+
+        let (deleted, logs) = crate::test_tracing::capture(|| {
+            cleanup_log_entries(
+                &config,
+                chrono::Local::now().date_naive(),
+                vec![Ok(undeletable.clone()), Ok(deletable.clone())],
+            )
+        });
+
+        assert_eq!(deleted, 1);
+        assert!(undeletable.exists());
+        assert!(!deletable.exists());
+        assert!(logs.contains("WARN") && logs.contains("削除に失敗"));
     }
 }
