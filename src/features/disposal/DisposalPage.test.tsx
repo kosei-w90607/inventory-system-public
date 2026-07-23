@@ -489,6 +489,7 @@ describe("DisposalPage (UI-05 / REQ-204)", () => {
     expect(mockCreateDisposal).toHaveBeenCalledTimes(1);
 
     await act(async () => {
+      await deferredSearch.promise;
       await Promise.resolve();
     });
     expect(screen.queryByText("保存event競合商品")).not.toBeInTheDocument();
