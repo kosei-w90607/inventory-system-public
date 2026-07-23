@@ -234,17 +234,33 @@ prefix_rule(
     justification = "Allows documented Rust format check in a trusted project session.",
 )
 
-# GitHub and git mutations remain intentional review points.
+# Local, reflog-recoverable git operations run without prompting so agent
+# sessions can complete commit cycles autonomously. The owner-gated git set
+# remains an intentional review point below, aligning approval prompts with
+# the workflow's human gates.
 prefix_rule(
-    pattern = ["wsl.exe", "-d", "Ubuntu-22.04", "--cd", "/home/kosei/Projects/inventory-system-public", "--exec", "git", ["add", "commit", "push", "merge", "rebase", "branch", "tag", "restore", "checkout", "switch", "rm", "mv"]],
-    decision = "prompt",
-    justification = "Git mutations require explicit user intent.",
+    pattern = ["wsl.exe", "-d", "Ubuntu-22.04", "--cd", "/home/kosei/Projects/inventory-system-public", "--exec", "git", ["add", "commit", "branch", "restore", "checkout", "switch", "mv"]],
+    decision = "allow",
+    justification = "Local recoverable git operations are auto-approved in a trusted project session.",
 )
 
 prefix_rule(
-    pattern = ["git", ["add", "commit", "push", "merge", "rebase", "branch", "tag", "restore", "checkout", "switch", "rm", "mv"]],
+    pattern = ["git", ["add", "commit", "branch", "restore", "checkout", "switch", "mv"]],
+    decision = "allow",
+    justification = "Local recoverable git operations are auto-approved in a trusted project session.",
+)
+
+# Human-gated git operations remain intentional review points.
+prefix_rule(
+    pattern = ["wsl.exe", "-d", "Ubuntu-22.04", "--cd", "/home/kosei/Projects/inventory-system-public", "--exec", "git", ["push", "merge", "rebase", "tag", "rm"]],
     decision = "prompt",
-    justification = "Git mutations require explicit user intent in a trusted project session.",
+    justification = "Push, integration, tagging, and tracked-file removal require explicit user intent.",
+)
+
+prefix_rule(
+    pattern = ["git", ["push", "merge", "rebase", "tag", "rm"]],
+    decision = "prompt",
+    justification = "Push, integration, tagging, and tracked-file removal require explicit user intent in a trusted project session.",
 )
 
 prefix_rule(

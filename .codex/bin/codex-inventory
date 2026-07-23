@@ -21,7 +21,25 @@ NATIVE_STATUS_ENABLED="${CODEX_INVENTORY_NATIVE_STATUS:-1}"
 DISABLE_ALT_SCROLL="${CODEX_INVENTORY_DISABLE_ALT_SCROLL:-1}"
 NO_BAR_STATUS_LINE="${CODEX_INVENTORY_NO_BAR_STATUS_LINE:-[\"model-with-reasoning\",\"context-remaining\",\"context-used\",\"five-hour-limit\",\"weekly-limit\",\"git-branch\",\"branch-changes\",\"approval-mode\",\"codex-version\"]}"
 NO_BAR_PROFILE="${CODEX_INVENTORY_NO_BAR_PROFILE:-inventory-no-bar}"
+# モデル・effort の明示 pin。config.toml の既定値はランタイムの可用性フォールバック
+# （リミット接近時の自動降格）に負けるため、起動フラグで固定する。空文字で pin 解除。
+PIN_MODEL="${CODEX_INVENTORY_MODEL-gpt-5.6-sol}"
+PIN_EFFORT="${CODEX_INVENTORY_REASONING_EFFORT-high}"
+APPROVAL_POLICY="${CODEX_INVENTORY_APPROVAL_POLICY:-on-request}"
 ALT_SCROLL_SUPPRESSOR_PID=""
+
+codex_pin_args=()
+if [[ -n "$PIN_MODEL" ]]; then
+  codex_pin_args+=(-m "$PIN_MODEL")
+fi
+if [[ -n "$PIN_EFFORT" ]]; then
+  codex_pin_args+=(-c "model_reasoning_effort=\"$PIN_EFFORT\"")
+fi
+# agent は自分の実行モデルを内観できないため、pin 値を env で公開する。
+# agent 側はこれを読んで「pinned wrapper 経由で起動された」ことを自己検証できる
+# （実際の serving model の保証は起動フラグ + owner の status line 目視が担う）。
+export CODEX_INVENTORY_PINNED_MODEL="$PIN_MODEL"
+export CODEX_INVENTORY_PINNED_EFFORT="$PIN_EFFORT"
 
 inside_tmux=false
 if [[ "${1:-}" == "--inside-tmux" ]]; then
@@ -50,6 +68,9 @@ if [[ "$debug" == true ]]; then
   printf '  no_bar_profile: %s\n' "$NO_BAR_PROFILE"
   printf '  no_bar_profile_file: %s\n' "${CODEX_HOME:-$HOME/.codex}/${NO_BAR_PROFILE}.config.toml"
   printf '  disable_alt_scroll: %s\n' "$DISABLE_ALT_SCROLL"
+  printf '  pin_model: %s\n' "${PIN_MODEL:-'(unpinned)'}"
+  printf '  pin_effort: %s\n' "${PIN_EFFORT:-'(unpinned)'}"
+  printf '  approval_policy: %s\n' "$APPROVAL_POLICY"
   if [[ "${CODEX_INVENTORY_NO_BAR:-}" == "1" ]] || [[ "$TMUX_BAR_ENABLED" != "1" ]] || ! command -v tmux >/dev/null 2>&1; then
     printf '  launch_mode: plain codex\n'
   elif [[ -z "${TMUX:-}" && "$inside_tmux" != true ]]; then
@@ -105,9 +126,10 @@ run_codex_plain() {
   set +e
   "$REAL_CODEX" \
     "${codex_config_args[@]}" \
+    "${codex_pin_args[@]}" \
     -C "$REPO" \
     --sandbox workspace-write \
-    --ask-for-approval on-request \
+    --ask-for-approval "$APPROVAL_POLICY" \
     "$@"
   status="$?"
   set -e
@@ -157,7 +179,8 @@ tmux select-pane -t "$main_pane" >/dev/null 2>&1 || true
 
 start_alt_scroll_suppressor
 "$REAL_CODEX" \
+  "${codex_pin_args[@]}" \
   -C "$REPO" \
   --sandbox workspace-write \
-  --ask-for-approval on-request \
+  --ask-for-approval "$APPROVAL_POLICY" \
   "$@"

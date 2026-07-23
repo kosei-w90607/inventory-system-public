@@ -72,6 +72,16 @@ preserve the user's normal native footer exactly. To avoid the mouse-wheel bug,
 run the default command from a non-tmux shell; the wrapper cannot remove an
 already active parent tmux session.
 
+The wrapper pins the normal inventory session to `gpt-5.6-sol` with `high`
+reasoning effort and `on-request` approval policy. Override these per launch
+with `CODEX_INVENTORY_MODEL`, `CODEX_INVENTORY_REASONING_EFFORT`, and
+`CODEX_INVENTORY_APPROVAL_POLICY`; set either model/effort variable to an empty
+string to omit that pin. The wrapper also exports
+`CODEX_INVENTORY_PINNED_MODEL` and `CODEX_INVENTORY_PINNED_EFFORT` so the agent
+can confirm that it was launched through the pinned wrapper. These environment
+values report wrapper intent; the owner-visible native status line remains the
+runtime confirmation surface.
+
 Mouse wheel absorption into the Codex composer is tracked separately in
 `status-bar/README.md`. The split-pane bar was tested as a possible cause, but
 the symptom also reproduced after removing the split pane while remaining in
@@ -100,6 +110,8 @@ Current local wiring:
 - `~/.zshrc` maps `codex-inventory` to
   `CODEX_INVENTORY_REPO=/home/kosei/Projects/inventory-system-public /home/kosei/Projects/inventory-system-public/.codex/bin/codex-inventory`.
 - `bin/codex-inventory` defaults to plain Codex with an expanded native footer.
+- `bin/codex-inventory` passes explicit model / reasoning-effort pins and
+  exposes those wrapper values through `CODEX_INVENTORY_PINNED_*`.
 - `CODEX_INVENTORY_TMUX_BAR=1 codex-inventory` starts a `tmux` session when
   needed and adds the lower-pane bar.
 - `~/.codex/config.toml` keeps the native Codex footer limited to
@@ -187,7 +199,10 @@ wsl.exe -d Ubuntu-22.04 --cd /home/kosei/Projects/inventory-system-public --exec
 - Keep `wsl.exe ... bash -lc ...`, raw `cat`, raw `sed`, raw `rg`, raw `find`, arbitrary shell, destructive operations, and GitHub mutations in ask/deny.
 - Allow non-secret instruction and skill docs under `.agents/skills/` and `.claude/skills/` so review workflows can load their `SKILL.md` and reference Markdown through the safe wrappers.
 - Refuse `.env*`, key/certificate-looking files, secret/credential-looking files, and `auth.json` in safe wrappers.
-- Prompt for git mutations and generated tracked-file updates.
+- Allow local reflog-recoverable git operations (`add`, `commit`, `branch`,
+  `restore`, `checkout`, `switch`, `mv`) without a prompt in a trusted project
+  session. Keep the owner-gated set (`push`, `merge`, `rebase`, `tag`, `rm`)
+  and GitHub mutations as explicit review points.
 - Forbid destructive commands in the project policy; run them only after separate explicit approval naming the exact target.
 - Allow documented local verification commands without prompts from both WSL bridge and trusted direct WSL sessions, including `git status` / `git diff` / `git log` / `git show`, `npm run typecheck`, `npm run lint`, `npm run format:check`, `npm test`, `npm run build`, doc consistency scripts, and Rust `cargo fmt --check` / `cargo clippy` / `cargo test` from `src-tauri/`.
 - Allow local Codex diagnostic commands such as `codex execpolicy check`, `codex doctor`, and `codex features list`.

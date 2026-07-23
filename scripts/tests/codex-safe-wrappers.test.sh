@@ -250,6 +250,50 @@ grep -Fq "repo: $outside_dir" "$out" || fail "T10 launcher ignored override"
 assert_success "T10 bar override" env CODEX_INVENTORY_REPO="$outside_dir" "$bar" --debug
 grep -Fq "repo: $outside_dir" "$out" || fail "T10 bar ignored override"
 
+fake_codex="$tmp/fake-codex"
+printf '%s\n' \
+    '#!/usr/bin/env bash' \
+    'printf "env_model=%s\n" "${CODEX_INVENTORY_PINNED_MODEL-}"' \
+    'printf "env_effort=%s\n" "${CODEX_INVENTORY_PINNED_EFFORT-}"' \
+    'printf "arg=%s\n" "$@"' >"$fake_codex"
+chmod +x "$fake_codex"
+
+assert_success "T10 launcher forwards default pins" env \
+    REAL_CODEX="$fake_codex" \
+    CODEX_INVENTORY_REPO="$fixture_repo" \
+    CODEX_INVENTORY_NO_BAR=1 \
+    CODEX_INVENTORY_DISABLE_ALT_SCROLL=0 \
+    "$launcher" fixture-prompt
+for expected in \
+    'env_model=gpt-5.6-sol' \
+    'env_effort=high' \
+    'arg=-m' \
+    'arg=gpt-5.6-sol' \
+    'arg=model_reasoning_effort="high"' \
+    'arg=--ask-for-approval' \
+    'arg=on-request' \
+    'arg=fixture-prompt'; do
+    grep -Fxq -- "$expected" "$out" ||
+        fail "T10 launcher default pins omitted $expected"
+done
+
+assert_success "T10 launcher permits pin overrides" env \
+    REAL_CODEX="$fake_codex" \
+    CODEX_INVENTORY_REPO="$fixture_repo" \
+    CODEX_INVENTORY_NO_BAR=1 \
+    CODEX_INVENTORY_DISABLE_ALT_SCROLL=0 \
+    CODEX_INVENTORY_MODEL= \
+    CODEX_INVENTORY_REASONING_EFFORT= \
+    CODEX_INVENTORY_APPROVAL_POLICY=never \
+    "$launcher"
+grep -Fxq 'env_model=' "$out" || fail "T10 launcher did not export empty model override"
+grep -Fxq 'env_effort=' "$out" || fail "T10 launcher did not export empty effort override"
+grep -Fxq 'arg=never' "$out" || fail "T10 launcher ignored approval-policy override"
+if grep -Fxq 'arg=-m' "$out" ||
+    grep -Fq 'arg=model_reasoning_effort=' "$out"; then
+    fail "T10 launcher forwarded disabled model/effort pins"
+fi
+
 assert_success "T9 public read root" \
     "$SOURCE_ROOT/.codex/bin/read-safe-file.sh" \
     docs/archive/plans/2026-07-18-codex-clone-routing-and-safe-read-boundary.md
