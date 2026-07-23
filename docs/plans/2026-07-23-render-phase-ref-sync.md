@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: implementing
+- Phase: ready-hosted-final
 - Risk: R3
 - Execution Mode: dual-vendor-no-fable
 - Plan Commit: 1f98c36
@@ -11,10 +11,10 @@
 - Writer: Sol（plan承認後の単独writer）
 - Plan Reviewer: Sonnet 5 fresh context（P1=0 / P2=1 / P3=1、P2-1反映後にowner承認）
 - Final Reviewer: ownerが起動するSonnet 5 fresh context
-- Reviewed Content HEAD: pending
+- Reviewed Content HEAD: 06b459f52846d1edfb0add4b5a4b73005a523805
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
-- Human Gate: pending Ready / merge。Windows native L3は不要
+- Human Gate: Ready authorized / merge pending。Windows native L3は不要
 
 - State Narrative（2026-07-23）: 基準HEAD `49f2c07` で環境・active packet不在・P7b-1・
   source design・production code・既存test・lint構成を再確認した。R3分類、
@@ -26,6 +26,18 @@
   gated amendment `22f447f`で反映した。ownerはUI-11c / UI-05の両timing判断を承認し、
   amendment完了をもってPlan承認・実装着手を許可した。implementation commitが
   存在しない状態で`plan-gate -> plan-approved -> implementing`をmaterializeする。
+- State Narrative（2026-07-23、state-only）: corrective content HEAD `06b459f`は
+  exact-HEAD L1 fullがCLEAN / PASSで、PR bodyのevidence SHAと一致する。ownerは
+  X4b mutantの専用test RED→復元GREENを独立再現し、X3 lint単独防御、
+  X3a/X4b Matrix行、budget exceptionを実確認して案(b)とevidence訂正を承認した。
+  Final Review P1是正をconfirmし、P1/P2 closureを0としたため、
+  `implementing -> local-verified -> independent-review -> human-confirm`を
+  recording compressionでmaterializeし、Reviewed Content HEADを`06b459f`へfreezeする。
+- State Narrative（2026-07-23、state-only）: ownerはFinal Review是正確認後に
+  Readyを明示承認した（介入2/3）。PRがDraftのまま
+  `human-confirm -> ready-hosted-final`をmaterializeする。このstate-only commitを
+  resulting exact HEADとしてL1 fullを再実行し、PR bodyの全evidenceを更新後に
+  Draft解除・hosted CI exact-HEAD確認へ進む。mergeはowner判断（介入3/3）まで保留する。
 
 ## Owner Effort Budget
 
@@ -35,9 +47,8 @@
 
 検証・mutation・review roundの計算資源は本発注どおり制限しない。承認依頼は
 `この change での介入 N 回目 / 予算 3 回` と利用者可視の完了1文を添える。
-Final Review是正relayで2/2へ到達した。ownerが是正検証後に別途指示するReady relayは
-3/2となるため、owner明示指示による1回超過の予定をbudget exceptionとして記録する
-（Ready relay自体は未実行）。
+Final Review是正relayで2/2へ到達した。ownerの是正検証・Ready承認relayは3/2となり、
+owner明示指示による1回超過をbudget exceptionとして記録する。
 
 ## Risk
 
@@ -452,4 +463,9 @@ Contract ID: SPEC-UI-REF-COMMIT-EVENT-01
   X4b Matrix行とreset直後のsearch gateを直接assertする専用testを追加した。
   relayは2/2へ到達し、owner指示により次回Ready relayの3/2超過予定をbudget exceptionへ
   記録した。Phaseは`implementing`のまま維持し、Readyへは遷移しない。
-- Findings Freeze: not yet frozen; post-freeze exceptions: none。
+- 2026-07-23 owner是正検証: X4b mutantの専用test RED→復元GREENを独立再現し、
+  MatrixのX3 lint単独防御、X3a/X4b行、budget exceptionを実確認した。
+  案(b)とevidence訂正を承認し、Final Review P1是正をconfirmした。
+  P1/P2 closure = 0としてReadyを承認した（介入2/3、relay 3/2 exception）。
+- Findings Freeze: frozen at Reviewed Content HEAD
+  `06b459f52846d1edfb0add4b5a4b73005a523805`; post-freeze exceptions: none。
