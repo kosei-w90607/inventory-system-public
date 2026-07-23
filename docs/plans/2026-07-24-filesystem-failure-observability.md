@@ -365,7 +365,17 @@ Contract ID: SPEC-MNT-FS-ERR-01
 
 ## Implementation Results
 
-Plan Gate前。production codeは未変更。
+- S1-S8 を `backup.rs` / `diagnostic_log.rs` / `restore.rs` に実装し、
+  production と failure-injection test が同一 helper / file-ops path を通ることを確認した。
+- backup entry / metadata、diagnostic top-level / entry / filename / date / remove、
+  restore manifest write + temp cleanup の失敗を synthetic tempdir / injected error で固定した。
+- clean content baseline `5c27480` で Matrix X1-X7 を1件ずつ注入し、全 mutant で
+  指定testが red、exact-file復元後に同testが green へ戻ることを実測した。
+- owner infra の未commit 3 files
+  （`.codex/bin/codex-inventory`、`.codex/execpolicy.rules`、
+  `.codex/rules/default.rules`）は stage / commit / restore せず、content対象外とした。
+- 次は対象外3 filesを除いて clean な exact HEAD で L1 full evidenceを取得し、
+  Draft PRを開いて owner起動のSonnet 5 fresh-context Final Reviewへ渡す。
 
 ## Review Response
 

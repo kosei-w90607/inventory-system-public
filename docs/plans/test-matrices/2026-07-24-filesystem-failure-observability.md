@@ -3,7 +3,8 @@
 Plan Packet:
 [2026-07-24-filesystem-failure-observability.md](../2026-07-24-filesystem-failure-observability.md)
 
-Status: plan-gate。owner承認前はproduction code未着手。
+Status: implementing。owner承認後にproduction / failure-injection testを実装し、
+X1-X7のmutation感度を実測済み。L1 full / Draft PR / Final Review待ち。
 
 ## Risk
 
