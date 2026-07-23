@@ -122,45 +122,64 @@ mod tests {
     };
     use std::collections::HashMap;
     use std::sync::Mutex;
+    use tauri::Manager;
+
+    fn app_state_for_test(conn: crate::db::DbConnection) -> AppState {
+        AppState {
+            db: Mutex::new(conn),
+            preview_cache: Mutex::new(HashMap::new()),
+            daily_report_preview_cache: Mutex::new(HashMap::new()),
+        }
+    }
 
     #[test]
     fn test_monthly_sales_req502_invalid_mode() {
-        // REQ-502: 月次売上（月次商品別/部門別集計）
-        // 不正なモード文字列で validation error になることを検証
+        // REQ-502 / CMD-09-CONV-D1: 実CMDの不正mode wire tripleを独立転記で固定する。
         let invalid_modes = vec!["invalid", "by_Product", "BY_PRODUCT", "", "product"];
         for mode_str in invalid_modes {
-            let result: Result<SalesMode, CmdError> = match mode_str {
-                "by_product" => Ok(SalesMode::ByProduct),
-                "by_department" => Ok(SalesMode::ByDepartment),
-                _ => Err(CmdError {
-                    kind: "validation".to_string(),
-                    message: "不正な集計モードです".to_string(),
-                    field: Some("mode".to_string()),
-                }),
-            };
-            let err = result.unwrap_err();
+            let (_dir, conn) = setup_test_db();
+            let app = tauri::test::mock_builder()
+                .manage(app_state_for_test(conn))
+                .build(tauri::test::mock_context(tauri::test::noop_assets()))
+                .unwrap();
+
+            let err = get_monthly_sales(
+                app.state::<AppState>(),
+                "2026-03".to_string(),
+                mode_str.to_string(),
+            )
+            .unwrap_err();
+
             assert_eq!(err.kind, "validation");
-            assert_eq!(err.field, Some("mode".to_string()));
+            assert_eq!(err.message, "不正な集計モードです");
+            assert_eq!(err.field.as_deref(), Some("mode"));
         }
     }
 
     #[test]
     fn test_monthly_sales_req502_valid_modes() {
-        // REQ-502: 月次売上（月次商品別/部門別集計）
-        // 正しいモード文字列で SalesMode に変換できることを検証
-        let by_product: SalesMode = match "by_product" {
-            "by_product" => SalesMode::ByProduct,
-            "by_department" => SalesMode::ByDepartment,
-            _ => unreachable!(),
-        };
-        assert!(matches!(by_product, SalesMode::ByProduct));
+        // REQ-502 / CMD-09-CONV-D1: 実CMDが2つの正規modeを対応variantへ変換する。
+        let (_dir, conn) = setup_test_db();
+        let app = tauri::test::mock_builder()
+            .manage(app_state_for_test(conn))
+            .build(tauri::test::mock_context(tauri::test::noop_assets()))
+            .unwrap();
 
-        let by_dept: SalesMode = match "by_department" {
-            "by_product" => SalesMode::ByProduct,
-            "by_department" => SalesMode::ByDepartment,
-            _ => unreachable!(),
-        };
-        assert!(matches!(by_dept, SalesMode::ByDepartment));
+        let by_product = get_monthly_sales(
+            app.state::<AppState>(),
+            "2026-03".to_string(),
+            "by_product".to_string(),
+        )
+        .unwrap();
+        assert!(matches!(by_product.mode, SalesMode::ByProduct));
+
+        let by_department = get_monthly_sales(
+            app.state::<AppState>(),
+            "2026-03".to_string(),
+            "by_department".to_string(),
+        )
+        .unwrap();
+        assert!(matches!(by_department.mode, SalesMode::ByDepartment));
     }
 
     #[test]

@@ -264,15 +264,19 @@ struct ImportRow {
 
 **処理ステップ**:
 
-1. **IO-03 呼出し**
+1. **入力バリデーション**
+   - file_bytes が空 → BizError::ValidationFailed("ファイルが空です")
+   - この空入力条件はBIZ-01だけが所有する（**BIZ-01-VAL-D1**）
+
+2. **IO-03 呼出し**
    - io::product_csv_importer::parse_product_csv(file_bytes) → ImportParseResult
    - Err → BizError::ImportError(メッセージ)
 
-2. **ヘッダ検証**（必須列の確認）
+3. **ヘッダ検証**（必須列の確認）
    - 必須列: "商品コード", "商品名", "部門ID", "売価", "原価", "税率"
    - 不足 → BizError::ImportError("必須列が不足しています: {不足列名}")
 
-3. **各行のバリデーション**
+4. **各行のバリデーション**
    - 商品コード: 空でないこと
    - 商品名: 空でないこと
    - 部門ID: 整数変換可能、departments に存在すること
@@ -280,7 +284,7 @@ struct ImportRow {
    - 税率: '10', '8', '0' のいずれか
    - バリデーション失敗 → error_rows に追加
 
-4. **重複チェック**
+5. **重複チェック**
    - product_code で product_repo::find_by_product_code(conn, code) を検索
    - 既存あり → duplicate_rows に追加
    - 既存なし → valid_rows に追加
@@ -352,6 +356,7 @@ struct ImportResult {
 ```
 enum BizError {
     ValidationFailed(String),
+    ValidationFailedAt { message: String, field: String },
     NotFound(String),
     DuplicateProductCode(String),
     DatabaseError(DbError),
@@ -361,5 +366,10 @@ enum BizError {
     StocktakeNotInProgress(String),   // Phase 5 追加: BIZ-06（棚卸しが完了済み）
 }
 ```
+
+`ValidationFailedAt` は、業務 validation をBIZ層に一本化したまま
+`CmdError.field` を保持する必要がある場合に使う。CMD変換後は
+`CmdError { kind: "validation", message, field: Some(field) }` となる。
+field を持たない既存 validation は `ValidationFailed(String)` を維持する。
 
 **設計判断 — UncountedItemsExist を設けない理由**: BIZ-06 の complete_stocktake は未入力商品がある場合に `ValidationFailed` を返す（メッセージに件数を含める）。専用バリアントは不要。CMD層は `ValidationFailed` のメッセージ内容でUI表示を分岐できる。

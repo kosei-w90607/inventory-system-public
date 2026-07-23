@@ -119,13 +119,6 @@ pub fn preview_import(
     state: State<AppState>,
     file_bytes: Vec<u8>,
 ) -> Result<product_service::ImportPreview, CmdError> {
-    if file_bytes.is_empty() {
-        return Err(CmdError {
-            kind: "validation".to_string(),
-            message: "ファイルが空です".to_string(),
-            field: None,
-        });
-    }
     let conn = state
         .db
         .lock()
@@ -157,23 +150,28 @@ pub fn commit_import(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::db::test_support::setup_test_db;
+    use std::collections::HashMap;
+    use std::sync::Mutex;
+    use tauri::Manager;
 
     #[test]
     fn test_preview_import_req104_empty_file_validation() {
-        // REQ-104: 商品マスタ一括インポート
-        // 空の file_bytes で validation error になることを検証
-        let empty: Vec<u8> = vec![];
-        let result: Result<(), CmdError> = if empty.is_empty() {
-            Err(CmdError {
-                kind: "validation".to_string(),
-                message: "ファイルが空です".to_string(),
-                field: None,
+        // REQ-104 / BIZ-01-VAL-D1: 実CMDを空bytesで呼び、wire tripleを独立転記で固定する。
+        let (_dir, conn) = setup_test_db();
+        let app = tauri::test::mock_builder()
+            .manage(AppState {
+                db: Mutex::new(conn),
+                preview_cache: Mutex::new(HashMap::new()),
+                daily_report_preview_cache: Mutex::new(HashMap::new()),
             })
-        } else {
-            Ok(())
-        };
-        let err = result.unwrap_err();
+            .build(tauri::test::mock_context(tauri::test::noop_assets()))
+            .unwrap();
+
+        let err = preview_import(app.state::<AppState>(), vec![]).unwrap_err();
+
         assert_eq!(err.kind, "validation");
-        assert!(err.message.contains("ファイルが空"));
+        assert_eq!(err.message, "ファイルが空です");
+        assert_eq!(err.field, None);
     }
 }

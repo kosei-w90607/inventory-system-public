@@ -592,8 +592,12 @@ pub struct ProductImportResult {
 
 /// 商品マスタCSVファイルをプレビューする（読み取り専用、DB書込みなし）
 ///
-/// 30-biz-product-service.md §4.7
+/// 30-biz-product-service.md §4.7 / BIZ-01-VAL-D1
 pub fn preview_import(conn: &DbConnection, file_bytes: &[u8]) -> Result<ImportPreview, BizError> {
+    if file_bytes.is_empty() {
+        return Err(BizError::ValidationFailed("ファイルが空です".to_string()));
+    }
+
     // 1. IO-03 呼出し
     let parse_result = crate::io::product_csv_importer::parse_product_csv(file_bytes)
         .map_err(BizError::ImportError)?;

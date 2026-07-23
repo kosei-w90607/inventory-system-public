@@ -126,6 +126,7 @@ fn fix_integrity(
 
 1. **入力バリデーション**
    - product_codes が空 → BizError::ValidationFailed("補正対象の商品が指定されていません")
+   - この空入力条件はBIZ-07だけが所有する（**BIZ-07-VAL-D1**）
 
 2. **TX開始**（conn.transaction()）
 

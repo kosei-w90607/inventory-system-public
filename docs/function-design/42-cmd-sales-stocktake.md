@@ -21,6 +21,7 @@ src-tauri/src/
 17.2節（41-cmd-pos.md）の原則をそのまま適用:
 - 薄いラッパー: state.db.lock() → BIZ呼出し → BizError→CmdError変換
 - 業務バリデーション、ビジネスロジックは持たない
+- wire の有限文字列を内部 enum へ変換する境界処理はCMD責務とする。変換後の値に対する業務条件はBIZだけが判定する
 
 **Phase 5 追加コマンドでのキャッシュ**: CMD-09/10/整合性コマンドは preview_cache を使用しない。DB接続のみ。
 
@@ -32,6 +33,7 @@ src-tauri/src/
 
 | BizError | CmdError.kind | CmdError.message |
 |----------|--------------|------------------|
+| ValidationFailedAt { message, field } | "validation" | message をそのまま使用し、field も保持 |
 | StocktakeInProgress(msg) | "stocktake_in_progress" | msg をそのまま使用 |
 | StocktakeNotInProgress(msg) | "stocktake_not_in_progress" | msg をそのまま使用 |
 
@@ -84,6 +86,9 @@ fn get_monthly_sales(
 5. Err(BizError) → CmdError に変換して返す
 
 **設計判断 — mode を String で受ける理由**: Tauriコマンドの引数はフロントエンドからJSON経由で渡される。Rust enum を直接受けるよりも String で受けて CMD 層で変換する方がフロントエンド側の実装が単純。
+これは業務 validation ではなく wire→内部型変換であり、CMDに残す
+（**CMD-09-CONV-D1**）。`SalesMode` の generated enum 化は監査是正 順14の
+別契約であり、本変更では行わない。
 
 #### export_sales_csv
 
@@ -158,7 +163,7 @@ fn get_stocktake_items(
     department_id: Option<i64>,
     counted_only: Option<bool>,
     page: u32,
-    per_page: u32,  // CMDは1以上のみ検証。per_page上限はBIZ経由のIO層でD-031共有定数により200クランプ
+    per_page: u32,  // 下限はBIZが検証。上限はBIZ経由のIO層でD-031共有定数により200クランプ
 ) -> Result<StocktakeItemListResponse, CmdError>
 ```
 
@@ -176,8 +181,8 @@ struct StocktakeItemListResponse {
 **処理ステップ**:
 1. state.db.lock() でDB接続を取得
 2. biz::stocktake_service::get_stocktake_items(conn, stocktake_id, department_id, counted_only, page, per_page) を呼ぶ
-3. BIZ層が stocktake_repo::list_stocktake_items と stocktake_repo::get_stocktake_progress を呼び、items と progress をまとめる
-4. 結果を StocktakeItemListResponse に組み立てて返す
+3. BIZ層が page / per_page の下限を検証し、stocktake_repo::list_stocktake_items と stocktake_repo::get_stocktake_progress を呼んで items と progress をまとめる
+4. 結果を StocktakeItemListResponse に組み立てて返す。BIZの field 付き validation は `CmdError.field` を保持する
 
 **設計判断**: 現行実装の get_stocktake_items は BIZ 層（stocktake_service）を経由する。初期設計では読み取り専用のため CMD から stocktake_repo 直呼びとしていたが、2026-04-13 commit 882cec6 で BIZ wrapper が追加され、CMD は UI -> CMD -> BIZ -> IO の境界を保つ。
 
@@ -198,14 +203,12 @@ fn update_count(
 ```
 
 **処理ステップ**:
-1. actual_count < 0 → CmdError { kind: "validation", message: "カウント数は0以上で入力してください" }
-2. state.db.lock() でDB接続を取得
-3. UpdateCountRequest { stocktake_item_id, actual_count } を構築
-4. biz::stocktake_service::update_count(&conn, req) を呼ぶ
+1. state.db.lock() でDB接続を取得
+2. UpdateCountRequest { stocktake_item_id, actual_count } を構築
+3. biz::stocktake_service::update_count(&conn, req) を呼ぶ
+4. BIZ層が actual_count < 0 を `ValidationFailed("カウント数は0以上で入力してください")` として拒否する
 5. Ok → UpdateCountResult を返す
 6. Err(BizError) → CmdError に変換
-
-**設計判断 — actual_count の負数チェックを CMD 層で行う理由**: 防御的入力チェック（17.2節の例外パターン）。UI側の入力ミスを BIZ 層に渡す前に弾く。BIZ 層にも同じチェックあり。
 
 #### complete_stocktake
 
@@ -249,9 +252,9 @@ fn preview_import(
 ```
 
 **処理ステップ**:
-1. file_bytes.len() == 0 → CmdError { kind: "validation", message: "ファイルが空です" }
-2. state.db.lock() でDB接続を取得
-3. biz::product_service::preview_import(&conn, &file_bytes) を呼ぶ
+1. state.db.lock() でDB接続を取得
+2. biz::product_service::preview_import(&conn, &file_bytes) を呼ぶ
+3. BIZ層が空ファイルを `ValidationFailed("ファイルが空です")` として拒否する
 4. Ok → ImportPreview を返す
 5. Err(BizError) → CmdError に変換
 
@@ -314,9 +317,9 @@ fn fix_integrity(
 ```
 
 **処理ステップ**:
-1. product_codes.is_empty() → CmdError { kind: "validation", message: "補正対象の商品が指定されていません" }
-2. state.db.lock() でDB接続を取得
-3. biz::integrity_service::fix_integrity(&mut conn, &product_codes) を呼ぶ
+1. state.db.lock() でDB接続を取得
+2. biz::integrity_service::fix_integrity(&mut conn, &product_codes) を呼ぶ
+3. BIZ層が空の product_codes を `ValidationFailed("補正対象の商品が指定されていません")` として拒否する
 4. Ok → IntegrityFixResult を返す
 5. Err(BizError) → CmdError に変換
 
@@ -352,3 +355,17 @@ run_integrity_check, fix_integrity,
 | CMD-11 設定・ログ・バックアップ | MNT-01/MNT-02 依存（Phase 6） | Phase 6 で追加 |
 | preview_cache 操作 | Phase 5 コマンドは DB のみ | CMD-07（既存） |
 | 業務バリデーション | BIZ層の責務 | 各BIZサービス |
+
+---
+
+### 22.10 validation test contract
+
+CMD-01 `preview_import`、CMD-09 `get_monthly_sales`、CMD-10
+`get_stocktake_items` / `update_count`、CMD-11 `fix_integrity` のvalidation / conversion
+testは、`tauri::test::mock_builder`でmanaged `AppState`を構築し、対象のproduction
+command関数を呼ぶ。test内で `is_empty()`、閾値比較、mode変換、`CmdError`構築を
+再実装してはならない。
+
+error期待値はproduction定数・helperからimportせず、source designから独立転記した
+`kind` / `message` / `field` を完全一致比較する。productionの各guard / mappingを
+削除または反転したとき、対応testがredになることをmutationで確認する。

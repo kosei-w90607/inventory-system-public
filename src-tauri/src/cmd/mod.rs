@@ -111,6 +111,11 @@ impl From<BizError> for CmdError {
                 message: msg,
                 field: None,
             },
+            BizError::ValidationFailedAt { message, field } => CmdError {
+                kind: "validation".to_string(),
+                message,
+                field: Some(field),
+            },
             BizError::NotFound(msg) => CmdError {
                 kind: "not_found".to_string(),
                 message: msg,
@@ -176,6 +181,20 @@ mod tests {
         let cmd_err: CmdError = biz_err.into();
         assert_eq!(cmd_err.kind, "validation");
         assert_eq!(cmd_err.message, "入力エラー");
+    }
+
+    #[test]
+    fn test_cmd_error_req205_from_validation_failed_at_preserves_field() {
+        // REQ-205 / BIZ-06-VAL-D1: BIZ由来のfield付きvalidationをwire tripleへ変換する。
+        let biz_err = BizError::ValidationFailedAt {
+            message: "ページ番号は1以上で指定してください".to_string(),
+            field: "page".to_string(),
+        };
+        let cmd_err: CmdError = biz_err.into();
+
+        assert_eq!(cmd_err.kind, "validation");
+        assert_eq!(cmd_err.message, "ページ番号は1以上で指定してください");
+        assert_eq!(cmd_err.field.as_deref(), Some("page"));
     }
 
     #[test]

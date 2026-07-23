@@ -32,13 +32,6 @@ pub fn fix_integrity(
     state: State<AppState>,
     product_codes: Vec<String>,
 ) -> Result<integrity_service::IntegrityFixResult, CmdError> {
-    if product_codes.is_empty() {
-        return Err(CmdError {
-            kind: "validation".to_string(),
-            message: "補正対象の商品が指定されていません".to_string(),
-            field: None,
-        });
-    }
     let mut conn = state
         .db
         .lock()
@@ -78,6 +71,7 @@ mod tests {
         let err = fix_integrity(app.state::<AppState>(), vec![]).unwrap_err();
 
         assert_eq!(err.kind, "validation");
-        assert!(err.message.contains("補正対象"));
+        assert_eq!(err.message, "補正対象の商品が指定されていません");
+        assert_eq!(err.field, None);
     }
 }
