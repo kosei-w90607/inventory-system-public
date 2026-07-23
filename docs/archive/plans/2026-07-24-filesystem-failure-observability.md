@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: ready-hosted-final
+- Phase: archive
 - Risk: R3
 - Execution Mode: dual-vendor-no-fable
 - Plan Commit: 94f303b
@@ -14,7 +14,7 @@
 - Reviewed Content HEAD: edad440
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
-- Human Gate: Ready authorized。pending hosted final / merge。Windows native L3 は不要
+- Human Gate: none
 
 - State Narrative（2026-07-24）: public-writer clone、期待 origin、clean `main`、
   基準 HEAD `508db72`、active packet 不在を確認し、fetch / checkout / pull で
@@ -59,6 +59,13 @@
   「filesystem failureが不正確な成功に化けない候補をhosted finalへ進められる状態」。
   Draftのまま`human-confirm -> ready-hosted-final`をmaterializeし、このcommitの
   exact HEADでL1 full、PR body全面更新、Ready化、hosted CI headSha一致確認を行う。
+
+- State Narrative（2026-07-24、merge / archive）: PR #24 は exact-HEAD hosted
+  final success と三点SHA一致を確認後、ownerのmerge承認
+  （このchangeでの介入3回目 / 予算3回）により squash merge `5b57f30` となった。
+  post-merge closeoutでFinal Review P3×2を
+  `70-mnt-diagnostic-log.md`へ反映し、packet / Matrixをarchive、WER・
+  `Plans.md`・`docs/PROJECT_HANDOFF.md`を同期して`merge -> archive`を完了した。
 
 ## Owner Effort Budget
 
@@ -394,8 +401,8 @@ Contract ID: SPEC-MNT-FS-ERR-01
 - owner infra の未commit 3 files
   （`.codex/bin/codex-inventory`、`.codex/execpolicy.rules`、
   `.codex/rules/default.rules`）は stage / commit / restore せず、content対象外とした。
-- 次は対象外3 filesを除いて clean な exact HEAD で L1 full evidenceを取得し、
-  Draft PRを開いて owner起動のSonnet 5 fresh-context Final Reviewへ渡す。
+- owner infra の対象外3 filesを退避した exact HEAD で L1 full evidenceを取得し、
+  Sonnet 5 fresh-context Final Review、Ready、hosted final、mergeまで完了した。
 
 ## Review Response
 

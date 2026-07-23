@@ -369,17 +369,19 @@ tracing::info!(
 #### ユニットテスト
 
 **cleanup_old_log_files のテスト**:
-- `test_cleanup_deletes_old_files`: 31日前のファイルを作成し、cleanup後に削除されていること
-- `test_cleanup_keeps_recent_files`: 29日前のファイルが削除されないこと
-- `test_cleanup_ignores_non_matching_files`: プレフィックス不一致のファイルがスキップされること
-- `test_cleanup_empty_directory`: 空ディレクトリでOk(0)が返ること
-- `test_cleanup_nonexistent_directory`: 存在しないディレクトリでOk(0)が返ること
-- `test_cleanup_distinguishes_not_found_from_read_dir_error`: NotFoundだけOk(0)、
+- `test_cleanup_req700_deletes_old_files`: 31日前のファイルを作成し、cleanup後に削除されていること
+- `test_cleanup_req700_keeps_recent_files`: 29日前のファイルが削除されないこと
+- `test_cleanup_req700_ignores_non_matching_files`: プレフィックス不一致のファイルがスキップされること
+- `test_cleanup_req700_empty_directory`: 空ディレクトリでOk(0)が返ること
+- `test_cleanup_req700_nonexistent_directory`: 存在しないディレクトリでOk(0)が返ること
+- `test_cleanup_req700_distinguishes_not_found_from_read_dir_error`: NotFoundだけOk(0)、
   NotFound以外はErr
-- `test_cleanup_entry_error_warns_and_continues`: entry errorをwarnし、後続削除を継続
-- `test_cleanup_invalid_calendar_date_warns_and_continues`: owned filenameの
+- `test_cleanup_req700_entry_error_warns_and_continues`: entry errorをwarnし、後続削除を継続
+- `test_cleanup_req700_invalid_calendar_date_warns_and_continues`: owned filenameの
   calendar parse errorをwarnし、後続削除を継続
-- `test_cleanup_delete_failure_warns_and_continues`: remove failureをwarnし、後続削除を継続
+- `test_cleanup_req700_non_unicode_filename_warns_and_continues`: non-Unicode filenameを
+  warnし、後続削除を継続（対応platformのみ）
+- `test_cleanup_req700_delete_failure_warns_and_continues`: remove failureをwarnし、後続削除を継続
 
 **init_diagnostics のテスト**:
 - `test_init_creates_log_directory`: 存在しないディレクトリが作成されること

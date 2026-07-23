@@ -4,7 +4,7 @@
 >
 > **更新ルール**: 会話で進展があるたびにこのファイルを更新する。各セクションは最新の状態を反映し、過去の経緯は「経緯ログ」セクションに蓄積する。
 >
-> **最終更新**: 2026-07-23 / 監査是正 順6「render-phase ref accessのcommit/event同期化」はPR #23で完了・archive済み（現在状態は `Plans.md` を優先）
+> **最終更新**: 2026-07-24 / 監査是正 順7「filesystem failureの記録・伝搬」はPR #24で完了・archive済み（現在状態は `Plans.md` を優先）
 
 ---
 
@@ -28,9 +28,10 @@
 ## 2. 現在地（ここから再開）
 
 ### フェーズ
-**Phase 2 の日常利用 UI 5 画面は code-complete / route active で、PR #75 closeout merge `f44f99a` に `v0.8.0-ui-daily` tag を作成済み。AI Quality Workflow は PR #87 `ef0fd73` で Design Phase を導入済み。Phase 3 商品マスタ UI は完了済み。Phase 4 は UI-11b / UI-11a / UI-10 棚卸し / UI-11c 操作ログが完了し、残りは UI-13。最新のライブ状態は `Plans.md` を優先する。**
+**Phase 2 の日常利用 UI 5 画面は code-complete / route active で、PR #75 closeout merge `f44f99a` に `v0.8.0-ui-daily` tag を作成済み。AI Quality Workflow は PR #87 `ef0fd73` で Design Phase を導入済み。Phase 3 商品マスタ UI と Phase 4（UI-11b / UI-11a / UI-10 / UI-11c / UI-13）は完了済み。次期 milestone と監査是正の最新順序は `Plans.md` を優先する。**
 
 ### 直近の作業状態
+- **filesystem failureの記録・伝搬（監査是正 順7）**: **完了**（R3、PR #24 squash merge `5b57f30`、2026-07-24）。backupの判定変更errorを既存Result境界へ伝搬し、diagnostic logとrestoreの継続可能な個別失敗をcontext付きWARNとして記録する。production / failure-injection testの同一helper経路、X1-X7 mutation、Final Review独立再実測、exact-HEAD local full / hosted final三点一致を完了。Final Review P3×2のsource design test名転記ずれもcloseoutで反映済み。証跡はarchived [Plan Packet](archive/plans/2026-07-24-filesystem-failure-observability.md) / [Matrix](archive/plans/test-matrices/2026-07-24-filesystem-failure-observability.md) / [WER](archive/plans/2026-07-24-filesystem-failure-observability-workflow-effectiveness-review.md)。次候補は監査是正 順8のscope精査。
 - **render-phase ref accessのcommit/event同期化（監査是正 順6）**: **完了**（R3、PR #23 squash merge `0982749`、2026-07-23）。UI-11cをcommit後state/effect snapshot、UI-05を保存/失敗/reset event同期gateへ置換し、`eslint-plugin-react-hooks@7.1.1` exact + `react-hooks/refs`限定guardを導入。Final ReviewでX3 behavior killの非再現を検出し、実scheduler制約を確認してlint単独防御へ訂正、X3a/X4b専用testを追加した。owner是正確認、exact-HEAD local full / hosted三点一致後にmerge。証跡はarchived [Plan Packet](archive/plans/2026-07-23-render-phase-ref-sync.md) / [Matrix](archive/plans/test-matrices/2026-07-23-render-phase-ref-sync.md) / [WER](archive/plans/2026-07-23-render-phase-ref-sync-workflow-effectiveness-review.md)。次候補は監査是正 順7のscope精査。
 - **業務validation所有層一本化 + production CMD test（監査是正 順5）**: **完了**（PR #22 squash merge `01d5d6e`、2026-07-23）。商品・棚卸し・整合性validationをBIZ単独所有へ戻し、4 CMD moduleの対象testを実production command + 独立転記exact oracleへ置換。production mutation全件kill、Final Review P1 / P2 / P3 = 0、Ready exact-HEAD local / hosted evidence三点一致で完了。証跡はarchived [Plan Packet](archive/plans/2026-07-23-validation-ownership-production-cmd-tests.md) / [Matrix](archive/plans/test-matrices/2026-07-23-validation-ownership-production-cmd-tests.md) / [WER](archive/plans/2026-07-23-validation-ownership-production-cmd-tests-workflow-effectiveness-review.md)。次候補は監査是正 順6のscope精査。
 - **workflow docs WER consolidation**: **完了**（PR #18 squash merge `bbb61f6`、2026-07-21）。WER Adjustment 積み残しを D-050 裁定で DEV_WORKFLOW / template 群へ正本化。packet は `docs/archive/plans/2026-07-21-workflow-docs-wer-consolidation.md` へ archive 済み
@@ -38,7 +39,7 @@
 - **mutation→consumer query 契約の SSOT 化（監査是正 順 4）**: **完了**（PR #21 squash merge `fa21954`、2026-07-23）。全 16 mutation / 18 success handler の invalidation を `invalidation-contract.ts`（D-052 SSOT）へ統一し、監査 P5 系 findings の欠落全件を解消。導出原則と除外表 E1〜E6 は UI_TECH_STACK §2.5 + decision-log D-052 が正本。テストは契約表からの独立転記 oracle と完全一致比較（production 非 import を静的 gate で機械強制）。packet は `docs/archive/plans/2026-07-22-mutation-consumer-query-contract.md` へ archive 済み。次 = 順 5 以降の scope 精査 or roadmap 1-4 移行判断（詳細は Plans.md「次の行動」0）。
 - **バックエンド**: 18テーブル DB / 5層分割（UI/CMD/BIZ/IO/MNT）/ Tauri Commands / 業務ロジック / バックアップ / 操作ログ / 診断ログ全て実装完了。テスト 561 本通過、clippy 警告ゼロ、fmt 準拠
 - **フロントエンド基盤**: React 19 + TypeScript + Tauri 2 + TanStack Router + TanStack Query + Tailwind CSS 4 + shadcn/ui + lefthook + ESLint 9 + tauri-specta 採用、UI-12 共通レイアウト + invoke ラッパ完成。Phase 1 残 follow-up: 7-6 Storybook / 7-7b axe or hooks coverage / 7-8a Error Boundary / 7-8b 横断UI / 7-8c unsaved changes
-- **直近 PR**: Public #2（CI `synchronize` trigger修正、merge `f63397c`）
+- **直近 PR**: Public #24（filesystem failureの記録・伝搬、merge `5b57f30`）
 - **現在の参照先**: このファイルには Phase 2 初期の詳細が残っている。最新の進行状態、次アクション、ブロッカーは [Plans.md](../Plans.md) を優先する。
 - **直近完了**: public 化 Phase A/Bと学びのPublic同期に続き、Public PR #2でCI `synchronize` trigger修正を完了した。Draft更新のevent生成とrunner skip、Ready exact-HEAD hosted finalを実動作確認済み。main競合復旧でSTATECAPが目的化した点は[WER](archive/plans/2026-07-14-ci-synchronize-trigger-workflow-effectiveness-review.md)へ記録し、generic補正契約は別R3へ送る。public-writer cloneを通常開発用、旧private cloneをhistory-view専用とする分離は継続する。
 - **直近完了**: UI-03 返品・交換 implementation は PR #107 squash merge 済み（`1c8ff66`、2026-06-27 JST）。`/inventory/return` route、generated `createReturn` / `listReturns` / `saveReceiptImage`、返品/交換 BIZ validation、商品検索、レシート画像 preview/drop/delete、冪等 retry、recent list、query invalidation、Windows native L3 feedback 対応まで完了した。

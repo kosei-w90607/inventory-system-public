@@ -3,8 +3,9 @@
 Plan Packet:
 [2026-07-24-filesystem-failure-observability.md](../2026-07-24-filesystem-failure-observability.md)
 
-Status: implementing。owner承認後にproduction / failure-injection testを実装し、
-X1-X7のmutation感度を実測済み。L1 full / Draft PR / Final Review待ち。
+Status: completed / archived。production / failure-injection test、X1-X7 mutation
+感度実測、独立Final Review、exact-HEAD local full / hosted finalを完了し、
+PR #24 squash merge `5b57f30` 後にarchiveした。
 
 ## Risk
 
