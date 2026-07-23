@@ -2,19 +2,19 @@
 
 ## Workflow State
 
-- Phase: ready-hosted-final
+- Phase: archive
 - Risk: R3
 - Execution Mode: dual-vendor-no-fable
 - Plan Commit: e9757f8
 - Amendments: 082379c
 - Coordinator: Sol（本 thread、scope 精査・design・packet・実装・PR）
-- Writer: Sol（実装・L1・Draft PR公開完了）
+- Writer: Sol（実装・検証・PR・closeout完了）
 - Plan Reviewer: owner が起動した Sonnet 5 fresh context（P1 = 0 / P2 = 1 → gated amendment反映で残P1/P2 = 0、承認）
 - Final Reviewer: owner が起動した Sonnet 5 fresh context（P1 / P2 / P3 = 0、Ready可）
 - Reviewed Content HEAD: 5909fbb513daf0ada71612d8ad2a0bb0553bbb84
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
-- Human Gate: owner merge（Ready承認済み、介入2/3、mergeは介入3/3として保留）
+- Human Gate: none
 
 - State Narrative（append-only、2026-07-23）: 本state-only commitで隣接forward遷移
   `plan-gate -> plan-approved -> implementing` をmaterializeする。evidence:
@@ -39,6 +39,11 @@
   P1 / P2 / P3 = 0を受けてReadyを明示承認（介入2/3）。本commitのexact HEADで
   L1 fullを再実行し、PR bodyを全面更新してからDraftをReadyへ変更する。
   mergeはowner判断（介入3/3）として保留する。
+
+- State Narrative（append-only、2026-07-23）: PR #22はowner merge承認（介入3/3）後に
+  squash merge `01d5d6e33b3e1dc117e8aee7238c49f3a43bb24f` となり、
+  `ready-hosted-final -> merge` を完了した。本closeoutでpacket / Matrix / WERをarchiveし、
+  dashboard / handoffを同期して `merge -> archive` をmaterializeする。
 
 ## Owner Effort Budget
 
@@ -336,9 +341,10 @@ Contract ID: SPEC-CMD-VALIDATION-OWNERSHIP-01
   test件数・失敗抜粋・exact-HEADはPR bodyだけに記録する。
 - traceability生成物を正規generatorで同期し、generated command signature /
   `src/lib/bindings.ts`に差分がないことを確認した。
-- Review-only sub-agentは本件がowner指定のSol単独サイクルであるためskipする。
-  独立Final ReviewはDraft PR open後にownerがSonnet 5 fresh contextで実施する。
-- 未完了: L1 full、Draft PR open、owner Final Review、Ready / hosted final。
+- Review-only sub-agentは本件がowner指定のSol単独サイクルであるためskipした。
+  独立Final ReviewはownerがSonnet 5 fresh contextで実施し、findingsなしで完了した。
+- L1 full、Draft PR、Final Review、Ready、exact-HEAD hosted final、squash mergeを完了した。
+  exact SHA / test件数 / hosted run URLはPR bodyを正本とする。
 
 ## Review Response
 
@@ -354,3 +360,6 @@ Contract ID: SPEC-CMD-VALIDATION-OWNERSHIP-01
   独立oracle、production CMD回帰、spot mutation、wire文言、機械gate、scopeを
   reviewerが独立再実測し、ownerはReadyを承認（介入2/3）。
 - Findings Freeze: frozen at Final Review一次; post-freeze exceptions: none
+- 2026-07-23 owner merge承認（介入3/3）を受領し、PR #22をsquash merge。
+  merge commitは`01d5d6e33b3e1dc117e8aee7238c49f3a43bb24f`。remote feature branchを削除し、
+  local `main`を`origin/main`へ同期した。

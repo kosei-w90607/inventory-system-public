@@ -1,6 +1,6 @@
 # Test Design Matrix — 監査是正 順5: validation ownership / production CMD
 
-Packet:
+Archived Packet:
 [2026-07-23-validation-ownership-production-cmd-tests.md](../2026-07-23-validation-ownership-production-cmd-tests.md)
 
 ## Risk
