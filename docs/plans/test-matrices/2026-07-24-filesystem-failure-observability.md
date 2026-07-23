@@ -73,7 +73,7 @@ UI、cache、route/search、import/export stateは非接触。上表はfilesyste
 | `Err(_) => continue` | `src-tauri/src/mnt/**` | diagnostic S6-S8 | restore log分類はMNT-01-D5契約 | sweep + D2-D4 |
 | filesystem catch-all | metadata/read_dir/exists/remove全site | S3-S5 | Option pattern mismatchはerrorでない | B2/B3/D1 |
 | warn + continue precedent | backup cleanup delete failure | diagnostic + restoreへ適用 | restore committed cleanup既存warnは非変更 | B5/D5/R1 |
-| failure injection | `RestoreFileOps`, backup real-fs trick, `test_tracing` | R1/B1-B3/D1-D5 | full diagnostic traitは不採用 | test helper review |
+| failure injection | `RestoreFileOps`, backup real-fs trick, `test_tracing` | R1/B1-B3/D1-D5 | full diagnostic traitは不採用 | concrete generic signature + same-path review |
 
 ## Negative Paths
 
@@ -122,6 +122,8 @@ UI、cache、route/search、import/export stateは非接触。上表はfilesyste
 
 - helper connected to main path: public `check_auto_backup` / `create_backup` /
   `list_backups` / `cleanup_old_log_files` / private production restore pathがhelperを使用。
+- entry injection same-path: public production関数とfailure-injection testが
+  function-design記載の同一generic helperを呼び、production-only/test-only loopがない。
 - output reaches manifest/report: restore variant/log、backup Result/operation logをassert。
 - effective config reaches runtime: retention/prefix既存configを使用。
 - CLI arg reaches implementation: existing CMD/lib callerをdiff review、shape変更なし。

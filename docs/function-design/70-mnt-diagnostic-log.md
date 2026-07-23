@@ -138,6 +138,28 @@ fn cleanup_old_log_files(config: &DiagnosticLogConfig) -> Result<u32, std::io::E
   `Err(_) => continue`のsilent skip / 個別entry errorでcleanup全体abort
 - 見直し契機: diagnostic log filesystem adapterを専用serviceへ置換するとき
 
+**entry failure 注入境界（監査順7 Plan Review P2-1）**:
+
+production と test は次の同一 generic helper を通す。production 専用の別 loop、
+test 専用 cleanup implementation、`#[cfg(test)]` だけの entry 処理関数を作らない。
+
+```rust
+fn cleanup_log_entries<I>(
+    config: &DiagnosticLogConfig,
+    today: chrono::NaiveDate,
+    entries: I,
+) -> u32
+where
+    I: IntoIterator<Item = std::io::Result<PathBuf>>;
+```
+
+production は `read_dir` の各 `DirEntry` を
+`entry.map(|entry| entry.path())` で上記 item 型へ変換して渡す。test は同じ helper
+へ `Err(io::Error)` と実 tempdir の `PathBuf` を並べ、WARN と後続削除を検証する。
+実装レビューでは public `cleanup_old_log_files` と failure-injection test の双方が
+この helper を呼び、entry 分類・warn・remove の production-only / test-only
+分岐が存在しないことを明示確認する。
+
 ---
 
 ### 70.6 lib.rs 起動シーケンスの変更

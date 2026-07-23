@@ -117,22 +117,26 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 | `restore.rs:538/555` | DB row / JSON 分類失敗を `LogClassification::Failed` に集約する MNT-01-D5 の明示契約 |
 | `restore.rs:490/518` | non-Unicode path の文字列 fallback。filesystem `Result` 破棄ではなく、変更は restore 契約へ侵入する |
 | `diagnostic_log.rs:72` | `RUST_LOG` 不正時の既定 filter。filesystem ではなく初期化前 fallback |
-| `log_manager.rs:38-39` | `log_retention_days` parse fallback は filesystem P3-2 ではない。削除保持 policy を変える別の R4 候補として本 PR に混ぜない |
+| `log_manager.rs:38-39` | `log_retention_days` parse fallback は filesystem P3-2 ではない。P3-1同型のconfig parse fallback（R2/M相当）として別是正単位に分ける |
 | `migration.rs` / `mnt/mod.rs` | 対象 pattern なし |
 
 ### 実装方針
 
 - S1 は既存 `RestoreFileOps` mock に manifest write failure + temp remove failure を
   同時注入し、外向き variant/message と復旧 semanticsを変えず warn だけ追加する。
-- S2 は production が使う internal entry collector を
-  `Iterator<Item = io::Result<PathBuf>>` 相当で分離し、test から entry error を
-  決定論注入する。top-level `read_dir` の既存分岐/testは変更しない。
+- S2 は production / test が同じ
+  `collect_today_backup_names<I>(backup_dir, today_prefix, entries) -> Result<Vec<String>, DbError>`
+  （`I: IntoIterator<Item = io::Result<PathBuf>>`）を通る。test から entry error を
+  決定論注入し、production-only collectorを作らない。top-level `read_dir` の
+  既存分岐/testは変更しない。
 - S3/S4 は既存 `SETTING_READ_FAILURE` と同型の test-only metadata failpointを
   production metadata helper の境界に置き、public `create_backup` /
   `list_backups` を通して検証する。production の Result shape / DTO は不変。
-- S5-S8 は full trait を増やさず、top-level `read_dir` match と、production が使う
-  internal entry-path iterator helperに分ける。test iteratorへ `Err` と有効 pathを
-  並べ、warn後も後続削除が進むことを検証する。
+- S5-S8 は full trait を増やさず、top-level `read_dir` match と
+  `cleanup_log_entries<I>(config, today, entries) -> u32`
+  （`I: IntoIterator<Item = io::Result<PathBuf>>`）に分ける。production / test は
+  同じhelperを通り、test iteratorへ `Err` と有効pathを並べてwarn後の後続削除を
+  検証する。production-only / test-only cleanup loopを作らない。
 - warn event は最低限 `error`、`path` または `file`、operation contextを持つ。
   利用者向け message / CMD mapping は変更しない。
 
@@ -204,7 +208,7 @@ REQ-700 / REQ-901 test追加後に `cargo run --bin generate_traceability -- --c
 - Source docs can answer what is being built and why without chat history or archived Plan Packets: yes。MNT-01-D6 / MNT-04-D1へ failure classification を記録
 - Plan-only durable decisions found and promoted to source docs / decision-log / ADR: source docsへ昇格、plan-only decisionなし
 - Assumptions and constraints: `ReadDir` entry errorは稀だがAPI contract上発生可能。testはOS timing/permission raceへ依存しない
-- Deferred design gaps, risk, and follow-up target: `log_manager.rs` retention parse fallbackは別R4候補。順8表示、順12service境界は既定順
+- Deferred design gaps, risk, and follow-up target: `log_manager.rs` retention parse fallbackはP3-1同型のconfig parse fallback（R2/M相当）として別是正単位。順8表示、順12service境界は既定順
 - Test Design Matrix can cite design decision IDs or source doc sections: yes
 - Absolute guarantee / escape hatch self-check completed, with every exception checked and compatibility stated: restoreはwarn追加のみ。diagnostic個別entryはbest-effort、backup判定/metadataはfail-fast。NotFoundのみ空
 
@@ -301,7 +305,7 @@ Test Design Matrix:
 | J4 | diagnostic top-level metadata errorを不存在扱い | NotFoundだけ空、他はErr→lib既存warn、起動継続 | 起動可用性は不変。運用診断性だけ改善 |
 | J5 | diagnostic entry/name/date errorを無言skip | WARN + 当該entryのみskip、後続継続 | cleanupはbest-effort維持。prefix不一致は無警告 |
 | J6 | restore temp cleanup失敗を無記録 | WARN + 元のRecovered errorを維持 | MNT-01-D1/D4/D5と`RestoreFileOps`契約は不変。error化はしない |
-| J7 | diagnostic test injection前例なし | generic internal iterator helper、full traitなし | 工数 M。full traitは抽象面を増やすため非推奨 |
+| J7 | diagnostic test injection前例なし | 上記の具体generic signatureをproduction/test双方が使用、full traitなし | 工数 M。production-only経路を実装レビューで拒否 |
 
 ownerの Plan 承認を J1-J7 の挙動差・残余risk・工数Mの受容判断とする。
 別案を選ぶ場合は implementation前に packet/source designをamendし再reviewする。
@@ -311,6 +315,8 @@ ownerの Plan 承認を J1-J7 の挙動差・残余risk・工数Mの受容判断
 - J1-J3の安全側が「不正確な成功」より「明示的失敗」でよいか。
 - S1 warn追加が restore variant / manifest cleanup / reconcileを変えていないか。
 - helper/test hookがtest専用分岐を増やしすぎず、production main pathを実際に通すか。
+- public production関数とfailure-injection testが同一generic helperを呼び、
+  entry分類・warn・filename filterのproduction-only経路が存在しないか。
 - filename pattern不一致（正常）とowned entry parse failure（warn）の境界。
 - metadata error後の残置fileとretry重複を隠さずtest/state matrixへ記録しているか。
 
@@ -350,4 +356,10 @@ Plan Gate前。production codeは未変更。
 Review-only sub-agent skipped because: 本発注はSol単独サイクルを指定し、
 Plan Reviewer / Final ReviewerはownerがSonnet 5 fresh contextで実施する。
 
+- 2026-07-24 Plan Review一次（Sonnet 5 fresh context）: P1=0 / P2=1 /
+  P3=1、総評「承認可」。P2-1はentry注入用internal iterator helperの具体signatureと
+  production/test同一路を70/71 source design、Scope、Review Focusへ追記した。
+  P3-1はMNT-02除外理由を「P3-1同型config parse fallback（R2/M相当）の別是正単位」
+  へ訂正した。ownerはJ1-J7を全件承認し、J7は本amendment完了を条件とした。
+  amendment反映後の独立再reviewはowner条件に含まれず、反映完了をもってPlan承認とする。
 - Findings Freeze: not yet frozen; post-freeze exceptions: none。

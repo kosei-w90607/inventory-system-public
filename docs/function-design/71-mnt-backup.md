@@ -366,6 +366,29 @@ fn check_auto_backup(
 - 見直し契機: backup作成をatomic publish + explicit incomplete artifact管理へ
   置換するとき、またはCMD-11 service境界を再編するとき
 
+**auto-backup entry failure 注入境界（監査順7 Plan Review P2-1）**:
+
+production と test は次の同一 generic helper を通す。production 専用の別 collector、
+test 専用 filename 判定、`#[cfg(test)]` だけの entry 処理関数を作らない。
+
+```rust
+fn collect_today_backup_names<I>(
+    backup_dir: &Path,
+    today_prefix: &str,
+    entries: I,
+) -> Result<Vec<String>, DbError>
+where
+    I: IntoIterator<Item = std::io::Result<PathBuf>>;
+```
+
+production は `read_dir` の各 `DirEntry` を
+`entry.map(|entry| entry.path())` で上記 item 型へ変換して渡す。test は同じ helper
+へ injected `Err(io::Error)` を渡し、`DbError::QueryFailed` と
+create / cleanup 副作用なしを検証する。実装レビューでは public
+`check_auto_backup` と failure-injection test の双方がこの helper を呼び、
+entry error / filename filter の production-only / test-only 分岐が存在しないことを
+明示確認する。
+
 **MNT-01-D3: 破壊的 cleanup は保持日数を確定できた場合のみ実行**
 
 - 決定: `cleanup_old_backups`（ファイル削除）を駆動する保持日数は、(a) `backup_retention_days` の読取が成功しかつ数値として parse できた、または (b) 設定行が存在しない（未設定 = 初期状態、既定 3 日を適用）、のどちらかの場合のみ確定とする。**DB error での読取失敗、および設定値はあるが数値として parse できない場合は、既定値へ fallback せず cleanup 自体をスキップ**して `tracing::warn!` を記録する（バックアップ作成の成否には影響させない）
