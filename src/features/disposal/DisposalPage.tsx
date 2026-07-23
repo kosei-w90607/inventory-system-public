@@ -165,6 +165,7 @@ export function DisposalPage() {
       await invalidateByContract(queryClient, invalidationContract.disposal());
     },
     onError: (error) => {
+      isFormLockedRef.current = false;
       if (error instanceof Error && error.message === "validation") return;
       scrollPageToTop();
       const cmdError = isInvokeError(error) ? error.cmdError : toCmdError(error);
@@ -177,7 +178,6 @@ export function DisposalPage() {
   const lossTotal = calculateLossTotal(values.rows);
   const canSubmit = values.rows.length > 0 && values.disposalDate.trim() !== "" && !isFormLocked;
   const recentRecords = recentQuery.data?.items ?? [];
-  isFormLockedRef.current = isFormLocked;
 
   useEffect(() => {
     if (recentQuery.isError) {
@@ -242,6 +242,7 @@ export function DisposalPage() {
   }
 
   function resetForm() {
+    isFormLockedRef.current = false;
     setValues(createEmptyForm());
     setErrors({});
     setSaveError(null);
@@ -602,6 +603,7 @@ export function DisposalPage() {
             type="button"
             disabled={!canSubmit}
             onClick={() => {
+              isFormLockedRef.current = true;
               setSaveError(null);
               createMutation.mutate();
             }}

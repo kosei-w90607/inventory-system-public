@@ -1,5 +1,5 @@
 import { ChevronDown, ChevronUp, ScrollText } from "lucide-react";
-import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 
 import { EmptyState } from "@/components/patterns/EmptyState";
@@ -209,11 +209,23 @@ export function OperationLogsPage({
     normalized.start_date !== undefined &&
     normalized.end_date !== undefined &&
     normalized.start_date > normalized.end_date;
-  const lastValidSearch = useRef(normalized);
-  if (!invalidRange) {
-    lastValidSearch.current = normalized;
-  }
-  const effectiveSearch = invalidRange ? lastValidSearch.current : normalized;
+  const [lastCommittedValidSearch, setLastCommittedValidSearch] = useState(normalized);
+  const effectiveSearch = invalidRange ? lastCommittedValidSearch : normalized;
+  useEffect(() => {
+    if (invalidRange) return;
+    setLastCommittedValidSearch({
+      start_date: normalized.start_date,
+      end_date: normalized.end_date,
+      operation_type: normalized.operation_type,
+      page: normalized.page,
+    });
+  }, [
+    invalidRange,
+    normalized.start_date,
+    normalized.end_date,
+    normalized.operation_type,
+    normalized.page,
+  ]);
   const [expanded, setExpanded] = useState<number | null>(null);
   useEffect(() => {
     setExpanded(null);

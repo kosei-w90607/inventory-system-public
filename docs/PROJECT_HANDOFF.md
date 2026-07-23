@@ -4,7 +4,7 @@
 >
 > **更新ルール**: 会話で進展があるたびにこのファイルを更新する。各セクションは最新の状態を反映し、過去の経緯は「経緯ログ」セクションに蓄積する。
 >
-> **最終更新**: 2026-07-23 / 監査是正 順5「業務validation所有層一本化 + production CMD test」はPR #22でmerge・archive完了（現在状態は `Plans.md` を優先）
+> **最終更新**: 2026-07-23 / 監査是正 順6「render-phase ref accessのcommit/event同期化」はR3 implementing、実装・mutation完了、Draft PR前（現在状態は `Plans.md` を優先）
 
 ---
 
@@ -31,6 +31,7 @@
 **Phase 2 の日常利用 UI 5 画面は code-complete / route active で、PR #75 closeout merge `f44f99a` に `v0.8.0-ui-daily` tag を作成済み。AI Quality Workflow は PR #87 `ef0fd73` で Design Phase を導入済み。Phase 3 商品マスタ UI は完了済み。Phase 4 は UI-11b / UI-11a / UI-10 棚卸し / UI-11c 操作ログが完了し、残りは UI-13。最新のライブ状態は `Plans.md` を優先する。**
 
 ### 直近の作業状態
+- **render-phase ref accessのcommit/event同期化（監査是正 順6）**: **進行中（R3 / implementing）**。owner承認済み設計に従い、UI-11cをcommit後state/effect snapshot、UI-05を保存/失敗/reset event同期gateへ置換。`eslint-plugin-react-hooks@7.1.1` exact + `react-hooks/refs`限定guard、production回帰、X1 / X2 / X3 / X4 / X4b mutation、traceability同期まで完了し、bindings diff 0。active [Plan Packet](plans/2026-07-23-render-phase-ref-sync.md) / [Test Matrix](plans/test-matrices/2026-07-23-render-phase-ref-sync.md)。次はclean exact-HEAD L1 full、Draft PR、owner Sonnet 5 Final Review。
 - **業務validation所有層一本化 + production CMD test（監査是正 順5）**: **完了**（PR #22 squash merge `01d5d6e`、2026-07-23）。商品・棚卸し・整合性validationをBIZ単独所有へ戻し、4 CMD moduleの対象testを実production command + 独立転記exact oracleへ置換。production mutation全件kill、Final Review P1 / P2 / P3 = 0、Ready exact-HEAD local / hosted evidence三点一致で完了。証跡はarchived [Plan Packet](archive/plans/2026-07-23-validation-ownership-production-cmd-tests.md) / [Matrix](archive/plans/test-matrices/2026-07-23-validation-ownership-production-cmd-tests.md) / [WER](archive/plans/2026-07-23-validation-ownership-production-cmd-tests-workflow-effectiveness-review.md)。次候補は監査是正 順6のscope精査。
 - **workflow docs WER consolidation**: **完了**（PR #18 squash merge `bbb61f6`、2026-07-21）。WER Adjustment 積み残しを D-050 裁定で DEV_WORKFLOW / template 群へ正本化。packet は `docs/archive/plans/2026-07-21-workflow-docs-wer-consolidation.md` へ archive 済み
 - **整合性補正の意味論正本確定 + コード追随（監査是正 順 3、design + 実装完結）**: **完了**（design = PR #19 squash merge `384fcc8` / 実装 follow-up = PR #20 squash merge `739b117`、いずれも 2026-07-22）。D-051 正本化に加え、`fix_integrity` の同一 TX 必須ログ（失敗時 rollback）、UI-13-D9 文言同期、UI-11c-D14 operator-readable 表示、§21.7 の 3 oracle テストを実装。packet は `docs/archive/plans/2026-07-21-integrity-fix-semantics-design.md` / `2026-07-22-integrity-fix-semantics-impl.md` へ archive 済み。
