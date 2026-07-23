@@ -379,7 +379,7 @@ Contract ID: SPEC-UI-REF-COMMIT-EVENT-01
 |---|---|---|---|---|
 | REQ-902 / UI-11c-D15 | ref→state/effect | concurrent discarded render | commit-only snapshot | X1/X2 red |
 | REQ-902 / D1/D10 | valid immediate path | literal `listLogs` args | key semantics不変 | targeted pass |
-| REQ-204 / UI-05-D15 | event gate | early-lock / failure/reset-unlock | event ordering | X3/X4/X4b red |
+| REQ-204 / UI-05-D15 | event gate | early-lock / failure/reset-unlock | event ordering | X3 lint、X3a/X4/X4b test red |
 | UI-REF-D1 | plugin/config exact update | before-code lint + full lint | allowed contexts | lint pass/fail |
 | D-030 | exact install/lock review | package/audit checks | cooldown/scripts | PR evidence |
 
@@ -412,7 +412,9 @@ Contract ID: SPEC-UI-REF-COMMIT-EVENT-01
   X4（failure unlock削除）をkillした。初回X3はsubmit-event lockを単に削除した
   別mutantであり、Matrix指定のrender同期mutant killの証拠にはならないため主張を撤回した。
   初回X4bは既存idempotency test経由の間接killだったため、専用reset recovery testと
-  Matrix行を追加した。corrective baselineでのX3/X4b再実測結果は次commitで追記する。
+  Matrix行を追加した。X3 render同期mutantはproduction component harnessではgreenとなる
+  既知限界を実証し、lint guard単独防御へ訂正した。event lock完全欠落はX3aとして
+  behavior testで、reset unlock欠落はX4b専用testで再実測する。
 - frontend gate、build、docs整合、traceability生成checkを通し、
   `src/lib/bindings.ts` diff 0を確認した。npm auditは更新前後とも同一結果で、
   本dependency更新による新規advisory増加は0。exact SHA、test件数、L1 evidenceは
@@ -435,9 +437,12 @@ Contract ID: SPEC-UI-REF-COMMIT-EVENT-01
   P3 = 1、総評「修正後 Ready」。P1をacceptし、Matrix X3のrender同期mutantを
   exact HEADへ再注入するとlintは1 errorだがDisposalPage 15/15 greenを独立再現した。
   原因は`userEvent.click`の`act()` batchがmutation pending renderをsearch Promise継続より
-  先にcommitするためで、採否は推奨案(a)とした。TanStack Queryの実notificationを
-  test内queueへ一時保留し、保存eventとpending render間のasync gapを作るtestへ強化した。
-  P3もacceptし、X4b Matrix行とreset直後のsearch gateを直接assertする専用testを追加した。
+  先にcommitするためだった。推奨案(a)をnotification scheduler遅延、deferred search +
+  次event-loop turn、capture解決、deferred `onMutate`で試したが、event handler自身の
+  state/external-store updateをPromise continuationより後へ送れずX3は全構成でgreenだった。
+  この実証をもって案(b)を採用し、X3の防御をlint guard単独とMatrix/PR evidenceへ明記する。
+  event lock完全欠落はX3a behavior mutantとして区別する。P3もacceptし、
+  X4b Matrix行とreset直後のsearch gateを直接assertする専用testを追加した。
   relayは2/2へ到達し、owner指示により次回Ready relayの3/2超過予定をbudget exceptionへ
   記録した。Phaseは`implementing`のまま維持し、Readyへは遷移しない。
 - Findings Freeze: not yet frozen; post-freeze exceptions: none。

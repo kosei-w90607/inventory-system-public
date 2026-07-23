@@ -1,13 +1,8 @@
-import {
-  defaultScheduler,
-  notifyManager,
-  QueryClient,
-  QueryClientProvider,
-} from "@tanstack/react-query";
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { makeMockProductWithRelations } from "@/features/products/lib/test-fixtures";
 import { commands } from "@/lib/bindings";
@@ -112,10 +107,6 @@ beforeEach(() => {
   mockSearchProducts.mockReset();
   mockCreateDisposal.mockReset();
   mockDefaultQueries();
-});
-
-afterEach(() => {
-  notifyManager.setScheduler(defaultScheduler);
 });
 
 describe("DisposalPage (UI-05 / REQ-204)", () => {
@@ -458,7 +449,6 @@ describe("DisposalPage (UI-05 / REQ-204)", () => {
     const user = userEvent.setup();
     const deferredSearch = createDeferred<Awaited<ReturnType<typeof commands.searchProducts>>>();
     const deferredSave = createDeferred<Awaited<ReturnType<typeof commands.createDisposal>>>();
-    const scheduledNotifications: (() => void)[] = [];
     mockCreateDisposal.mockImplementation(() => {
       deferredSearch.resolve({
         status: "ok",
@@ -482,28 +472,11 @@ describe("DisposalPage (UI-05 / REQ-204)", () => {
     mockSearchProducts.mockReturnValueOnce(deferredSearch.promise);
     await user.type(screen.getByLabelText("廃棄・破損商品検索"), "DP-002{enter}");
 
-    notifyManager.setScheduler((callback) => {
-      scheduledNotifications.push(callback);
-    });
     await user.click(screen.getByRole("button", { name: "廃棄・破損を保存" }));
-    expect(mockCreateDisposal).toHaveBeenCalledTimes(1);
 
-    await act(async () => {
-      await deferredSearch.promise;
-      await new Promise<void>((resolve) => {
-        window.setTimeout(resolve, 0);
-      });
-    });
+    expect(await screen.findByRole("button", { name: "保存中..." })).toBeDisabled();
     expect(screen.queryByText("保存event競合商品")).not.toBeInTheDocument();
     expect(screen.queryByText("DP-002")).not.toBeInTheDocument();
-
-    notifyManager.setScheduler(defaultScheduler);
-    act(() => {
-      scheduledNotifications.splice(0).forEach((callback) => {
-        callback();
-      });
-    });
-    expect(await screen.findByRole("button", { name: "保存中..." })).toBeDisabled();
 
     deferredSave.resolve({
       status: "ok",

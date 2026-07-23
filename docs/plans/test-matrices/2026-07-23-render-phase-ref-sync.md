@@ -42,7 +42,7 @@ Risk: R3
 | UI-11c-D15/D10 | F2 | RTL integration | `REQ-902 UI-11c-D15 queries a newly valid search without waiting for snapshot synchronization` | valid側もstate snapshotを待ち旧CMD argsを使う |
 | UI-11c-D1/D8 | F3 | existing RTL regression強化 | `keeps the last valid list and expanded row while an inverted range is corrected` | invalid中CMD再実行、pagination/expanded row消失 |
 | UI-11c-D15 | F1,F3 | RTL state boundary | `uses the newest committed valid search after a second invalid edit` | effect同期を削除/条件反転して古いsnapshotを保持 |
-| UI-05-D15 | F4 | RTL event-order regression | `REQ-204 UI-05-D15 locks late search results before the saving render commits` | lockをrender/effectへ戻し、save event内で解決したsearchを反映 |
+| UI-05-D15 | F4 | RTL event-order regression | `REQ-204 UI-05-D15 locks late search results before the saving render commits` | save eventの同期lock自体を削除し、event中に解決したsearchを反映 |
 | UI-05-D15 | F5 | RTL recovery | `REQ-204 UI-05-D15 unlocks product search after validation or command failure` | onError/validation unlockが欠落 |
 | UI-05-D15 | F5 | RTL reset recovery | `REQ-204 UI-05-D15 unlocks product search directly after a successful reset` | reset eventのunlockが欠落し、reset直後の検索resultを破棄 |
 | UI-05-D10/D15 | F4 | existing RTL regression強化 | `REQ-204 ignores late product search results after the form is locked` | success/result中に候補・明細を追加 |
@@ -72,18 +72,16 @@ UI-11c-D15 testは次のproduction component経路を使う。
 ## Disposal Event-order Harness
 
 1. 商品Aを明細へ追加し、商品B検索をdeferredにする。
-2. save click直前からTanStack Queryの実notification schedulerをtest内queueへ一時退避し、
-   `createDisposal` mock内で商品B検索を解決、save Promise自体はpendingに保つ。
-3. 商品Bのdeferred Promiseと次のevent-loop turnまで明示的に進め、保存eventは実行済み
-   だがmutation pending通知が未flushのasync gapで、B候補/message/明細が
-   反映されないことを検査する。
-4. schedulerをproduction defaultへ戻してpending通知をflushし、保存中表示へ到達する。
-5. save failureを返した後、literal keywordで再検索できることを検査する。
+2. save clickの`createDisposal` mock内で商品B検索を解決し、save Promise自体はpendingに保つ。
+3. save event先頭のgate lockが効き、B候補/message/明細が反映されないことを検査する。
+4. save failureを返した後、literal keywordで再検索できることを検査する。
 
-通常の`userEvent.click`だけでは`act()` batchがpending re-renderをsearch継続より先に
-commitし、render同期mutantでもgreenになる。scheduler queueはproduction
-`DisposalPage` / `useMutation` / command経路を維持したまま、このorderingだけを
-決定論的に分離する。
+このproduction component harnessでは、Reactの離散event batchがPromise continuationより
+先にpending re-renderをcommitするため、event lockをrender同期へ戻すX3はtest greenとなる。
+notification scheduler遅延、deferred search + 次event-loop turn、capture解決、
+deferred `onMutate`を個別・組合せで実測しても、event handler自身のstate/external-store
+updateによるrenderを外部観測可能なasync callbackより後へ送れなかった。したがってX3の
+防御は`react-hooks/refs` guard単独とし、behavior testはevent lock完全欠落X3aを検出する。
 
 ## Mutation 感度実測
 
@@ -95,7 +93,8 @@ commitし、render同期mutantでもgreenになる。scheduler queueはproductio
 |---|---|---|
 | X1 | UI-11c state/effectを旧`useRef` render write/readへ戻す | concurrent discarded render test + lint |
 | X2 | valid commit後snapshot effectを削除または条件反転 | newest committed valid search test |
-| X3 | UI-05 submit eventのgate lockをrender同期へ戻す | before-saving-render event-order test + lint |
+| X3 | UI-05 submit eventのgate lockをrender同期へ戻す | lint guard（behavior testはgreenとなる既知限界） |
+| X3a | UI-05 submit eventのgate lockを削除する | before-saving-render event-order test |
 | X4 | validation/command failureのunlockを削除 | failure recovery test |
 | X4b | reset eventのunlockを削除 | reset直後のsearch gate専用test |
 
@@ -173,7 +172,9 @@ guard detection oracleはsynthetic fixtureでなくplan commitの実production c
 - discarded renderを本当に作るか: Suspense sibling + `startTransition`でcommit前Bを止める。
 - key branchをrefへ戻すと何が落ちるか: X1。
 - effectを消すと何が落ちるか: X2。
-- event lockを遅らせると何が落ちるか: X3。
+- event lockをrender同期へ戻すと何が落ちるか: X3 lint guard。component harnessでは
+  React離散event commitより前のasync観測点を作れずtestはgreen。
+- event lockを完全に消すと何が落ちるか: X3a behavior test。
 - failure unlockを消すと何が落ちるか: X4。
 - reset unlockを消すと何が落ちるか: X4b専用test。
 - guardを消すとどう検出するか: final configをplan commitの実codeへ適用するoracle。
