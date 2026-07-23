@@ -2,19 +2,27 @@
 
 ## Workflow State
 
-- Phase: plan-gate
+- Phase: implementing
 - Risk: R3
 - Execution Mode: dual-vendor-no-fable
-- Plan Commit: pending
-- Amendments: none
+- Plan Commit: e9757f8
+- Amendments: 082379c
 - Coordinator: Sol（本 thread、scope 精査・design・packet・実装・PR）
-- Writer: Sol（owner 承認後のみ実装）
-- Plan Reviewer: owner が起動する Sonnet 5 fresh context（pending）
+- Writer: Sol（owner Plan承認済み、実装中）
+- Plan Reviewer: owner が起動した Sonnet 5 fresh context（P1 = 0 / P2 = 1 → gated amendment反映で残P1/P2 = 0、承認）
 - Final Reviewer: owner が起動する Sonnet 5 fresh context（production CMD / BIZ 契約監査、pending）
 - Reviewed Content HEAD: pending
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
-- Human Gate: owner Plan 承認 / Ready / merge
+- Human Gate: owner Ready / merge（Plan承認済み、介入1/3）
+
+- State Narrative（append-only、2026-07-23）: 本state-only commitで隣接forward遷移
+  `plan-gate -> plan-approved -> implementing` をmaterializeする。evidence:
+  `plan-gate -> plan-approved` = Sonnet 5 fresh contextの一次review
+  P1 = 0 / P2 = 1に対し、P2をgated amendment `082379c` で反映した時点をownerが
+  Plan承認と明示し、残P1/P2 = 0。`Plan Commit` = plan-first commit `e9757f8` であり、
+  実装commitはまだ存在せず全実装commitへの先行性が成立する。
+  `plan-approved -> implementing` = 同じowner指示がSolの実装着手を明示承認。
 
 ## Owner Effort Budget
 
@@ -307,4 +315,6 @@ owner Plan 承認前のため未実装。
   総評「修正後承認」。P2「独立転記oracleの担保が人手Review Focus止まり」を受理し、
   対象4 CMD moduleのtest本体に対する`biz::*_service`由来文字列定数・helperの
   import不在を`rg` 0件でPR evidence化するAcceptance Criteriaをgated amendmentとして追加。
+- ownerは上記gated amendment完了をもってPlan承認とし、Workflow Stateの
+  `implementing` 遷移とSolによる実装着手を許可（介入1/3）。
 - Findings Freeze: not yet frozen; post-freeze exceptions: none
