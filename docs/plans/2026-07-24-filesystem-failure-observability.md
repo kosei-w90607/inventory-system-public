@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: human-confirm
+- Phase: ready-hosted-final
 - Risk: R3
 - Execution Mode: dual-vendor-no-fable
 - Plan Commit: 94f303b
@@ -14,7 +14,7 @@
 - Reviewed Content HEAD: edad440
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
-- Human Gate: pending Ready / merge。Windows native L3 は不要
+- Human Gate: Ready authorized。pending hosted final / merge。Windows native L3 は不要
 
 - State Narrative（2026-07-24）: public-writer clone、期待 origin、clean `main`、
   基準 HEAD `508db72`、active packet 不在を確認し、fetch / checkout / pull で
@@ -52,6 +52,13 @@
   Findings FreezeをP1=0 / P2=0 / P3=2で確定し、
   `implementing -> local-verified -> independent-review -> human-confirm`を
   materializeする。Reviewed Content HEADは`edad440`。
+
+- State Narrative（2026-07-24、owner Ready承認 / state-only）: ownerは
+  Final Review P1=0 / P2=0を受けてReadyを明示承認した
+  （このchangeでの介入2回目 / 予算3回）。利用者可視の完了は
+  「filesystem failureが不正確な成功に化けない候補をhosted finalへ進められる状態」。
+  Draftのまま`human-confirm -> ready-hosted-final`をmaterializeし、このcommitの
+  exact HEADでL1 full、PR body全面更新、Ready化、hosted CI headSha一致確認を行う。
 
 ## Owner Effort Budget
 
