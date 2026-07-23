@@ -411,4 +411,103 @@ describe("DisposalPage (UI-05 / REQ-204)", () => {
     expect(screen.getByText("廃棄・破損を保存しました")).toBeInTheDocument();
     expect(screen.queryByText("DP-002")).not.toBeInTheDocument();
   });
+
+  it("REQ-204 locks late product results at the save event before the pending render", async () => {
+    const user = userEvent.setup();
+    const deferredSearch = createDeferred<Awaited<ReturnType<typeof commands.searchProducts>>>();
+    const deferredSave = createDeferred<Awaited<ReturnType<typeof commands.createDisposal>>>();
+    mockCreateDisposal.mockImplementation(() => {
+      deferredSearch.resolve({
+        status: "ok",
+        data: {
+          items: [
+            makeMockProductWithRelations({
+              product_code: "DP-002",
+              name: "保存event競合商品",
+            }),
+          ],
+          total_count: 1,
+          page: 1,
+          per_page: 10,
+        },
+      });
+      return deferredSave.promise;
+    });
+
+    renderWithClient(<DisposalPage />);
+    await addSingleProduct(user);
+    mockSearchProducts.mockReturnValueOnce(deferredSearch.promise);
+    await user.type(screen.getByLabelText("廃棄・破損商品検索"), "DP-002{enter}");
+
+    await user.click(screen.getByRole("button", { name: "廃棄・破損を保存" }));
+
+    expect(await screen.findByRole("button", { name: "保存中..." })).toBeDisabled();
+    expect(screen.queryByText("保存event競合商品")).not.toBeInTheDocument();
+    expect(screen.queryByText("DP-002")).not.toBeInTheDocument();
+
+    deferredSave.resolve({
+      status: "ok",
+      data: { record_id: 44, created: true, idempotent_replay: false, stock_warnings: [] },
+    });
+    expect(await screen.findByText("廃棄・破損を保存しました")).toBeInTheDocument();
+  });
+
+  it("REQ-204 unlocks product search after frontend validation failure", async () => {
+    const user = userEvent.setup();
+    renderWithClient(<DisposalPage />);
+    await addSingleProduct(user);
+    fireEvent.change(screen.getByLabelText("DP-001 の数量"), { target: { value: "0" } });
+
+    await user.click(screen.getByRole("button", { name: "廃棄・破損を保存" }));
+    expect(
+      await screen.findByText("DP-001: 数量は1以上の整数で入力してください"),
+    ).toBeInTheDocument();
+
+    mockSearchProducts.mockResolvedValueOnce({
+      status: "ok",
+      data: {
+        items: [
+          makeMockProductWithRelations({
+            product_code: "DP-002",
+            name: "validation失敗後の商品",
+          }),
+        ],
+        total_count: 1,
+        page: 1,
+        per_page: 10,
+      },
+    });
+    await user.type(screen.getByLabelText("廃棄・破損商品検索"), "DP-002{enter}");
+    expect(await screen.findByText("validation失敗後の商品")).toBeInTheDocument();
+  });
+
+  it("REQ-204 unlocks product search after command failure", async () => {
+    const user = userEvent.setup();
+    mockCreateDisposal.mockResolvedValue({
+      status: "error",
+      error: { kind: "internal", message: "保存command失敗", field: null },
+    });
+    renderWithClient(<DisposalPage />);
+    await addSingleProduct(user);
+
+    await user.click(screen.getByRole("button", { name: "廃棄・破損を保存" }));
+    expect(await screen.findByText("保存command失敗")).toBeInTheDocument();
+
+    mockSearchProducts.mockResolvedValueOnce({
+      status: "ok",
+      data: {
+        items: [
+          makeMockProductWithRelations({
+            product_code: "DP-002",
+            name: "command失敗後の商品",
+          }),
+        ],
+        total_count: 1,
+        page: 1,
+        per_page: 10,
+      },
+    });
+    await user.type(screen.getByLabelText("廃棄・破損商品検索"), "DP-002{enter}");
+    expect(await screen.findByText("command失敗後の商品")).toBeInTheDocument();
+  });
 });

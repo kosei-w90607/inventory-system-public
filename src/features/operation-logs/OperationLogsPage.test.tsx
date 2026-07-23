@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { useState } from "react";
+import { startTransition, Suspense, use, useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { commands } from "@/lib/bindings";
@@ -273,6 +273,133 @@ describe("UI-11c REQ-902", () => {
       page: 1,
       per_page: 20,
     });
+  });
+
+  it("REQ-902 keeps the last committed valid search after a newer valid search commits", async () => {
+    listLogs.mockImplementation((query) =>
+      Promise.resolve({
+        status: "ok",
+        data: {
+          items: [
+            {
+              ...log(),
+              summary:
+                query.start_date === "2026-07-02"
+                  ? "最新のcommit済み合成ログ"
+                  : "初回commit済み合成ログ",
+            },
+          ],
+          total_count: 1,
+          page: 1,
+          per_page: 20,
+        },
+      }),
+    );
+    renderStatefulPage({ start_date: "2026-07-01", end_date: "2026-07-10", page: 1 });
+    expect(await screen.findByText("初回commit済み合成ログ")).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("開始日"), { target: { value: "2026-07-02" } });
+    expect(await screen.findByText("最新のcommit済み合成ログ")).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("開始日"), { target: { value: "2026-07-11" } });
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "開始日は終了日と同じ日か、それより前の日付にしてください",
+    );
+    expect(screen.getByText("最新のcommit済み合成ログ")).toBeInTheDocument();
+    expect(screen.queryByText("初回commit済み合成ログ")).not.toBeInTheDocument();
+    expect(listLogs).toHaveBeenCalledTimes(2);
+  });
+
+  it("REQ-902 does not expose search from a discarded valid transition render", async () => {
+    const renderedStartDates: (string | undefined)[] = [];
+    const neverResolves = new Promise<void>(() => undefined);
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+
+    function RenderProbe({ currentSearch }: { currentSearch: OperationLogsSearch }) {
+      renderedStartDates.push(currentSearch.start_date);
+      return null;
+    }
+
+    function SuspendAfterPage({ active }: { active: boolean }) {
+      if (active) use(neverResolves);
+      return null;
+    }
+
+    function ConcurrentPage() {
+      const [search, setSearch] = useState<OperationLogsSearch>({
+        start_date: "2026-07-01",
+        end_date: "2026-07-10",
+        page: 3,
+      });
+      const [shouldSuspend, setShouldSuspend] = useState(false);
+      return (
+        <>
+          <OperationLogsPage
+            search={search}
+            onSearchChange={(updater) => {
+              setSearch(updater);
+            }}
+          />
+          <RenderProbe currentSearch={search} />
+          <button
+            type="button"
+            onClick={() => {
+              startTransition(() => {
+                setSearch({
+                  start_date: "2026-07-02",
+                  end_date: "2026-07-10",
+                  page: 1,
+                });
+                setShouldSuspend(true);
+              });
+            }}
+          >
+            valid transitionを開始
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setShouldSuspend(false);
+              setSearch({
+                start_date: "2026-07-11",
+                end_date: "2026-07-10",
+                page: 1,
+              });
+            }}
+          >
+            invalid searchをcommit
+          </button>
+          <SuspendAfterPage active={shouldSuspend} />
+        </>
+      );
+    }
+
+    listLogs.mockResolvedValue({
+      status: "ok",
+      data: { items: [log()], total_count: 45, page: 3, per_page: 20 },
+    });
+    render(
+      <QueryClientProvider client={client}>
+        <Suspense>
+          <ConcurrentPage />
+        </Suspense>
+      </QueryClientProvider>,
+    );
+    expect(await screen.findByText("合成ログ")).toBeInTheDocument();
+    expect(screen.getByText("45 件中 3 / 3 ページ")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "valid transitionを開始" }));
+    await waitFor(() => {
+      expect(renderedStartDates).toContain("2026-07-02");
+    });
+    fireEvent.click(screen.getByRole("button", { name: "invalid searchをcommit" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "開始日は終了日と同じ日か、それより前の日付にしてください",
+    );
+    expect(screen.getByText("合成ログ")).toBeInTheDocument();
+    expect(screen.getByText("45 件中 3 / 3 ページ")).toBeInTheDocument();
+    expect(listLogs).toHaveBeenCalledTimes(1);
   });
 
   it("gets type options independently and shows unknown raw fallback", async () => {

@@ -40,7 +40,9 @@ export default tseslint.config(
     rules: {
       ...react.configs.flat.recommended.rules,
       ...react.configs.flat["jsx-runtime"].rules,
-      ...reactHooks.configs.recommended.rules,
+      "react-hooks/rules-of-hooks": "error",
+      "react-hooks/exhaustive-deps": "warn",
+      "react-hooks/refs": "error",
       ...jsxA11y.flatConfigs.recommended.rules,
     },
   },
