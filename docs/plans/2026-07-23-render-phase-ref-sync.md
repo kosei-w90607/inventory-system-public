@@ -223,6 +223,25 @@ traceabilityの登録変更なし。dev dependency exact更新で`package.json` 
 | React UI | UI_TECH_STACK §2.1 | UI-REF-D1 | review-onlyでは再発防止不可。広いrecommended導入はscope過大 | eslint/package/lock | before-code lint oracle + full lint |
 | npm policy | D-030 | D-030 | new/custom dependencyやcooldown除外を避けofficial exact releaseを採用 | package/lock | exact pin / audit / lock review |
 
+Plan Review P2-1 gated amendmentとして、`eslint.config.js`の具体差分を次で固定する。
+`reactHooks.configs.recommended.rules`は7.1.1でrefs以外のCompiler rule群まで拡大するため
+削除し、現行5.2.0で有効な2 ruleのseverityを独立転記した上でrefsだけを追加する。
+
+```diff
+ rules: {
+   ...react.configs.flat.recommended.rules,
+   ...react.configs.flat["jsx-runtime"].rules,
+-  ...reactHooks.configs.recommended.rules,
++  "react-hooks/rules-of-hooks": "error",
++  "react-hooks/exhaustive-deps": "warn",
++  "react-hooks/refs": "error",
+   ...jsxA11y.flatConfigs.recommended.rules,
+ },
+```
+
+`reactHooks.configs.flat.recommended` / `recommended-latest`への置換、他Compiler ruleの
+個別追加、inline disableはいずれも本changeでは禁止する。
+
 ## Design Intent Audit
 
 - Source docs can answer what/why without chat orpacket: yes。UI-REF-D1 / D15を追加。
@@ -372,4 +391,13 @@ pending。owner Plan承認前は実装しない。
 
 - Review-only sub-agent skipped because: 本発注はSol単独サイクルを指定し、
   Plan Reviewer / Final ReviewerはownerがSonnet 5 fresh contextで実施する。
+- 2026-07-23 Plan Review一次（Sonnet 5 fresh context）: P1 = 0 / P2 = 1 /
+  P3 = 1、総評「承認可」。P2-1は`eslint.config.js`の具体差分
+  （recommended spread削除 + 現行2 rule severityの独立転記 + refsだけ追加）を
+  上記Design Intent Traceへgated amendmentとして反映した。P3-1は記録のみとし、
+  test環境の`startTransition`安定性を実装時の最初のconcurrent test RED/GREENで確認する。
+- ownerはUI-11c passive effect極小窓の1 render表示候補と、UI-05 lockをevent開始点で
+  確定するrace差を両方承認した。P2-1 amendment完了を条件にPlan承認し、
+  `plan-approved -> implementing`への遷移とSolの実装着手を許可した
+  （介入1/3）。
 - Findings Freeze: not yet frozen; post-freeze exceptions: none。
