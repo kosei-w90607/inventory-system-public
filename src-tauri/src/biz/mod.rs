@@ -49,6 +49,8 @@ use std::fmt;
 pub enum BizError {
     /// 入力バリデーション失敗
     ValidationFailed(String),
+    /// 入力バリデーション失敗（wire field付き）
+    ValidationFailedAt { message: String, field: String },
     /// 対象レコードが見つからない
     NotFound(String),
     /// 商品コード重複
@@ -69,6 +71,9 @@ impl fmt::Display for BizError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             BizError::ValidationFailed(msg) => write!(f, "バリデーションエラー: {}", msg),
+            BizError::ValidationFailedAt { message, field } => {
+                write!(f, "バリデーションエラー({}): {}", field, message)
+            }
             BizError::NotFound(msg) => write!(f, "見つかりません: {}", msg),
             BizError::DuplicateProductCode(code) => {
                 write!(f, "商品コード重複: {}", code)

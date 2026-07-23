@@ -90,7 +90,7 @@ pub fn get_active_stocktake(
 
 /// 棚卸しアイテム一覧を取得する（読み取り専用、TX不要）
 ///
-/// CMD-10 get_stocktake_items 用。IO層のラッパー。
+/// CMD-10 get_stocktake_items 用。BIZ-06-VAL-D1のページ下限を検証してIO層を呼ぶ。
 /// items + progress を返す。
 pub fn get_stocktake_items(
     conn: &DbConnection,
@@ -106,6 +106,19 @@ pub fn get_stocktake_items(
     ),
     BizError,
 > {
+    if page < 1 {
+        return Err(BizError::ValidationFailedAt {
+            message: "ページ番号は1以上で指定してください".to_string(),
+            field: "page".to_string(),
+        });
+    }
+    if per_page < 1 {
+        return Err(BizError::ValidationFailedAt {
+            message: "1ページあたりの件数は1以上で指定してください".to_string(),
+            field: "per_page".to_string(),
+        });
+    }
+
     let paginated = stocktake_repo::list_stocktake_items(
         conn,
         stocktake_id,
@@ -177,7 +190,7 @@ pub fn update_count(
     // 1. バリデーション
     if req.actual_count < 0 {
         return Err(BizError::ValidationFailed(
-            "カウント値は0以上で入力してください".to_string(),
+            "カウント数は0以上で入力してください".to_string(),
         ));
     }
 

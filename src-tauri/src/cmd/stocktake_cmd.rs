@@ -68,22 +68,6 @@ pub fn get_stocktake_items(
     page: u32,
     per_page: u32,
 ) -> Result<StocktakeItemListResponse, CmdError> {
-    // 防御的チェック: page/per_page の不正値を validation error で返す
-    if page < 1 {
-        return Err(CmdError {
-            kind: "validation".to_string(),
-            message: "ページ番号は1以上で指定してください".to_string(),
-            field: Some("page".to_string()),
-        });
-    }
-    if per_page < 1 {
-        return Err(CmdError {
-            kind: "validation".to_string(),
-            message: "1ページあたりの件数は1以上で指定してください".to_string(),
-            field: Some("per_page".to_string()),
-        });
-    }
-
     let conn = state
         .db
         .lock()
@@ -150,13 +134,6 @@ pub fn update_count(
     stocktake_item_id: i64,
     actual_count: i64,
 ) -> Result<stocktake_service::UpdateCountResult, CmdError> {
-    if actual_count < 0 {
-        return Err(CmdError {
-            kind: "validation".to_string(),
-            message: "カウント数は0以上で入力してください".to_string(),
-            field: None,
-        });
-    }
     let conn = state
         .db
         .lock()
@@ -210,80 +187,92 @@ mod tests {
         }
     }
 
+    fn setup_in_progress_stocktake() -> (tempfile::TempDir, crate::db::DbConnection, i64, i64) {
+        let (dir, conn) = setup_test_db();
+        seed_product(&conn, "COUNT-001");
+        conn.execute(
+            "INSERT INTO stocktakes (started_at, status, total_cost)
+             VALUES ('2026-10-01T09:00:00', 'in_progress', NULL)",
+            [],
+        )
+        .unwrap();
+        let stocktake_id = conn.last_insert_rowid();
+        conn.execute(
+            "INSERT INTO stocktake_items (stocktake_id, product_code, system_stock, actual_count)
+             VALUES (?1, 'COUNT-001', 0, NULL)",
+            [stocktake_id],
+        )
+        .unwrap();
+        let item_id = conn.last_insert_rowid();
+        (dir, conn, stocktake_id, item_id)
+    }
+
     #[test]
     fn test_update_count_req205_negative_validation() {
-        // REQ-205: 棚卸し（CMD — 負のactual_count → validation error）
-        // 負のactual_countで validation error になることを検証
+        // REQ-205 / BIZ-06-VAL-D1: 実CMDの負数境界とwire tripleを独立転記で固定する。
         let negative_counts: Vec<i64> = vec![-1, -100, i64::MIN];
         for count in negative_counts {
-            let result: Result<(), CmdError> = if count < 0 {
-                Err(CmdError {
-                    kind: "validation".to_string(),
-                    message: "カウント数は0以上で入力してください".to_string(),
-                    field: None,
-                })
-            } else {
-                Ok(())
-            };
-            let err = result.unwrap_err();
+            let (_dir, conn, _stocktake_id, item_id) = setup_in_progress_stocktake();
+            let app = tauri::test::mock_builder()
+                .manage(app_state_for_test(conn))
+                .build(tauri::test::mock_context(tauri::test::noop_assets()))
+                .unwrap();
+
+            let err = update_count(app.state::<AppState>(), item_id, count).unwrap_err();
+
             assert_eq!(err.kind, "validation");
-            assert!(err.message.contains("0以上"));
+            assert_eq!(err.message, "カウント数は0以上で入力してください");
+            assert_eq!(err.field, None);
         }
     }
 
     #[test]
     fn test_update_count_req205_zero_is_valid() {
-        // REQ-205: 棚卸し（CMD — 0 は有効値）
-        // 0 は valid（validation error にならない）
-        let count: i64 = 0;
-        let result: Result<(), CmdError> = if count < 0 {
-            Err(CmdError {
-                kind: "validation".to_string(),
-                message: "カウント数は0以上で入力してください".to_string(),
-                field: None,
-            })
-        } else {
-            Ok(())
-        };
-        assert!(result.is_ok());
+        // REQ-205 / BIZ-06-VAL-D1: 実CMDで0を受理し、更新結果まで到達する。
+        let (_dir, conn, _stocktake_id, item_id) = setup_in_progress_stocktake();
+        let app = tauri::test::mock_builder()
+            .manage(app_state_for_test(conn))
+            .build(tauri::test::mock_context(tauri::test::noop_assets()))
+            .unwrap();
+
+        let result = update_count(app.state::<AppState>(), item_id, 0).unwrap();
+
+        assert!(result.success);
+        assert_eq!(result.current_difference, 0);
     }
 
     #[test]
     fn test_get_stocktake_items_req205_page_zero_validation() {
-        // REQ-205: 棚卸し（CMD — page=0 → validation error）
-        // page=0 で validation error になることを検証
-        let page: u32 = 0;
-        let result: Result<(), CmdError> = if page < 1 {
-            Err(CmdError {
-                kind: "validation".to_string(),
-                message: "ページ番号は1以上で指定してください".to_string(),
-                field: Some("page".to_string()),
-            })
-        } else {
-            Ok(())
-        };
-        let err = result.unwrap_err();
+        // REQ-205 / BIZ-06-VAL-D1: 実CMDのpage下限とwire tripleを独立転記で固定する。
+        let (_dir, conn, stocktake_id, _item_id) = setup_in_progress_stocktake();
+        let app = tauri::test::mock_builder()
+            .manage(app_state_for_test(conn))
+            .build(tauri::test::mock_context(tauri::test::noop_assets()))
+            .unwrap();
+
+        let err = get_stocktake_items(app.state::<AppState>(), stocktake_id, None, None, 0, 50)
+            .unwrap_err();
+
         assert_eq!(err.kind, "validation");
-        assert_eq!(err.field, Some("page".to_string()));
+        assert_eq!(err.message, "ページ番号は1以上で指定してください");
+        assert_eq!(err.field.as_deref(), Some("page"));
     }
 
     #[test]
     fn test_get_stocktake_items_req205_per_page_zero_validation() {
-        // REQ-205: 棚卸し（CMD — per_page=0 → validation error）
-        // per_page=0 で validation error になることを検証
-        let per_page: u32 = 0;
-        let result: Result<(), CmdError> = if per_page < 1 {
-            Err(CmdError {
-                kind: "validation".to_string(),
-                message: "1ページあたりの件数は1以上で指定してください".to_string(),
-                field: Some("per_page".to_string()),
-            })
-        } else {
-            Ok(())
-        };
-        let err = result.unwrap_err();
+        // REQ-205 / BIZ-06-VAL-D1: 実CMDのper_page下限とwire tripleを独立転記で固定する。
+        let (_dir, conn, stocktake_id, _item_id) = setup_in_progress_stocktake();
+        let app = tauri::test::mock_builder()
+            .manage(app_state_for_test(conn))
+            .build(tauri::test::mock_context(tauri::test::noop_assets()))
+            .unwrap();
+
+        let err = get_stocktake_items(app.state::<AppState>(), stocktake_id, None, None, 1, 0)
+            .unwrap_err();
+
         assert_eq!(err.kind, "validation");
-        assert_eq!(err.field, Some("per_page".to_string()));
+        assert_eq!(err.message, "1ページあたりの件数は1以上で指定してください");
+        assert_eq!(err.field.as_deref(), Some("per_page"));
     }
 
     #[test]
