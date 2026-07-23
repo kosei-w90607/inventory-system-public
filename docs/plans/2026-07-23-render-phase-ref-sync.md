@@ -390,7 +390,28 @@ Contract ID: SPEC-UI-REF-COMMIT-EVENT-01
 
 ## Implementation Results
 
-pending。owner Plan承認前は実装しない。
+- UI-11cの`lastValidSearch` render ref clusterを、
+  `lastCommittedValidSearch` state + valid commit後のpassive effectへ置換した。
+  valid renderは現在のnormalized searchを即時に使い、invalid renderだけが
+  commit済みsnapshotを使うため、query key構造と通常filterの反映timingは不変。
+- UI-05のasync result gateは、保存button eventでmutation呼出し前にlockし、
+  frontend validation / command failure callbackとreset eventでunlockする。
+  candidate選択 / async検索完了callbackのreadとDOM focus refはevent/callback内に維持した。
+- `eslint-plugin-react-hooks@7.1.1`をexact導入し、gated amendmentどおり
+  recommended spreadを現行2 rule + `react-hooks/refs=error`の明示設定へ置換した。
+  是正前contentの実2fileへfinal ruleを当てると対象unique lineだけでnonzero、
+  final repo全体ではfalse positive 0だった。
+- production component testでdiscarded valid transition、最新commit済みsnapshot、
+  保存event/search競合、validation / command failure、reset recoveryを検証した。
+  `startTransition` harnessは初回REDでsuspended renderを観測して狙ったassertionまで到達し、
+  実装後GREENとなった。
+- clean committed baselineからX1（旧render ref）、X2（snapshot effect削除）、
+  X3（submit-event lock削除）、X4（failure unlock削除）、X4b（reset unlock削除）を
+  全件killした。各exact-file復元後に対応targeted GREENとclean treeを確認した。
+- frontend gate、build、docs整合、traceability生成checkを通し、
+  `src/lib/bindings.ts` diff 0を確認した。npm auditは更新前後とも同一結果で、
+  本dependency更新による新規advisory増加は0。exact SHA、test件数、L1 evidenceは
+  PR bodyを正本とする。
 
 ## Review Response
 
