@@ -307,7 +307,22 @@ Contract ID: SPEC-CMD-VALIDATION-OWNERSHIP-01
 
 ## Implementation Results
 
-owner Plan 承認前のため未実装。
+- `product_service::preview_import`へempty guardを移し、`integrity_cmd::fix_integrity`の
+  重複guardを削除した。
+- `stocktake_service`がpage/per_page下限とactual_count負数を所有し、
+  `ValidationFailedAt`で既存wire fieldを保持する。CMD側の同条件guardは削除した。
+- P8-1対象4 CMD moduleのtestを実production command呼出しへ置換し、
+  `kind` / `message` / `field`を独立転記で完全一致比較する。valid boundaryも
+  実commandのresponseを検査する。
+- test-firstでfield付きerror mappingのcompile RED、CMD guard除去後の対象RED、
+  BIZ実装後のGREENを確認した。clean committed baselineからX1 / X2 /
+  X3a〜X3d / X4a〜X4bを全件killし、各exact-file復元後のGREENとclean treeを確認した。
+  test件数・失敗抜粋・exact-HEADはPR bodyだけに記録する。
+- traceability生成物を正規generatorで同期し、generated command signature /
+  `src/lib/bindings.ts`に差分がないことを確認した。
+- Review-only sub-agentは本件がowner指定のSol単独サイクルであるためskipする。
+  独立Final ReviewはDraft PR open後にownerがSonnet 5 fresh contextで実施する。
+- 未完了: L1 full、Draft PR open、owner Final Review、Ready / hosted final。
 
 ## Review Response
 

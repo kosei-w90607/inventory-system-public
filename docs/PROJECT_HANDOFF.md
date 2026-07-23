@@ -4,7 +4,7 @@
 >
 > **更新ルール**: 会話で進展があるたびにこのファイルを更新する。各セクションは最新の状態を反映し、過去の経緯は「経緯ログ」セクションに蓄積する。
 >
-> **最終更新**: 2026-07-14 / CI `synchronize` trigger修正をPublic PR #2で完了。次はUI-13と、最初のnon-doc PRでのReady `synchronize` / cancellation dogfood（現在状態は `Plans.md` を優先）
+> **最終更新**: 2026-07-23 / 監査是正 順5「業務validation所有層一本化 + production CMD test」は実装・mutation実測まで完了し、全gate / Draft PR前（現在状態は `Plans.md` を優先）
 
 ---
 
@@ -31,6 +31,7 @@
 **Phase 2 の日常利用 UI 5 画面は code-complete / route active で、PR #75 closeout merge `f44f99a` に `v0.8.0-ui-daily` tag を作成済み。AI Quality Workflow は PR #87 `ef0fd73` で Design Phase を導入済み。Phase 3 商品マスタ UI は完了済み。Phase 4 は UI-11b / UI-11a / UI-10 棚卸し / UI-11c 操作ログが完了し、残りは UI-13。最新のライブ状態は `Plans.md` を優先する。**
 
 ### 直近の作業状態
+- **業務validation所有層一本化 + production CMD test（監査是正 順5、進行中）**: 商品・棚卸し・整合性validationをBIZ単独所有へ戻し、4 CMD moduleの対象testを実production command + 独立転記exact oracleへ置換済み。clean committed baselineから計画した8 mutationを全件killし、復元後GREEN / cleanを確認。次 = L1 full → Draft PR → owner Sonnet 5 Final Review。詳細はactive [Plan Packet](plans/2026-07-23-validation-ownership-production-cmd-tests.md) / [Matrix](plans/test-matrices/2026-07-23-validation-ownership-production-cmd-tests.md)。
 - **workflow docs WER consolidation**: **完了**（PR #18 squash merge `bbb61f6`、2026-07-21）。WER Adjustment 積み残しを D-050 裁定で DEV_WORKFLOW / template 群へ正本化。packet は `docs/archive/plans/2026-07-21-workflow-docs-wer-consolidation.md` へ archive 済み
 - **整合性補正の意味論正本確定 + コード追随（監査是正 順 3、design + 実装完結）**: **完了**（design = PR #19 squash merge `384fcc8` / 実装 follow-up = PR #20 squash merge `739b117`、いずれも 2026-07-22）。D-051 正本化に加え、`fix_integrity` の同一 TX 必須ログ（失敗時 rollback）、UI-13-D9 文言同期、UI-11c-D14 operator-readable 表示、§21.7 の 3 oracle テストを実装。packet は `docs/archive/plans/2026-07-21-integrity-fix-semantics-design.md` / `2026-07-22-integrity-fix-semantics-impl.md` へ archive 済み。
 - **mutation→consumer query 契約の SSOT 化（監査是正 順 4）**: **完了**（PR #21 squash merge `fa21954`、2026-07-23）。全 16 mutation / 18 success handler の invalidation を `invalidation-contract.ts`（D-052 SSOT）へ統一し、監査 P5 系 findings の欠落全件を解消。導出原則と除外表 E1〜E6 は UI_TECH_STACK §2.5 + decision-log D-052 が正本。テストは契約表からの独立転記 oracle と完全一致比較（production 非 import を静的 gate で機械強制）。packet は `docs/archive/plans/2026-07-22-mutation-consumer-query-contract.md` へ archive 済み。次 = 順 5 以降の scope 精査 or roadmap 1-4 移行判断（詳細は Plans.md「次の行動」0）。
