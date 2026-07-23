@@ -35,6 +35,9 @@
 
 検証・mutation・review roundの計算資源は本発注どおり制限しない。承認依頼は
 `この change での介入 N 回目 / 予算 3 回` と利用者可視の完了1文を添える。
+Final Review是正relayで2/2へ到達した。ownerが是正検証後に別途指示するReady relayは
+3/2となるため、owner明示指示による1回超過の予定をbudget exceptionとして記録する
+（Ready relay自体は未実行）。
 
 ## Risk
 
@@ -376,7 +379,7 @@ Contract ID: SPEC-UI-REF-COMMIT-EVENT-01
 |---|---|---|---|---|
 | REQ-902 / UI-11c-D15 | ref→state/effect | concurrent discarded render | commit-only snapshot | X1/X2 red |
 | REQ-902 / D1/D10 | valid immediate path | literal `listLogs` args | key semantics不変 | targeted pass |
-| REQ-204 / UI-05-D15 | event gate | early-lock / failure-unlock | event ordering | X3/X4 red |
+| REQ-204 / UI-05-D15 | event gate | early-lock / failure/reset-unlock | event ordering | X3/X4/X4b red |
 | UI-REF-D1 | plugin/config exact update | before-code lint + full lint | allowed contexts | lint pass/fail |
 | D-030 | exact install/lock review | package/audit checks | cooldown/scripts | PR evidence |
 
@@ -406,8 +409,10 @@ Contract ID: SPEC-UI-REF-COMMIT-EVENT-01
   `startTransition` harnessは初回REDでsuspended renderを観測して狙ったassertionまで到達し、
   実装後GREENとなった。
 - clean committed baselineからX1（旧render ref）、X2（snapshot effect削除）、
-  X3（submit-event lock削除）、X4（failure unlock削除）、X4b（reset unlock削除）を
-  全件killした。各exact-file復元後に対応targeted GREENとclean treeを確認した。
+  X4（failure unlock削除）をkillした。初回X3はsubmit-event lockを単に削除した
+  別mutantであり、Matrix指定のrender同期mutant killの証拠にはならないため主張を撤回した。
+  初回X4bは既存idempotency test経由の間接killだったため、専用reset recovery testと
+  Matrix行を追加した。corrective baselineでのX3/X4b再実測結果は次commitで追記する。
 - frontend gate、build、docs整合、traceability生成checkを通し、
   `src/lib/bindings.ts` diff 0を確認した。npm auditは更新前後とも同一結果で、
   本dependency更新による新規advisory増加は0。exact SHA、test件数、L1 evidenceは
@@ -426,4 +431,13 @@ Contract ID: SPEC-UI-REF-COMMIT-EVENT-01
   確定するrace差を両方承認した。P2-1 amendment完了を条件にPlan承認し、
   `plan-approved -> implementing`への遷移とSolの実装着手を許可した
   （介入1/3）。
+- 2026-07-23 Final Review一次（Sonnet 5 fresh context）: P1 = 1 / P2 = 0 /
+  P3 = 1、総評「修正後 Ready」。P1をacceptし、Matrix X3のrender同期mutantを
+  exact HEADへ再注入するとlintは1 errorだがDisposalPage 15/15 greenを独立再現した。
+  原因は`userEvent.click`の`act()` batchがmutation pending renderをsearch Promise継続より
+  先にcommitするためで、採否は推奨案(a)とした。TanStack Queryの実notificationを
+  test内queueへ一時保留し、保存eventとpending render間のasync gapを作るtestへ強化した。
+  P3もacceptし、X4b Matrix行とreset直後のsearch gateを直接assertする専用testを追加した。
+  relayは2/2へ到達し、owner指示により次回Ready relayの3/2超過予定をbudget exceptionへ
+  記録した。Phaseは`implementing`のまま維持し、Readyへは遷移しない。
 - Findings Freeze: not yet frozen; post-freeze exceptions: none。

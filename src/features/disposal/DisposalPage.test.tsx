@@ -1,8 +1,13 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  defaultScheduler,
+  notifyManager,
+  QueryClient,
+  QueryClientProvider,
+} from "@tanstack/react-query";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { makeMockProductWithRelations } from "@/features/products/lib/test-fixtures";
 import { commands } from "@/lib/bindings";
@@ -107,6 +112,10 @@ beforeEach(() => {
   mockSearchProducts.mockReset();
   mockCreateDisposal.mockReset();
   mockDefaultQueries();
+});
+
+afterEach(() => {
+  notifyManager.setScheduler(defaultScheduler);
 });
 
 describe("DisposalPage (UI-05 / REQ-204)", () => {
@@ -324,6 +333,39 @@ describe("DisposalPage (UI-05 / REQ-204)", () => {
     expect(nextRecordKey).not.toBe(editedRetryKey);
   });
 
+  it("REQ-204 UI-05-D15 unlocks product search directly after a successful reset", async () => {
+    const user = userEvent.setup();
+    mockCreateDisposal.mockResolvedValue({
+      status: "ok",
+      data: { record_id: 53, created: true, idempotent_replay: false, stock_warnings: [] },
+    });
+
+    renderWithClient(<DisposalPage />);
+    await addSingleProduct(user);
+    await user.click(screen.getByRole("button", { name: "廃棄・破損を保存" }));
+    expect(await screen.findByText("廃棄・破損を保存しました")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "続けて廃棄・破損" }));
+    mockSearchProducts.mockResolvedValueOnce({
+      status: "ok",
+      data: {
+        items: [
+          makeMockProductWithRelations({
+            product_code: "DP-002",
+            name: "reset直後の商品",
+          }),
+        ],
+        total_count: 1,
+        page: 1,
+        per_page: 10,
+      },
+    });
+    await user.type(screen.getByLabelText("廃棄・破損商品検索"), "DP-002{enter}");
+
+    expect(await screen.findByText("reset直後の商品")).toBeInTheDocument();
+    expect(screen.getByLabelText("DP-002 の数量")).toBeInTheDocument();
+  });
+
   it("REQ-204 displays recent disposal records", async () => {
     mockListDisposals.mockResolvedValue({
       status: "ok",
@@ -416,6 +458,7 @@ describe("DisposalPage (UI-05 / REQ-204)", () => {
     const user = userEvent.setup();
     const deferredSearch = createDeferred<Awaited<ReturnType<typeof commands.searchProducts>>>();
     const deferredSave = createDeferred<Awaited<ReturnType<typeof commands.createDisposal>>>();
+    const scheduledNotifications: (() => void)[] = [];
     mockCreateDisposal.mockImplementation(() => {
       deferredSearch.resolve({
         status: "ok",
@@ -439,11 +482,25 @@ describe("DisposalPage (UI-05 / REQ-204)", () => {
     mockSearchProducts.mockReturnValueOnce(deferredSearch.promise);
     await user.type(screen.getByLabelText("廃棄・破損商品検索"), "DP-002{enter}");
 
+    notifyManager.setScheduler((callback) => {
+      scheduledNotifications.push(callback);
+    });
     await user.click(screen.getByRole("button", { name: "廃棄・破損を保存" }));
+    expect(mockCreateDisposal).toHaveBeenCalledTimes(1);
 
-    expect(await screen.findByRole("button", { name: "保存中..." })).toBeDisabled();
+    await act(async () => {
+      await Promise.resolve();
+    });
     expect(screen.queryByText("保存event競合商品")).not.toBeInTheDocument();
     expect(screen.queryByText("DP-002")).not.toBeInTheDocument();
+
+    notifyManager.setScheduler(defaultScheduler);
+    act(() => {
+      scheduledNotifications.splice(0).forEach((callback) => {
+        callback();
+      });
+    });
+    expect(await screen.findByRole("button", { name: "保存中..." })).toBeDisabled();
 
     deferredSave.resolve({
       status: "ok",
