@@ -114,7 +114,7 @@ type IntegrityPhase = "idle" | "running" | "completed";
 
 ### 75.8 Latest Check Time
 
-- payloadは`page=1`, `per_page=1`, `operation_type="integrity_check"`, `start_date=null`, `end_date=null`固定。
+- payloadは`page=1`, `per_page=1`, `operation_type="integrity_check"`, `start_date=null`, `end_date=null`固定。利用者入力を受けず、`per_page`の上限は1。
 - 1件なら`created_at`の`T`を空白へ置換して表示。0件は「まだ実行されていません」、失敗は「取得できませんでした」。
 - `integrity_fix`や他operation_typeの日時をfallbackに使わない。
 
