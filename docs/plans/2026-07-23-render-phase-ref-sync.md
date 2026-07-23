@@ -414,7 +414,14 @@ Contract ID: SPEC-UI-REF-COMMIT-EVENT-01
   初回X4bは既存idempotency test経由の間接killだったため、専用reset recovery testと
   Matrix行を追加した。X3 render同期mutantはproduction component harnessではgreenとなる
   既知限界を実証し、lint guard単独防御へ訂正した。event lock完全欠落はX3aとして
-  behavior testで、reset unlock欠落はX4b専用testで再実測する。
+  behavior testで、reset unlock欠落はX4b専用testで再実測した。
+- corrective clean baseline `7178f49` でX3（event lockをrender同期へ置換）は
+  `npm test -- --run src/features/disposal/DisposalPage.test.tsx`が16/16 green、
+  `npx eslint src/features/disposal/DisposalPage.tsx`が`react-hooks/refs` 1 errorでred。
+  X3a（event lock削除）は同test fileで2 red / 14 pass、X4b（reset unlock削除）は
+  専用`-t "unlocks product search directly after a successful reset"`で
+  1 red / 15 skippedとなった。各mutantをexact復元後、同test 16/16 green、
+  full lint pass、`git status --short`空を確認した。
 - frontend gate、build、docs整合、traceability生成checkを通し、
   `src/lib/bindings.ts` diff 0を確認した。npm auditは更新前後とも同一結果で、
   本dependency更新による新規advisory増加は0。exact SHA、test件数、L1 evidenceは
