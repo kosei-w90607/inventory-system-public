@@ -62,6 +62,7 @@ export function useOperationLogs(args: {
 | UI-11c-D12 | REQ-902 を操作ログの record/list/自動削除の canonical ID として確定する。既存 `settings_cmd.rs` の `test_list_logs_req905_pagination` / `test_list_logs_req905_filter` / `test_list_logs_req905_invalid_page_to_cmderror` は REQ-905（設定CRUD/エラー変換）ではなく REQ-902 に是正する（テスト名・コメントの是正は本 Design Phase では実施せず、次の実装 PR のタスクとして明記する）。 | `docs/spec/requirements.md` は REQ-902=「ログ管理（操作ログ記録/一覧/自動削除）」/ REQ-905=「設定管理（設定CRUD/エラー変換）」と定義し、`system_repo.rs` の IO 層テストは既に log 系関数を REQ-902、settings 系関数を REQ-905 で正しく分離している（`rg` 実測）。`65-inventory-record-traceability.md` §65.11 も「REQ-902 / TRACE-D3」を canonical として使用済み。CMD 層 3 テストだけが REQ-905（CMD-11 全体のタスク表マッピング）を機械的に継承しており、`list_logs` の呼び出し・エラー変換テストという中身は REQ-902 の対象。「REQ-905 のままエイリアスとして残す」案は、REQ-905 の定義（設定CRUD）と `list_logs`（ログ一覧）の実体が一致しないため棄却。 |
 | UI-11c-D13 | `SCREEN_DESIGN.md` の QR-06 行にあった旧 CSV export/archive 記述を、閲覧 MVP + 365日 cleanup（archive 不要）に同期する。CSV 出力と MNT-04 診断ログ導線は別 task として明記する。 | Owner Decision #1 + Missing UI item 13。`72-mnt-log-manager.md` の実装済み `cleanup_old_logs` は物理削除のみで archive を作らない（DB設計上の事実）。 |
 | UI-11c-D14 | `integrity_fix` の detail_json（adjustments の product_code / old_stock / new_stock / adjustment）は在庫整合性補正の**唯一の監査痕跡**（補正は inventory_movements に行を残さない — BIZ-07-D2/D3、[D-051](../decision-log.md)）。詳細表示は既知 key 要約（UI-11c-D6）に加え、adjustments を「商品コード / 旧在庫 → 新在庫 / 差分」の operator-readable な一覧として表示し、生 JSON は折りたたみ「技術情報」に残す。 | 非IT operator が唯一の監査痕跡を読めることは、movement を残さない直接更新意味論の説明可能性の前提。rejected: 生 JSON のみの現状維持 = operator が補正内容を読めない。365日 cleanup（D-051 retention）までが閲覧可能期間である点は D-051 に従う。実装は follow-up PR（`OperationLogsPage.tsx` + test）。 |
+| UI-11c-D15 | 逆転範囲で参照する「直前に commit 済みの valid normalized search」は state に保持し、valid render が commit した後の effect でだけ更新する。valid render 自身は現在の normalized search を query key / CMD引数 / pagination に直ちに使い、invalid render のときだけ commit 済み snapshot を使う。 | render 中の ref 更新は破棄された render の search を共有 ref に残す。state/effect 方式なら未commit renderは snapshot を更新しない。valid render で state snapshot の反映を待つ案は通常のfilter変更に1 renderの遅延を生むため棄却し、valid側は現在値を直接使う。effect commitからsnapshot反映までにinvalid更新が割り込む極小窓では、前回snapshotを一時表示した後に最新commit済みsnapshotへ同期し得る。この差を許容するか、`useLayoutEffect` でpaint前同期するかは Plan Gate のowner裁定対象とする。 |
 
 ---
 
@@ -194,7 +195,7 @@ OperationLogFilters + OperationLogTable（展開行1件） + ProductPagination
 ```
 
 - `typesQuery` と `logsQuery` は独立 query として部分障害を許容する（`typesQuery` 失敗時は operation_type filter を「すべて」のみに縮退表示し、一覧本体は表示継続する。§74.11）。
-- 逆転範囲のdraft URL stateは`logsQuery`のqueryKeyに使わず、直前のvalid normalized searchをeffective queryとして使う。よって新しいCMD呼出しをせず、既存table/pagination/展開行を保持する。validへ戻った時点で新しいeffective queryへ切り替える。
+- 逆転範囲のdraft URL stateは`logsQuery`のqueryKeyに使わず、直前にcommit済みのvalid normalized search stateをeffective queryとして使う。valid renderでは現在のnormalized searchを即時に使い、commit後のeffectでsnapshotだけを同期する。よってinvalid draftでは新しいCMD呼出しをせず、既存table/pagination/展開行を保持する。validへ戻った時点で新しいeffective queryへ切り替える（UI-11c-D15）。
 - 行展開状態（どの `id` が展開中か）は URL に持たない、画面ローカル `useState<number | null>`。**validな**filter/page変更時はリセットする。逆転範囲のdraft変更だけではリセットしない。
 
 ---
@@ -283,6 +284,7 @@ OperationLogFilters + OperationLogTable（展開行1件） + ProductPagination
 ### 74.12 Lifecycle / staleTime
 
 - `queryKey`: `['settings', 'logs', effectiveNormalizedSearch]`、`['settings', 'logOperationTypes']`。逆転rangeのdraft searchはkeyを変えない。
+- valid normalized search の snapshot 更新は commit 後の effect だけで行う。valid renderは現在値を直接 query key に使うため、通常のfilter/page変更に意図的な1 render遅延を加えない（UI-11c-D15）。
 - `staleTime: 0` / `gcTime: 5 * 60_000`（両 query 共通）。`refetchOnWindowFocus: false`（既存グローバル既定を継承）。
 - 自動ポーリング・自動再取得タイマーは持たない。365日 cleanup による total_count 変化は次回の filter 変更・page 操作・再訪・再試行で自然に反映される（§74.6）。
 

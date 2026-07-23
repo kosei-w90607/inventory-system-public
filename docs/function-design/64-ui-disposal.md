@@ -32,6 +32,7 @@
 | REQ-204 / list | UI-05-D12 | 画面下部に最近の廃棄・破損記録を `listDisposals(1, 10, null, null)` で表示する。詳細表示・編集・取消は初回実装では扱わない。 | CMD-05 の一覧契約を UI から疎通確認でき、直近記録の保存結果も確認しやすい。詳細/取消は在庫復元が絡むため別設計にする。 |
 | REQ-204 / cache | UI-05-D13 | 保存成功時の invalidation は [D-052](../decision-log.md) C7 と `src/lib/invalidation-contract.ts` を正本とする。 | 廃棄で変わる在庫・履歴 consumer を一貫して stale 化し、画面側の key 列挙を廃止する。 |
 | REQ-204 / UI-05 | UI-05-D14 | Windows native L3 は owner 目視確認を必須にする。確認対象は navigation、商品検索/スキャン相当 Enter 追加、同一商品+種別+理由の数量加算、種別/理由/原価 validation、保存中 disable、保存結果、recent list、在庫照会へ戻る導線。 | 新規 operator-facing screen であり、ロス理由の入力、連続入力、フォーカス戻し、保存結果の可読性は CI だけでは判断しづらい。 |
+| REQ-204 / async result gate | UI-05-D15 | 非同期商品検索結果の採否に使う form lock ref は render 中に同期せず、保存eventの先頭でlock、validation / command失敗eventとreset eventでunlock、保存成功後はlock維持とする。商品候補の選択eventと検索完了callbackはこのrefを読む。 | render-phase ref更新は未commit renderのlockを残し得る。effect同期だけでは保存eventからcommit/effectまでに検索結果が解決するraceを閉じないためevent境界を採用する。保存clickからpending renderまでの極小窓で従来は結果が反映され得たのに対し、本方式は保存開始時点から破棄する。この可視差はUI-05-D10の「保存中は商品追加をlock」に合わせる是正だが、Plan Gateのowner裁定対象とする。 |
 
 ## 64.2 Component / Route 構成
 
@@ -64,6 +65,10 @@ src/
 フォーム state は `disposalDate`, `rows`, `idempotencyKey` を持つ。`rows` は `productCode`, `productName`, `departmentName`, `stockUnit`, `currentStockQuantity`, `disposalType`, `quantity`, `costPrice`, `reason` を持つ UI 内部型とし、command payload には `product_code`, `disposal_type`, `quantity`, `cost_price`, `reason` を送る。
 
 `submit_error` 後に同内容を再送する場合は `idempotencyKey` を保持し、入力を編集して再送する場合は新しい `idempotencyKey` を採番する。
+
+商品検索結果の async gate は UI-05-D15 に従う。`submit` event は mutation 呼出しより先に
+gate を lock し、validation / command failure では入力を保持したまま unlock する。
+success は result state と同じく lock を維持し、`reset_for_next` で unlock する。
 
 ## 64.4 Command / DTO Contract
 
@@ -120,6 +125,7 @@ UI-05 実装 PR では以下を generated binding に出す。
 - BIZ validation error: form state を保持する。入力を修正して再送する場合は新しい `idempotencyKey` を採番し、同じ key で異なる fingerprint を送らない。
 - internal error: 入力と `idempotencyKey` を保持し、同内容のまま同じ伝票として再試行できるようにする。入力を編集して再送する場合は新しい `idempotencyKey` を採番する。
 - idempotent replay: result panel に「同じ内容の再送として処理済み」と表示し、二重登録ではないことを示す。
+- 保存eventと競合して完了した商品検索: 保存event先頭で同期したlockを確認して候補・message・行を反映しない。保存失敗後はunlockし、operatorが同じ検索を再実行できる。
 
 ## 64.7 Cache / Navigation
 
@@ -151,10 +157,12 @@ UI-05 実装 PR では以下を generated binding に出す。
 - UI-05-D12: 最近の廃棄・破損一覧を取得し、空/取得失敗/成功を表示できる。
 - UI-05-D13: 保存成功時の実呼出し集合が D-052-C7 の独立 test oracle と完全一致する。
 - UI-05-D14: Windows native L3 で連続入力、フォーカス戻し、日本語表示、種別/理由/原価 validation、保存結果を確認する。
+- UI-05-D15: 保存eventがpending renderより先にasync gateをlockし、同eventと競合して完了した検索結果を反映しない。validation / command失敗とresetではunlockする。
 
 ## 64.10 変更履歴
 
 | 日付 | 版 | 内容 |
 |---|---|---|
+| 2026-07-23 | UI-05-D15 | form lock ref をrender同期から保存/失敗/reset event同期へ移し、非同期商品検索結果の採否タイミングを固定。 |
 | 2026-06-28 | Save result visibility follow-up | 保存成功または command 失敗時はページ先頭へスクロールし、result panel / Alert が画面内に入るようにした。frontend validation は近傍表示のためスクロールしない。 |
 | 2026-06-27 | UI-05 Design Phase | route、generated command 方針、商品追加/スキャン前提、明細単位の種別/理由、validation、冪等キー、query invalidation、recent list、Windows native L3 を整理。 |
