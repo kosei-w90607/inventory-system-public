@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: ready-hosted-final
+- Phase: archive
 - Risk: R3
 - Execution Mode: dual-vendor-no-fable
 - Plan Commit: 1f98c36
@@ -14,7 +14,7 @@
 - Reviewed Content HEAD: 06b459f52846d1edfb0add4b5a4b73005a523805
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
-- Human Gate: Ready authorized / merge pending。Windows native L3は不要
+- Human Gate: none。Windows native L3は不要
 
 - State Narrative（2026-07-23）: 基準HEAD `49f2c07` で環境・active packet不在・P7b-1・
   source design・production code・既存test・lint構成を再確認した。R3分類、
@@ -38,6 +38,13 @@
   `human-confirm -> ready-hosted-final`をmaterializeする。このstate-only commitを
   resulting exact HEADとしてL1 fullを再実行し、PR bodyの全evidenceを更新後に
   Draft解除・hosted CI exact-HEAD確認へ進む。mergeはowner判断（介入3/3）まで保留する。
+- State Narrative（2026-07-23、post-merge closeout）: ownerはmergeと後処理を承認
+  （介入3/3）。PR HEAD / PR bodyのLocal full evidence SHA / hosted CI run
+  `30014438295`のheadShaが`998a57fa3d62019ac81c92068d1d20b5281032c7`で一致し、
+  required checksが成功した状態でPR #23をsquash mergeした
+  （merge `09827499e2593f716696cbbefb83333281008849`）。
+  `ready-hosted-final -> merge -> archive`を外部merge eventと本closeoutで完了し、
+  packet / Matrix / WERをarchive、dashboard / handoffを同期する。
 
 ## Owner Effort Budget
 
@@ -469,3 +476,6 @@ Contract ID: SPEC-UI-REF-COMMIT-EVENT-01
   P1/P2 closure = 0としてReadyを承認した（介入2/3、relay 3/2 exception）。
 - Findings Freeze: frozen at Reviewed Content HEAD
   `06b459f52846d1edfb0add4b5a4b73005a523805`; post-freeze exceptions: none。
+- 2026-07-23 owner merge承認（介入3/3）: exact-HEAD三点一致とhosted required
+  checks成功を再確認後、PR #23をsquash mergeした。product scopeの追加変更はなく、
+  Post-Merge Closeoutだけを別docs commitとして実施する。
