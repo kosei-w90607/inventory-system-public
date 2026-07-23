@@ -2,19 +2,19 @@
 
 ## Workflow State
 
-- Phase: implementing
+- Phase: human-confirm
 - Risk: R3
 - Execution Mode: dual-vendor-no-fable
 - Plan Commit: e9757f8
 - Amendments: 082379c
 - Coordinator: Sol（本 thread、scope 精査・design・packet・実装・PR）
-- Writer: Sol（owner Plan承認済み、実装中）
+- Writer: Sol（実装・L1・Draft PR公開完了）
 - Plan Reviewer: owner が起動した Sonnet 5 fresh context（P1 = 0 / P2 = 1 → gated amendment反映で残P1/P2 = 0、承認）
-- Final Reviewer: owner が起動する Sonnet 5 fresh context（production CMD / BIZ 契約監査、pending）
-- Reviewed Content HEAD: pending
+- Final Reviewer: owner が起動した Sonnet 5 fresh context（P1 / P2 / P3 = 0、Ready可）
+- Reviewed Content HEAD: 5909fbb513daf0ada71612d8ad2a0bb0553bbb84
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
-- Human Gate: owner Ready / merge（Plan承認済み、介入1/3）
+- Human Gate: owner Ready / merge（Final Review済み、Ready承認受領済み、介入2/3）
 
 - State Narrative（append-only、2026-07-23）: 本state-only commitで隣接forward遷移
   `plan-gate -> plan-approved -> implementing` をmaterializeする。evidence:
@@ -23,6 +23,16 @@
   Plan承認と明示し、残P1/P2 = 0。`Plan Commit` = plan-first commit `e9757f8` であり、
   実装commitはまだ存在せず全実装commitへの先行性が成立する。
   `plan-approved -> implementing` = 同じowner指示がSolの実装着手を明示承認。
+
+- State Narrative（append-only、2026-07-23）: 本state-only commitで隣接forward遷移
+  `implementing -> local-verified -> independent-review -> human-confirm` をmaterializeする。
+  `implementing -> local-verified` = content candidate `5909fbb513daf0ada71612d8ad2a0bb0553bbb84`
+  のclean exact-HEAD L1 fullがpassし、PR bodyにevidenceを記録済み。
+  `local-verified -> independent-review` = owner指定のSol単独サイクルによりreview-only
+  sub-agent skipを記録し、ownerがSonnet 5 fresh contextのFinal Reviewを実施。
+  `independent-review -> human-confirm` = 同Final ReviewはP1 / P2 / P3 = 0、総評Ready可。
+  oracle独立性、回帰test、spot mutation、wire文言、機械gate、scopeを独立再実測し、
+  content candidateにfindingsなし。
 
 ## Owner Effort Budget
 
@@ -333,3 +343,8 @@ Contract ID: SPEC-CMD-VALIDATION-OWNERSHIP-01
 - ownerは上記gated amendment完了をもってPlan承認とし、Workflow Stateの
   `implementing` 遷移とSolによる実装着手を許可（介入1/3）。
 - Findings Freeze: not yet frozen; post-freeze exceptions: none
+- 2026-07-23 Final Review一次（Sonnet 5 fresh context）: content candidate
+  `5909fbb513daf0ada71612d8ad2a0bb0553bbb84` に対しP1 / P2 / P3 = 0、総評「Ready可」。
+  独立oracle、production CMD回帰、spot mutation、wire文言、機械gate、scopeを
+  reviewerが独立再実測し、ownerはReadyを承認（介入2/3）。
+- Findings Freeze: frozen at Final Review一次; post-freeze exceptions: none
