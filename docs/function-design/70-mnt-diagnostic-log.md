@@ -101,20 +101,42 @@ fn cleanup_old_log_files(config: &DiagnosticLogConfig) -> Result<u32, std::io::E
 **処理ステップ**:
 1. `config.log_dir` ディレクトリ内のファイル一覧を `std::fs::read_dir` で取得
    - ディレクトリが存在しない → Ok(0) を返す（初回起動時はログディレクトリがまだない可能性）
+   - NotFound 以外の失敗 → `std::io::Error` を返す。`Path::exists()` の
+     catch-all で permission / metadata error を不存在へ変換しない
 2. 各ファイルについて:
-   a. ファイル名が `{prefix}.YYYY-MM-DD` パターンに一致するか確認（正規表現: `^{prefix}\.\d{4}-\d{2}-\d{2}$`）
-   b. パターン不一致 → スキップ（関係ないファイルを消さない）
-   c. ファイル名からYYYY-MM-DD部分を抽出し `chrono::NaiveDate` にパース
-   d. パース失敗 → スキップ
-   e. `chrono::Local::now().date_naive() - file_date > config.retention_days` → 削除対象
-   f. `std::fs::remove_file` で削除
-   g. 削除失敗 → `tracing::warn!` で警告を出すがカウントしない。次のファイルに進む
+   a. directory entry の取得失敗 → entry error と directory context を
+      `tracing::warn!` で記録し、次の entry へ進む
+   b. ファイル名を Unicode 文字列へ変換できない → path と変換失敗を
+      `tracing::warn!` で記録し、当該 entry をスキップ
+   c. ファイル名が `{prefix}.YYYY-MM-DD` パターンに一致するか確認（正規表現: `^{prefix}\.\d{4}-\d{2}-\d{2}$`）
+   d. パターン不一致 → スキップ（関係ないファイルを消さない）
+   e. ファイル名からYYYY-MM-DD部分を抽出し `chrono::NaiveDate` にパース
+   f. owned prefix / shape に一致した値の calendar parse 失敗 →
+      filename と error を `tracing::warn!` で記録し、当該 entry をスキップ
+   g. `chrono::Local::now().date_naive() - file_date > config.retention_days` → 削除対象
+   h. `std::fs::remove_file` で削除
+   i. 削除失敗 → `tracing::warn!` で警告を出すがカウントしない。次のファイルに進む
 3. 削除したファイル数を返す
 
 **エラーハンドリング**:
-- `read_dir` 自体の失敗（権限問題等）→ `std::io::Error` を返す。呼び出し元で `tracing::warn!` して続行
-- 個々のファイル削除失敗は警告のみ。処理を中断しない
+- `read_dir` 自体の失敗は NotFound だけ `Ok(0)`、権限問題等は
+  `std::io::Error` を返す。呼び出し元で `tracing::warn!` して起動を続行
+- 個々の entry 取得、filename 変換、owned filename の日付 parse、
+  ファイル削除失敗は警告のみ。後続 entry の処理を中断しない
 - ログ初期化（70.4）の後に呼ばれるため、tracing::warn! が使える
+
+**MNT-04-D1: top-level 判定 error は返し、個別 entry failure は記録して継続**
+
+- 決定: NotFound は初回起動の正常な空状態とする。NotFound 以外の top-level
+  `read_dir` failure は cleanup 全体の判定を不能にするため上位へ返す。
+  iterator 内の個別 entry、filename 変換、owned filename の calendar parse、
+  remove failure は他 entry の削除可否を無効にしないため、path / error / contextを
+  WARNに残して当該 entryだけskipする
+- Why: top-level errorを空dirへ変えると保持期限超過logが残り続けても無観測になる。
+  一方、個別entryで全体をabortすると、読める期限超過logまで掃除できず可用性を落とす
+- Rejected alternatives: `Path::exists()==false`でcatch-all return /
+  `Err(_) => continue`のsilent skip / 個別entry errorでcleanup全体abort
+- 見直し契機: diagnostic log filesystem adapterを専用serviceへ置換するとき
 
 ---
 
@@ -330,6 +352,12 @@ tracing::info!(
 - `test_cleanup_ignores_non_matching_files`: プレフィックス不一致のファイルがスキップされること
 - `test_cleanup_empty_directory`: 空ディレクトリでOk(0)が返ること
 - `test_cleanup_nonexistent_directory`: 存在しないディレクトリでOk(0)が返ること
+- `test_cleanup_distinguishes_not_found_from_read_dir_error`: NotFoundだけOk(0)、
+  NotFound以外はErr
+- `test_cleanup_entry_error_warns_and_continues`: entry errorをwarnし、後続削除を継続
+- `test_cleanup_invalid_calendar_date_warns_and_continues`: owned filenameの
+  calendar parse errorをwarnし、後続削除を継続
+- `test_cleanup_delete_failure_warns_and_continues`: remove failureをwarnし、後続削除を継続
 
 **init_diagnostics のテスト**:
 - `test_init_creates_log_directory`: 存在しないディレクトリが作成されること
