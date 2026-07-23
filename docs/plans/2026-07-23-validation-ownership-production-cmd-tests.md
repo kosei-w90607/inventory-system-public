@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: human-confirm
+- Phase: ready-hosted-final
 - Risk: R3
 - Execution Mode: dual-vendor-no-fable
 - Plan Commit: e9757f8
@@ -14,7 +14,7 @@
 - Reviewed Content HEAD: 5909fbb513daf0ada71612d8ad2a0bb0553bbb84
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
-- Human Gate: owner Ready / merge（Final Review済み、Ready承認受領済み、介入2/3）
+- Human Gate: owner merge（Ready承認済み、介入2/3、mergeは介入3/3として保留）
 
 - State Narrative（append-only、2026-07-23）: 本state-only commitで隣接forward遷移
   `plan-gate -> plan-approved -> implementing` をmaterializeする。evidence:
@@ -33,6 +33,12 @@
   `independent-review -> human-confirm` = 同Final ReviewはP1 / P2 / P3 = 0、総評Ready可。
   oracle独立性、回帰test、spot mutation、wire文言、機械gate、scopeを独立再実測し、
   content candidateにfindingsなし。
+
+- State Narrative（append-only、2026-07-23）: 本state-only commitで
+  `human-confirm -> ready-hosted-final` をmaterializeする。evidence: ownerがFinal Review
+  P1 / P2 / P3 = 0を受けてReadyを明示承認（介入2/3）。本commitのexact HEADで
+  L1 fullを再実行し、PR bodyを全面更新してからDraftをReadyへ変更する。
+  mergeはowner判断（介入3/3）として保留する。
 
 ## Owner Effort Budget
 
