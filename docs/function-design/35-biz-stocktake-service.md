@@ -142,6 +142,36 @@ Ok(StartStocktakeResult {
 
 ---
 
+### 20.3.1 get_stocktake_items
+
+**関数要求**: 棚卸し明細一覧と進捗を取得する。pagination の下限条件は
+BIZ層が所有し、CMD層は引数をそのまま渡す
+（**BIZ-06-VAL-D1**）
+
+**シグネチャ**:
+```
+fn get_stocktake_items(
+    conn: &DbConnection,
+    stocktake_id: i64,
+    department_id: Option<i64>,
+    counted_only: Option<bool>,
+    page: u32,
+    per_page: u32,
+) -> Result<(PaginatedResult<StocktakeItemDetail>, StocktakeProgress), BizError>
+```
+
+**処理ステップ**:
+1. page < 1 → `BizError::ValidationFailedAt { message: "ページ番号は1以上で指定してください", field: "page" }`
+2. per_page < 1 → `BizError::ValidationFailedAt { message: "1ページあたりの件数は1以上で指定してください", field: "per_page" }`
+3. `stocktake_repo::list_stocktake_items` と `stocktake_repo::get_stocktake_progress` を呼ぶ
+4. 明細一覧と進捗を返す
+
+per_page の上限は既存どおりIO層が D-031
+`PAGINATION_MAX_PER_PAGE = 200` でクランプする。下限 validation の移設で
+上限・クランプ意味論は変更しない。
+
+---
+
 ### 20.4 update_count
 
 **関数要求**: 棚卸し明細の実カウント数を1件更新する。中断・再開に対応するため1件ずつ即保存
@@ -419,6 +449,7 @@ BIZ-06 で新たに使用する BizError バリアント:
 ```
 enum BizError {
     ValidationFailed(String),     // 既存
+    ValidationFailedAt { message: String, field: String }, // pagination field を保持するBIZ validation
     NotFound(String),             // 既存 — 棚卸し/明細/商品の不存在
     DuplicateProductCode(String), // 既存（本モジュールでは不使用）
     DatabaseError(DbError),       // 既存
@@ -432,6 +463,9 @@ enum BizError {
 **StocktakeInProgress**: start_stocktake で進行中チェック失敗時。CMD層では CmdError { kind: "stocktake_in_progress" } に変換
 
 **StocktakeNotInProgress**: update_count / complete_stocktake で完了済み棚卸しへの操作時。CMD層では CmdError { kind: "stocktake_not_in_progress" } に変換
+
+**ValidationFailedAt**: get_stocktake_items の page / per_page 下限違反時。
+CMD層では `kind="validation"` と BIZ の message / field をそのまま保持する。
 
 ---
 

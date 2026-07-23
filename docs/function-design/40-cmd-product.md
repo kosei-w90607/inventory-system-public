@@ -36,7 +36,8 @@ struct CmdError {
 ```
 
 BizError → CmdError の変換ルール:
-- BizError::ValidationFailed(msg) → CmdError { kind: "validation", message: msg, field: 該当あれば }
+- BizError::ValidationFailed(msg) → CmdError { kind: "validation", message: msg, field: None }
+- BizError::ValidationFailedAt { message, field } → CmdError { kind: "validation", message, field: Some(field) }
 - BizError::DuplicateProductCode(code) → CmdError { kind: "duplicate", message: "この商品コードは既に使用されています: {code}" }
 - BizError::NotFound(msg) → CmdError { kind: "not_found", message: msg }
 - BizError::DatabaseError(_) → CmdError { kind: "internal", message: "データベースエラーが発生しました。もう一度お試しください" }
