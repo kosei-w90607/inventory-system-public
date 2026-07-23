@@ -124,6 +124,8 @@ salesのP8-1再実装testと、P2-2のproduction重複は現存する。
 - 置換対象test（`test_preview_import_req104_empty_file_validation` ほかMatrix記載）
   はすべてproduction commandを呼び、hard-coded oracleで `kind` / `message` /
   `field` を完全一致比較する。zero/valid modeは実commandのsuccess responseを検査する。
+- 対象4 CMD moduleのtest本体が `biz::*_service` 由来の文字列定数・helperを
+  `use` / importしていないことを `rg` で確認し、コマンドと結果0件をPR evidenceに含める。
 - test名またはtest commentに既存REQ IDを維持し、削除・skip・ignoreしない。
 - `cargo test <matrix test name>` を使い、clean committed baselineからTest Matrix
   X1〜X4のmutantを注入してred、復元後に同commandがgreen、
@@ -301,4 +303,8 @@ owner Plan 承認前のため未実装。
 
 ## Review Response
 
+- 2026-07-23 Plan review一次（Sonnet 5 fresh context）: P1 = 0 / P2 = 1、
+  総評「修正後承認」。P2「独立転記oracleの担保が人手Review Focus止まり」を受理し、
+  対象4 CMD moduleのtest本体に対する`biz::*_service`由来文字列定数・helperの
+  import不在を`rg` 0件でPR evidence化するAcceptance Criteriaをgated amendmentとして追加。
 - Findings Freeze: not yet frozen; post-freeze exceptions: none
