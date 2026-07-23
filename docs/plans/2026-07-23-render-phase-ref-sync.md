@@ -2,25 +2,30 @@
 
 ## Workflow State
 
-- Phase: plan-gate
+- Phase: implementing
 - Risk: R3
 - Execution Mode: dual-vendor-no-fable
-- Plan Commit: pending
-- Amendments: none
+- Plan Commit: 1f98c36
+- Amendments: 22f447f（P2-1: eslint explicit 3-rule config）
 - Coordinator: Sol（本 thread、scope精査・design・packet・実装・検証・PR）
 - Writer: Sol（plan承認後の単独writer）
-- Plan Reviewer: ownerが起動するSonnet 5 fresh context
+- Plan Reviewer: Sonnet 5 fresh context（P1=0 / P2=1 / P3=1、P2-1反映後にowner承認）
 - Final Reviewer: ownerが起動するSonnet 5 fresh context
 - Reviewed Content HEAD: pending
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
-- Human Gate: pending Plan承認 / Ready / merge。Windows native L3は不要
+- Human Gate: pending Ready / merge。Windows native L3は不要
 
 - State Narrative（2026-07-23）: 基準HEAD `49f2c07` で環境・active packet不在・P7b-1・
   source design・production code・既存test・lint構成を再確認した。R3分類、
   source design更新、Plan Packet、Test Design Matrixを同じplan-first content
   commitにまとめ、`kickoff -> spec-check -> design -> plan-draft -> plan-gate` を
   materializeする。実装codeは存在せず、ownerのPlan承認前には着手しない。
+- State Narrative（2026-07-23、state-only）: plan-first commit `1f98c36`を
+  Sonnet 5 fresh contextがP1=0 / P2=1 / P3=1でreviewし、P2-1の具体lint差分を
+  gated amendment `22f447f`で反映した。ownerはUI-11c / UI-05の両timing判断を承認し、
+  amendment完了をもってPlan承認・実装着手を許可した。implementation commitが
+  存在しない状態で`plan-gate -> plan-approved -> implementing`をmaterializeする。
 
 ## Owner Effort Budget
 
