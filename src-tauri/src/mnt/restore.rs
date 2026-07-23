@@ -454,7 +454,9 @@ fn restore_backup_with_ops(
         phase: ManifestPhase::Active,
     };
     if let Err((message, _renamed)) = write_manifest(ops, &paths, &manifest, false) {
-        let _ = remove_if_exists(ops, &paths.manifest_temp);
+        if let Err(error) = remove_if_exists(ops, &paths.manifest_temp) {
+            tracing::warn!(path = %paths.manifest_temp.display(), error = %error, "復元manifest一時ファイルのcleanupに失敗（継続）");
+        }
         return Err(RestoreError::Recovered(message));
     }
 
@@ -765,6 +767,7 @@ mod tests {
         CommittedDirectorySync,
         CheckpointSql,
         ManifestRead,
+        ManifestTempWriteAndCleanup,
     }
 
     struct InjectedOps {
@@ -849,9 +852,24 @@ mod tests {
             StdRestoreFileOps.copy(source, destination)
         }
         fn remove_file(&self, path: &Path) -> std::io::Result<()> {
+            if self.failure == InjectedFailure::ManifestTempWriteAndCleanup
+                && path.to_string_lossy().ends_with(MANIFEST_TEMP_SUFFIX)
+            {
+                return Err(std::io::Error::other(
+                    "injected manifest temp cleanup failure",
+                ));
+            }
             StdRestoreFileOps.remove_file(path)
         }
         fn write_file(&self, path: &Path, bytes: &[u8]) -> std::io::Result<()> {
+            if self.failure == InjectedFailure::ManifestTempWriteAndCleanup
+                && path.to_string_lossy().ends_with(MANIFEST_TEMP_SUFFIX)
+            {
+                StdRestoreFileOps.write_file(path, bytes)?;
+                return Err(std::io::Error::other(
+                    "injected manifest temp write failure",
+                ));
+            }
             StdRestoreFileOps.write_file(path, bytes)
         }
         fn read_file(&self, path: &Path) -> std::io::Result<Vec<u8>> {
@@ -1191,6 +1209,43 @@ mod tests {
         ] {
             assert!(!path.exists(), "unexpected artifact: {}", path.display());
         }
+    }
+
+    #[test]
+    fn test_restore_req901_manifest_temp_cleanup_failure_warns_and_preserves_recovered_error() {
+        // REQ-901 / MNT-01-D1/D4/D5/D6: initial manifest write の主失敗を
+        // cleanup failure で置換せず、path/error/context 付き WARN を残す
+        let dir = tempfile::tempdir().unwrap();
+        let db_path = dir.path().join("inventory.db");
+        let backup_path = dir.path().join("replacement.db");
+        let conn = database_with_supplier(&db_path, "old");
+        drop(database_with_supplier(&backup_path, "new"));
+        let paths = RestorePaths::new(&db_path);
+        let ops = InjectedOps::new(InjectedFailure::ManifestTempWriteAndCleanup);
+
+        let (error, logs) = crate::test_tracing::capture(|| {
+            restore_backup_with_ops(conn, &backup_path, &db_path, &ops).unwrap_err()
+        });
+
+        match error {
+            RestoreError::Recovered(message) => {
+                assert!(message.contains("injected manifest temp write failure"));
+                assert!(!message.contains("cleanup failure"));
+            }
+            other => panic!("Recovered が期待されるが {other:?}"),
+        }
+        assert!(logs.contains("WARN") && logs.contains("cleanupに失敗"));
+        assert!(logs.contains("injected manifest temp cleanup failure"));
+        assert!(logs.contains(paths.manifest_temp.to_string_lossy().as_ref()));
+        assert!(paths.main.exists(), "manifest 前なので現行 DB は未変更");
+        assert!(!paths.main_backup.exists());
+        assert!(!paths.manifest.exists());
+        assert!(
+            paths.manifest_temp.exists(),
+            "注入した cleanup failure の残置を観測する"
+        );
+        let reopened = db::open_existing_database(db_path.to_str().unwrap()).unwrap();
+        assert_eq!(supplier_names(&reopened), vec!["old"]);
     }
 
     #[test]

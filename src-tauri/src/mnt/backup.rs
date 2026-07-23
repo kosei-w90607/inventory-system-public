@@ -10,6 +10,7 @@ use std::path::{Path, PathBuf};
 #[cfg(test)]
 thread_local! {
     static SETTING_READ_FAILURE: std::cell::RefCell<Option<String>> = const { std::cell::RefCell::new(None) };
+    static METADATA_FAILURE: std::cell::RefCell<Option<String>> = const { std::cell::RefCell::new(None) };
 }
 
 #[cfg(test)]
@@ -32,6 +33,25 @@ pub(crate) fn fail_setting_read(key: &str) -> SettingReadFailureGuard {
     SettingReadFailureGuard { previous }
 }
 
+#[cfg(test)]
+struct MetadataFailureGuard(Option<String>);
+#[cfg(test)]
+impl Drop for MetadataFailureGuard {
+    fn drop(&mut self) {
+        METADATA_FAILURE.with(|f| *f.borrow_mut() = self.0.take());
+    }
+}
+#[cfg(test)]
+fn fail_metadata(path: &Path) -> MetadataFailureGuard {
+    MetadataFailureGuard(
+        METADATA_FAILURE.with(|f| f.replace(Some(path.to_string_lossy().into_owned()))),
+    )
+}
+#[cfg(test)]
+fn fail_any_metadata() -> MetadataFailureGuard {
+    MetadataFailureGuard(METADATA_FAILURE.with(|f| f.replace(Some(String::new()))))
+}
+
 fn get_backup_setting(conn: &DbConnection, key: &str) -> Result<Option<String>, DbError> {
     #[cfg(test)]
     {
@@ -49,6 +69,22 @@ fn get_backup_setting(conn: &DbConnection, key: &str) -> Result<Option<String>, 
     {
         db::system_repo::get_setting(conn, key)
     }
+}
+
+fn read_metadata(path: &Path) -> std::io::Result<std::fs::Metadata> {
+    #[cfg(test)]
+    if METADATA_FAILURE.with(|failure| {
+        failure
+            .borrow()
+            .as_deref()
+            .is_some_and(|target| target.is_empty() || target == path.to_string_lossy())
+    }) {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::PermissionDenied,
+            "injected metadata failure",
+        ));
+    }
+    std::fs::metadata(path)
 }
 
 pub use super::restore::RestoreError;
@@ -200,9 +236,9 @@ pub fn create_backup(conn: &DbConnection, backup_dir: &Path) -> Result<BackupRes
         .map_err(|e| DbError::QueryFailed(format!("VACUUM INTOに失敗: {}", e)))?;
 
     // 4. ファイルサイズ取得
-    let size_bytes = std::fs::metadata(&backup_path)
+    let size_bytes = read_metadata(&backup_path)
         .map(|m| m.len())
-        .unwrap_or(0);
+        .map_err(|e| DbError::QueryFailed(format!("バックアップサイズ取得に失敗: {}", e)))?;
 
     // 5. 操作ログ記録（失敗してもバックアップは成功扱い）
     if let Err(e) = db::system_repo::insert_operation_log(
@@ -283,7 +319,7 @@ pub fn list_backups(backup_dir: &Path) -> Result<Vec<BackupInfo>, std::io::Error
         let filename_str = filename.to_string_lossy().to_string();
 
         if let Some(created_at) = extract_datetime_from_backup(&filename_str) {
-            let size_bytes = entry.metadata().map(|m| m.len()).unwrap_or(0);
+            let size_bytes = read_metadata(&entry.path())?.len();
             let file_path = entry.path().to_string_lossy().to_string();
 
             backups.push(BackupInfo {
@@ -319,18 +355,12 @@ pub fn check_auto_backup(conn: &DbConnection, backup_dir: &Path) -> Result<bool,
     let today_prefix = format!("{}{}_", BACKUP_PREFIX, today_str);
 
     // 3. 今日のバックアップファイルを走査
-    let today_files: Vec<String> = match std::fs::read_dir(backup_dir) {
-        Ok(entries) => entries
-            .filter_map(|e| e.ok())
-            .filter_map(|e| {
-                let name = e.file_name().to_string_lossy().to_string();
-                if name.starts_with(&today_prefix) && name.ends_with(BACKUP_EXT) {
-                    Some(name)
-                } else {
-                    None
-                }
-            })
-            .collect(),
+    let today_files = match std::fs::read_dir(backup_dir) {
+        Ok(entries) => collect_today_backup_names(
+            backup_dir,
+            &today_prefix,
+            entries.map(|e| e.map(|entry| entry.path())),
+        )?,
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => vec![],
         Err(e) => {
             return Err(DbError::QueryFailed(format!(
@@ -388,6 +418,34 @@ pub fn check_auto_backup(conn: &DbConnection, backup_dir: &Path) -> Result<bool,
     create_backup(conn, backup_dir)?;
     run_cleanup(conn, backup_dir);
     Ok(true)
+}
+
+fn collect_today_backup_names<I>(
+    backup_dir: &Path,
+    today_prefix: &str,
+    entries: I,
+) -> Result<Vec<String>, DbError>
+where
+    I: IntoIterator<Item = std::io::Result<PathBuf>>,
+{
+    let mut names = Vec::new();
+    for entry in entries {
+        let path = entry.map_err(|error| {
+            DbError::QueryFailed(format!(
+                "バックアップディレクトリのエントリ読み取りに失敗 ({}): {}",
+                backup_dir.display(),
+                error
+            ))
+        })?;
+        let name = path
+            .file_name()
+            .map(|name| name.to_string_lossy().into_owned())
+            .unwrap_or_default();
+        if name.starts_with(today_prefix) && name.ends_with(BACKUP_EXT) {
+            names.push(name);
+        }
+    }
+    Ok(names)
 }
 
 /// cleanup_old_backups を設定値で実行するヘルパー（エラーはwarnのみ）
@@ -1108,5 +1166,60 @@ mod tests {
             }
             other => panic!("QueryFailedが期待されるが、{:?} が返された", other),
         }
+    }
+
+    #[test]
+    fn test_check_auto_backup_req901_entry_error_propagates_without_creating_backup() {
+        // REQ-901 / MNT-01-D6: entry走査失敗は判定を不確実にするため伝搬し、
+        // create / cleanup に進まない
+        let dir = tempfile::tempdir().unwrap();
+        let sentinel = dir.path().join("inventory_backup_20000101_010203.db");
+        std::fs::write(&sentinel, b"synthetic existing backup").unwrap();
+        let before = std::fs::read(&sentinel).unwrap();
+        let entries = vec![Err(std::io::Error::new(
+            std::io::ErrorKind::PermissionDenied,
+            "injected",
+        ))];
+        let result = collect_today_backup_names(dir.path(), "inventory_backup_20260724_", entries);
+        assert!(
+            matches!(result, Err(DbError::QueryFailed(message)) if message.contains("injected"))
+        );
+        assert_eq!(std::fs::read(&sentinel).unwrap(), before);
+        assert_eq!(std::fs::read_dir(dir.path()).unwrap().count(), 1);
+    }
+
+    #[test]
+    fn test_list_backups_req901_metadata_error_propagates() {
+        // REQ-901 / MNT-01-D6: metadata error で partial list を返さない
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("inventory_backup_20260724_010203.db");
+        std::fs::write(&path, b"db").unwrap();
+        let _failure = fail_metadata(&path);
+        let error = list_backups(dir.path()).unwrap_err();
+        assert_eq!(error.kind(), std::io::ErrorKind::PermissionDenied);
+        assert!(error.to_string().contains("injected metadata failure"));
+    }
+
+    #[test]
+    fn test_create_backup_req901_metadata_error_propagates_without_success_log() {
+        // REQ-901 / MNT-01-D6: metadata error は成功 result / operation log にしない
+        let (dir, conn) = setup_test_db();
+        let backup_dir = dir.path().join("backups");
+        let _failure = fail_any_metadata();
+        let result = create_backup(&conn, &backup_dir);
+        assert!(matches!(result, Err(DbError::QueryFailed(message)) if message.contains("サイズ")));
+        let success_logs: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM operation_logs WHERE operation_type = 'backup_create'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(success_logs, 0);
+        assert_eq!(
+            std::fs::read_dir(&backup_dir).unwrap().count(),
+            1,
+            "VACUUM output may remain after metadata failure, but must not be reported as success"
+        );
     }
 }

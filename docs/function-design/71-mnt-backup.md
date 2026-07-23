@@ -82,6 +82,9 @@ fn create_backup(
 **エラーハンドリング**:
 - ディレクトリ作成失敗 → `DbError::QueryFailed` に変換して返す
 - VACUUM INTO失敗（ディスク容量不足等）→ `DbError::QueryFailed` を返す
+- VACUUM INTO成功後の metadata 取得失敗 → `DbError::QueryFailed` を返し、
+  `size_bytes=0` の成功結果や成功 operation log を返さない。生成済みfileが
+  残る可能性は許容し、次回一覧/cleanupで観測可能にする（MNT-01-D6）
 - 操作ログ記録失敗 → `tracing::warn!` で警告、バックアップ自体は成功扱い
 
 **注意事項**:
@@ -136,6 +139,8 @@ fn list_backups(backup_dir: &Path) -> Result<Vec<BackupInfo>, std::io::Error>
    b. パターン不一致 → スキップ
    c. ファイル名からYYYYMMDD_HHMMSS部分を抽出 → `YYYY-MM-DD HH:MM:SS` 形式に変換して `created_at` に格納
    d. `std::fs::metadata` でファイルサイズを取得
+      - metadata 取得失敗 → partial / inaccurate list を返さず
+        `std::io::Error` を返す（MNT-01-D6）
    e. `BackupInfo` を作成してリストに追加
 3. `created_at` の降順（新しい順）でソート
 4. リストを返す
@@ -292,6 +297,9 @@ match mnt::backup::restore_backup(old_conn, &backup_path, &db_path) {
 - phase=committed 更新失敗（rename 前） → 新接続を公開せず退避も削除せず `Err`（manifest は active 確定、次回 reconcile が旧データへ復帰 — D5 (e)(i)）
 - phase=committed 更新の rename 後 directory sync 失敗 → durability 不明。新接続を公開せず退避も削除せず unrecoverable（再起動必須）を返す。再起動時の reconcile は実際に回復した canonical phase に従う — D5 (e)(ii)
 - committed 後の cleanup / 記録（退避削除・log INSERT・manifest 削除）失敗 → 復元成功のまま warn 記録 + 新接続を返す。committed manifest が残っていれば次回起動が退避掃除・冪等 INSERT・manifest 削除を再処理する。manifest unlink 成功後の final sync 失敗のみ事後状態は「committed 残置 / absent」の二値（log は 7c で INSERT 済みのためどちらでも記録は保全、absent なら再処理も不要）— D5 (e)
+- initial manifest write失敗後の canonical temp cleanup失敗 → 元の
+  `RestoreError::Recovered` を維持し、temp path / cleanup errorを
+  `tracing::warn!` へ記録する。error伝搬へ変えてD1/D4/D5の復旧分類を変えない
 
 ---
 
@@ -315,6 +323,8 @@ fn check_auto_backup(
 2. 今日の日付を `YYYYMMDD` 形式で取得
 3. `backup_dir` 内のファイルを走査し、今日のバックアップが存在するか確認
    - ファイル名が `inventory_backup_{今日のYYYYMMDD}_` で始まるものがあるか
+   - directory iterator の個別 entry error → 「entryなし」に変換せず
+     `DbError::QueryFailed` を返し、backup作成・cleanup判定へ進まない
 4. 今日のバックアップが1件もない場合:
    - `create_backup(conn, backup_dir)` を実行
    - `cleanup_old_backups` を実行（保持日数は **MNT-01-D3** の確定条件を満たす場合のみ）
@@ -331,9 +341,53 @@ fn check_auto_backup(
 
 **エラーハンドリング**:
 - `backup_dir` の読み取り失敗 → `DbError::QueryFailed` に変換
+- directory iterator の個別 entry 取得失敗 → `DbError::QueryFailed` に変換し、
+  今日のbackup有無を推測しない
 - `backup_time` のパース失敗 → 定時バックアップをスキップ（`tracing::warn!` で警告）
 - `create_backup` 失敗 → エラーをそのまま返す
 - `backup_retention_days` の読取失敗・parse 失敗 → **MNT-01-D3** に従い cleanup をスキップ
+
+**MNT-01-D6: filesystem failure の継続 / 伝搬境界**
+
+- 決定:
+  - restore開始前のmanifest temp cleanupのように、主失敗後の補助cleanupだけが
+    失敗した場合はpath/error/context付きWARNを残し、元の復旧分類を維持する
+  - `check_auto_backup`のentry走査失敗は「本日のbackupなし」にせず
+    `DbError::QueryFailed`を返し、create/cleanupへ進まない
+  - `create_backup` / `list_backups`のmetadata失敗は`size_bytes=0`へ変換せず、
+    それぞれ既存の`DbError` / `std::io::Error`境界へ返す
+- Why: 個別補助cleanupは後続reconcileで回収できるが、entry/metadata errorは
+  backup有無・成功result・一覧内容を変え、「余分なbackup」または
+  「size 0の成功」を作る。無観測の推測より明示的な一時失敗を選ぶ
+- Compatibility: MNT-01-D1/D4/D5のrestore原子性、NotFound空、
+  backup filename filter、保持日数、CMD/DTO/wire shape、利用者向け文言は不変
+- Rejected alternatives: `.filter_map(|e| e.ok())` /
+  metadata `.unwrap_or(0)` / restore temp cleanup errorを新しいfatal variantへ昇格
+- 見直し契機: backup作成をatomic publish + explicit incomplete artifact管理へ
+  置換するとき、またはCMD-11 service境界を再編するとき
+
+**auto-backup entry failure 注入境界（監査順7 Plan Review P2-1）**:
+
+production と test は次の同一 generic helper を通す。production 専用の別 collector、
+test 専用 filename 判定、`#[cfg(test)]` だけの entry 処理関数を作らない。
+
+```rust
+fn collect_today_backup_names<I>(
+    backup_dir: &Path,
+    today_prefix: &str,
+    entries: I,
+) -> Result<Vec<String>, DbError>
+where
+    I: IntoIterator<Item = std::io::Result<PathBuf>>;
+```
+
+production は `read_dir` の各 `DirEntry` を
+`entry.map(|entry| entry.path())` で上記 item 型へ変換して渡す。test は同じ helper
+へ injected `Err(io::Error)` を渡し、`DbError::QueryFailed` と
+create / cleanup 副作用なしを検証する。実装レビューでは public
+`check_auto_backup` と failure-injection test の双方がこの helper を呼び、
+entry error / filename filter の production-only / test-only 分岐が存在しないことを
+明示確認する。
 
 **MNT-01-D3: 破壊的 cleanup は保持日数を確定できた場合のみ実行**
 
@@ -405,6 +459,10 @@ pub fn resolve_backup_dir(conn: &DbConnection, app_data: &Path) -> Result<PathBu
 | `test_check_auto_backup_mnt01_no_backup_today` | 今日のバックアップなしで即実行 |
 | `test_check_auto_backup_mnt01_already_backed_up` | 今日のバックアップありでスキップ |
 | `test_check_auto_backup_mnt01_scheduled_time` | backup_time到達で2回目のバックアップ実行 |
+| `test_check_auto_backup_req901_entry_error_propagates_without_creating_backup` | 個別entry errorをQueryFailedへ返し、create/cleanup副作用なし |
+| `test_create_backup_req901_metadata_error_propagates_without_success_log` | metadata errorをsize 0成功へ変換しない |
+| `test_list_backups_req901_metadata_error_propagates` | metadata errorでpartial/inaccurate listを返さない |
+| `test_restore_req901_manifest_temp_cleanup_failure_warns_and_preserves_recovered_error` | temp cleanup failureをwarnし、元のRecovered分類を維持 |
 
 **失敗注入テスト（実装 PR の完了条件、監査 P8b-3 起源）**: 成功系・早期 NotFound 系だけでは MNT-01-D1〜D5 の契約を検証できない。以下を restore / cleanup / 設定読取の実装変更と同じ PR に含め、ファイル名・存在の構造検査ではなく「障害後に元 snapshot または新 snapshot のどちらか一方が完全な形で残り、再接続可能」という意味的完了条件を検証する。
 
