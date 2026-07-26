@@ -223,3 +223,7 @@ Fill after implementation.
 **gated Amendment 1（2026-07-27、実装前の Writer 自己検出）**
 
 - round 4 P3（§3.4 表ヘッダ時点表記の更新）を Scope へ反映した際、表ヘッダ行の置換が削除 diff を生み **M-N2 guard（削除行 = §5 見出しのみ許可）と衝突**することを実装着手時に検出。M-N2 の除外条件へ表ヘッダ旧行を追加（guard の趣旨 = 「Scope が予定しない削除の禁止」は不変、許可 list を Scope と同期させたのみ）。G2 guard 感度実測は引き続き「許可外の 1 行削除」で反応することを確認する
+
+**gated Amendment 2（2026-07-27、G2 感度実測が M-N2 の実バグを捕捉）**
+
+- 実装後の guard 感度実測で **G2 が FAIL**: M-N2 の regex `^-[^-]` は diff の file header（`---`）除外を意図していたが、§3 の規範行は bullet（`- ` 始まり）のため削除 diff が `-- …` 形になり、**bullet 行の削除を構造的に検出できない**実バグと判明（round 2 P2-1 が要求した guard 感度実測の存在意義を初回で実証）。是正 = `^-` match + `^---` 除外形へ変更。G1/G3/G4 は当初 command のまま検出 OK、X1〜X7 は全件 red 実証済み（記録は PR body）

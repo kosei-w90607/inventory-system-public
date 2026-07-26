@@ -51,8 +51,10 @@ rg -F 'D-056' docs/decision-log.md docs/AGENT_OPERATING_MANUAL.md
 # M-N1 期待: exit 0 かつ出力 UNCHANGED（DEV_WORKFLOW / ci.md / scripts 完全不変）
 git diff --quiet origin/main -- docs/DEV_WORKFLOW.md docs/ci.md scripts/ && echo UNCHANGED
 # M-N2 期待: 1（AGENT_OPERATING_MANUAL の削除行は §5 見出しと §3.4 表ヘッダの 2 行のみ = それ以外の削除なし。
-# 表ヘッダ除外は round 4 P3〈時点表記の更新〉の Scope 反映 — gated Amendment 1）
-git diff origin/main -- docs/AGENT_OPERATING_MANUAL.md | rg '^-[^-]' | rg -v -F '追加 prompt 3 本' | rg -v -F '現行実体（2026-07-10 時点）'
+# 表ヘッダ除外は round 4 P3〈時点表記の更新〉の Scope 反映 — gated Amendment 1。
+# regex は `^-` + `^---` 除外形 — 当初の `^-[^-]` は bullet 行（`- ` 始まり）の削除 diff `-- …` を構造的に素通しする
+# 実バグで、G2 感度実測が捕捉した — gated Amendment 2）
+git diff origin/main -- docs/AGENT_OPERATING_MANUAL.md | rg '^-' | rg -v '^---' | rg -v -F '追加 prompt 3 本' | rg -v -F '現行実体（2026-07-10 時点）'
 # M-N3 期待: 0（§3 既存第 6 項の非改変 = 希少 slot の Writer 制約が残存）
 rg -F '希少・高コストな model slot は通常実装の Writer に充てない' docs/AGENT_OPERATING_MANUAL.md
 # M-N4 期待: 0（§3.1 design board 例外の原文残存 = §3.1 無改訂）
