@@ -9,10 +9,12 @@ describe("receipt image helper (UI-03 / REQ-202)", () => {
     expect(getAllowedReceiptExtension("receipt.bmp")).toBeNull();
   });
 
-  it("REQ-202 builds saveReceiptImage request from a File", async () => {
-    const file = new File(["receipt"], "receipt.png", { type: "image/png" });
-
-    const request = await buildSaveImageRequest(file);
+  it("REQ-202 builds saveReceiptImage request from FilePicker bytes", () => {
+    const request = buildSaveImageRequest({
+      bytes: new TextEncoder().encode("receipt"),
+      filename: "receipt.png",
+      size: 7,
+    });
 
     expect(request.extension).toBe("png");
     expect(request.image_base64).toBe("cmVjZWlwdA==");

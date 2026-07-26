@@ -1,4 +1,5 @@
 import type { ProductWithRelations } from "@/lib/bindings";
+import type { PickedFile } from "@/components/FilePicker";
 
 export type ReturnExchangeType = "return" | "exchange";
 export type ReturnDirection = "in" | "out";
@@ -30,7 +31,7 @@ export interface ReturnExchangeFormValues {
 }
 
 export interface ReceiptImageState {
-  file: File;
+  file: PickedFile;
   previewUrl: string;
   extension: string;
   savedReceiptPath: string | null;

@@ -1,25 +1,40 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, renderHook, waitFor } from "@testing-library/react";
+import { useBlocker } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { toast } from "sonner";
 
-import { commands, type ImportResult, type PreviewData, type RollbackResult } from "@/lib/bindings";
+import {
+  commands,
+  CSV_IMPORT_FILE_SIZE_LIMIT,
+  type ImportResult,
+  type PreviewData,
+  type RollbackResult,
+} from "@/lib/bindings";
 import { d052InvalidationOracle, expectExactInvalidations } from "@/test/invalidation-oracle";
 import { useCsvImportFlow } from "./useCsvImportFlow";
 
 vi.mock("@tanstack/react-router", () => ({ useBlocker: vi.fn() }));
 vi.mock("sonner", () => ({ toast: { error: vi.fn(), success: vi.fn() } }));
-vi.mock("@/lib/bindings", () => ({
-  commands: {
-    parseAndValidateCsv: vi.fn(),
-    commitCsvImport: vi.fn(),
-    rollbackCsvImport: vi.fn(),
-  },
-}));
+vi.mock("@/lib/bindings", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/bindings")>();
+  return {
+    ...actual,
+    commands: {
+      parseAndValidateCsv: vi.fn(),
+      commitCsvImport: vi.fn(),
+      rollbackCsvImport: vi.fn(),
+    },
+  };
+});
 
 const mockParse = vi.mocked(commands.parseAndValidateCsv);
 const mockCommit = vi.mocked(commands.commitCsvImport);
 const mockRollback = vi.mocked(commands.rollbackCsvImport);
+// eslint-disable-next-line @typescript-eslint/no-deprecated -- production の現行 hook 配線を spy する。
+const mockUseBlocker = vi.mocked(useBlocker);
+const mockToast = vi.mocked(toast);
 
 function makePreview(): PreviewData {
   return {
@@ -58,9 +73,12 @@ function makeWrapper(queryClient: QueryClient) {
 async function reachResult(result: {
   current: ReturnType<typeof useCsvImportFlow>;
 }): Promise<void> {
-  const file = new File(["dummy"], "sales.csv", { type: "text/csv" });
-  await act(async () => {
-    await result.current.selectFile(file);
+  act(() => {
+    result.current.selectFile({
+      bytes: new Uint8Array([1, 2, 3]),
+      filename: "sales.csv",
+      size: 3,
+    });
   });
   await waitFor(() => {
     expect(result.current.state.status).toBe("preview");
@@ -84,6 +102,71 @@ beforeEach(() => {
 });
 
 describe("useCsvImportFlow UI-07 D-052-C8/C9", () => {
+  it("REQ-401: 上限ちょうどは parse し、上限 +1 は command 前に拒否する", async () => {
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    });
+    const { result } = renderHook(() => useCsvImportFlow(), {
+      wrapper: makeWrapper(queryClient),
+    });
+
+    act(() => {
+      result.current.selectFile({
+        bytes: new Uint8Array([1]),
+        filename: "boundary.csv",
+        size: CSV_IMPORT_FILE_SIZE_LIMIT,
+      });
+    });
+    await waitFor(() => {
+      expect(mockParse).toHaveBeenCalledWith([1], "boundary.csv");
+    });
+
+    mockParse.mockClear();
+    act(() => {
+      result.current.selectFile({
+        bytes: new Uint8Array([1]),
+        filename: "oversize.csv",
+        size: CSV_IMPORT_FILE_SIZE_LIMIT + 1,
+      });
+    });
+    expect(mockParse).not.toHaveBeenCalled();
+    expect(mockToast.error).toHaveBeenCalledWith("ファイルサイズが上限(20MB)を超えています");
+  });
+
+  it("REQ-401: parse failure は idle へ復帰可能な error state にする", async () => {
+    mockParse.mockResolvedValueOnce({
+      status: "error",
+      error: {
+        kind: "validation",
+        message: "合成CSVを解析できません",
+        field: "file",
+        error_id: null,
+      },
+    });
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    });
+    const { result } = renderHook(() => useCsvImportFlow(), {
+      wrapper: makeWrapper(queryClient),
+    });
+
+    act(() => {
+      result.current.selectFile({
+        bytes: new Uint8Array([0]),
+        filename: "invalid.csv",
+        size: 1,
+      });
+    });
+
+    await waitFor(() => {
+      expect(result.current.state).toMatchObject({ status: "error", recoverTo: "idle" });
+    });
+    act(() => {
+      result.current.dismissError();
+    });
+    expect(result.current.state.status).toBe("idle");
+  });
+
   it("REQ-401: import_error commit failure recovers to idle", async () => {
     mockCommit.mockResolvedValueOnce({
       status: "error",
@@ -100,10 +183,13 @@ describe("useCsvImportFlow UI-07 D-052-C8/C9", () => {
     const { result } = renderHook(() => useCsvImportFlow(), {
       wrapper: makeWrapper(queryClient),
     });
-    const file = new File(["dummy"], "sales.csv", { type: "text/csv" });
 
-    await act(async () => {
-      await result.current.selectFile(file);
+    act(() => {
+      result.current.selectFile({
+        bytes: new Uint8Array([1]),
+        filename: "sales.csv",
+        size: 1,
+      });
     });
     await waitFor(() => {
       expect(result.current.state.status).toBe("preview");
@@ -157,5 +243,85 @@ describe("useCsvImportFlow UI-07 D-052-C8/C9", () => {
 
     expect(mockRollback).toHaveBeenCalledWith(401);
     expectExactInvalidations(invalidateSpy.mock.calls, d052InvalidationOracle.csvImportRollback());
+  });
+
+  it("REQ-401: commit 中だけ useBlocker と beforeunload を有効化する", async () => {
+    let resolveCommit!: (value: Awaited<ReturnType<typeof commands.commitCsvImport>>) => void;
+    mockCommit.mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolveCommit = resolve;
+      }),
+    );
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    });
+    const { result } = renderHook(() => useCsvImportFlow(), {
+      wrapper: makeWrapper(queryClient),
+    });
+
+    act(() => {
+      result.current.selectFile({
+        bytes: new Uint8Array([1]),
+        filename: "sales.csv",
+        size: 1,
+      });
+    });
+    await waitFor(() => {
+      expect(result.current.state.status).toBe("preview");
+    });
+    act(() => {
+      result.current.confirmImport(false);
+    });
+    await waitFor(() => {
+      expect(result.current.state.status).toBe("importing");
+    });
+
+    const blockerOptions = mockUseBlocker.mock.calls[mockUseBlocker.mock.calls.length - 1]?.[0] as
+      | {
+          shouldBlockFn: () => boolean;
+          enableBeforeUnload: boolean | (() => boolean);
+        }
+      | undefined;
+    expect(blockerOptions?.shouldBlockFn()).toBe(true);
+    expect(
+      typeof blockerOptions?.enableBeforeUnload === "function"
+        ? blockerOptions.enableBeforeUnload()
+        : blockerOptions?.enableBeforeUnload,
+    ).toBe(true);
+
+    resolveCommit({ status: "ok", data: makeResult() });
+    await waitFor(() => {
+      expect(result.current.state.status).toBe("result");
+    });
+  });
+
+  it("REQ-401: rollback failure は result を保持し再試行できる", async () => {
+    mockRollback.mockResolvedValueOnce({
+      status: "error",
+      error: {
+        kind: "internal",
+        message: "合成 rollback failure",
+        field: null,
+        error_id: null,
+      },
+    });
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    });
+    const { result } = renderHook(() => useCsvImportFlow(), {
+      wrapper: makeWrapper(queryClient),
+    });
+    await reachResult(result);
+
+    act(() => {
+      result.current.rollback(401);
+    });
+
+    await waitFor(() => {
+      expect(mockToast.error).toHaveBeenCalledWith(
+        "取り消しに失敗しました。もう一度お試しください",
+      );
+    });
+    expect(result.current.state.status).toBe("result");
   });
 });

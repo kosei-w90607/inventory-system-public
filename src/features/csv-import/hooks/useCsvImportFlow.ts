@@ -7,10 +7,10 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useBlocker } from "@tanstack/react-router";
 import { useCallback, useReducer } from "react";
 import { toast } from "sonner";
-import { commands } from "@/lib/bindings";
+import type { PickedFile } from "@/components/FilePicker";
+import { commands, CSV_IMPORT_FILE_SIZE_LIMIT } from "@/lib/bindings";
 import { invalidateByContract, invalidationContract } from "@/lib/invalidation-contract";
 import { CMD_ERROR_KIND, InvokeError, isInvokeError, unwrapResult } from "@/lib/invoke";
-import { extractFilename } from "../lib/extractFilename";
 import { csvImportReducer } from "../reducer";
 import type { CsvImportState, ErrorRecoverTo } from "../types";
 
@@ -18,8 +18,6 @@ const INITIAL_STATE: CsvImportState = { status: "idle" };
 
 /// CMD-07 と同じ防御的サイズ上限 (20MB)。
 /// IPC ラウンドトリップ前に UI 側で早期 reject する (§55.2 File → Vec<u8> 変換)。
-const FILE_SIZE_LIMIT_BYTES = 20 * 1024 * 1024;
-
 /// import_error 系は preview cache が消失している前提で idle に戻し、
 /// それ以外 (validation / internal) は呼び元 state の文脈で preview に戻る。
 /// 設計: 55-ui-csv-import.md §55.9 decideRecoverTo
@@ -46,7 +44,7 @@ function ensureInvokeError(error: unknown, cmd: string): InvokeError {
 export interface UseCsvImportFlowResult {
   state: CsvImportState;
   /// ファイル選択 / drag&drop からの取込み開始。20MB 超過時は Sonner トーストで reject。
-  selectFile: (file: File) => Promise<void>;
+  selectFile: (file: PickedFile) => void;
   /// プレビュー確認後の commit 実行。state.status === "preview" 前提。
   confirmImport: (overwriteConfirmed: boolean) => void;
   /// 完了後の rollback 実行。state.status === "result" 前提。
@@ -137,17 +135,14 @@ export function useCsvImportFlow(): UseCsvImportFlowResult {
   });
 
   const selectFile = useCallback(
-    async (file: File) => {
-      if (file.size > FILE_SIZE_LIMIT_BYTES) {
+    (file: PickedFile) => {
+      if (file.size > CSV_IMPORT_FILE_SIZE_LIMIT) {
         toast.error("ファイルサイズが上限(20MB)を超えています");
         return;
       }
-      const filename = extractFilename(file);
-      const buffer = await file.arrayBuffer();
-      // specta 経由で Rust Vec<u8> に直マップ。number[] 化のオーバーヘッドは 500 行規模なら ~1ms
-      const fileBytes = Array.from(new Uint8Array(buffer));
-      dispatch({ type: "select_file", filename });
-      parseAndValidate.mutate({ fileBytes, filename });
+      const fileBytes = Array.from(file.bytes);
+      dispatch({ type: "select_file", filename: file.filename });
+      parseAndValidate.mutate({ fileBytes, filename: file.filename });
     },
     [parseAndValidate],
   );

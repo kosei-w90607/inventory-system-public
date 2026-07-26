@@ -1,4 +1,5 @@
 import type { SaveImageRequest } from "@/lib/bindings";
+import type { PickedFile } from "@/components/FilePicker";
 
 const ALLOWED_EXTENSIONS = new Set(["jpg", "jpeg", "png", "gif", "webp"]);
 
@@ -13,14 +14,13 @@ function bytesToBase64(bytes: Uint8Array): string {
   return btoa(binary);
 }
 
-export async function buildSaveImageRequest(file: File): Promise<SaveImageRequest> {
-  const extension = getAllowedReceiptExtension(file.name);
+export function buildSaveImageRequest(file: PickedFile): SaveImageRequest {
+  const extension = getAllowedReceiptExtension(file.filename);
   if (extension === null) {
     throw new Error("jpg / jpeg / png / gif / webp の画像を選択してください");
   }
-  const buffer = await file.arrayBuffer();
   return {
-    image_base64: bytesToBase64(new Uint8Array(buffer)),
+    image_base64: bytesToBase64(file.bytes),
     extension,
   };
 }

@@ -316,7 +316,18 @@ Contract ID: SPEC-FILE-CONTRACT-2026-07-26
 
 ## Implementation Results
 
-Fill after implementation（SHA / test 件数の転記禁止、D-035/D-038）。
+- Rust 定数を起点に bindings 生成後の idempotent append を実装し、売上・日報・商品
+  import hook の上限判定を生成定数へ統一した。
+- 商品 import は CMD 早期拒否と BIZ 安全網の二重 guard とし、既存 import 系と同じ
+  上限契約・エラー語彙へ揃えた。
+- dialog 読取りと任意 drop を持つ共通 FilePicker を導入し、Z004・商品 import・
+  返品交換画像の選択／再選択を bytes 契約へ移行した。返品画像のプレビューは Blob
+  URL 経由へ変更した。
+- Z004 flow は実 hook + QueryClient 配線で guard、parse／commit／rollback、
+  recovery、離脱 block、invalidation を検証する構成へ更新した。FilePicker と静的
+  sweep の regression test、REQ domain に一致する traceability も追加した。
+- synthetic file／画像のみを使い、対象 3 画面の初期表示と選択後 state を dev
+  スクリーンショットで確認した。検証・mutation・視認の外部証跡は PR body に記録する。
 
 ## Review Response
 

@@ -5,6 +5,7 @@
 // 設計: docs/function-design/55-ui-csv-import.md §55.1 / §55.4
 
 import { PageHeader } from "@/components/patterns/PageHeader";
+import type { PickedFile } from "@/components/FilePicker";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DailyReportImportPage } from "@/features/daily-report-import/DailyReportImportPage";
 import { useCsvImportFlow } from "./hooks/useCsvImportFlow";
@@ -92,10 +93,8 @@ function renderBody(flow: ReturnType<typeof useCsvImportFlow>) {
     isRollingBack,
   } = flow;
 
-  // selectFile / onReselect は Promise<void> を返すため、void 演算子で fire-and-forget 化。
-  // useMutation の onError が拾うので unhandled rejection は発生しない (§55.3)。
-  const handleFileSelect = (file: File) => {
-    void selectFile(file);
+  const handleFileSelect = (file: PickedFile) => {
+    selectFile(file);
   };
 
   switch (state.status) {

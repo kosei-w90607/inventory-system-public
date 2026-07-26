@@ -5,6 +5,7 @@
 use crate::biz::product_service::{self, ImportRow};
 use crate::biz::{Department, PaginatedResult, ProductSearchQuery, ProductWithRelations, Supplier};
 use crate::cmd::{AppState, CmdError};
+use crate::constants;
 use tauri::State;
 
 // ---------------------------------------------------------------------------
@@ -119,6 +120,14 @@ pub fn preview_import(
     state: State<AppState>,
     file_bytes: Vec<u8>,
 ) -> Result<product_service::ImportPreview, CmdError> {
+    if file_bytes.len() > constants::CSV_IMPORT_FILE_SIZE_LIMIT {
+        return Err(CmdError {
+            kind: "validation".to_string(),
+            message: "ファイルサイズが上限(20MB)を超えています".to_string(),
+            field: None,
+            error_id: None,
+        });
+    }
     let conn = state
         .db
         .lock()
@@ -172,6 +181,40 @@ mod tests {
 
         assert_eq!(err.kind, "validation");
         assert_eq!(err.message, "ファイルが空です");
+        assert_eq!(err.field, None);
+    }
+
+    #[test]
+    fn test_import_products_req104_rejects_oversize_file() {
+        // REQ-104 / UI-01c-D15: 上限ちょうどは CMD guard を通過し、+1 は CMD で早期拒否する。
+        let (_dir, conn) = setup_test_db();
+        let app = tauri::test::mock_builder()
+            .manage(AppState {
+                db: Mutex::new(conn),
+                preview_cache: Mutex::new(HashMap::new()),
+                daily_report_preview_cache: Mutex::new(HashMap::new()),
+            })
+            .build(tauri::test::mock_context(tauri::test::noop_assets()))
+            .unwrap();
+
+        let mut boundary = vec![0xEF, 0xBB, 0xBF];
+        boundary.extend_from_slice(
+            "商品コード,商品名,部門ID,売価,原価,税率\nPI-001,商品,1,500,300,10\n".as_bytes(),
+        );
+        boundary.resize(crate::constants::CSV_IMPORT_FILE_SIZE_LIMIT, b'\n');
+        let boundary_result = preview_import(app.state::<AppState>(), boundary);
+        assert!(
+            boundary_result.is_ok(),
+            "上限ちょうどの有効CSVは受理されるべき: {boundary_result:?}"
+        );
+
+        let err = preview_import(
+            app.state::<AppState>(),
+            vec![0; crate::constants::CSV_IMPORT_FILE_SIZE_LIMIT + 1],
+        )
+        .unwrap_err();
+        assert_eq!(err.kind, "validation");
+        assert_eq!(err.message, "ファイルサイズが上限(20MB)を超えています");
         assert_eq!(err.field, None);
     }
 }
