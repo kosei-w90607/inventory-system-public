@@ -212,7 +212,8 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 
 Minimum design checks:
 
-- Layer ownership: 上限 guard は CMD、file 読取りは FilePicker（UI）、BIZ 不変。
+- Layer ownership: 上限 guard は CMD 早期拒否 + BIZ `preview_import` 安全網の二重
+  （UI-01c-D15）、file 読取りは FilePicker（UI）。BIZ の業務ロジック自体は不変。
 - Backend function design: UI-01c-D15。
 - Command / DTO / data contract: Boundary / Wire Contract 節。
 - Persistence / transaction / audit impact: なし。
