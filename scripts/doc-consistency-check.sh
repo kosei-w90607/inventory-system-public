@@ -945,30 +945,32 @@ strip_inline_code_spans() {
             return count
         }
         {
-            line = $0
+            document = document $0 ORS
+        }
+        END {
             output = ""
             cursor = 1
 
-            while (cursor <= length(line)) {
-                relative_open = index(substr(line, cursor), "`")
+            while (cursor <= length(document)) {
+                relative_open = index(substr(document, cursor), "`")
                 if (relative_open == 0) {
-                    output = output substr(line, cursor)
+                    output = output substr(document, cursor)
                     break
                 }
 
                 open_position = cursor + relative_open - 1
-                output = output substr(line, cursor, open_position - cursor)
-                open_length = backtick_run_length(line, open_position)
+                output = output substr(document, cursor, open_position - cursor)
+                open_length = backtick_run_length(document, open_position)
                 search_position = open_position + open_length
                 close_position = 0
 
-                while (search_position <= length(line)) {
-                    relative_close = index(substr(line, search_position), "`")
+                while (search_position <= length(document)) {
+                    relative_close = index(substr(document, search_position), "`")
                     if (relative_close == 0) {
                         break
                     }
                     candidate_position = search_position + relative_close - 1
-                    candidate_length = backtick_run_length(line, candidate_position)
+                    candidate_length = backtick_run_length(document, candidate_position)
                     if (candidate_length == open_length) {
                         close_position = candidate_position
                         break
@@ -977,13 +979,14 @@ strip_inline_code_spans() {
                 }
 
                 if (close_position == 0) {
-                    output = output substr(line, open_position)
+                    output = output substr(document, open_position)
                     break
                 }
+                output = output " "
                 cursor = close_position + open_length
             }
 
-            print output
+            printf "%s", output
         }
     '
 }

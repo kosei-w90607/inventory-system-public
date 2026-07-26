@@ -305,7 +305,7 @@ commit_all "$repo" "docs(plans): broken rebase map chain を記録" > /dev/null
 
 capture_check "$repo" output
 [[ "$CHECK_STATUS" -ne 0 ]] || fail "stale old SHA で途切れた Rebase Map chain が ERROR 判定されなかった"
-assert_contains "$output" "Rebase Map chain" "多段 Rebase Map chain 負例を識別する ERROR が出力されない"
+assert_contains "$output" "old SHA '$old_plan_sha' が重複しています" "duplicate-old guard 固有の ERROR が出力されない"
 
 # 同じ patch-id の edge が同じ new SHA へ収束する graph も chain 不整合。
 write_packet "$repo" "packet.md" "$old_plan_sha" "none"
