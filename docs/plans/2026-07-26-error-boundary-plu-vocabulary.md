@@ -393,6 +393,21 @@ Do not transcribe exact-HEAD SHA or test counts here (D-035/D-038 Evidence Owner
 
 ## Review Response
 
-Fill after review.
-If R3 review-only sub-agent is skipped, record an explicit line beginning with `Review-only skipped because:` and the reason.
-- Findings Freeze: not yet frozen; post-freeze exceptions: none.
+- Final Review 一次（Sonnet 5 fresh context、worktree 隔離、candidate `a941a83`）:
+  P1=0 / P2=1 / P3=0。Contract Audit 全 10 項目を実施 — Ledger 全 14 行の実装照合、
+  negative space sweep 0 件、X1〜X8 mutation を clean tree で全件実注入し red を独立
+  再実測（writer 記録の転記なし）、oracle 独立性確認、AC sweep 再実行一致、
+  import 系・wire shape・68 §68.7 文言の非影響確認、生成系 2 種 re-run で diff clean、
+  fmt / clippy / cargo test / npm test / `cargo check --release` 全 pass、
+  PR body 鮮度一致、Data Safety 問題なし。
+- P2（accept、Coordinator が実証再確認済み）: `src/features/csv-import/hooks/useCsvImportFlow.test.tsx:87`
+  の REQ タグが `REQ-402`（PLU 書出し）誤記。csv-import domain の正は REQ-401
+  （POS売上データ取込み）。literal scan の `generate_traceability` により生成 SSOT
+  `90-traceability.md` の REQ-402 行へ csv-import test が FE evidence として混入
+  （tool の `--check` は presence のみ検査のため silent）。是正 = タグを `REQ-401` へ
+  改名 + `generate_traceability` 再生成 + L1 full 再取得（Writer 追発注、relay 2/2）。
+- 残存リスク記録: `settings_cmd.rs::handle_restore_failure` の `restore_failed_recovered`
+  経路は既存から message に raw text を含む（本 PR 非接触。packet 宣言どおり restore
+  semantics 不変の scope 判断に整合）。CMD-ERR-D2 趣旨との整合は別是正単位の
+  follow-up 候補として post-merge closeout で Plans.md に記録する。
+- Findings Freeze: not yet frozen（P2 是正の reviewer 確認後に freeze）; post-freeze exceptions: none.
