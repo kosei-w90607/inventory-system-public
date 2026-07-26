@@ -73,7 +73,8 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 ## Acceptance Criteria
 
 - `rg -F 'D-056' docs/decision-log.md docs/AGENT_OPERATING_MANUAL.md` が両 file で hit する（決定と適用指針の接続）
-- Matrix の anchor A1〜A6 が全て baseline 0 hit → 実装後 hit で実測され、mutation X1〜X6 の実注入で対応 assertion が exit 1 へ反転することを clean tree で実測（記録は PR body）
+- Matrix の anchor A1〜A7 が全て baseline 0 hit → 実装後 hit で実測され、mutation X1〜X7 の実注入で対応 assertion が exit 1 へ反転することを clean tree で実測（X7 は M-A6 green 維持 = file 別弁別まで確認、記録は PR body）
+- 不変 guard 自体の感度実測 G1〜G4（guard command のバグ検出能力）: 各 guard の対象 file へ Matrix 記載の注入を行い、`git diff` / `rg` の exit code が期待から反転することを clean tree で実測し PR body に記録（round 2 P2-1 の anti-tautology 要件）
 - `git diff origin/main -- docs/DEV_WORKFLOW.md docs/ci.md scripts/` が空（gate 非接触、Matrix M-N1）
 - `git diff origin/main -- docs/AGENT_OPERATING_MANUAL.md` の削除行が §5 見出し 1 行のみ（既存規範の非改変、Matrix M-N2）
 - `bash scripts/doc-consistency-check.sh` PASS（active plan があるため `--target plan` も PASS）
@@ -103,7 +104,7 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 | SPEC-WF-OPUS5 | AGENT_OPERATING_MANUAL §3 第 7 項 | D-056-D1 | 新 slot 区分の self-contained 項。棄却: 希少・最高能力 slot 区分への編入（§3.1 design board 例外・投入条件と衝突 — round 1 P1-1） | §3 制約 list | A1/A2, X1/X2 |
 | SPEC-WF-OPUS5 | AGENT_OPERATING_MANUAL §5.4 | D-056-D2 | 低制約発注書 profile（5 点のみ・過程指示なし）。棄却: 従来型発注書の共用（公式指針の非対称性と衝突） | §5.4 新設 + §5 見出し改称 | A3/A4, X3/X4 |
 | SPEC-WF-OPUS5 | decision-log D-056 | D-056-D3 | 代役不採用 + ドラフト凍結 + revisit 条件。棄却: 廃案（Fable 恒久喪失時の保険価値を失う）/ 代役整備（process 規律と公式指針の正面衝突） | decision-log | A5, X5 |
-| SPEC-WF-OPUS5 | decision-log D-056 | D-056-D4 | 投入基準 = レビュー難所から。棄却: 全レビュー置換（Sonnet 分業の実績を捨てるコスト） | decision-log + §3 第 7 項の投入 1 文 | A6, X6 |
+| SPEC-WF-OPUS5 | decision-log D-056 | D-056-D4 | 投入基準 = レビュー難所から。棄却: 全レビュー置換（Sonnet 分業の実績を捨てるコスト） | decision-log + §3 第 7 項の投入 1 文 | A6/A7, X6/X7 |
 | SPEC-WF-OPUS5 | （変更なし） | D-056-D5 | security 隣接迂回は従来どおり維持 | 変更なし（D-056 に記録のみ） | M-N1/M-N2（非接触 guard） |
 
 ## Contract Probe
@@ -117,8 +118,8 @@ N/A — 外部 library / OS / hardware の未検証前提なし（docs-only の�
 | D-056-D1 高自律・低制約適性 slot = read-only 発注専任、design board 例外対象外 | §3 第 7 項 + §3.4 informational 行 | A1/A2 baseline-red→green、X1/X2 mutation red | non-scope（初回実発注は難所 lane 着手時） |
 | D-056-D2 低制約発注書 profile（5 点のみ・過程指示なし） | §5.4 + §5 見出し改称 | A3/A4、X3/X4 mutation red | non-scope |
 | D-056-D3 代役不採用・ドラフト凍結・revisit = Fable slot 恒久喪失 | decision-log D-056 | A5、X5 mutation red | non-scope |
-| D-056-D4 投入基準（難所から、通常は既存分業） | decision-log + §3 第 7 項 | A6、X6 mutation red | non-scope |
-| D-056-D5 security 隣接迂回の維持（変更なし） | 非接触 | M-N1/M-N2 guard | non-scope |
+| D-056-D4 投入基準（難所から、通常は既存分業。§3 第 7 項の self-containment 込み） | decision-log + §3 第 7 項 | A6/A7、X6/X7 mutation red（file 別二重検証） | non-scope |
+| D-056-D5 security 隣接迂回の維持（変更なし） | 非接触 | M-N1/M-N2 guard + G1〜G4 guard 感度実測 | non-scope |
 
 ## Test Plan
 
@@ -183,3 +184,9 @@ Fill after implementation.
 - P2-1: §3.4 informational 表への規範転記は将来 drift → Opus 行は現行実体のみ + §3/D-056 参照に変更
 - P2-2: §5 見出し「3 本」の固定カウント drift → 見出し改称を Scope に追加
 - P3-1: AC diff guard の `main` 参照 → `origin/main` へ変更
+
+**Plan Review round 2（2026-07-27、同 reviewer による closure 確認）**
+
+- 結果: round 1 の 5 件は全件解消確認（P1-1 の新区分方式は §3.3 Capacity-degraded との交差も新規矛盾なしと判定）。新規 P2×2、全件 accept:
+- P2-1: 不変 guard M-N 系自体に mutation 感度実測がなく anti-tautology 不充足 → Guard 感度実測 G1〜G4 を Matrix へ新設（guard command のバグ検出能力を実注入で確認）
+- P2-2: 投入基準が decision-log 側 anchor のみで §3 第 7 項の self-containment が検出網の外 → A7（字句 variant で file 別一意）+ X7（M-A6 green 維持の弁別確認込み）を追加

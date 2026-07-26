@@ -19,7 +19,8 @@ Risk: R3
 | D2 | `低制約発注書 profile` | `docs/AGENT_OPERATING_MANUAL.md` §5.4 見出し |
 | D2 | `過程指示・検証手順の指定を書かない` | `docs/AGENT_OPERATING_MANUAL.md` §5.4 本文 |
 | D3 | `Fable slot の恒久喪失` | `docs/decision-log.md` D-056（revisit 条件） |
-| D4 | `通常レビューは既存分業を維持` | `docs/decision-log.md` D-056（投入基準。§3 第 7 項にも同旨文を置くが assertion は file 別） |
+| D4 | `通常レビューは既存分業を維持` | `docs/decision-log.md` D-056（投入基準） |
+| D4 | `発注書単位で Coordinator が判断` | `docs/AGENT_OPERATING_MANUAL.md` §3 第 7 項（投入基準の self-containment。decision-log 側と字句を variant させ file 別に二重検証 — round 2 P2-2） |
 
 ## Assertion Commands（literal、repo root で実行）
 
@@ -38,6 +39,8 @@ rg -F '過程指示・検証手順の指定を書かない' docs/AGENT_OPERATING
 rg -F 'Fable slot の恒久喪失' docs/decision-log.md
 # M-A6 期待: 0
 rg -F '通常レビューは既存分業を維持' docs/decision-log.md
+# M-A7 期待: 0（§3 第 7 項側の投入基準、file 別二重検証）
+rg -F '発注書単位で Coordinator が判断' docs/AGENT_OPERATING_MANUAL.md
 # M-D056 期待: 0（決定と適用指針の接続）
 rg -F 'D-056' docs/decision-log.md docs/AGENT_OPERATING_MANUAL.md
 ```
@@ -65,6 +68,20 @@ rg -F '例外（design board）' docs/AGENT_OPERATING_MANUAL.md
 | X4 | §5.4 の過程指示禁止文を削除 | M-A4 が exit 1 に反転 | D2 |
 | X5 | decision-log D-056 の revisit 条件文を削除 | M-A5 が exit 1 に反転 | D3 |
 | X6 | decision-log D-056 の投入基準文を削除 | M-A6 が exit 1 に反転 | D4 |
+| X7 | §3 第 7 項の投入基準文を削除（decision-log 側は残す） | M-A7 が exit 1 に反転（M-A6 は green のまま = file 別弁別の実証） | D4 |
+
+## Guard 感度実測（不変 guard 自体の anti-tautology — round 2 P2-1）
+
+不変 guard（M-N 系）も command 自体のバグ（引数順序・filter typo 等)を検出できることを、実装後の clean tree で実注入により確認する。
+
+| Guard Mutation ID | 注入内容 | 期待する反応 |
+|---|---|---|
+| G1 | `docs/ci.md` に無害な 1 行を追記 | M-N1 が UNCHANGED を出力しなくなる（`git diff --quiet` 非 0） |
+| G2 | AGENT_OPERATING_MANUAL の §5 見出し以外の既存 1 行を削除 | M-N2 が hit を出力（exit 0 へ反転） |
+| G3 | §3 既存第 6 項の文を削除 | M-N3 が exit 1 に反転（M-N2 も同時に反応） |
+| G4 | §3.1 の design board 例外原文を削除 | M-N4 が exit 1 に反転 |
+
+記録先 = PR body（注入 → 反応確認 → `git checkout -- <file>` 復元 → 期待どおりへ復帰、各回 clean tree 確認）。
 
 記録先 = PR body（注入 → red → `git checkout -- <file>` 復元 → green、各回 clean tree 確認）。
 
