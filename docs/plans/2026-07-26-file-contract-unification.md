@@ -2,11 +2,11 @@
 
 ## Workflow State
 
-- Phase: plan-gate
+- Phase: implementing
 - Risk: R3
 - Execution Mode: fable-window
-- Plan Commit: pending
-- Amendments: none
+- Plan Commit: 83d8fdd
+- Amendments: 947e20c, ed855f9
 - Coordinator: Fable 5（本 thread。scope 精査・Design Phase・packet・裁定）
 - Writer: Codex（owner relay 発注。Plan 承認後の単独 writer）
 - Plan Reviewer: Sonnet 5 fresh context（Fable が subagent 起動・裁定）
@@ -34,6 +34,16 @@
   慣行と非対称 — accept、**BIZ `preview_import` 安全網も追加**する方向で UI-01c-D15 /
   Scope / Ledger / Matrix（X9）を更新。是正は plan-gate 内修正、再レビューは同 reviewer
   context の差分確認。
+
+- State Narrative（2026-07-26、owner Plan 承認 / state-only）: 再レビューは同 reviewer
+  context の差分確認 2 round で P1/P2/P3 = 0/0/0（「BIZ 不変」同型残存の grep 0 件確認
+  込み）。owner は Plan を承認した（この change での介入 1 回目 / 予算 3 回）。
+  plan-first `83d8fdd` を `Plan Commit` へ固定し、plan-gate 内是正 `947e20c` /
+  `ed855f9` を `Amendments` へ記録、`plan-gate -> plan-approved -> implementing` を
+  隣接 forward transition として materialize する。評価条件（reviewer P1/P2=0、
+  plan-first が全実装 commit に先行）はこの commit より前に存在する。実装は Codex 発注
+  （owner relay）。Final Review 以降は次セッションの Coordinator が
+  `Plans.md` 次の行動 0 → 本 packet の順で再開する。
 
 ## Owner Effort Budget
 
