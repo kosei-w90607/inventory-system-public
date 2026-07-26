@@ -42,7 +42,7 @@ Goal Invariant:
 
 ### 失敗定義
 
-- 正本化の過程で既存の workflow gate・独立性制約 6 項・予算のいずれかの意味が変わる。または「決定の理由と revisit 条件（Fable slot 恒久喪失）」が正本から読めず、将来の再協議が memory 依存のままになる。
+- 正本化の過程で既存の workflow gate・独立性制約 6 項・予算のいずれかの意味が変わる。または「決定の理由と revisit 条件（Fable slot の恒久喪失）」が正本から読めず、将来の再協議が memory 依存のままになる。
 
 ### 非目的
 
@@ -57,9 +57,9 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 
 - `docs/AGENT_OPERATING_MANUAL.md`:
   - §3 の制約 list に第 7 項を追加（self-contained な新 slot 区分）: **高自律・低制約適性 slot**（§3.4 で対応）は read-only の Reviewer / Explorer 発注書ロール専任とし、Writer / Coordinator / state 遷移管理に割り当てない。**§3.1 の design board 例外の対象外**（同例外の主語は希少・最高能力 slot であり本区分に適用しない旨を明示）。投入はレビュー難所・広域調査の発注書単位で Coordinator が判断し、通常レビューは既存分業を維持（D-056）
-  - §3.4 slot 表に `Opus` 行を追加（**informational のみ**: 現行実体 = Claude Opus 5。区分・規範は §3 第 7 項 / D-056 への参照に留め、規範文を表内に転記しない — Plan Review round 1 P2-1）
+  - §3.4 slot 表に `Opus` 行を追加（**informational のみ**: 現行実体 = Claude Opus 5。区分・規範は §3 第 7 項 / D-056 への参照に留め、規範文を表内に転記しない — Plan Review round 1 P2-1）。表ヘッダの時点表記（現行「2026-07-10 時点」）を追加行に合わせて更新（round 4 P3-1）
   - §5 見出しを「追加 prompt / 発注 profile（本 manual が正本）」へ改称（固定カウント「3 本」の drift 解消 — round 1 P2-2）し、§5.4「低制約発注書 profile」を新設: 必須 5 点（goal / scope 境界 / read-only 宣言 / 報告フォーマット / subagent 生成上限）のみで構成し、過程指示・検証手順の指定を書かないことを規定
-- `docs/decision-log.md`: D-056 新設（決定・理由〈公式 prompting 指針の非対称性 + workflow の claims-until-verified 構造への適所配置〉・棄却代替案〈代役整備 / 単純不使用〉・revisit 条件〈Fable slot 恒久喪失で代役ドラフト解凍を検討〉・投入基準〈レビュー難所から、通常レビューは既存分業を維持〉・凍結対象〈代役ドラフト 3 点〉）
+- `docs/decision-log.md`: D-056 新設（決定・理由〈公式 prompting 指針の非対称性 + workflow の claims-until-verified 構造への適所配置〉・棄却代替案〈代役整備 / 単純不使用〉・revisit 条件〈Fable slot の恒久喪失で代役ドラフト解凍を検討〉・投入基準〈レビュー難所から、通常レビューは既存分業を維持〉・凍結対象〈代役ドラフト 3 点〉）
 - `Plans.md`: 『次の行動』節の本 packet link（追加済み、PK4 要件）
 - `docs/PROJECT_HANDOFF.md`: 同期 1 行
 - Test Design Matrix: [test-matrices/2026-07-27-opus5-role-docs.md](test-matrices/2026-07-27-opus5-role-docs.md)
@@ -107,6 +107,17 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 | SPEC-WF-OPUS5 | decision-log D-056 | D-056-D4 | 投入基準 = レビュー難所から。棄却: 全レビュー置換（Sonnet 分業の実績を捨てるコスト） | decision-log + §3 第 7 項の投入 1 文 | A6/A7, X6/X7 |
 | SPEC-WF-OPUS5 | （変更なし） | D-056-D5 | security 隣接迂回は従来どおり維持 | 変更なし（D-056 に記録のみ） | M-N1/M-N2（非接触 guard） |
 
+## Impact Review Lenses
+
+not applicable — field investigation / 実機 / POS / CSV 形式変更 / operator workflow 発見を含まない workflow governance docs の正本化のため（lens で見るべき運用リスクは Review Focus と Matrix の guard 系で扱う）。
+
+## Design Readiness
+
+- Existing design docs are sufficient because: 変更は運用ルールの正本化のみで、AGENT_OPERATING_MANUAL の既存構成（§3 制約 list / §3.4 slot 表 / §5 prompt 正本群）と decision-log の既存書式（D-055 と同型）にそのまま収まる。一次記録 = agent memory の owner 最終決定（2026-07-27）は Design Sources に明記済み
+- Source docs updated in this PR: AGENT_OPERATING_MANUAL / decision-log / Plans.md / PROJECT_HANDOFF
+- Design gaps intentionally deferred: 低制約 profile の実運用調整は初投入後（必要なら D-056 の revisit で追記）
+- Durable decisions discovered in this plan and promoted to source docs: D-056 全体（本 packet は証跡のみ、恒久判断は decision-log と manual へ）
+
 ## Contract Probe
 
 N/A — 外部 library / OS / hardware の未検証前提なし（docs-only の運用ルール正本化。checker 挙動にも非接触で、PK4 の per-packet link 要件は既に Plans.md 上で充足を実測済み）。
@@ -117,7 +128,7 @@ N/A — 外部 library / OS / hardware の未検証前提なし（docs-only の�
 |---|---|---|---|
 | D-056-D1 高自律・低制約適性 slot = read-only 発注専任、design board 例外対象外 | §3 第 7 項 + §3.4 informational 行 | A1/A2 baseline-red→green、X1/X2 mutation red | non-scope（初回実発注は難所 lane 着手時） |
 | D-056-D2 低制約発注書 profile（5 点のみ・過程指示なし） | §5.4 + §5 見出し改称 | A3/A4、X3/X4 mutation red | non-scope |
-| D-056-D3 代役不採用・ドラフト凍結・revisit = Fable slot 恒久喪失 | decision-log D-056 | A5、X5 mutation red | non-scope |
+| D-056-D3 代役不採用・ドラフト凍結・revisit = Fable slot の恒久喪失 | decision-log D-056 | A5、X5 mutation red | non-scope |
 | D-056-D4 投入基準（難所から、通常は既存分業。§3 第 7 項の self-containment 込み） | decision-log + §3 第 7 項 | A6/A7、X6/X7 mutation red（file 別二重検証） | non-scope |
 | D-056-D5 security 隣接迂回の維持（変更なし） | 非接触 | M-N1/M-N2 guard + G1〜G4 guard 感度実測 | non-scope |
 
@@ -190,3 +201,16 @@ Fill after implementation.
 - 結果: round 1 の 5 件は全件解消確認（P1-1 の新区分方式は §3.3 Capacity-degraded との交差も新規矛盾なしと判定）。新規 P2×2、全件 accept:
 - P2-1: 不変 guard M-N 系自体に mutation 感度実測がなく anti-tautology 不充足 → Guard 感度実測 G1〜G4 を Matrix へ新設（guard command のバグ検出能力を実注入で確認）
 - P2-2: 投入基準が decision-log 側 anchor のみで §3 第 7 項の self-containment が検出網の外 → A7（字句 variant で file 別一意）+ X7（M-A6 green 維持の弁別確認込み）を追加
+
+**Plan Review round 3（2026-07-27、同 reviewer による closure 確認）**
+
+- 結果: round 2 P2×2 の解消確認、P1/P2/P3 = 0（Sonnet 系 rally はここで収束）
+
+**Plan Review round 4（2026-07-27、Opus 5 較正実験 = 低制約発注書 profile 5 点のみでの独立 fresh context レビュー。owner 指示による profile dogfood）**
+
+- 結果: P1×1 / P2×2 / P3×1、全件 Coordinator 実証確認の上 accept。**Sonnet 3 round + PK1 checker が揃って見逃した必須セクション欠落を検出**:
+- P1: `## Design Readiness` 節の丸ごと欠落（DEV_WORKFLOW L61 の R3 必須 + spec-check→plan-draft skip の唯一根拠。R2→R3 全面改稿時の Coordinator 取り落とし、PK1 は本見出しを機械強制しておらず素通り）→ 節を precedent 同型で追加
+- P2: `## Impact Review Lenses` 節欠落（非該当でも節必須の規定）→ not applicable 1 行で追加
+- P2: revisit 条件の字句割れ（`Fable slot 恒久喪失`×3 vs anchor 正 = `Fable slot の恒久喪失`）→ 3 箇所を Matrix anchor literal へ統一（M-A5 の実装後 red 化リスクを事前解消）
+- P3: §3.4 表ヘッダ時点表記の陳腐化 → Scope に更新を追記
+- 較正実験の観測: 観点リストなしで Risk 判定・precedent 突合・checker 実走・baseline 実測まで自己導出、報告契約・read-only・委譲上限 0 を全て遵守。所見は別途 D-056 の実測データとして記録
