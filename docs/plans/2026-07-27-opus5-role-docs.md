@@ -2,14 +2,14 @@
 
 ## Workflow State
 
-- Phase: plan-gate
+- Phase: implementing
 - Risk: R3
 - Execution Mode: fable-window
-- Plan Commit: pending
+- Plan Commit: bb4aa29
 - Amendments: none
 - Coordinator: Fable
 - Writer: Fable（design board 例外: workflow design-only change、owner 明示指示 = 2026-07-27 協議での「R2 docs PR で即正本化」選択〈Risk は Plan Review round 1 指摘で R3 へ是正〉。実装 code なし）
-- Plan Reviewer: Sonnet（独立 fresh context subagent）
+- Plan Reviewer: Sonnet（独立 fresh context、rally round 1〜3）+ Opus 5（round 4 較正 = 低制約 profile、owner 指示の dogfood）。両系統とも P1/P2 = 0 で収束
 - Final Reviewer: pending（独立 fresh context ×2 = Double Audit、Plan Reviewer とも別 context）
 - Reviewed Content HEAD: pending
 - Final Exact-HEAD Evidence: PR body
@@ -214,3 +214,8 @@ Fill after implementation.
 - P2: revisit 条件の字句割れ（`Fable slot 恒久喪失`×3 vs anchor 正 = `Fable slot の恒久喪失`）→ 3 箇所を Matrix anchor literal へ統一（M-A5 の実装後 red 化リスクを事前解消）
 - P3: §3.4 表ヘッダ時点表記の陳腐化 → Scope に更新を追記
 - 較正実験の観測: 観点リストなしで Risk 判定・precedent 突合・checker 実走・baseline 実測まで自己導出、報告契約・read-only・委譲上限 0 を全て遵守。所見は別途 D-056 の実測データとして記録
+- round 4 closure（Opus、`d036625` 差分確認）: 全件解消確認、新規なし、P1/P2/P3 = 0
+
+**遷移記録（2026-07-27、state-only）**
+
+- Sonnet 系 rally（round 1〜3）と Opus 較正（round 4 + closure）の両系統が P1/P2 = 0 で収束し、plan-first commit `bb4aa29` は全実装 commit に先行（実装未着手）。既存 evidence により `plan-gate -> plan-approved -> implementing` を本 state-only commit で一括実体化。Writer = Fable（design board 例外、Workflow State 記載どおり）
