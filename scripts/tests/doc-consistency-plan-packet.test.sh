@@ -80,6 +80,24 @@ write_plans_md_text_only() {
     } > "$repo/docs/Plans.md"
 }
 
+write_plans_md_hidden_links() {
+    local fenced_basename="$1"
+    local comment_basename="$2"
+    {
+        echo "# Plans"
+        echo ""
+        echo "## 次の行動"
+        echo ""
+        echo '```markdown'
+        echo "1. fixture entry: [plans/${fenced_basename}](plans/${fenced_basename})"
+        echo '```'
+        echo ""
+        echo "<!--"
+        echo "1. fixture entry: [plans/${comment_basename}](plans/${comment_basename})"
+        echo "-->"
+    } > "$repo/docs/Plans.md"
+}
+
 reset_packet_defaults() {
     PKT_INCLUDE_WS=1
     PKT_PHASE="implementing"
@@ -349,6 +367,14 @@ if run_check ""; then
     fail "a plain-text packet basename was incorrectly accepted as a Plans.md link"
 fi
 assert_contains "$out" "active packet '2026-01-11-fixture-a.md' へのリンクが見つかりません"
+
+# --- 11c. D-055 T-PK4c: code fence / HTML comment 内の見かけ上の link は無効 ---
+write_plans_md_hidden_links "2026-01-11-fixture-a.md" "2026-01-11-fixture-b.md"
+if run_check ""; then
+    fail "links visible only inside a code fence or HTML comment were incorrectly accepted"
+fi
+assert_contains "$out" "active packet '2026-01-11-fixture-a.md' へのリンクが見つかりません"
+assert_contains "$out" "active packet '2026-01-11-fixture-b.md' へのリンクが見つかりません"
 
 # --- 12. active packet と docs/Plans.md「次の行動」リンクの不一致 ---
 setup_repo_dirs

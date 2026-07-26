@@ -868,6 +868,46 @@ extract_prose_keep_inline() {
     ' "$file"
 }
 
+strip_fenced_code_and_html_comments() {
+    awk '
+        /^[[:space:]]*(```|~~~)/ {
+            in_fence = !in_fence
+            next
+        }
+        in_fence { next }
+        {
+            line = $0
+            while (1) {
+                if (in_comment) {
+                    comment_end = index(line, "-->")
+                    if (comment_end == 0) {
+                        next
+                    }
+                    line = substr(line, comment_end + 3)
+                    in_comment = 0
+                }
+
+                comment_start = index(line, "<!--")
+                if (comment_start == 0) {
+                    print line
+                    next
+                }
+
+                before = substr(line, 1, comment_start - 1)
+                remainder = substr(line, comment_start + 4)
+                comment_end = index(remainder, "-->")
+                if (comment_end == 0) {
+                    print before
+                    in_comment = 1
+                    next
+                }
+
+                line = before substr(remainder, comment_end + 3)
+            }
+        }
+    '
+}
+
 # Workflow State セクション本文（extract_markdown_section の出力）から
 # "- <field>: <value>" 形式の1行目の値を取り出す。値は enum/SHA/pending を
 # 想定し英数字・アンダースコア・ハイフンのみを対象にする（末尾の注記括弧等は無視）。
@@ -1172,15 +1212,19 @@ check_plan_packet_workflow_state() {
     local plans_md="docs/Plans.md"
     if [ "$active_count" -gt 0 ]; then
         local active_packet active_basename next_actions_section=""
+        local next_actions_links=""
         if [ -f "$plans_md" ]; then
             next_actions_section=$(extract_markdown_section "$plans_md" "次の行動")
+            next_actions_links=$(printf '%s\n' "$next_actions_section" \
+                | strip_fenced_code_and_html_comments \
+                | grep -oE '(^|[^!])\[[^][]+\]\((\./)?plans/[^()[:space:]]+\)' || true)
         fi
         while IFS= read -r active_packet; do
             [ -n "$active_packet" ] || continue
             active_basename=$(basename "$active_packet")
-            if [ -z "$next_actions_section" ] ||
-                { ! printf '%s\n' "$next_actions_section" | grep -qF "](plans/${active_basename})" &&
-                    ! printf '%s\n' "$next_actions_section" | grep -qF "](./plans/${active_basename})"; }; then
+            if [ -z "$next_actions_links" ] ||
+                { ! printf '%s\n' "$next_actions_links" | grep -qF "](plans/${active_basename})" &&
+                    ! printf '%s\n' "$next_actions_links" | grep -qF "](./plans/${active_basename})"; }; then
                 error "PK4: docs/Plans.md の '## 次の行動' に active packet '${active_basename}' へのリンクが見つかりません"
             fi
         done <<< "$active_packets"

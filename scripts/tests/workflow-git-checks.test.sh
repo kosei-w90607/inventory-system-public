@@ -261,6 +261,98 @@ capture_check "$repo" output
 assert_contains "$output" "patch-id が同値ではありません" "Rebase Map escape hatch 負例で patch-id ERROR が出力されない"
 
 # ============================================================================
+# D-055 T-PK5b: 2 回の rebase を表す多段 chain 正例 / stale old SHA の負例
+# ============================================================================
+repo="$tmp/pk5-rebase-map-multi-hop"
+init_repo "$repo"
+printf 'base\n' > "$repo/README.md"
+commit_all "$repo" "base" > /dev/null
+git -C "$repo" branch feature
+
+git -C "$repo" switch -q feature
+write_packet "$repo" "packet.md" "pending" "none"
+old_plan_sha="$(commit_all "$repo" "docs(plans): plan-first")"
+write_packet "$repo" "packet.md" "$old_plan_sha" "none"
+commit_all "$repo" "docs(plans): state-only遷移 plan-gate->plan-approved" > /dev/null
+printf 'impl\n' > "$repo/impl.txt"
+commit_all "$repo" "feat: implement" > /dev/null
+
+git -C "$repo" switch -q main
+printf 'main advance 1\n' > "$repo/main-1.txt"
+commit_all "$repo" "chore: advance main first" > /dev/null
+git -C "$repo" switch -q feature
+git -C "$repo" rebase main > /dev/null
+middle_plan_sha="$(git -C "$repo" log --format=%H --grep='^docs(plans): plan-first$' -1)"
+
+git -C "$repo" switch -q main
+printf 'main advance 2\n' > "$repo/main-2.txt"
+commit_all "$repo" "chore: advance main second" > /dev/null
+git -C "$repo" switch -q feature
+git -C "$repo" rebase main > /dev/null
+new_plan_sha="$(git -C "$repo" log --format=%H --grep='^docs(plans): plan-first$' -1)"
+
+append_rebase_map "$repo" "packet.md" "$old_plan_sha" "$middle_plan_sha"
+append_rebase_map "$repo" "packet.md" "$middle_plan_sha" "$new_plan_sha"
+commit_all "$repo" "docs(plans): multi-hop rebase map を記録" > /dev/null
+
+capture_check "$repo" output
+[[ "$CHECK_STATUS" -eq 0 ]] || fail "多段 Rebase Map chain 正例が ERROR 判定された:\n$output"
+assert_not_contains "$output" "PK5:" "多段 Rebase Map chain 正例で PK5 出力が発生した"
+
+# chain の末尾まで到達した後に stale old SHA を再利用する Map は、旧 SHA 不一致。
+append_rebase_map "$repo" "packet.md" "$old_plan_sha" "$new_plan_sha"
+commit_all "$repo" "docs(plans): broken rebase map chain を記録" > /dev/null
+
+capture_check "$repo" output
+[[ "$CHECK_STATUS" -ne 0 ]] || fail "stale old SHA で途切れた Rebase Map chain が ERROR 判定されなかった"
+assert_contains "$output" "Rebase Map chain" "多段 Rebase Map chain 負例を識別する ERROR が出力されない"
+
+# ============================================================================
+# D-055 T-PK5c: Plan Commit と gated Amendment をともに rebase した正例 /
+# Amendment 側 Rebase Map 欠落の負例
+# ============================================================================
+repo="$tmp/pk5-rebase-map-amendment"
+init_repo "$repo"
+printf 'base\n' > "$repo/README.md"
+commit_all "$repo" "base" > /dev/null
+git -C "$repo" branch feature
+
+git -C "$repo" switch -q feature
+write_packet "$repo" "packet.md" "pending" "none"
+old_plan_sha="$(commit_all "$repo" "docs(plans): plan-first")"
+write_packet "$repo" "packet.md" "$old_plan_sha" "none"
+commit_all "$repo" "docs(plans): state-only遷移 plan-gate->plan-approved" > /dev/null
+printf 'impl\n' > "$repo/impl.txt"
+commit_all "$repo" "feat: implement" > /dev/null
+printf 'amendment\n' > "$repo/amendment.txt"
+old_amendment_sha="$(commit_all "$repo" "docs(plans): gated amendment content")"
+write_packet "$repo" "packet.md" "$old_plan_sha" "$old_amendment_sha"
+commit_all "$repo" "docs(plans): gated amendment を記録" > /dev/null
+
+git -C "$repo" switch -q main
+printf 'main advance\n' > "$repo/main.txt"
+commit_all "$repo" "chore: advance main for amendment rebase" > /dev/null
+git -C "$repo" switch -q feature
+git -C "$repo" rebase main > /dev/null
+new_plan_sha="$(git -C "$repo" log --format=%H --grep='^docs(plans): plan-first$' -1)"
+new_amendment_sha="$(git -C "$repo" log --format=%H --grep='^docs(plans): gated amendment content$' -1)"
+
+append_rebase_map "$repo" "packet.md" "$old_plan_sha" "$new_plan_sha"
+commit_all "$repo" "docs(plans): plan rebase map のみ記録" > /dev/null
+
+capture_check "$repo" output
+[[ "$CHECK_STATUS" -ne 0 ]] || fail "Amendment 側 Rebase Map 欠落が ERROR 判定されなかった"
+assert_contains "$output" "Amendments SHA" "Amendment 側 Rebase Map 欠落を識別する ERROR が出力されない"
+assert_contains "$output" "は現在の HEAD の祖先ではありません" "Amendment 側 Rebase Map 欠落で ancestry ERROR が出力されない"
+
+append_rebase_map "$repo" "packet.md" "$old_amendment_sha" "$new_amendment_sha"
+commit_all "$repo" "docs(plans): amendment rebase map を記録" > /dev/null
+
+capture_check "$repo" output
+[[ "$CHECK_STATUS" -eq 0 ]] || fail "Plan Commit と Amendment の Rebase Map 正例が ERROR 判定された:\n$output"
+assert_not_contains "$output" "PK5:" "Plan Commit と Amendment の Rebase Map 正例で PK5 出力が発生した"
+
+# ============================================================================
 # PK5: Amendments 非 descendant の負例（並行ブランチの SHA を記録）
 # ============================================================================
 repo="$tmp/pk5-amendments-non-descendant"
