@@ -84,7 +84,7 @@ beforeEach(() => {
 });
 
 describe("useCsvImportFlow UI-07 D-052-C8/C9", () => {
-  it("REQ-402: import_error commit failure recovers to idle", async () => {
+  it("REQ-401: import_error commit failure recovers to idle", async () => {
     mockCommit.mockResolvedValueOnce({
       status: "error",
       error: {
