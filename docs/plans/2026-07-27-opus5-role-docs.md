@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: human-confirm
+- Phase: ready-hosted-final
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: bb4aa29
@@ -14,7 +14,7 @@
 - Reviewed Content HEAD: f69b991ef0d4ade9dcdbdcde72e24a21068587ff
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
-- Human Gate: pending（Ready 化 / docs-only workflow change のため owner-directed workflow_dispatch / merge）
+- Human Gate: merge のみ pending（owner が後処理を Coordinator へ委任）。Ready 承認 + 後処理委任 = 2026-07-27 介入 1 回目/予算 3 回で消化済み
 
 ## Owner Effort Budget
 
@@ -240,3 +240,7 @@ Fill after implementation.
 **遷移記録（2026-07-27、state-only）**
 
 - 既存 evidence（content candidate = Reviewed Content HEAD 記載 SHA の L1 full PASS/CLEAN / Double Audit 両 pass + closure で P1/P2 = 0・Freeze 発効）により `implementing -> local-verified -> independent-review -> human-confirm` を本 state-only commit（forward state-only 2/3）で一括実体化。残 Human Gate = Ready 化（介入 1 回目/予算 3 回として依頼予定）と merge
+
+**遷移記録（2026-07-27、state-only、Ready 承認）**
+
+- owner が Ready 化を承認し後処理（Ready / hosted final / merge / closeout）を Coordinator へ委任（この change での介入 1 回目/予算 3 回）。`human-confirm -> ready-hosted-final` を本 state-only commit（forward state-only 3/3）で実体化。本 commit 後の resulting HEAD で L1 full を再実行し PR body を更新する
