@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: implementing
+- Phase: human-confirm
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: bb4aa29
@@ -10,8 +10,8 @@
 - Coordinator: Fable
 - Writer: Fable（design board 例外: workflow design-only change、owner 明示指示 = 2026-07-27 協議での「R2 docs PR で即正本化」選択〈Risk は Plan Review round 1 指摘で R3 へ是正〉。実装 code なし）
 - Plan Reviewer: Sonnet（独立 fresh context、rally round 1〜3）+ Opus 5（round 4 較正 = 低制約 profile、owner 指示の dogfood）。両系統とも P1/P2 = 0 で収束
-- Final Reviewer: pending（独立 fresh context ×2 = Double Audit、Plan Reviewer とも別 context）
-- Reviewed Content HEAD: pending
+- Final Reviewer: Double Audit 実施済み（1 pass = Sonnet 独立 fresh context / 2 pass = Opus 5 低制約 profile。全 6 findings accept・是正・closure 確認、Findings Freeze 発効）
+- Reviewed Content HEAD: f69b991ef0d4ade9dcdbdcde72e24a21068587ff
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
 - Human Gate: pending（Ready 化 / docs-only workflow change のため owner-directed workflow_dispatch / merge）
@@ -235,3 +235,8 @@ Fill after implementation.
 - 裁定: 全 6 件 accept。O-P2-1 は「Contract Audit 実施項目の列挙 = 検証対象の指定（出力契約）であり過程指示ではない」の境界明文化で解消（D2 の 5 点構成は不変）。O-P3-1 は anchor A1 の literal を保存するため総称注記の 1 文追加で解消。S-P2-2 は本是正後の content HEAD で L1 full を再実行して解消
 - 是正 = gated Amendment 3（packet AC / Spec Contract D2 / Matrix 注記）+ 実装追随 commit（manual §3 第 7 項の総称注記 / §5.4 の境界 1 文）
 - **Findings Freeze: frozen after Double Audit both passes（本記録をもって発効）**; post-freeze exceptions: none
+- closure 確認（1 pass auditor、`def84fd -> f69b991` 差分実読 + 全 anchor / guard / checker 再実測）: 5/6 解消確認・regression なし・新規 P1/P2 = 0。残 1 件（S-P2-2）は確認時点で L1 走行中だったのみで、直後に RESULT=PASS / CLEAN / END_HEAD = Reviewed Content HEAD 一致で完了（evidence は `.local/ci-evidence/` と PR body）
+
+**遷移記録（2026-07-27、state-only）**
+
+- 既存 evidence（content candidate = Reviewed Content HEAD 記載 SHA の L1 full PASS/CLEAN / Double Audit 両 pass + closure で P1/P2 = 0・Freeze 発効）により `implementing -> local-verified -> independent-review -> human-confirm` を本 state-only commit（forward state-only 2/3）で一括実体化。残 Human Gate = Ready 化（介入 1 回目/予算 3 回として依頼予定）と merge
