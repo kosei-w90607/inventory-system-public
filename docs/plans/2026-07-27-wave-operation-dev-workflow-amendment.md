@@ -30,7 +30,7 @@
 Risk: R3
 
 Reason:
-workflow gate change（Workflow State の packet selection rule、Owner Effort Budget の介入計上、merge gate 前後の運用、Subagent Budget を改訂する）。docs-only だが Risk Tiers の「merge gate changes」に該当し、Double Audit と hosted final（explicit dispatch 経由）が必要。
+workflow gate change（Workflow State の packet selection rule、Owner Effort Budget の介入計上、merge gate 前後の運用、Subagent Budget を改訂し、PK4/PK5 checker の最小改訂を含む）。Risk Tiers の「merge gate changes」に該当し、Double Audit と hosted final が必要。
 
 ## Goal
 
@@ -60,11 +60,13 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 - `Plans.md`: `Wave Registry` 節の新設（現 wave の lane 一覧の置き場所。中身の lane 登録は wave 1 編成時）
 - `docs/PROJECT_HANDOFF.md`: workflow 変更の同期 1 行
 - `docs/AGENT_OPERATING_MANUAL.md`: §4 router 表への wave 運用 1 行（必要最小限）
+- `scripts/doc-consistency-check.sh`: PK4 の最小改訂 — 複数 active packet の無条件 ERROR（一意性検査）を「全 active packet が `Plans.md`『次の行動』節内から link されていること」の per-packet 検査へ置換。link のない packet は従来どおり ERROR（fail-closed 維持）
+- `scripts/check-workflow-git.sh`: PK5 の最小改訂 — packet に `Rebase Map:` 行がある場合、ancestry 検証を Map 最新の rebase 後 plan-first SHA に対して行う（`Plan Commit` field は不変のまま）
 
 ## Non-scope
 
 - 監査残単位（順10〜22）の packet 起票・実装（wave 1 編成は本 PR merge 後の別作業）
-- `scripts/doc-consistency-check.sh` / `check-workflow-git.sh` への wave 対応機械 check の追加（pilot で摩擦を実測してから機械化を判断。D-039 の「checker」語彙は不変）
+- Scope の 2 点を超える wave 対応機械 check の新設（wave 単位の新 PK check、registry 陳腐化の機械検出等は pilot で摩擦を実測してから判断。D-039 の「checker」語彙は不変）
 - Workflow State の phase enum・遷移表・STATECAP・state-backtrack 契約の変更（per-lane で全て不変）
 - CI routing（`ci.md`）の変更（hosted 1 change 1 final run は per-lane で不変）
 
@@ -73,6 +75,8 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 - `rg -n "Wave Registry" Plans.md docs/DEV_WORKFLOW.md` が両 file で hit する（registry の定義と置き場所が接続されている）
 - `rg -n "D-055" docs/decision-log.md docs/DEV_WORKFLOW.md` が hit し、Matrix の anchor phrase A1〜A8 が全て baseline-red → 実装後 green で実測されている
 - `bash scripts/doc-consistency-check.sh` PASS（active plan があるため `--target plan` も PASS）
+- synthetic 複数 active packet（全て次の行動節内 link あり）で `bash scripts/doc-consistency-check.sh --target plan` が PASS、link のない packet を 1 つ混ぜると `ERROR` になることを実測し PR body に記録（Matrix T-PK4a/b）
+- synthetic rebase 状況で `Rebase Map:` 行ありの packet が `bash scripts/check-workflow-git.sh` の ancestry 検査を通過し、Map なし・旧 SHA 非 ancestor では fail することを実測し PR body に記録（Matrix T-PK5）
 - Matrix X1〜X6 の実 mutation 注入で、対応する `rg` assertion が exit 1 へ反転することを clean tree で実測し、注入 → red → 復元 → green の記録を PR body に残す
 - 旧文言 grep evidence: `rg -n 'single active packet' docs/ Plans.md AGENTS.md .agents/ .claude/` の live hit（archive 配下の歴史記述を除く）が 0、または読み替え注記の同一 PR 追記で解消済みであることを PR body に記録
 
@@ -106,9 +110,9 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 | Spec / requirement ID | Source design doc section | Decision ID | Why / rejected alternatives | Implementation target | Test target |
 |---|---|---|---|---|---|
 | SPEC-WF-WAVE | DEV_WORKFLOW `Wave Operation`（新設） | D-055-D1 | lane/wave 定義と編成入口条件。棄却: 複数単位の 1 packet 統合（レビュー独立性と Findings Freeze の単位が崩れる） | DEV_WORKFLOW 新節 | Matrix X4 / anchor A1,A2 |
-| SPEC-WF-WAVE | DEV_WORKFLOW `Workflow State` packet selection rule | D-055-D2 | Wave Registry による意図された複数 active の区別。棄却: fail-closed の全面撤廃（誤 resume 保護を失う） | DEV_WORKFLOW / Plans.md | Matrix X1 / anchor A3,A4 |
+| SPEC-WF-WAVE | DEV_WORKFLOW `Workflow State` packet selection rule | D-055-D2 | Wave Registry による意図された複数 active の区別。棄却: fail-closed の全面撤廃（誤 resume 保護を失う）/ checker 非改訂での運用（Contract Probe 2 で不成立を実証） | DEV_WORKFLOW / Plans.md / `doc-consistency-check.sh` PK4 | Matrix X1,X1b,X1c / anchor A3,A4,A4b,A4c / T-PK4a,b |
 | SPEC-WF-WAVE | DEV_WORKFLOW `Owner Effort Budget` | D-055-D3 | wave batch 承認の介入計上。棄却: per-change 予算の緩和（3 回/change 構造は owner 決定で維持） | DEV_WORKFLOW | Matrix X3 / anchor A5 |
-| SPEC-WF-WAVE | DEV_WORKFLOW `Draft PR Checkpoint` / `Post-Merge Closeout` | D-055-D4 | merge train（並列 Draft・直列 merge・train 先頭のみ ready-hosted-final）。棄却: 全 lane 同時 Ready（rebase ごとに hosted run が増え 1 change 1 final run と衝突） | DEV_WORKFLOW | Matrix X2 / anchor A6,A7 |
+| SPEC-WF-WAVE | DEV_WORKFLOW `Draft PR Checkpoint` / `Post-Merge Closeout` | D-055-D4 | merge train（並列 Draft・直列 merge・train 先頭のみ ready-hosted-final・Rebase Map で PK5 再充足）。棄却: 全 lane 同時 Ready（rebase ごとに hosted run が増え 1 change 1 final run と衝突）/ `Plan Commit` field の書換（PK5 immutability 違反） | DEV_WORKFLOW / `check-workflow-git.sh` PK5 | Matrix X2,X7 / anchor A6,A7,A11 / T-PK5 |
 | SPEC-WF-WAVE | DEV_WORKFLOW `Review Rules` 参照 | D-055-D5 | レビュー並列化と裁定直列。棄却: 裁定も並列化（Coordinator の一貫裁定が崩れ相互修正案方式と不整合） | DEV_WORKFLOW 新節から参照 | anchor A8 |
 | SPEC-WF-WAVE | DEV_WORKFLOW `Subagent Budget` | D-055-D6 | 全 lane 合算の同時上限。棄却: 無制限（裁定品質と機材保護） | DEV_WORKFLOW | Matrix X5 |
 | SPEC-WF-WAVE | decision-log D-055 | D-055-D7 | 2 lane pilot 条項と rollback 条件。棄却: 即 3+ lane 本格化（owner 決定は pilot first） | decision-log | Matrix X6 |
@@ -120,7 +124,7 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 - Assumptions and constraints: Codex 発注予算は無制限（owner 決定）。owner 介入予算は per-change 3 回を維持。lane 実装 Writer は Codex、レビュー一次は発注書駆動（Opus 5 / Codex）、裁定は Coordinator
 - Deferred design gaps: wave 対応の機械 check（PK 系）は pilot 後に判断。3 lane 化は pilot WER 後の owner 判断
 - Test Design Matrix cites decision IDs: X1〜X6 が D1〜D7 に対応
-- Absolute guarantee / escape hatch self-check: 「registry 外複数 active は従来どおり fail-closed」の例外は Wave Registry 経由のみ。conflict-free rebase の Phase 維持は patch-id 同値の機械証明がある場合のみで、証明できなければ既存規則（content change → implementing 戻り）に落ちる
+- Absolute guarantee / escape hatch self-check: 「registry 外複数 active は従来どおり fail-closed」の例外は Wave Registry 経由のみ。conflict-free rebase の Phase 維持は patch-id 同値の機械証明がある場合のみで、証明できなければ既存規則（content change → implementing 戻り）に落ちる。Rebase Map も同じく patch-id 同値の証明がある conflict-free rebase 専用で、証明なしの Map 追記で PK5 を通す escape hatch にしない（T-PK5 の負例で機械確認）
 
 ## Impact Review Lenses
 
@@ -138,16 +142,16 @@ Minimum design checks: 製品 code 非接触のため layer ownership / DTO / pe
 ## Contract Probe
 
 - `git patch-id` で conflict-free rebase の内容不変を機械判定できる（D4 の前提）: scratch repo で lane branch の rebase 前後に `git diff main...HEAD | git patch-id --stable` を比較（2026-07-27 実測）-> conflict-free では patch-id 完全一致、競合時は rebase が非 0 exit で停止し検出可。D4 の判定 command はこの形で確定
-- `scripts/doc-consistency-check.sh --target plan` が複数 active packet を正しく検査する（D2 の前提）: 本 packet の複製を synthetic 2 つ目の packet として一時配置し実行（2026-07-27 実測、検証後撤去・非 commit）-> 両 packet が検査対象になる。同時に **PK4 は packet ごとに `Plans.md` の『次の行動』節内リンクを要求する**と判明。したがって D2 の Wave Registry は『次の行動』節内に置き各 lane の packet link を含める形とし、checker 変更なし（Non-scope 維持）で PK4 を満たす
+- `scripts/doc-consistency-check.sh --target plan` が複数 active packet を正しく検査する（D2 の前提）: 本 packet の複製を synthetic 2 つ目の packet として一時配置し実行（2026-07-27 実測、検証後撤去・非 commit）-> **PK4 は active packet が複数の時点で無条件 ERROR**（一意性検査が per-packet link 検査より先に発火し、`Plans.md` の内容は参照されない。Coordinator が checker 実コードの分岐で確認）。当初の probe 記録は出力の中身を確認せず「per-packet link 要求」と誤結論しており、Plan Review round 1 P1-1 の実証で是正した。したがって D2 は checker 変更なしでは機能せず、PK4 の最小改訂（一意性 ERROR → 全 active packet の『次の行動』節内 link 必須、link なしは fail-closed 維持）を Scope に編入する。Wave Registry は『次の行動』節内に置き各 lane の packet link を含める（改訂後 PK4 の検査対象）
 
 ## Contract Coverage Ledger
 
 | Design contract / decision ID | Implementation target | Automated test | L3 or non-scope |
 |---|---|---|---|
 | D-055-D1 lane/wave 定義・編成入口条件（footprint 互いに素、生成 file 再生成 lane は wave に 1 つ、同一 source doc 編集 lane の同居禁止） | DEV_WORKFLOW `Wave Operation` 新節 | anchor A1/A2 baseline-red→green、X4 mutation red | non-scope（実運用は wave 1 pilot で dogfood） |
-| D-055-D2 Wave Registry と packet selection rule 改訂（registry 記載の複数 active は許可、registry 外・不一致は fail-closed 維持） | DEV_WORKFLOW `Workflow State` + Plans.md `Wave Registry` 節 | anchor A3/A4、X1 mutation red | non-scope |
+| D-055-D2 Wave Registry と packet selection rule 改訂（registry 記載の複数 active は許可、fail-closed 3 経路〈registry 外 / 不一致 / 陳腐化〉維持、PK4 最小改訂 = 全 active packet の次の行動節内 link 必須） | DEV_WORKFLOW `Workflow State` + Plans.md `Wave Registry` 節 + `scripts/doc-consistency-check.sh` PK4 | anchor A3/A4/A4b/A4c、X1/X1b/X1c mutation red、T-PK4a/b | non-scope |
 | D-055-D3 wave batch 承認（per-change 介入 ≤3 不変、batch は各 lane に 1 回計上、wave summary 依頼形式） | DEV_WORKFLOW `Owner Effort Budget` | anchor A5、X3 mutation red | non-scope |
-| D-055-D4 merge train（Draft 並列・merge 直列・train 先頭のみ ready-hosted-final・conflict-free rebase は patch-id 証明で Phase 維持 + L1 full 再実行・conflict は implementing 戻り・rebase は Codex） | DEV_WORKFLOW `Draft PR Checkpoint` / `Post-Merge Closeout` | anchor A6/A7、X2 mutation red、Contract Probe 1 | non-scope |
+| D-055-D4 merge train（Draft 並列・merge 直列・train 先頭のみ ready-hosted-final〈先頭は owner 指定・Coordinator が到達順で提案〉・conflict-free rebase は patch-id 証明で Phase 維持 + L1 full 再実行・Rebase Map で PK5 再充足・conflict は implementing 戻り・rebase は Codex） | DEV_WORKFLOW `Draft PR Checkpoint` / `Post-Merge Closeout` + `scripts/check-workflow-git.sh` PK5 | anchor A6/A7/A11、X2/X7 mutation red、T-PK5、Contract Probe 1 | non-scope |
 | D-055-D5 レビュー並列・裁定直列（per-lane 独立 reviewer、mutation 再実測・Findings Freeze・Double Audit 不変） | DEV_WORKFLOW `Wave Operation` 新節（Review Rules 参照） | anchor A8 | non-scope |
 | D-055-D6 subagent 合算同時上限 4（per-lane 上限は D-034 表のまま） | DEV_WORKFLOW `Subagent Budget` | X5 mutation red | non-scope |
 | D-055-D7 pilot 条項（wave 1 = 2 lane、WER 必須、rollback 条件 = fail-closed / budget 超過の同時多発で単線へ戻す） | decision-log D-055 | X6 mutation red | non-scope |
@@ -159,12 +163,12 @@ Test Design Matrix: [test-matrices/2026-07-27-wave-operation-dev-workflow-amendm
 - targeted tests: anchor phrase A1〜A8 の baseline-red 固定（実装前に `rg` で 0 hit を実測）→ 実装後 green
 - negative tests: X1〜X6 の実 mutation 注入（clean tree、実装後）で anchor 検査 or checker が red
 - compatibility checks: `bash scripts/doc-consistency-check.sh`（full + `--target plan`）、`bash scripts/check-workflow-git.sh`
-- data safety checks: 実 POS / 店舗 data 非接触。commit 対象は docs のみ
+- data safety checks: 実 POS / 店舗 data 非接触。commit 対象は docs + `scripts/` checker 2 file のみ
 - main wiring/integration checks: 旧文言（単一 active packet 前提）の repo-wide sweep evidence を PR body に記録
 
 ## Boundary / Wire Contract
 
-該当なし（JSON / CSV / DTO / bindings / DB 非接触の docs-only workflow 変更）。
+該当なし（JSON / CSV / DTO / bindings / DB 非接触。docs + checker script の workflow 変更）。
 
 ## Review Focus
 
@@ -179,28 +183,28 @@ Test Design Matrix: [test-matrices/2026-07-27-wave-operation-dev-workflow-amendm
 Contract ID: SPEC-WF-WAVE-2026-07-27
 
 - D1: wave = file footprint が互いに素な 2〜3 lane の集合。lane = 1 是正単位 = 1 Plan Packet = 1 branch = 1 Draft PR（既存 change 概念の別名であり、per-lane の workflow 契約は一切変更しない）
-- D2: `Plans.md` `Wave Registry` に列挙された lane の packet 群のみ、複数 active packet として正当。registry は `Plans.md` の『次の行動』節内に置き、各 lane の packet link を含める（PK4 の per-packet link 要件を checker 変更なしで満たす。Contract Probe 2 の実測制約）。resume は registry の lane 単位で packet を選択。registry 外の複数 active / registry と packet の不一致 / registry の陳腐化検知は fail-closed（停止して owner 報告）
-- D3: owner 承認は wave 単位で batch 可能。batch 1 セッションで進めた各 lane に介入 1 回を計上し、per-lane 予算（既定 3 回）は不変。依頼は lane ごとの `介入 N/M + 完了 1 文` を束ねた wave summary 形式
-- D4: Draft PR までは lane 並列。ready-hosted-final への遷移は merge train 先頭の lane のみ。先頭 merge 後、次 lane は Codex が rebase し、patch-id 同値を証明できる conflict-free rebase は Phase 維持 + rebase 後 HEAD での L1 full 再実行 + PR body 更新で merge gate を再充足。conflict が出たら content change として implementing へ戻る。owner の train 承認 1 回で train 全 lane の Ready 遷移実行を Coordinator へ委任できる
+- D2: `Plans.md` `Wave Registry` に列挙された lane の packet 群のみ、複数 active packet として正当。registry は `Plans.md` の『次の行動』節内に置き、各 lane の packet link を含める。PK4 は最小改訂し、複数 active packet の無条件 ERROR を「全 active packet の『次の行動』節内 link 必須」の per-packet 検査へ置換する（link のない packet は従来どおり ERROR）。resume は registry の lane 単位で packet を選択。fail-closed は 3 経路とも維持し、それぞれを規範文として実装する: ① registry に列挙されていない複数 active packet ② registry と実在 packet の不一致（packet 欠落・branch/PR 不一致）③ registry の陳腐化の疑い（registry が現 wave を反映していない兆候）— いずれも停止して owner 報告
+- D3: owner 承認は wave 単位で batch 可能。batch 1 セッションで進めた各 lane に介入 1 回を計上し、per-lane 予算（既定 3 回）は不変。依頼は lane ごとの `介入 N/M + 完了 1 文` を束ねた wave summary 形式。wave summary 内の lane ごとの承認・却下は独立（一部 lane のみの承認が可能）。計上は session 単位でなく decision point 単位: 同一 lane の複数 decision point が 1 session で進んだ場合はその数だけ介入を計上し、batch を予算の実質緩和に使わない
+- D4: Draft PR までは lane 並列。ready-hosted-final への遷移は merge train 先頭の lane のみ。train 順序（先頭の選定）は owner が batch Ready 承認時に指定し、既定案として Coordinator が human-confirm 到達順の順序を提案する。先頭 merge 後、次 lane は Codex が rebase し、patch-id 同値を証明できる conflict-free rebase は Phase 維持 + rebase 後 HEAD での L1 full 再実行 + PR body 更新で merge gate を再充足。rebase 後、Writer は packet の append-only 記録に `Rebase Map: <旧 plan-first SHA> -> <rebase 後 SHA>` を追記し、PK5 ancestry は Rebase Map 最新の SHA に対して検証する（`Plan Commit` field は不変のまま。Map 追記は patch-id 同値の証明がある conflict-free rebase 専用）。conflict が出たら content change として implementing へ戻る。owner の train 承認 1 回で train 全 lane の Ready 遷移実行を Coordinator へ委任できる
 - D5: Plan Reviewer / Final Reviewer は lane ごとに独立 fresh context。一次レビューは並列可、裁定は Coordinator 直列。mutation 独立再実測・oracle 独立性・Findings Freeze・Double Audit・L3 準備義務は per-lane 不変
 - D6: subagent は per-lane 上限（D-034 表）に加え、全 lane 合算同時 4 を上限とする
-- D7: wave 1 は 2 lane pilot。完了時 WER で摩擦を実測記録し、3 lane 化は owner 判断。複数 lane で fail-closed 停止 / budget 超過が同時発生したら wave を中断し単線運用へ戻す
+- D7: wave 1 は 2 lane pilot。完了時 WER で摩擦を実測記録し、3 lane 化は owner 判断。複数 lane で fail-closed 停止 / budget 超過が同時発生したら wave を中断し単線運用へ戻す。複数 lane の L3 を 1 session に束ねるかは wave 1 dogfood で決めて WER に記録する（L3 fixture 準備義務は per-lane 維持）
 
 ## Trace Matrix
 
 | Spec ID | Plan Step | Test | Review Focus | Evidence |
 |---|---|---|---|---|
 | SPEC-WF-WAVE D1 | DEV_WORKFLOW 新節執筆 | A1/A2, X4 | 編成入口条件の抜け | Matrix 実測記録 |
-| SPEC-WF-WAVE D2 | Workflow State 改訂 + Plans.md registry | A3/A4, X1, Probe 2 | fail-closed 3 経路 | Matrix 実測記録 |
+| SPEC-WF-WAVE D2 | Workflow State 改訂 + Plans.md registry + PK4 最小改訂 | A3/A4/A4b/A4c, X1/X1b/X1c, T-PK4a/b, Probe 2 | fail-closed 3 経路 | Matrix 実測記録 |
 | SPEC-WF-WAVE D3 | Owner Effort Budget 改訂 | A5, X3 | 予算形骸化 | Matrix 実測記録 |
-| SPEC-WF-WAVE D4 | Draft PR Checkpoint / Post-Merge Closeout 改訂 | A6/A7, X2, Probe 1 | 三点一致 / hosted 1 run 整合 | Matrix 実測記録 |
+| SPEC-WF-WAVE D4 | Draft PR Checkpoint / Post-Merge Closeout 改訂 + PK5 Rebase Map 対応 | A6/A7/A11, X2/X7, T-PK5, Probe 1 | 三点一致 / hosted 1 run / PK5 整合 | Matrix 実測記録 |
 | SPEC-WF-WAVE D5 | 新節（Review Rules 参照） | A8 | 深さ維持の明文化 | Matrix 実測記録 |
 | SPEC-WF-WAVE D6 | Subagent Budget 改訂 | X5 | 上限の実効性 | Matrix 実測記録 |
 | SPEC-WF-WAVE D7 | decision-log D-055 | X6 | rollback 条件の実行可能性 | Matrix 実測記録 |
 
 ## Data Safety
 
-- 実 POS CSV / 店舗 data / DB file / backup / log / secret は commit しない（本 change は docs のみ）
+- 実 POS CSV / 店舗 data / DB file / backup / log / secret は commit しない（本 change は docs + checker script のみ）
 - local-only paths: `.local/ci-evidence/`（L1 証跡、非 commit）
 - synthetic-only paths: Contract Probe 2 の synthetic packet は検証後に撤去し commit しない
 
@@ -212,6 +216,15 @@ Do not transcribe exact-HEAD SHA or test counts here (D-035/D-038 Evidence Owner
 
 ## Review Response
 
-Fill after review.
-If R3 review-only sub-agent is skipped, record an explicit line beginning with `Review-only skipped because:` and the reason.
 - Findings Freeze: not yet frozen; post-freeze exceptions: none.
+
+**Plan Review round 1（2026-07-27、独立 Plan Reviewer = Sonnet fresh context）**
+
+- 結果: P1×3 / P2×1 / P3×3、全件 accept（相互修正案方式、Coordinator が P1 を実コードで再現確認の上裁定）
+- P1-1: PK4 は複数 active packet で無条件 ERROR となり Wave Registry が機能しない（reviewer が synthetic 複製で実証、Coordinator が checker の一意性分岐を実読確認）。当初 Contract Probe 2 の「per-packet link 要求」は出力内容を確認しない誤結論だった → Probe 2 記録を訂正し、PK4 最小改訂を Scope へ編入
+- P1-2: D2 の fail-closed 3 経路のうち anchor/mutation があるのは 1 経路のみ → A4b/A4c + X1b/X1c を Matrix へ追加
+- P1-3: conflict-free rebase は plan-first commit の SHA を変え PK5 ancestry を機械的に破る → D4 に `Rebase Map` 契約（`Plan Commit` field 不変の append-only 記録、patch-id 同値証明専用）+ `check-workflow-git.sh` PK5 最小改訂を Scope へ編入、anchor A11 + X7 + T-PK5 を追加
+- P2-1: batch 承認の粒度が未定義で予算形骸化リスク → D3 に「lane ごとの承認・却下は独立」「decision point 単位で計上」を明文化、anchor A5b + X8 を追加
+- P3-1: M-N2 guard が file 全域対象で誤爆リスク → 遷移表の行形へ regex を絞り、新規表 cell で `→` を使わない実装注記を追加
+- P3-2: train 先頭の選定規則が未記載 → D4 に owner 指定 + Coordinator 到達順提案を明文化
+- P3-3: 複数 lane の L3 同席方式が未記載 → D7 に wave 1 dogfood で決定・WER 記録を明文化

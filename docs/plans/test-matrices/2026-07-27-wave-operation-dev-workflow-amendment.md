@@ -18,9 +18,13 @@ Risk: R3
 | D1 | `生成 file を再生成する lane は 1 wave に 1 つまで` | 同上 |
 | D2 | `Wave Registry` | `docs/DEV_WORKFLOW.md` Workflow State 節 + `Plans.md` |
 | D2 | `registry に列挙されていない複数 active packet は従来どおり fail-closed` | `docs/DEV_WORKFLOW.md` Workflow State 節 |
+| D2 | `registry と実在 packet の不一致` | 同上（fail-closed 経路②） |
+| D2 | `registry の陳腐化` | 同上（fail-closed 経路③） |
 | D3 | `batch で進めた各 lane に介入 1 回を計上` | `docs/DEV_WORKFLOW.md` Owner Effort Budget 節 |
+| D3 | `decision point 単位` | 同上（batch 粒度 = lane 独立採否・session 単位計上の禁止） |
 | D4 | `ready-hosted-final への遷移は merge train 先頭の lane のみ` | `docs/DEV_WORKFLOW.md` Draft PR Checkpoint 節 or Wave Operation 新節 |
 | D4 | `patch-id 同値` / `conflict が出た rebase は content change として implementing へ戻る` | 同上 |
+| D4 | `Rebase Map` | 同上 + `scripts/check-workflow-git.sh` PK5（`Plan Commit` 不変のまま ancestry を Map 最新 SHA で検証） |
 | D5 | `裁定は Coordinator が直列` | `docs/DEV_WORKFLOW.md` Wave Operation 新節 |
 | D6 | `全 lane 合算の同時 subagent 上限は 4` | `docs/DEV_WORKFLOW.md` Subagent Budget 節 |
 | D7 | `単線運用へ戻す` | `docs/decision-log.md` D-055 |
@@ -40,8 +44,14 @@ rg -F 'Wave Registry' docs/DEV_WORKFLOW.md
 rg -F 'Wave Registry' Plans.md
 # M-A4 期待: 0
 rg -F 'registry に列挙されていない複数 active packet は従来どおり fail-closed' docs/DEV_WORKFLOW.md
+# M-A4b 期待: 0
+rg -F 'registry と実在 packet の不一致' docs/DEV_WORKFLOW.md
+# M-A4c 期待: 0
+rg -F 'registry の陳腐化' docs/DEV_WORKFLOW.md
 # M-A5 期待: 0
 rg -F 'batch で進めた各 lane に介入 1 回を計上' docs/DEV_WORKFLOW.md
+# M-A5b 期待: 0
+rg -F 'decision point 単位' docs/DEV_WORKFLOW.md
 # M-A6 期待: 0
 rg -F 'ready-hosted-final への遷移は merge train 先頭の lane のみ' docs/DEV_WORKFLOW.md
 # M-A7a 期待: 0
@@ -50,6 +60,8 @@ rg -F 'patch-id 同値' docs/DEV_WORKFLOW.md
 rg -F 'conflict が出た rebase は content change として implementing へ戻る' docs/DEV_WORKFLOW.md
 # M-A8 期待: 0
 rg -F '裁定は Coordinator が直列' docs/DEV_WORKFLOW.md
+# M-A11 期待: 0
+rg -F 'Rebase Map' docs/DEV_WORKFLOW.md scripts/check-workflow-git.sh
 # M-A9 期待: 0
 rg -F '全 lane 合算の同時 subagent 上限は 4' docs/DEV_WORKFLOW.md
 # M-A10 期待: 0
@@ -63,8 +75,9 @@ rg -F 'D-055' docs/decision-log.md docs/DEV_WORKFLOW.md
 ```bash
 # M-N1 期待: 1（phase enum 行の不改変）
 git diff main -- docs/DEV_WORKFLOW.md | rg -F 'kickoff | spec-check | design | plan-draft'
-# M-N2 期待: 1（遷移表の行を 1 行も増減・改変しない。表の行は `| <from> → <to> |` 形式）
-git diff main -- docs/DEV_WORKFLOW.md | rg '^[+-]\|.*→'
+# M-N2 期待: 1（遷移表の行を 1 行も増減・改変しない。regex は遷移表の 2 列行形〈`| xxx → yyy | evidence |`〉に限定。
+# 実装注記: D-055 の新規表 cell では `→` を使わない — この guard の誤爆防止）
+git diff main -- docs/DEV_WORKFLOW.md | rg '^[+-]\|[^|]*→[^|]*\|[^|]*\|$'
 # M-N3 期待: 1（STATECAP / state-backtrack 契約の不改変）
 git diff main -- docs/DEV_WORKFLOW.md | rg '^[+-].*state-backtrack'
 # M-N4 期待: 1（Contract Audit 節の不改変 = 検査の深さ非接触）
@@ -82,13 +95,25 @@ rg -F 'interventions ≤3' docs/DEV_WORKFLOW.md
 | Mutation ID | 注入内容 | 検出する assertion | 対応 Decision |
 |---|---|---|---|
 | X1 | A4 文（registry 外 fail-closed）を削除 | M-A4 が exit 1 に反転 | D2 |
+| X1b | fail-closed 経路②文（registry と実在 packet の不一致）を削除 | M-A4b が exit 1 に反転 | D2 |
+| X1c | fail-closed 経路③文（registry の陳腐化）を削除 | M-A4c が exit 1 に反転 | D2 |
 | X2 | A7b 文の `implementing へ戻る` を `Phase を維持する` に書換 | M-A7b が exit 1 に反転 | D4 |
 | X3 | A5 文（batch 介入計上）を削除 | M-A5 が exit 1 に反転 | D3 |
 | X4 | A1a 文（互いに素）を削除 | M-A1a が exit 1 に反転 | D1 |
 | X5 | A9 文の上限 `4` を `16` に書換 | M-A9 が exit 1 に反転 | D6 |
 | X6 | decision-log D-055 の rollback 文（単線運用へ戻す）を削除 | M-A10 が exit 1 に反転 | D7 |
+| X7 | DEV_WORKFLOW の Rebase Map 文を削除 | M-A11 が exit 1 に反転（DEV_WORKFLOW 側） | D4 |
+| X8 | D3 の decision point 計上文を削除 | M-A5b が exit 1 に反転 | D3 |
 
 実測は commit 済み clean tree 上で行い、注入 → red 確認 → `git checkout -- <file>` 復元 → 復元後の green 再確認を X ごとに記録する（記録先 = PR body、count / SHA は tracked doc に書かない）。
+
+## Checker 挙動テスト（PK4/PK5 最小改訂の実装後、synthetic 状況で実測 → 記録は PR body）
+
+| Test ID | 状況（synthetic、検証後撤去・非 commit） | 期待 |
+|---|---|---|
+| T-PK4a | docs/plans/ に synthetic 2 つ目の active packet + `Plans.md`『次の行動』節内に両 packet の link | `doc-consistency-check.sh --target plan` PASS（複数 active の無条件 ERROR が撤廃されている） |
+| T-PK4b | 同上から synthetic packet の link のみ除去 | 同 command が `ERROR`（link なし packet の fail-closed 維持） |
+| T-PK5 | packet に `Rebase Map:` 行あり + Map 最新 SHA が HEAD の ancestor（正例）/ Map なしで `Plan Commit` 旧 SHA が非 ancestor（負例）/ Map ありだが patch-id 同値証明のない SHA（負例、escape hatch 防止） | `check-workflow-git.sh` が正例 PASS、負例 2 つとも fail |
 
 ## 既存 checker
 
