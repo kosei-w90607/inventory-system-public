@@ -219,3 +219,7 @@ Fill after implementation.
 **遷移記録（2026-07-27、state-only）**
 
 - Sonnet 系 rally（round 1〜3）と Opus 較正（round 4 + closure）の両系統が P1/P2 = 0 で収束し、plan-first commit `bb4aa29` は全実装 commit に先行（実装未着手）。既存 evidence により `plan-gate -> plan-approved -> implementing` を本 state-only commit で一括実体化。Writer = Fable（design board 例外、Workflow State 記載どおり）
+
+**gated Amendment 1（2026-07-27、実装前の Writer 自己検出）**
+
+- round 4 P3（§3.4 表ヘッダ時点表記の更新）を Scope へ反映した際、表ヘッダ行の置換が削除 diff を生み **M-N2 guard（削除行 = §5 見出しのみ許可）と衝突**することを実装着手時に検出。M-N2 の除外条件へ表ヘッダ旧行を追加（guard の趣旨 = 「Scope が予定しない削除の禁止」は不変、許可 list を Scope と同期させたのみ）。G2 guard 感度実測は引き続き「許可外の 1 行削除」で反応することを確認する
