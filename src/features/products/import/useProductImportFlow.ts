@@ -1,14 +1,17 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useMemo, useReducer } from "react";
 import { toast } from "sonner";
-import { commands, type ImportPreview, type ImportRow } from "@/lib/bindings";
+import type { PickedFile } from "@/components/FilePicker";
+import {
+  commands,
+  CSV_IMPORT_FILE_SIZE_LIMIT,
+  type ImportPreview,
+  type ImportRow,
+} from "@/lib/bindings";
 import { invalidateByContract, invalidationContract } from "@/lib/invalidation-contract";
 import { CMD_ERROR_KIND, InvokeError, isInvokeError, unwrapResult } from "@/lib/invoke";
-import { extractFilename } from "@/features/csv-import/lib/extractFilename";
 import { PRODUCT_IMPORT_INITIAL_STATE, productImportReducer } from "./reducer";
 import type { ProductImportRecoverTo, ProductImportState } from "./types";
-
-const FILE_SIZE_LIMIT_BYTES = 20 * 1024 * 1024;
 
 function ensureInvokeError(error: unknown, cmd: string): InvokeError {
   if (isInvokeError(error)) return error;
@@ -42,7 +45,7 @@ export function buildProductImportTargetRows(
 export interface UseProductImportFlowResult {
   state: ProductImportState;
   targetRows: ImportRow[];
-  selectFile: (file: File) => Promise<void>;
+  selectFile: (file: PickedFile) => void;
   toggleOverwrite: (productCode: string, checked: boolean) => void;
   confirmImport: () => void;
   dismissError: () => void;
@@ -98,15 +101,13 @@ export function useProductImportFlow(): UseProductImportFlowResult {
   }, [state]);
 
   const selectFile = useCallback(
-    async (file: File) => {
-      if (file.size > FILE_SIZE_LIMIT_BYTES) {
+    (file: PickedFile) => {
+      if (file.size > CSV_IMPORT_FILE_SIZE_LIMIT) {
         toast.error("ファイルサイズが上限(20MB)を超えています");
         return;
       }
-      const filename = extractFilename(file);
-      const buffer = await file.arrayBuffer();
-      const fileBytes = Array.from(new Uint8Array(buffer));
-      dispatch({ type: "select_file", filename });
+      const fileBytes = Array.from(file.bytes);
+      dispatch({ type: "select_file", filename: file.filename });
       previewMutation.mutate({ fileBytes });
     },
     [previewMutation],

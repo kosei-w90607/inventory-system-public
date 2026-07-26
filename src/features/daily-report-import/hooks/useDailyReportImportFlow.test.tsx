@@ -36,13 +36,17 @@ vi.mock("@tauri-apps/plugin-fs", () => ({
   readFile: vi.fn(),
 }));
 
-vi.mock("@/lib/bindings", () => ({
-  commands: {
-    parseAndValidateDailyReport: vi.fn(),
-    commitDailyReportImport: vi.fn(),
-    rollbackDailyReportImport: vi.fn(),
-  },
-}));
+vi.mock("@/lib/bindings", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/bindings")>();
+  return {
+    ...actual,
+    commands: {
+      parseAndValidateDailyReport: vi.fn(),
+      commitDailyReportImport: vi.fn(),
+      rollbackDailyReportImport: vi.fn(),
+    },
+  };
+});
 
 const mockParse = vi.mocked(commands.parseAndValidateDailyReport);
 const mockCommit = vi.mocked(commands.commitDailyReportImport);

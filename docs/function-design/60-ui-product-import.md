@@ -31,6 +31,8 @@
 | REQ-104 / UI-01c | UI-01c-D11 | 完了画面は `created_count` / `updated_count` / `skipped_count` をサマリカードまたは数値帯で示し、「商品一覧へ戻る」「別のCSVを取り込む」の 2 動線に絞る。 | 初期投入作業では連続取込もあり得る。完了後の次の一手を明示しつつ、余分な action を増やさない。 |
 | REQ-104 / UI-01c | UI-01c-D12 | 画面を離れても DB 書込み途中の cancel/resume は提供しない。`committing` 中は画面内操作を disabled にし、commit 完了後の結果で確認する。 | backend commit は単一 TX。途中 cancel は設計されておらず、UI だけでキャンセル可能に見せると誤認を招く。 |
 | REQ-104 / UI-01c | UI-01c-D13 | Windows native L3 は owner 目視確認を必須にする。確認対象は file input / drag&drop、エラー行と重複行の区別、上書き確認、日本語文言、結果サマリ、商品一覧への戻り導線。 | 新規 operator-facing screen であり、CSV 作業は初期導入時に失敗影響が大きい。CI / unit test だけでは視認性と操作の分かりやすさを判断できない。 |
+| REQ-104 / UI-01c | UI-01c-D14 | ファイル選択を共通 FilePicker（native dialog + 任意 drop、D-054）へ移行し、UI-01c-D3 の plain input 方式を supersede する。`dragDropEnabled: false` は drop 維持のため据え置き。 | D3 の却下理由（plugin-dialog 未導入・scope 増）は foundation PR（2026-06-26）と日報 PR #125 の path-based 実証で解消済み。WebView2 白画面バグの再発面を picker 一箇所へ集約する。 |
+| REQ-104 / limit | UI-01c-D15 | 商品 import は CMD 早期拒否 + BIZ（`preview_import`）安全網の**二重**で `CSV_IMPORT_FILE_SIZE_LIMIT`（constants.rs）超過を validation error で拒否する（D-054）。 | UI だけが拒否する未仕様上限は直接 IPC で bypass 可能。売上 / 日報が持つ CMD 早期拒否 + BIZ 安全網の既存二重防御パターン（ARCHITECTURE resource-safety 例外）と同型に揃える。 |
 
 ## 60.2 Component / Route 構成
 

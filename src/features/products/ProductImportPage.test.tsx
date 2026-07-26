@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -18,12 +18,16 @@ vi.mock("sonner", () => ({
   },
 }));
 
-vi.mock("@/lib/bindings", () => ({
-  commands: {
-    previewImport: vi.fn(),
-    commitImport: vi.fn(),
-  },
-}));
+vi.mock("@/lib/bindings", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/bindings")>();
+  return {
+    ...actual,
+    commands: {
+      previewImport: vi.fn(),
+      commitImport: vi.fn(),
+    },
+  };
+});
 
 const mockPreviewImport = vi.mocked(commands.previewImport);
 const mockCommitImport = vi.mocked(commands.commitImport);
@@ -76,11 +80,13 @@ function createDeferred<T>() {
   return { promise, resolve };
 }
 
-async function uploadCsv(user: ReturnType<typeof userEvent.setup>) {
+function uploadCsv() {
   const file = new File(["商品コード,商品名\nP-001,はさみ"], "products.csv", {
     type: "text/csv",
   });
-  await user.upload(screen.getByLabelText("商品マスタCSVを選択"), file);
+  fireEvent.drop(screen.getByTestId("file-picker-dropzone"), {
+    dataTransfer: { files: [file] },
+  });
 }
 
 beforeEach(() => {
@@ -100,7 +106,7 @@ describe("ProductImportPage (UI-01c / REQ-104)", () => {
 
     const { queryClient } = renderWithClient(<ProductImportPage />);
     const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries");
-    await uploadCsv(user);
+    uploadCsv();
 
     expect(await screen.findByText("P-001")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "インポート実行" }));
@@ -130,18 +136,22 @@ describe("ProductImportPage (UI-01c / REQ-104)", () => {
     mockCommitImport.mockReturnValue(commitDeferred.promise);
 
     renderWithClient(<ProductImportPage />);
-    await uploadCsv(user);
+    uploadCsv();
     await user.click(await screen.findByRole("button", { name: "インポート実行" }));
 
     await waitFor(() => {
       expect(screen.queryByRole("link", { name: "商品一覧へ戻る" })).not.toBeInTheDocument();
       expect(screen.getByRole("button", { name: "インポート中..." })).toBeDisabled();
-      expect(screen.getByRole("button", { name: "ファイルを選び直す" })).toBeDisabled();
+      expect(
+        screen.getByRole("button", { name: "ファイルを選び直す（商品マスタCSV）" }),
+      ).toBeDisabled();
     });
 
-    commitDeferred.resolve({
-      status: "ok",
-      data: { created_count: 1, updated_count: 0, skipped_count: 0 },
+    act(() => {
+      commitDeferred.resolve({
+        status: "ok",
+        data: { created_count: 1, updated_count: 0, skipped_count: 0 },
+      });
     });
   });
 
@@ -164,7 +174,7 @@ describe("ProductImportPage (UI-01c / REQ-104)", () => {
     });
 
     renderWithClient(<ProductImportPage />);
-    await uploadCsv(user);
+    uploadCsv();
 
     await user.click(await screen.findByLabelText("P-002 を上書き"));
     await user.click(screen.getByRole("button", { name: "インポート実行" }));
@@ -179,7 +189,6 @@ describe("ProductImportPage (UI-01c / REQ-104)", () => {
   });
 
   it("UI-01c-D8: エラー行だけの preview では commit を実行しない", async () => {
-    const user = userEvent.setup();
     mockPreviewImport.mockResolvedValue({
       status: "ok",
       data: makePreview({
@@ -190,7 +199,7 @@ describe("ProductImportPage (UI-01c / REQ-104)", () => {
     });
 
     renderWithClient(<ProductImportPage />);
-    await uploadCsv(user);
+    uploadCsv();
 
     expect(await screen.findByText("登録できる行がありません")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "インポート実行" })).toBeDisabled();

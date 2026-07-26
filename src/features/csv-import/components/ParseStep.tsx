@@ -4,11 +4,12 @@
 // 設計: docs/function-design/55-ui-csv-import.md §55.1 / §55.4 / §55.6
 
 import { Loader2 } from "lucide-react";
+import type { PickedFile } from "@/components/FilePicker";
 import { FileDropzone } from "./FileDropzone";
 
 export interface ParseStepProps {
   isParsing: boolean;
-  onFileSelect: (file: File) => void;
+  onFileSelect: (file: PickedFile) => void;
 }
 
 /// parsing 中は spinner + 状態文言、それ以外は FileDropzone を表示。

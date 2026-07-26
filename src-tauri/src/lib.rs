@@ -290,11 +290,20 @@ pub fn export_specta_bindings() {
             "警告: TS bindings の export に失敗しました ({}): {e}",
             bindings_path.display()
         );
-    } else if let Err(e) = normalize_generated_bindings(&bindings_path) {
-        eprintln!(
-            "警告: TS bindings の整形に失敗しました ({}): {e}",
-            bindings_path.display()
-        );
+    } else {
+        if let Err(e) = normalize_generated_bindings(&bindings_path) {
+            eprintln!(
+                "警告: TS bindings の整形に失敗しました ({}): {e}",
+                bindings_path.display()
+            );
+            return;
+        }
+        if let Err(e) = append_generated_constants(&bindings_path) {
+            eprintln!(
+                "警告: TS bindings の定数追記に失敗しました ({}): {e}",
+                bindings_path.display()
+            );
+        }
     }
 }
 
@@ -320,9 +329,43 @@ fn normalize_generated_bindings(path: &std::path::Path) -> std::io::Result<()> {
     Ok(())
 }
 
+#[cfg(debug_assertions)]
+fn append_generated_constants(path: &std::path::Path) -> std::io::Result<()> {
+    const EXPORT_PREFIX: &str = "export const CSV_IMPORT_FILE_SIZE_LIMIT";
+    let original = std::fs::read_to_string(path)?;
+    let mut lines = original
+        .lines()
+        .filter(|line| !line.trim_start().starts_with(EXPORT_PREFIX))
+        .map(ToOwned::to_owned)
+        .collect::<Vec<_>>();
+    while matches!(lines.last(), Some(line) if line.is_empty()) {
+        lines.pop();
+    }
+    lines.push(String::new());
+    lines.push(format!(
+        "{EXPORT_PREFIX}: number = {};",
+        format_typescript_integer(constants::CSV_IMPORT_FILE_SIZE_LIMIT)
+    ));
+    let mut generated = lines.join("\n");
+    generated.push('\n');
+    std::fs::write(path, generated)
+}
+
+#[cfg(debug_assertions)]
+fn format_typescript_integer(value: usize) -> String {
+    let mut reversed = String::new();
+    for (index, character) in value.to_string().chars().rev().enumerate() {
+        if index > 0 && index % 3 == 0 {
+            reversed.push('_');
+        }
+        reversed.push(character);
+    }
+    reversed.chars().rev().collect()
+}
+
 #[cfg(all(test, debug_assertions))]
 mod bindings_generation_tests {
-    use super::normalize_generated_bindings;
+    use super::{append_generated_constants, normalize_generated_bindings};
 
     // WF 系 meta-test のため `test_` prefix なし命名（pre-push step ④ の REQ 番号必須対象外）
     #[test]
@@ -335,6 +378,28 @@ mod bindings_generation_tests {
 
         let normalized = std::fs::read_to_string(path).unwrap();
         assert_eq!(normalized, "type A = {\n\tfield: string,\n}\n");
+    }
+
+    #[test]
+    fn test_bindings_req104_appends_file_size_limit_idempotently() {
+        // REQ-104 / D-054: specta export 後の手書き定数 export は再実行しても重複しない。
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("bindings.ts");
+        std::fs::write(&path, "export type Existing = string;\n").unwrap();
+
+        append_generated_constants(&path).unwrap();
+        append_generated_constants(&path).unwrap();
+
+        let generated = std::fs::read_to_string(path).unwrap();
+        assert_eq!(
+            generated
+                .matches("export const CSV_IMPORT_FILE_SIZE_LIMIT")
+                .count(),
+            1
+        );
+        assert!(
+            generated.ends_with("export const CSV_IMPORT_FILE_SIZE_LIMIT: number = 20_971_520;\n")
+        );
     }
 
     #[test]

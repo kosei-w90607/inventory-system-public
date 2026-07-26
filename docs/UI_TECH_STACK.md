@@ -551,9 +551,13 @@ CMD層の `CmdError` は `kind: string` / `message: string` / `field?` / `error_
 - **適用場面**: CSV取込みファイル選択、CSV/TSV書出し先指定、バックアップ復元ファイル選択、レシート画像選択
 - **導入状態**: `@tauri-apps/plugin-dialog` / `tauri-plugin-dialog` は UI-08 PLU 書出し前の foundation PR で導入済み（2026-06-26）。初回の operator-facing 利用は UI-08 とし、`prepare_plu_export` で生成したCV17 1.1.1向けタブ区切り `.txt` を native save dialog で保存してから、利用者が明示した場合だけ `confirm_plu_export_saved` でPLU未反映を外す。
 
-**ファイル取込み画面における暫定例外と移行状況**: UI-07 のZ004商品別CSV取込み、UI-01c 商品一括インポート（2026-06-25 Design Phase）、UI-03 返品・交換のレシート画像（`saveReceiptImage` が base64 bytes を受け取る）は、plain `<input type="file">` + drag&drop の file bytes 方式を暫定例外として維持する。これらは Windows native で HTML5 drag/drop を frontend の `onDrop` へ通すため、`src-tauri/tauri.conf.json` の main window は `dragDropEnabled: false` のままにする。
+**ファイル取込み画面における暫定例外と移行状況**: UI-07 のZ004商品別CSV取込み、UI-01c 商品一括インポート、UI-03 返品・交換のレシート画像で暫定例外としていた plain `<input type="file">` + drag&drop 方式は、**D-054（監査是正 順9）で共通 FilePicker への移行対象として解消する**（UI-01c-D14 / UI-03-D20 が旧決定を supersede）。drag&drop は共通 FilePicker 内の任意経路として維持するため、`src-tauri/tauri.conf.json` の main window は `dragDropEnabled: false` のままにする。
 
-**日報取込みは path-based input へ移行済み（移行第一号、2026-07-04 PR #125）**: REQ-401 日報取込み（Z001/Z002/Z005）は当初 HTML input の複数ファイル選択で実装したが、Windows native L3 で WebView2 が HTML file input のネイティブダイアログ起動後に DOM 変化まで画面を再描画しない白画面バグ（JS 例外なし・console 無出力、選択後の state 遷移で復帰）を踏んだため、`@tauri-apps/plugin-dialog.open()` + `@tauri-apps/plugin-fs.readFile()`（capability: `dialog:allow-open` + `fs:allow-read-file`）の path-based 方式へ切り替えた。open() のキャンセル（null）は state 据え置きで安全。残りの暫定例外画面の移行は Plans.md backlog「ファイル選択 UI の共通化（FilePicker パターン + plugin-dialog 移行統合）」で扱い、複数ファイル取込み画面を優先する（同バグの再発リスクがあるため）。
+**日報取込みは path-based input へ移行済み（移行第一号、2026-07-04 PR #125）**: REQ-401 日報取込み（Z001/Z002/Z005）は当初 HTML input の複数ファイル選択で実装したが、Windows native L3 で WebView2 が HTML file input のネイティブダイアログ起動後に DOM 変化まで画面を再描画しない白画面バグ（JS 例外なし・console 無出力、選択後の state 遷移で復帰）を踏んだため、`@tauri-apps/plugin-dialog.open()` + `@tauri-apps/plugin-fs.readFile()`（capability: `dialog:allow-open` + `fs:allow-read-file`）の path-based 方式へ切り替えた。open() のキャンセル（null）は state 据え置きで安全。残りの暫定例外画面の移行は D-054（監査是正 順9）の共通 FilePicker 化で実施する。
+
+**共通 FilePicker（D-054、監査是正 順9）**: ファイル選択は共通 `FilePicker` component に一元化する。入口は native dialog ボタン（`plugin-dialog.open()` + `plugin-fs.readFile()` の path-based 方式）と任意の drag&drop 経路の 2 つ、出力は `{ bytes, filename, size }` の単一契約。`open()` の cancel（null）は state 据え置き。accept / disabled / 上限サイズ表示 / accessible label は props で供給する。画面ローカルの plain `<input type="file">` / 独自 dropzone の新設は禁止。
+
+**cross-language validation 定数（D-054）**: file サイズ上限等、frontend と backend が同値を要する validation 定数は `src-tauri/src/constants.rs` を SSOT とし、bindings 生成で `bindings.ts` に export された値を frontend が import する。frontend 側の local 複製は禁止（静的 sweep test で検出）。L1 の bindings clean diff 検査が cross-language 同期の機械検査を兼ねる。
 
 ### 6.6 ダークモード見送り
 

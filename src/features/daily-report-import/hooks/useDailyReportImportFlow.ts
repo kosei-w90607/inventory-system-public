@@ -2,7 +2,8 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useBlocker } from "@tanstack/react-router";
 import { useCallback, useReducer, useState } from "react";
 import { toast } from "sonner";
-import { commands } from "@/lib/bindings";
+import { commands, CSV_IMPORT_FILE_SIZE_LIMIT } from "@/lib/bindings";
+import { extractFilename } from "@/lib/extractFilename";
 import { invalidateByContract, invalidationContract } from "@/lib/invalidation-contract";
 import { CMD_ERROR_KIND, InvokeError, isInvokeError, unwrapResult } from "@/lib/invoke";
 import { open } from "@tauri-apps/plugin-dialog";
@@ -11,7 +12,6 @@ import { dailyReportImportReducer } from "../reducer";
 import type { DailyReportErrorRecoverTo, DailyReportImportState } from "../types";
 
 const INITIAL_STATE: DailyReportImportState = { status: "idle" };
-const FILE_SIZE_LIMIT_BYTES = 20 * 1024 * 1024;
 
 interface DailyReportClientFile {
   filename: string;
@@ -35,11 +35,6 @@ function ensureInvokeError(error: unknown, cmd: string): InvokeError {
 function decideRecoverTo(error: InvokeError): DailyReportErrorRecoverTo {
   if (error.cmdError.kind === CMD_ERROR_KIND.IMPORT_ERROR) return "idle";
   return "preview";
-}
-
-function filenameFromPath(path: string) {
-  const parts = path.split(/[\\/]/);
-  return parts[parts.length - 1] ?? path;
 }
 
 export const DAILY_REPORT_LAST_DIR_STORAGE_KEY = "inventory:daily-report-import:last-dir:v1";
@@ -146,7 +141,7 @@ export function useDailyReportImportFlow() {
         toast.error("Z001/Z002/Z005 の3ファイルを選択してください");
         return;
       }
-      if (files.some((file) => file.size > FILE_SIZE_LIMIT_BYTES)) {
+      if (files.some((file) => file.size > CSV_IMPORT_FILE_SIZE_LIMIT)) {
         setLastSelectionError("ファイルサイズが上限(20MB)を超えています");
         toast.error("ファイルサイズが上限(20MB)を超えています");
         return;
@@ -199,7 +194,7 @@ export function useDailyReportImportFlow() {
         paths.map(async (path) => {
           const bytes = await readFile(path);
           return {
-            filename: filenameFromPath(path),
+            filename: extractFilename(path),
             size: bytes.byteLength,
             readBytes: () => Promise.resolve(bytes),
           };

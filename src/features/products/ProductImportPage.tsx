@@ -32,7 +32,7 @@ export function ProductImportPage() {
       {state.status === "idle" || state.status === "previewing" ? (
         <ProductImportDropzone
           onFileSelect={(file) => {
-            void flow.selectFile(file);
+            flow.selectFile(file);
           }}
           disabled={flow.isPreviewing}
         />
@@ -52,7 +52,7 @@ export function ProductImportPage() {
           onToggleOverwrite={flow.toggleOverwrite}
           onCommit={flow.confirmImport}
           onReselect={(file) => {
-            void flow.selectFile(file);
+            flow.selectFile(file);
           }}
         />
       ) : null}
@@ -67,7 +67,7 @@ export function ProductImportPage() {
           onToggleOverwrite={flow.toggleOverwrite}
           onCommit={flow.confirmImport}
           onReselect={(file) => {
-            void flow.selectFile(file);
+            flow.selectFile(file);
           }}
         />
       ) : null}

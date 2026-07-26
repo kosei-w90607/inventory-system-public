@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -95,6 +95,12 @@ async function addSingleProduct(user: ReturnType<typeof userEvent.setup>) {
 
   await user.type(await screen.findByLabelText("返品・交換商品検索"), "RT-001{enter}");
   expect(await screen.findByText("RT-001")).toBeInTheDocument();
+}
+
+function dropReceipt(file: File) {
+  fireEvent.drop(screen.getByTestId("file-picker-dropzone"), {
+    dataTransfer: { files: [file] },
+  });
 }
 
 beforeEach(() => {
@@ -309,14 +315,12 @@ describe("ReturnExchangePage (UI-03 / REQ-202)", () => {
     renderWithClient(<ReturnExchangePage />);
     await addSingleProduct(user);
     const file = new File(["receipt"], "receipt.png", { type: "image/png" });
-    const receiptInput = screen.getByLabelText<HTMLInputElement>("レシート画像");
-    await user.upload(receiptInput, file);
+    dropReceipt(file);
 
     expect(await screen.findByAltText("選択したレシート画像")).toHaveAttribute(
       "src",
       "blob:receipt-preview",
     );
-    expect(receiptInput.files).toHaveLength(1);
     await user.click(screen.getByRole("button", { name: "返品・交換を保存" }));
     expect(await screen.findByText("一時的なエラー")).toBeInTheDocument();
     await waitFor(() => {
@@ -325,7 +329,6 @@ describe("ReturnExchangePage (UI-03 / REQ-202)", () => {
     const firstKey = mockCreateReturn.mock.calls[0][0].idempotency_key;
 
     await user.click(screen.getByRole("button", { name: "レシート画像を削除" }));
-    expect(receiptInput.files).toHaveLength(0);
     expect(screen.queryByText("receipt.png")).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "返品・交換を保存" }));
 
@@ -347,7 +350,8 @@ describe("ReturnExchangePage (UI-03 / REQ-202)", () => {
     await addSingleProduct(user);
     await user.selectOptions(screen.getByLabelText("種別"), "exchange");
     const file = new File(["receipt"], "invalid.png", { type: "image/png" });
-    await user.upload(screen.getByLabelText("レシート画像"), file);
+    dropReceipt(file);
+    expect(await screen.findByText("invalid.png")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "返品・交換を保存" }));
 
     expect(
@@ -380,7 +384,8 @@ describe("ReturnExchangePage (UI-03 / REQ-202)", () => {
     const firstKey = mockCreateReturn.mock.calls[0][0].idempotency_key;
 
     const file = new File(["receipt"], "added-after-failure.png", { type: "image/png" });
-    await user.upload(screen.getByLabelText("レシート画像"), file);
+    dropReceipt(file);
+    expect(await screen.findByText("added-after-failure.png")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "返品・交換を保存" }));
 
     await waitFor(() => {
@@ -438,7 +443,8 @@ describe("ReturnExchangePage (UI-03 / REQ-202)", () => {
     renderWithClient(<ReturnExchangePage />);
     await addSingleProduct(user);
     const file = new File(["receipt"], "receipt.png", { type: "image/png" });
-    await user.upload(screen.getByLabelText("レシート画像"), file);
+    dropReceipt(file);
+    expect(await screen.findByText("receipt.png")).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "返品・交換を保存" }));
     expect(await screen.findByText("一時的なエラー")).toBeInTheDocument();

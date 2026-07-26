@@ -43,7 +43,7 @@ UI 層関数設計書の 2 段階テンプレ（業務ロジック有無で使�
 **判定根拠**:
 
 - CMD 呼び出し: `commands.parseAndValidateCsv` / `commands.commitCsvImport` / `commands.rollbackCsvImport` / `commands.listCsvImports` の 4 件（3 useMutation + 1 useQuery）
-- 入力バリデーション: ファイル拡張子 `.csv` / `.txt` + 上限 20MB の事前防御（BIZ-03 / CMD-07 でも検証されるが、UI 側でも誤選択を弾く）
+- 入力バリデーション: ファイル拡張子 `.csv` / `.txt` + 上限 `CSV_IMPORT_FILE_SIZE_LIMIT`（bindings 生成定数、constants.rs SSOT。D-054）の事前防御（BIZ-03 / CMD-07 でも検証されるが、UI 側でも誤選択を弾く）
 - 画面内部 state 駆動のフロー分岐: あり（6 variant discriminated union `CsvImportState` × 9 action の reducer、`DuplicateStatus` による上書き確認分岐、`useBlocker` の importing 中常時 block）
 
 → **業務ロジックあり版**（複数 CMD + reducer 駆動分岐 + 排他制御）。共通 6 項目（モジュール構成 / React State / CMD 呼び出し / 利用者操作フロー / エラー表示 / ローディング表示）+ ショートカット・lifecycle / 状態遷移図 / エラーハンドリング備考 / テスト方針の 10 章構成。
@@ -72,7 +72,7 @@ UI-00 ([53-ui-home.md](53-ui-home.md)) が「4 useQuery 並列 + 部分障害許
 | `src/features/csv-import/types.ts` | `CsvImportState`（6 variant discriminated union）+ `CsvImportAction`（9 variant）+ `ErrorRecoverTo` 等の画面ローカル型 |
 | `src/features/csv-import/reducer.ts` | `csvImportReducer(state, action): CsvImportState` 純関数。9 action × 6 state の遷移表を 1 箇所に集約。テスト容易性のため副作用ゼロ |
 | `src/features/csv-import/hooks/useCsvImportFlow.ts` | `useReducer + useMutation × 3 + useBlocker` を束ねる中核 hook。dispatch + 副作用 trigger 関数（`selectFile` / `confirmImport` / `rollback` / `reset`）を露出 |
-| `src/features/csv-import/lib/extractFilename.ts` | `File` オブジェクトから filename 取り出し純関数。Windows パス区切り / 拡張子保持を担保（Phase 1 7-7 Vitest 着手後に unit test 追加可能） |
+| `src/lib/extractFilename.ts` | 共通 FilePicker の dialog path / drop `File.name` から basename を取り出す純関数。`/` と `\` の両区切りに対応し、Windows WebView2 の絶対パス流入を両経路で防ぐ |
 | `src/features/csv-import/lib/formatErrorRow.ts` | `ErrorRow.error_type` 4 値（`unmatched_product` / `invalid_format` / `invalid_jan` / `invalid_number`）→ Badge variant + ラベル変換純関数 |
 | `src/features/csv-import/components/ParseStep.tsx` | step 1/3。`FileDropzone` + `Loader2` spinner（parsing 中）+ 状態文言 |
 | `src/features/csv-import/components/PreviewStep.tsx` | step 2/3。`FileInfo` / `MatchedSummary` / `ErrorSummary` / `DuplicateCheck` の表示 + 「取り込む」「ファイルを選び直す」CTA |
@@ -81,7 +81,7 @@ UI-00 ([53-ui-home.md](53-ui-home.md)) が「4 useQuery 並列 + 部分障害許
 | `src/features/csv-import/components/ErrorState.tsx` | error variant の表示。CmdError kind 別メッセージ + 「最初に戻る」or「プレビューに戻る」ボタン（`recoverTo` で分岐）|
 | `src/features/csv-import/components/OverwriteConfirmDialog.tsx` | `DuplicateStatus === "OverwriteRequired"` 時の確認ダイアログ。shadcn `<AlertDialog>` 使用、Esc で cancel（Radix 標準）|
 | `src/features/csv-import/components/ErrorRowsTable.tsx` | `ErrorSummary.items`（最大 100 件）の表示。`formatErrorRow` の Badge variant で色分け + `normalized_jan === null` で「(不明)」表示 |
-| `src/features/csv-import/components/FileDropzone.tsx` | plain `<input type="file" accept=".csv,.txt">` + `onDrop` / `onDragOver` ハンドラ。UI_TECH_STACK §6.5.4 暫定例外、plugin-dialog 移行は Phase 3 で別 PR |
+| `src/features/csv-import/components/FileDropzone.tsx` | 共通 `FilePicker`（`accept=".csv,.txt"`）を用い、native dialog と drag & drop の両経路を同じ `{ bytes, filename, size }` 契約へ統合する |
 | `src/features/csv-import/components/StepIndicator.tsx` | "1/3 ファイル選択" / "2/3 プレビュー" / "3/3 結果" のステップ表示 |
 
 **接続点**:
@@ -161,7 +161,7 @@ invalid 遷移（例: `idle` で `parse_succeeded`）は reducer 内で現 state
 
 #### File → Vec<u8> 変換
 
-`<input type="file">` から得た `File` オブジェクトを `await file.arrayBuffer()` → `Array.from(new Uint8Array(buffer))` で `number[]` 化（specta 経由で Rust `Vec<u8>` に直マップ）。20MB 上限は CMD-07 で再検証されるが、UI 側でも `file.size > 20 * 1024 * 1024` で早期 reject + Sonner トースト（CMD-07 経由のラウンドトリップを避ける）。
+共通 FilePicker（D-054）から得た `bytes` を `number[]` 化（specta 経由で Rust `Vec<u8>` に直マップ）。上限は CMD-07 で再検証されるが、UI 側でも `size > CSV_IMPORT_FILE_SIZE_LIMIT`（bindings 生成定数）で早期 reject + Sonner トースト（CMD-07 経由のラウンドトリップを避ける）。
 
 #### 派生値
 
@@ -226,7 +226,7 @@ Phase 2 closeout で `typedInvoke` fallback / baseline 監視は撤去済み。C
 
 **ファイル選択 / drag&drop**:
 
-3. `<input type="file" accept=".csv,.txt">` または `onDrop` ハンドラで `File` 取得 → サイズ判定（>20MB なら Sonner トースト + 早期 reject）→ `await file.arrayBuffer()` → `number[]` 化 → `dispatch({ type: "select_file", filename })` + `parseAndValidateMutation.mutate({ fileBytes, filename })`
+3. 共通 FilePicker（accept=".csv,.txt"、native dialog + 任意 drop。D-054）で `{ bytes, filename, size }` 取得 → サイズ判定（`size > CSV_IMPORT_FILE_SIZE_LIMIT` なら Sonner トースト + 早期 reject）→ `number[]` 化 → `dispatch({ type: "select_file", filename })` + `parseAndValidateMutation.mutate({ fileBytes, filename })`
 4. parsing 中: `ParseStep` が `Loader2 + animate-spin` + 「ファイルを解析中…」状態文言 + 5 秒目安の補助文言
 5. 成功時: `dispatch({ type: "parse_succeeded", preview, previewToken })` → `preview` state へ遷移
 

@@ -3,7 +3,8 @@
 // Step 2/3: プレビュー確認 + 取込み / 選び直し CTA + OverwriteConfirmDialog 連動。
 // 設計: docs/function-design/55-ui-csv-import.md §55.1 / §55.4 step 6-10 / §55.5
 
-import { useRef, useState, type ChangeEvent } from "react";
+import { useState } from "react";
+import { FilePicker, type PickedFile } from "@/components/FilePicker";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,7 +16,7 @@ export interface PreviewStepProps {
   preview: PreviewData;
   filename: string;
   onConfirm: (overwriteConfirmed: boolean) => void;
-  onReselect: (file: File) => void;
+  onReselect: (file: PickedFile) => void;
   isImporting: boolean;
 }
 
@@ -28,7 +29,6 @@ export function PreviewStep({
 }: PreviewStepProps) {
   const { file_info, matched_summary, error_summary, duplicate_check } = preview;
   const [dialogOpen, setDialogOpen] = useState(false);
-  const reselectInputRef = useRef<HTMLInputElement>(null);
 
   const requiresOverwriteConfirm = duplicate_check.status === "OverwriteRequired";
 
@@ -43,16 +43,6 @@ export function PreviewStep({
   function handleOverwriteConfirm() {
     setDialogOpen(false);
     onConfirm(true);
-  }
-
-  function handleReselectClick() {
-    reselectInputRef.current?.click();
-  }
-
-  function handleReselectChange(e: ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (file) onReselect(file);
-    e.target.value = "";
   }
 
   return (
@@ -121,15 +111,14 @@ export function PreviewStep({
         <Button onClick={handleImportClick} disabled={isImporting}>
           取り込む
         </Button>
-        <Button variant="outline" onClick={handleReselectClick} disabled={isImporting}>
-          ファイルを選び直す
-        </Button>
-        <input
-          ref={reselectInputRef}
-          type="file"
+        <FilePicker
           accept=".csv,.txt"
-          className="sr-only"
-          onChange={handleReselectChange}
+          ariaLabel="ファイルを選び直す（商品別CSV）"
+          buttonLabel="ファイルを選び直す"
+          dialogFilterName="CSV / TXT"
+          dropEnabled={false}
+          disabled={isImporting}
+          onSelect={onReselect}
         />
       </div>
 

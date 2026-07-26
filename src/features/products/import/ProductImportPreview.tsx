@@ -1,5 +1,6 @@
-import { useRef, useState, type ChangeEvent } from "react";
+import { useState } from "react";
 import { AlertTriangle, CheckCircle2, FileWarning, RefreshCw } from "lucide-react";
+import { FilePicker, type PickedFile } from "@/components/FilePicker";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   AlertDialog,
@@ -33,7 +34,7 @@ export interface ProductImportPreviewProps {
   isCommitting: boolean;
   onToggleOverwrite: (productCode: string, checked: boolean) => void;
   onCommit: () => void;
-  onReselect: (file: File) => void;
+  onReselect: (file: PickedFile) => void;
 }
 
 const MAX_VISIBLE_ROWS = 50;
@@ -49,7 +50,6 @@ export function ProductImportPreview({
   onReselect,
 }: ProductImportPreviewProps) {
   const [confirmOpen, setConfirmOpen] = useState(false);
-  const reselectInputRef = useRef<HTMLInputElement>(null);
   const overwriteCount = overwriteCodes.length;
   const commitDisabled = isCommitting || targetCount === 0;
 
@@ -59,12 +59,6 @@ export function ProductImportPreview({
       return;
     }
     onCommit();
-  }
-
-  function handleReselectChange(event: ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-    if (file) onReselect(file);
-    event.target.value = "";
   }
 
   return (
@@ -197,22 +191,15 @@ export function ProductImportPreview({
         <Button type="button" onClick={handleCommitClick} disabled={commitDisabled}>
           {isCommitting ? "インポート中..." : "インポート実行"}
         </Button>
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() => reselectInputRef.current?.click()}
-          disabled={isCommitting}
-        >
-          <RefreshCw aria-hidden="true" />
-          ファイルを選び直す
-        </Button>
-        <input
-          ref={reselectInputRef}
-          type="file"
+        <FilePicker
           accept=".csv,.txt"
-          className="sr-only"
-          aria-label="商品マスタCSVを選び直す"
-          onChange={handleReselectChange}
+          ariaLabel="ファイルを選び直す（商品マスタCSV）"
+          buttonLabel="ファイルを選び直す"
+          buttonIcon={<RefreshCw aria-hidden="true" />}
+          dialogFilterName="CSV / TXT"
+          dropEnabled={false}
+          disabled={isCommitting}
+          onSelect={onReselect}
         />
       </div>
 

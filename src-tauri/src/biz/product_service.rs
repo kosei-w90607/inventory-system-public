@@ -594,6 +594,11 @@ pub struct ProductImportResult {
 ///
 /// 30-biz-product-service.md §4.7 / BIZ-01-VAL-D1
 pub fn preview_import(conn: &DbConnection, file_bytes: &[u8]) -> Result<ImportPreview, BizError> {
+    if file_bytes.len() > crate::constants::CSV_IMPORT_FILE_SIZE_LIMIT {
+        return Err(BizError::ImportError(
+            "ファイルサイズが上限（20MB）を超えています".to_string(),
+        ));
+    }
     if file_bytes.is_empty() {
         return Err(BizError::ValidationFailed("ファイルが空です".to_string()));
     }
@@ -1769,6 +1774,23 @@ mod tests {
             &[0xFF, 0xFE, 0x00], // 不正なバイト列
         );
         assert!(matches!(result, Err(BizError::ImportError(_))));
+    }
+
+    #[test]
+    #[serial]
+    fn test_preview_import_req104_rejects_oversize_file() {
+        // REQ-104 / UI-01c-D15: CMD を bypass しても BIZ 安全網が上限超過を拒否する。
+        let (_dir, conn) = setup_test_db();
+        let result = preview_import(
+            &conn,
+            &vec![0; crate::constants::CSV_IMPORT_FILE_SIZE_LIMIT + 1],
+        );
+
+        assert!(matches!(
+            result,
+            Err(BizError::ImportError(ref message))
+                if message == "ファイルサイズが上限（20MB）を超えています"
+        ));
     }
 
     #[test]

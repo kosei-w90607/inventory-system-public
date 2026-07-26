@@ -2,13 +2,14 @@
 //
 // UI-03 返品・交換 page。設計: docs/function-design/63-ui-return-exchange.md
 
-import { type DragEvent, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Eye, ImagePlus, RotateCcw, Search, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { FilePicker, type PickedFile } from "@/components/FilePicker";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -117,9 +118,9 @@ function rowErrorSignature(row: ReturnExchangeFormValues["rows"][number]): strin
   });
 }
 
-function createPreviewUrl(file: File): string {
+function createPreviewUrl(file: PickedFile): string {
   if (typeof URL !== "undefined" && "createObjectURL" in URL) {
-    return URL.createObjectURL(file);
+    return URL.createObjectURL(new Blob([file.bytes.slice().buffer]));
   }
   return "";
 }
@@ -170,7 +171,6 @@ function clearStaleRowErrors(
 export function ReturnExchangePage() {
   const queryClient = useQueryClient();
   const searchInputRef = useRef<HTMLInputElement>(null);
-  const receiptInputRef = useRef<HTMLInputElement>(null);
   const [values, setValues] = useState<ReturnExchangeFormValues>(createEmptyForm);
   const [errors, setErrors] = useState<ReturnExchangeFormErrors>({});
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -203,7 +203,7 @@ export function ReturnExchangePage() {
       if (built.request === null) throw new Error("validation");
 
       if (receipt !== null && receiptImagePath === null) {
-        const saveRequest = await buildSaveImageRequest(receipt.file);
+        const saveRequest = buildSaveImageRequest(receipt.file);
         const saved = await unwrapResult(commands.saveReceiptImage(saveRequest), {
           source: "commands",
           cmd: "save_receipt_image",
@@ -341,21 +341,13 @@ export function ReturnExchangePage() {
     setFailedSignature(null);
     setResult(null);
     setIdempotencyKey(createReturnExchangeIdempotencyKey());
-    clearReceiptInput();
     window.setTimeout(() => searchInputRef.current?.focus(), 0);
   }
 
-  function clearReceiptInput() {
-    if (receiptInputRef.current !== null) {
-      receiptInputRef.current.value = "";
-    }
-  }
-
-  function handleReceiptFile(file: File | null) {
-    if (file === null || isFormLocked) return;
-    const extension = getAllowedReceiptExtension(file.name);
+  function handleReceiptFile(file: PickedFile) {
+    if (isFormLocked) return;
+    const extension = getAllowedReceiptExtension(file.filename);
     if (extension === null) {
-      clearReceiptInput();
       setErrors((prev) => ({
         ...prev,
         receipt: "jpg / jpeg / png / gif / webp の画像を選択してください",
@@ -377,14 +369,8 @@ export function ReturnExchangePage() {
     rotateKeyAfterFailedAttempt();
   }
 
-  function handleReceiptDrop(event: DragEvent<HTMLDivElement>) {
-    event.preventDefault();
-    handleReceiptFile(event.dataTransfer.files.length > 0 ? event.dataTransfer.files[0] : null);
-  }
-
   function removeReceiptImage() {
     if (isFormLocked) return;
-    clearReceiptInput();
     setReceipt(null);
     setErrors((prev) => {
       const next = { ...prev };
@@ -611,39 +597,18 @@ export function ReturnExchangePage() {
 
         <div className="space-y-2">
           <Label htmlFor="receipt-image">レシート画像</Label>
-          <div
-            className="rounded-md border border-dashed bg-muted/20 p-3 transition-colors hover:bg-muted/30"
-            onDragOver={(event) => {
-              event.preventDefault();
-            }}
-            onDrop={handleReceiptDrop}
-          >
-            <Input
-              ref={receiptInputRef}
-              id="receipt-image"
-              type="file"
-              accept="image/*"
-              disabled={isFormLocked}
-              aria-label="レシート画像"
-              className="sr-only"
-              onChange={(event) => {
-                handleReceiptFile(event.target.files?.[0] ?? null);
-              }}
-            />
-            <label
-              htmlFor="receipt-image"
-              className={`flex min-h-24 cursor-pointer flex-col items-center justify-center gap-2 rounded border border-transparent px-4 py-3 text-center text-sm ${
-                isFormLocked ? "cursor-not-allowed opacity-50" : ""
-              }`}
-            >
-              <ImagePlus aria-hidden="true" className="size-6 text-muted-foreground" />
-              <span className="font-medium">画像を選択</span>
-              <span className="text-muted-foreground">
-                クリックして選択、またはここにドラッグ＆ドロップ
-              </span>
-              <span className="text-xs text-muted-foreground">jpg / png / gif / webp</span>
-            </label>
-          </div>
+          <FilePicker
+            id="receipt-image"
+            accept="image/*"
+            ariaLabel="画像を選択（レシート画像）"
+            buttonLabel="画像を選択"
+            dialogFilterName="レシート画像"
+            dropLabel="クリックして選択、またはここにドラッグ＆ドロップ"
+            helperText="jpg / png / gif / webp"
+            className="min-h-24 rounded-md bg-muted/20 p-3"
+            disabled={isFormLocked}
+            onSelect={handleReceiptFile}
+          />
           {receipt !== null ? (
             <div className="flex flex-wrap items-center gap-3 rounded-md border p-3 text-sm">
               {receipt.previewUrl !== "" ? (
@@ -656,7 +621,7 @@ export function ReturnExchangePage() {
               <div className="min-w-0 flex-1 space-y-1 text-muted-foreground">
                 <div className="flex flex-wrap items-center gap-2">
                   <ImagePlus aria-hidden="true" className="size-4" />
-                  <span className="truncate">{receipt.file.name}</span>
+                  <span className="truncate">{receipt.file.filename}</span>
                 </div>
                 <span>{receipt.savedReceiptPath === null ? "未保存" : "保存済み"}</span>
               </div>
