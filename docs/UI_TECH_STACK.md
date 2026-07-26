@@ -511,7 +511,8 @@ CMD層の `CmdError` は `kind: string` / `message: string` / `field?` / `error_
 | `validation` | `message` をそのまま表示（BIZ/CMD層で日本語化済み） | "JANコードは13桁または8桁で入力してください" |
 | `duplicate` | `message` を表示。既存レコードへの導線は画面側で追加してよい | "商品コード HZ-0047 は既に登録されています。[既存商品を開く]" |
 | `not_found` | `message` を表示。戻り先の提示は画面側で追加してよい | "指定された商品が見つかりません。[商品一覧に戻る]" |
-| `internal` / `restore_*` 系 | `message`（操作文脈の定型文言。raw 技術詳細は CMD-ERR-D2 により含まれない）+ エラーID + 診断ログへの誘導 | "バックアップ一覧の取得でエラーが発生しました（エラーID: E-20260726-153021-a1b2）。詳細は診断ログに記録されています。" |
+| `internal` | `message`（操作文脈の定型文言。raw 技術詳細は CMD-ERR-D2 により含まれない）+ エラーID + 診断ログへの誘導 | "バックアップ一覧の取得でエラーが発生しました（エラーID: E-20260726-153021-a1b2）。詳細は診断ログに記録されています。" |
+| `restore_*` 系 | 表示所有権は 68-ui-backup-restore §68.7（kind 別 recovery 文言 + state machine）。describeError は使わず、画面固有表示に `エラーID` のみ併記 | "アプリを閉じて、もう一度開いてください（エラーID: E-…）" |
 | その他（`import_error` / `export_error` 等） | `message` をそのまま表示。画面固有の recovery 分岐（55-ui-csv-import §55.5 等）は各画面の設計に従う | — |
 
 旧記載の「操作ログID（operation_logs）表示」は実装と乖離していたため廃止し、相関キーは `error_id` × 診断ログ（70-mnt-diagnostic-log.md）に確定した（D-053）。

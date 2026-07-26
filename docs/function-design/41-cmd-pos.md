@@ -88,7 +88,7 @@ let result = biz::some_function(&mut conn, ...);
 | IdempotencyConflict(msg) | "idempotency_conflict" | msg をそのまま使用 |
 | ValidationFailed(msg) | "validation" | msg をそのまま使用（既存） |
 | NotFound(msg) | "not_found" | msg をそのまま使用（既存） |
-| DatabaseError(_) | "internal" | "データベースエラーが発生しました。もう一度お試しください"（既存） |
+| DatabaseError(_) | "internal" | "データベースエラーが発生しました。もう一度お試しください"（既存。error_id: Some(発行) — 40-cmd-product.md 5.3 CMD-ERR-D1 参照） |
 
 **import_error を新設した理由**: CSV取込み固有のエラー（ファイル形式不正、重複ブロック、キャッシュ期限切れ等）は validation とは性質が異なる。UI側で「再度ファイルを選択してください」等のCSV取込み固有の案内を出すために種別を分ける。
 

@@ -28,6 +28,18 @@
   plan-first content commit にまとめ、`kickoff -> spec-check -> design -> plan-draft ->
   plan-gate` を materialize する。Plan 承認前に production code は変更しない。
 
+- State Narrative（2026-07-26、Plan Review 一次）: Plan Reviewer（Sonnet 5 fresh
+  context）は P1=1 / P2=0 / P3=2、総評「条件付き承認可」。P1 = restore_* 3 kind を
+  実際に発生させる唯一の画面（BackupRestorePage restore catch / fatal Alert）が
+  error_id を表示しない配線ギャップ — 事実として accept。ただし修正方向は reviewer
+  提案（describeError への置換）ではなく、68-ui-backup-restore §68.7 の kind 別
+  recovery 文言・state machine 設計を維持した **error_id 併記** へ Coordinator 裁定
+  （68 §68.7 / UI_TECH_STACK §6.4 / 本 packet Scope・Ledger・AC・Trace Matrix・
+  Matrix X8 に反映）。P3-1（CmdError struct literal 16 箇所 + BizError Display arm の
+  機械追随の Scope 明記）と P3-2（41-cmd-pos DatabaseError 行の error_id 不整合）は
+  accept・反映済み。是正は plan-gate 内修正（Phase 据え置き）で、再レビューは同
+  reviewer context の差分確認で行う。
+
 ## Owner Effort Budget
 
 - 介入回数上限: 3（Plan 承認 / Ready / merge）
@@ -97,10 +109,18 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。AC や�
   変換を `ImportError` から `ExportError` へ変更。
 - IO/BIZ/CMD: `PluCsvOutput` → `PluFileOutput`、field `csv_output` → `plu_output` の
   rename（IO-04-D1。内部型のみ、`PluExportPrepareResponse` の wire shape は不変）。
-- UI: `src/lib/describe-error.ts` 新設（UI-ERR-D1。kind 別変換、internal / restore_*
-  系は message + `（エラーID: {error_id}）` + 診断ログ誘導文言）。画面ローカル
+- UI: `src/lib/describe-error.ts` 新設（UI-ERR-D1。kind 別変換、internal は
+  message + `（エラーID: {error_id}）` + 診断ログ誘導文言）。画面ローカル
   describeError 4 箇所（`BackupRestorePage.tsx` / `PluExportPage.tsx` /
   `IntegrityCheckPage.tsx` / `StocktakePage.tsx`）を共通関数へ置換。
+  BackupRestorePage の置換対象はロード系エラー経路（listBackups / getSettings 等）のみ。
+- UI: `BackupRestorePage.tsx` の restore catch 経路（recoverable 定型 message と
+  fatal Alert）に error_id を併記する（68-ui-backup-restore §68.7 の改訂契約。
+  kind 別 recovery 文言・state machine は不変、describeError は使わない）。
+- CMD/BIZ 機械追随: `CmdError` struct literal 直接構築（settings / sales / plu_export /
+  daily_report_import / csv_import cmd の計 16 箇所）への `error_id` field 追加と、
+  `BizError` の Display exhaustive match への `ExportError` arm 追加
+  （いずれもコンパイラが強制検知する機械的変更）。
 - 再発防止: 画面ローカル describeError 再導入と internal raw-detail 混入パターンの
   静的 sweep test（Matrix X7 参照。lint 単独ではなく repo sweep を test 化）。
 - 生成系: `cargo run --bin generate_bindings` で `bindings.ts` 再生成。
@@ -128,7 +148,8 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。AC や�
   `test_restore_kinds_req700_carry_error_id` /
   `test_plu_format_failure_req402_maps_to_export_error`）を含む。
 - `npm test`（vitest）green。`describe-error.test.ts` の internal 表示契約 test
-  （期待文言は独立転記 oracle、production 定数 import 禁止）を含む。
+  （期待文言は独立転記 oracle、production 定数 import 禁止）と、
+  `BackupRestorePage.test.tsx` の restore_* 3 kind 画面 error_id 表示 test を含む。
 - `rg -n 'const describeError|function describeError' src/features src/components` 0 hit
   かつ静的 sweep test が存在する。
 - 再生成後の `bindings.ts` に `error_id` field が現れる（diff を PR に含める）。
@@ -256,6 +277,7 @@ Minimum design checks for business-app work:
 | IO-04-D1 隣接: `PluExportPrepareResponse` wire shape 不変 | `cmd/plu_export_cmd.rs` | 既存 PLU export cmd test green + bindings diff で response 型に差分なし | — |
 | UI-ERR-D1: describeError 一元化（4 画面置換） | `src/lib/describe-error.ts` + 4 画面 | `describe-error.test.ts` + 静的 sweep test（X7） | — |
 | UI-ERR-D1: internal 表示 = message + error_id + 診断ログ誘導 | `src/lib/describe-error.ts` | `describe-error.test.ts`（独立転記 oracle） | 視認スクショ（Human Gate） |
+| CMD-ERR-D1 / 68 §68.7: restore_* 3 kind の画面表示に error_id 併記（文言・state machine 不変） | `src/features/backup-restore/BackupRestorePage.tsx` restore catch / fatal Alert | `BackupRestorePage.test.tsx` へ restore_* error_id 表示 case 追加 | — |
 | 40-cmd §5.3 隣接: DatabaseError 固定文言変換の維持 | `cmd/mod.rs` From | 既存変換 test green（実在確認は Matrix 記載） | — |
 | 40-cmd §5.3 隣接: ValidationFailedAt の field 保持 | `cmd/mod.rs` From | 既存変換 test green（同上） | — |
 
@@ -319,6 +341,7 @@ Contract ID: SPEC-ERR-BOUNDARY-2026-07-26
 | P3-4 / CMD-ERR-D1 | CmdError error_id 追加 + internal/restore_* 発行 | `test_internal_error_id_req700_wire_log_match` / `test_restore_kinds_req700_carry_error_id` | wire/log 同一値 | cargo test + PR body |
 | P3-4 / CMD-ERR-D2 | internal 呼出し約 70 箇所の sanitize 移行 | `test_internal_message_req700_excludes_raw_detail` | sweep 網羅・helper 間接混入 | cargo test + AC sweep 記録 |
 | P3-4 / UI-ERR-D1 | describe-error.ts 新設 + 4 画面置換 + 再発 sweep | `describe-error.test.ts` + 静的 sweep test | oracle 独立・文言 regression | vitest + rg 0 hit |
+| P3-4 / CMD-ERR-D1 | restore_* 画面表示への error_id 併記（68 §68.7） | `BackupRestorePage.test.tsx` restore_* error_id case | 68 文言・state machine 不変 | vitest |
 | P7b-3 / BIZ-04-D2 | ExportError 新設 + PLU 変換切替 | `test_plu_format_failure_req402_maps_to_export_error` | import 経路非影響 | cargo test |
 | P7b-3 / IO-04-D1 | PluFileOutput / plu_output rename | 既存 PLU test green + AC rg 0 hit | wire shape 不変 | cargo test + bindings diff |
 | REQ-402 | PLU 書出し既存挙動の維持 | 既存 PLU prepare/confirm test 群 green | 挙動互換 | cargo test |

@@ -19,6 +19,7 @@ Risk: R3
 - PLU 書出し失敗が `import_error` に戻る、または旧語彙が残存する。
 - describeError の internal 分岐が消えて raw message 素通しに戻る。
 - 画面ローカル describeError が再導入され表示が再分裂する。
+- restore_* を実際に発生させる唯一の画面（BackupRestorePage restore catch / fatal Alert）が error_id を表示しない（Plan Review 一次 P1）。
 - rename が既存 PLU export の wire shape / 挙動を壊す。
 
 ## Test Matrix
@@ -40,6 +41,7 @@ Risk: R3
 | UI-ERR-D1 | internal 表示契約の欠落 | unit (vitest) | `describe-error.test.ts`（oracle は期待文言の独立転記。production 定数 import 禁止） | internal 分岐削除・error_id 節欠落・誘導文言欠落 |
 | UI-ERR-D1 | 非 internal kind の文言 regression | unit (vitest) | `describe-error.test.ts`（validation / export_error / unknown kind の pass-through） | describeError が非 internal message を書き換える |
 | UI-ERR-D1 | ローカル describeError 再導入 | static regression test | `describe-error-no-local-duplicates.test.ts`（repo sweep を test 化。X7） | `src/features` / `src/components` にローカル定義が再出現 |
+| CMD-ERR-D1 / 68 §68.7 | restore_* 画面が error_id を表示しない | unit (vitest) | `BackupRestorePage.test.tsx` へ restore_* error_id case 追加（recoverable / unrecoverable / durability_unknown の 3 分岐） | restore catch / fatal Alert の error_id 併記欠落、68 文言の意図しない変更 |
 
 ## State Lifecycle Matrix
 
@@ -60,7 +62,7 @@ workflow-state 行:
 
 | Source pattern / contract | Repository sites inspected | Ported sites | Explicit exclusions and reason | Test / evidence |
 |---|---|---|---|---|
-| error-kind→文言変換 | ローカル describeError 4（BackupRestore / PluExport / IntegrityCheck / Stocktake）、CSV 専用 `ErrorState.tsx`、直接 message 表示 約15 箇所 | `src/lib/describe-error.ts` + 4 画面置換 | `ErrorState.tsx` は 55-ui-csv-import §55.5 の画面固有設計として維持。直接表示 約15 箇所は owner 裁定で follow-up（Plans.md 記録） | vitest + 静的 sweep test |
+| error-kind→文言変換 | ローカル describeError 4（BackupRestore / PluExport / IntegrityCheck / Stocktake）、CSV 専用 `ErrorState.tsx`、restore_* kind 別固定文言（BackupRestorePage restore catch）、直接 message 表示 約15 箇所 | `src/lib/describe-error.ts` + 4 画面置換（BackupRestore はロード系経路のみ） | `ErrorState.tsx` は 55-ui-csv-import §55.5、restore_* 表示は 68 §68.7 の画面固有設計として維持（error_id 併記のみ追加）。直接表示 約15 箇所は owner 裁定で follow-up（Plans.md 記録） | vitest + 静的 sweep test |
 | `import_error` kind 消費分岐 | `useProductImportFlow.ts` / `useCsvImportFlow.ts` / `useDailyReportImportFlow.ts` の `decideRecoverTo`、`ErrorState.tsx` | 変更なし（export_error はどの分岐にも入らない） | import 系 recovery は本 change の非目的 | 既存 hook test green |
 | raw detail の log 退避（warn 系） | `.claude/rules/implementation-quality.md` の warn パターン（MNT 系） | internal error でも detail→tracing の同型を採用 | warn 系（継続可能失敗）は順7 で整備済み、本 change は error 系のみ | cargo test |
 
@@ -122,6 +124,7 @@ workflow-state 行:
 - X5: describeError の internal 分岐を削除（default fallthrough）→ `describe-error.test.ts` red。
 - X6: restore_* constructor の error_id 付与を除去 → `test_restore_kinds_req700_carry_error_id` red。
 - X7: 画面 1 つにローカル describeError を再導入 → `describe-error-no-local-duplicates.test.ts` red。
+- X8: BackupRestorePage restore catch / fatal Alert の error_id 併記を除去 → `BackupRestorePage.test.tsx` の restore_* error_id case red。
 
 - If a mock value is changed so it differs from the design-doc expected value, which assertion proves the implementation used the correct source? → describe-error oracle は期待文言を独立転記し完全一致比較（production 定数 import 禁止）。
 - If a key branch is inverted, which test fails? → X4 / X5。
