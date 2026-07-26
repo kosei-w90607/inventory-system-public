@@ -73,6 +73,8 @@ rg -F '例外（design board）' docs/AGENT_OPERATING_MANUAL.md
 | X6 | decision-log D-056 の投入基準文を削除 | M-A6 が exit 1 に反転 | D4 |
 | X7 | §3 第 7 項の投入基準文を削除（decision-log 側は残す） | M-A7 が exit 1 に反転（M-A6 は green のまま = file 別弁別の実証） | D4 |
 
+記録先 = PR body（注入 → red → `git checkout -- <file>` 復元 → green、各回 clean tree 確認）。
+
 ## Guard 感度実測（不変 guard 自体の anti-tautology — round 2 P2-1）
 
 不変 guard（M-N 系）も command 自体のバグ（引数順序・filter typo 等)を検出できることを、実装後の clean tree で実注入により確認する。
@@ -82,11 +84,9 @@ rg -F '例外（design board）' docs/AGENT_OPERATING_MANUAL.md
 | G1 | `docs/ci.md` に無害な 1 行を追記 | M-N1 が UNCHANGED を出力しなくなる（`git diff --quiet` 非 0） |
 | G2 | AGENT_OPERATING_MANUAL の §5 見出し以外の既存 1 行を削除 | M-N2 が hit を出力（exit 0 へ反転） |
 | G3 | §3 既存第 6 項の文を削除 | M-N3 が exit 1 に反転（M-N2 も同時に反応） |
-| G4 | §3.1 の design board 例外原文を削除 | M-N4 が exit 1 に反転 |
+| G4 | §3.1 の design board 例外原文を削除 | M-N4 が exit 1 に反転（M-N2 も同時に反応 — 許可外削除のため） |
 
-記録先 = PR body（注入 → 反応確認 → `git checkout -- <file>` 復元 → 期待どおりへ復帰、各回 clean tree 確認）。
-
-記録先 = PR body（注入 → red → `git checkout -- <file>` 復元 → green、各回 clean tree 確認）。
+G2〜G4 の既存行削除はいずれも M-N2 の許可外削除としても連動検知される（Double Audit 2 pass O-P3-2 の注記対称化）。記録先 = PR body（注入 → 反応確認 → `git checkout -- <file>` 復元 → 期待どおりへ復帰、各回 clean tree 確認）。
 
 ## 既存 checker
 

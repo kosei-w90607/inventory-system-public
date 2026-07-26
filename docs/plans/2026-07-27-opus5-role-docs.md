@@ -76,7 +76,7 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 - Matrix の anchor A1〜A7 が全て baseline 0 hit → 実装後 hit で実測され、mutation X1〜X7 の実注入で対応 assertion が exit 1 へ反転することを clean tree で実測（X7 は M-A6 green 維持 = file 別弁別まで確認、記録は PR body）
 - 不変 guard 自体の感度実測 G1〜G4（guard command のバグ検出能力）: 各 guard の対象 file へ Matrix 記載の注入を行い、`git diff` / `rg` の exit code が期待から反転することを clean tree で実測し PR body に記録（round 2 P2-1 の anti-tautology 要件）
 - `git diff origin/main -- docs/DEV_WORKFLOW.md docs/ci.md scripts/` が空（gate 非接触、Matrix M-N1）
-- `git diff origin/main -- docs/AGENT_OPERATING_MANUAL.md` の削除行が §5 見出し 1 行のみ（既存規範の非改変、Matrix M-N2）
+- `git diff origin/main -- docs/AGENT_OPERATING_MANUAL.md` の削除行が §5 見出しと §3.4 表ヘッダの 2 行のみ（既存規範の非改変、Matrix M-N2。gated Amendment 1 の許可 list と同期 — Double Audit 1 pass S-P2-1 是正）
 - `bash scripts/doc-consistency-check.sh` PASS（active plan があるため `--target plan` も PASS）
 - 最終 HEAD で `bash scripts/local-ci.sh full` CLEAN PASS（evidence は PR body）
 
@@ -158,7 +158,7 @@ Test Design Matrix: [test-matrices/2026-07-27-opus5-role-docs.md](test-matrices/
 Contract ID: SPEC-WF-OPUS5-2026-07-27
 
 - D-056-D1: 高自律・低制約適性 slot（§3.4 対応表で解決）は read-only の Reviewer / Explorer 発注書ロール専任。Writer / Coordinator / state 遷移管理に割り当てず、§3.1 の design board 例外の対象外とする
-- D-056-D2: 当該 slot への発注書は低制約 profile（goal / scope 境界 / read-only 宣言 / 報告フォーマット / subagent 生成上限の 5 点のみ）を用い、過程指示・検証手順の指定を書かない
+- D-056-D2: 当該 slot への発注書は低制約 profile（goal / scope 境界 / read-only 宣言 / 報告フォーマット / subagent 生成上限の 5 点のみ）を用い、過程指示・検証手順の指定を書かない。Contract Audit / Final Review 役への発注では、DEV_WORKFLOW『Contract Audit』の実施項目を**検証対象として scope 境界に列挙する** — これは対象物の指定（出力契約）であり過程指示ではない。検証の手順・順序・command は引き続き指定しない（Double Audit 2 pass O-P2-1 の自己言及的交差の解消）
 - D-056-D3: メインスレッド代役は不採用。代役ドラフト 3 点は凍結し、revisit 条件 = Fable slot の恒久喪失
 - D-056-D4: 投入基準 = レビュー難所（L 級 lane の一次等）・広域調査から。通常レビューは既存分業を維持
 - D-056-D5: security 隣接の敵対的レビュー迂回は従来どおり（本決定で変更しない）
@@ -185,7 +185,7 @@ Fill after implementation.
 
 ## Review Response
 
-- Findings Freeze: not yet frozen; post-freeze exceptions: none.
+- Findings Freeze: frozen after Double Audit both passes（詳細は下記 Double Audit 記録）; post-freeze exceptions: none.
 
 **Plan Review round 1（2026-07-27、独立 Plan Reviewer = Sonnet fresh context）**
 
@@ -227,3 +227,11 @@ Fill after implementation.
 **gated Amendment 2（2026-07-27、G2 感度実測が M-N2 の実バグを捕捉）**
 
 - 実装後の guard 感度実測で **G2 が FAIL**: M-N2 の regex `^-[^-]` は diff の file header（`---`）除外を意図していたが、§3 の規範行は bullet（`- ` 始まり）のため削除 diff が `-- …` 形になり、**bullet 行の削除を構造的に検出できない**実バグと判明（round 2 P2-1 が要求した guard 感度実測の存在意義を初回で実証）。是正 = `^-` match + `^---` 除外形へ変更。G1/G3/G4 は当初 command のまま検出 OK、X1〜X7 は全件 red 実証済み（記録は PR body）
+
+**Double Audit（2026-07-27、independent-review。1 pass = Sonnet 独立 fresh context〈Contract Audit 規律明示〉/ 2 pass = Opus 5 低制約 profile〈較正 2 例目〉）**
+
+- 1 pass: P1=0 / P2×2 / P3×1 — S-P2-1（AC の削除行数が gated Amendment 1 に未追随の sweep 漏れ）/ S-P2-2（L1 evidence が Plans.md 同期 commit の 1 つ前を指す）/ S-P3（Matrix 記録先注記の重複 = G 節挿入時の孤立行）。Ledger 再検証・negative-space・adjacent pattern・drift・mutation adequacy は全て問題なし判定
+- 2 pass: P1=0 / P2×1 / P3×2 — **O-P2-1（§5.4 の profile 義務化と Contract Audit の名指し技法要求の自己言及的衝突。本 PR 自身の 2 pass 実行が契約上成立しない穴、round 1〜4 の全 Review Focus が未検出）**/ O-P3-1（第 7 項の Reviewer / Explorer が §2 役割名と字句不一致）/ O-P3-2（G4 の M-N2 連動注記の非対称）
+- 裁定: 全 6 件 accept。O-P2-1 は「Contract Audit 実施項目の列挙 = 検証対象の指定（出力契約）であり過程指示ではない」の境界明文化で解消（D2 の 5 点構成は不変）。O-P3-1 は anchor A1 の literal を保存するため総称注記の 1 文追加で解消。S-P2-2 は本是正後の content HEAD で L1 full を再実行して解消
+- 是正 = gated Amendment 3（packet AC / Spec Contract D2 / Matrix 注記）+ 実装追随 commit（manual §3 第 7 項の総称注記 / §5.4 の境界 1 文）
+- **Findings Freeze: frozen after Double Audit both passes（本記録をもって発効）**; post-freeze exceptions: none
