@@ -2,14 +2,14 @@
 
 ## Workflow State
 
-- Phase: plan-draft
+- Phase: plan-gate
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: pending
 - Amendments: none
 - Coordinator: Fable
 - Writer: Fable（design board 例外の適用: workflow design-only change、owner 明示指示 = 2026-07-27 wave 運用決定・引き継ぎ書。実装 code の Writer には割り当てない）
-- Plan Reviewer: pending（Codex or Sonnet fresh context、Writer と独立）
+- Plan Reviewer: Sonnet（独立 fresh context subagent。rally round 1〜3 実施、round 3 で P1/P2 = 0。owner 判断で Codex 追加 round 可）
 - Final Reviewer: pending（Codex 独立 fresh context、Double Audit 2 pass 目担当）
 - Reviewed Content HEAD: pending
 - Final Exact-HEAD Evidence: PR body
@@ -68,7 +68,7 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 ## Non-scope
 
 - 監査残単位（順10〜22）の packet 起票・実装（wave 1 編成は本 PR merge 後の別作業）
-- Scope の 2 点を超える wave 対応機械 check の新設（wave 単位の新 PK check、registry 陳腐化の機械検出等は pilot で摩擦を実測してから判断。D-039 の「checker」語彙は不変）
+- Scope に列挙した checker / test file を超える wave 対応機械 check の新設（wave 単位の新 PK check、registry 陳腐化の機械検出等は pilot で摩擦を実測してから判断。D-039 の「checker」語彙は不変）
 - Workflow State の phase enum・遷移表・STATECAP・state-backtrack 契約の変更（per-lane で全て不変）
 - CI routing（`ci.md`）の変更（hosted 1 change 1 final run は per-lane で不変）
 
@@ -166,7 +166,7 @@ Test Design Matrix: [test-matrices/2026-07-27-wave-operation-dev-workflow-amendm
 - targeted tests: anchor phrase A 系の baseline-red 固定（実装前に `rg` で 0 hit を実測）→ 実装後 green。checker 変更は常設 regression（`scripts/tests/` の 2 suite、`local-ci.sh full` の `run_required`）の fixture 追随・追加で守る
 - negative tests: X1〜X6 の実 mutation 注入（clean tree、実装後）で anchor 検査 or checker が red
 - compatibility checks: `bash scripts/doc-consistency-check.sh`（full + `--target plan`）、`bash scripts/check-workflow-git.sh`
-- data safety checks: 実 POS / 店舗 data 非接触。commit 対象は docs + `scripts/` checker 2 file のみ
+- data safety checks: 実 POS / 店舗 data 非接触。commit 対象は docs + Scope に列挙した `scripts/` の checker / test file のみ
 - main wiring/integration checks: 旧文言（単一 active packet 前提）の repo-wide sweep evidence を PR body に記録
 
 ## Boundary / Wire Contract
@@ -207,7 +207,7 @@ Contract ID: SPEC-WF-WAVE-2026-07-27
 
 ## Data Safety
 
-- 実 POS CSV / 店舗 data / DB file / backup / log / secret は commit しない（本 change は docs + checker script のみ）
+- 実 POS CSV / 店舗 data / DB file / backup / log / secret は commit しない（本 change は docs + Scope に列挙した checker / test script のみ）
 - local-only paths: `.local/ci-evidence/`（L1 証跡、非 commit）
 - synthetic-only paths: Contract Probe 2 の synthetic packet は検証後に撤去し commit しない
 
@@ -236,3 +236,7 @@ Do not transcribe exact-HEAD SHA or test counts here (D-035/D-038 Evidence Owner
 
 - 結果: round 1 の 7 件は全件解消確認。新規 P1×1 = PK4/PK5 の常設 regression suite（`scripts/tests/doc-consistency-plan-packet.test.sh` test #11 が旧・無条件 ERROR 文言を assert / `workflow-git-checks.test.sh` の PK5 rewrite 検出網）が Scope から漏れており、実装すると `local-ci.sh full` の `run_required` gate が red になる — Coordinator が `local-ci.sh` の登録行と test #11 fixture を実読して再現性を確認、accept
 - 是正: 両 test file を Scope へ編入（test #11 の新意味論書換え + Rebase Map fixture 追加、既存 rewrite 検出・Amendments fixture と共存）、T-PK4/T-PK5 を ad-hoc 実測から常設 fixture 化へ変更、AC に `local-ci.sh full` CLEAN（両 run_required green 含む）を明記
+
+**Plan Review round 3（2026-07-27、同 reviewer による closure 確認）**
+
+- 結果: round 2 P1 の解消確認（test #11 の既存 primitive で新 fixture が実装可能なことまで実 file で検証）、**P1/P2 = 0、plan-gate 通過可**。新規 P3×2 = Scope 拡大後の数値 echo 陳腐化（Non-scope「2 点」/ Data Safety「2 file」）→ 同日修正（数値でなく Scope 列挙への参照に置換、数値 echo の rg sweep 済み）
