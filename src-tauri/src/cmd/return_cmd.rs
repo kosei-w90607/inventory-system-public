@@ -20,7 +20,7 @@ pub fn create_return(
     let mut conn = state
         .db
         .lock()
-        .map_err(|_| CmdError::internal("DB接続エラー"))?;
+        .map_err(|error| CmdError::internal("DB接続エラー", error))?;
     inventory_service::create_return(&mut conn, req).map_err(CmdError::from)
 }
 
@@ -39,7 +39,7 @@ pub fn list_returns(
     let conn = state
         .db
         .lock()
-        .map_err(|_| CmdError::internal("DB接続エラー"))?;
+        .map_err(|error| CmdError::internal("DB接続エラー", error))?;
     let query = ListQuery {
         page,
         per_page,
@@ -61,7 +61,7 @@ pub fn get_return_record(
     let conn = state
         .db
         .lock()
-        .map_err(|_| CmdError::internal("DB接続エラー"))?;
+        .map_err(|error| CmdError::internal("DB接続エラー", error))?;
     inventory_service::get_return_record(&conn, record_id).map_err(CmdError::from)
 }
 

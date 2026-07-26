@@ -477,7 +477,7 @@ describe("UI-11c REQ-902", () => {
   it("keeps the log list and selected unknown type usable when the type registry fails", async () => {
     listTypes.mockResolvedValue({
       status: "error",
-      error: { kind: "internal", message: "registry unavailable", field: null },
+      error: { kind: "internal", message: "registry unavailable", field: null, error_id: null },
     });
     listLogs.mockResolvedValue({
       status: "ok",
@@ -955,7 +955,7 @@ describe("UI-11c REQ-902", () => {
     listLogs
       .mockResolvedValueOnce({
         status: "error",
-        error: { kind: "internal", message: "synthetic failure", field: null },
+        error: { kind: "internal", message: "synthetic failure", field: null, error_id: null },
       })
       .mockResolvedValueOnce({
         status: "ok",

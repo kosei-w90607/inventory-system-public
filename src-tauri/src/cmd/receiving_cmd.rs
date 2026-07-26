@@ -21,7 +21,7 @@ pub fn create_receiving(
     let mut conn = state
         .db
         .lock()
-        .map_err(|_| CmdError::internal("DB接続エラー"))?;
+        .map_err(|error| CmdError::internal("DB接続エラー", error))?;
     inventory_service::create_receiving(&mut conn, req).map_err(CmdError::from)
 }
 
@@ -40,7 +40,7 @@ pub fn list_receivings(
     let conn = state
         .db
         .lock()
-        .map_err(|_| CmdError::internal("DB接続エラー"))?;
+        .map_err(|error| CmdError::internal("DB接続エラー", error))?;
     let query = ListQuery {
         page,
         per_page,
@@ -62,7 +62,7 @@ pub fn get_receiving_record(
     let conn = state
         .db
         .lock()
-        .map_err(|_| CmdError::internal("DB接続エラー"))?;
+        .map_err(|error| CmdError::internal("DB接続エラー", error))?;
     inventory_service::get_receiving_record(&conn, record_id).map_err(CmdError::from)
 }
 

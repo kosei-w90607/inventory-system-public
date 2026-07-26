@@ -44,6 +44,7 @@ pub fn parse_and_validate_csv(
             kind: "validation".to_string(),
             message: "ファイルサイズが上限(20MB)を超えています".to_string(),
             field: None,
+            error_id: None,
         });
     }
 
@@ -52,7 +53,7 @@ pub fn parse_and_validate_csv(
         let conn = state
             .db
             .lock()
-            .map_err(|_| CmdError::internal("DB接続エラー"))?;
+            .map_err(|error| CmdError::internal("DB接続エラー", error))?;
         let req = CsvParseAndValidateRequest {
             file_bytes,
             filename,
@@ -71,7 +72,7 @@ pub fn parse_and_validate_csv(
         let mut cache = state
             .preview_cache
             .lock()
-            .map_err(|_| CmdError::internal("キャッシュ取得エラー"))?;
+            .map_err(|error| CmdError::internal("キャッシュ取得エラー", error))?;
 
         // FIFO eviction: 上限超過時は最古を削除
         if cache.len() >= constants::PREVIEW_CACHE_LIMIT {
@@ -114,6 +115,7 @@ pub fn commit_csv_import(
             kind: "validation".to_string(),
             message: "不正なプレビュートークンです".to_string(),
             field: None,
+            error_id: None,
         });
     }
 
@@ -122,7 +124,7 @@ pub fn commit_csv_import(
         let cache = state
             .preview_cache
             .lock()
-            .map_err(|_| CmdError::internal("キャッシュ取得エラー"))?;
+            .map_err(|error| CmdError::internal("キャッシュ取得エラー", error))?;
 
         match cache.get(&preview_token) {
             None => {
@@ -131,6 +133,7 @@ pub fn commit_csv_import(
                     message: "プレビューが見つかりません。再度ファイルを選択してください"
                         .to_string(),
                     field: None,
+                    error_id: None,
                 });
             }
             Some(cached) => {
@@ -141,7 +144,7 @@ pub fn commit_csv_import(
                     let mut cache = state
                         .preview_cache
                         .lock()
-                        .map_err(|_| CmdError::internal("キャッシュ取得エラー"))?;
+                        .map_err(|error| CmdError::internal("キャッシュ取得エラー", error))?;
                     cache.remove(&preview_token);
                     return Err(CmdError {
                         kind: "import_error".to_string(),
@@ -149,6 +152,7 @@ pub fn commit_csv_import(
                             "プレビューの有効期限が切れました（30分）。再度ファイルを選択してください"
                                 .to_string(),
                         field: None,
+                        error_id: None,
                     });
                 }
                 cached.clone()
@@ -160,7 +164,7 @@ pub fn commit_csv_import(
     let mut conn = state
         .db
         .lock()
-        .map_err(|_| CmdError::internal("DB接続エラー"))?;
+        .map_err(|error| CmdError::internal("DB接続エラー", error))?;
 
     let req = CommitRequest {
         preview_token: preview_token.clone(),
@@ -175,7 +179,7 @@ pub fn commit_csv_import(
             let mut cache = state
                 .preview_cache
                 .lock()
-                .map_err(|_| CmdError::internal("キャッシュ取得エラー"))?;
+                .map_err(|error| CmdError::internal("キャッシュ取得エラー", error))?;
             cache.remove(&preview_token);
             Ok(result)
         }
@@ -198,7 +202,7 @@ pub fn rollback_csv_import(
     let mut conn = state
         .db
         .lock()
-        .map_err(|_| CmdError::internal("DB接続エラー"))?;
+        .map_err(|error| CmdError::internal("DB接続エラー", error))?;
     csv_import_service::rollback_csv_import(&mut conn, csv_import_id).map_err(CmdError::from)
 }
 
@@ -215,6 +219,6 @@ pub fn list_csv_imports(
     let conn = state
         .db
         .lock()
-        .map_err(|_| CmdError::internal("DB接続エラー"))?;
+        .map_err(|error| CmdError::internal("DB接続エラー", error))?;
     csv_import_service::list_csv_imports(&conn, page, per_page).map_err(CmdError::from)
 }

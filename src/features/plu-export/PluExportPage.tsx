@@ -9,8 +9,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { commands, type PluExportPrepareResponse } from "@/lib/bindings";
+import { describeError } from "@/lib/describe-error";
 import { invalidateByContract, invalidationContract } from "@/lib/invalidation-contract";
-import { isInvokeError, unwrapResult } from "@/lib/invoke";
+import { unwrapResult } from "@/lib/invoke";
 import { scrollPageToTop } from "@/lib/page-scroll";
 import { queryKeys } from "@/lib/query-keys";
 import { save } from "@tauri-apps/plugin-dialog";
@@ -61,12 +62,6 @@ const MODE_OPTIONS = [
 function decodeBase64Bytes(value: string): Uint8Array {
   const binary = atob(value);
   return Uint8Array.from(binary, (char) => char.charCodeAt(0));
-}
-
-function describeError(error: unknown): string {
-  if (isInvokeError(error)) return error.cmdError.message;
-  if (error instanceof Error) return error.message;
-  return String(error);
 }
 
 function isExportMode(value: unknown): value is ExportMode {

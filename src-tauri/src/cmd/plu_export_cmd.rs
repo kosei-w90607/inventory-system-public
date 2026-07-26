@@ -15,7 +15,7 @@ use tauri::State;
 
 /// PLUファイル生成レスポンス（フロントエンド返却用）
 ///
-/// PluCsvOutput の bytes を base64 エンコードして返す。
+/// PluFileOutput の bytes を base64 エンコードして返す。
 /// フロントエンド側で base64デコード → native save dialog の保存先へ書き込む。
 #[derive(Debug, serde::Serialize, specta::Type)]
 pub struct PluExportPrepareResponse {
@@ -78,6 +78,7 @@ fn parse_export_mode(mode: &str) -> Result<ExportMode, CmdError> {
             kind: "validation".to_string(),
             message: "書出しモードは 'full' または 'diff' を指定してください".to_string(),
             field: Some("mode".to_string()),
+            error_id: None,
         }),
     }
 }
@@ -96,15 +97,15 @@ pub fn prepare_plu_export(
     let conn = state
         .db
         .lock()
-        .map_err(|_| CmdError::internal("DB接続エラー"))?;
+        .map_err(|error| CmdError::internal("DB接続エラー", error))?;
     let req = PluExportPrepareRequest { mode: export_mode };
     let result = plu_export_service::prepare_plu_export(&conn, req).map_err(CmdError::from)?;
 
     Ok(PluExportPrepareResponse {
-        bytes_base64: general_purpose::STANDARD.encode(&result.csv_output.bytes),
-        suggested_filename: result.csv_output.suggested_filename,
-        content_type: result.csv_output.content_type.to_string(),
-        encoding: result.csv_output.encoding.to_string(),
+        bytes_base64: general_purpose::STANDARD.encode(&result.plu_output.bytes),
+        suggested_filename: result.plu_output.suggested_filename,
+        content_type: result.plu_output.content_type.to_string(),
+        encoding: result.plu_output.encoding.to_string(),
         count: result.count,
         target_product_codes: result.target_product_codes,
         excluded: result
@@ -133,7 +134,7 @@ pub fn confirm_plu_export_saved(
     let mut conn = state
         .db
         .lock()
-        .map_err(|_| CmdError::internal("DB接続エラー"))?;
+        .map_err(|error| CmdError::internal("DB接続エラー", error))?;
     let req = PluExportConfirmRequest { product_codes };
     let result =
         plu_export_service::confirm_plu_export_saved(&mut conn, req).map_err(CmdError::from)?;
@@ -153,7 +154,7 @@ pub fn list_plu_dirty(state: State<AppState>) -> Result<Vec<ProductResponse>, Cm
     let conn = state
         .db
         .lock()
-        .map_err(|_| CmdError::internal("DB接続エラー"))?;
+        .map_err(|error| CmdError::internal("DB接続エラー", error))?;
     let products = plu_export_service::list_plu_dirty(&conn).map_err(CmdError::from)?;
 
     // Product → ProductResponse 変換

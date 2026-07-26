@@ -19,7 +19,7 @@ pub fn create_manual_sale(
     let mut conn = state
         .db
         .lock()
-        .map_err(|_| CmdError::internal("DB接続エラー"))?;
+        .map_err(|error| CmdError::internal("DB接続エラー", error))?;
     inventory_service::create_manual_sale(&mut conn, req).map_err(CmdError::from)
 }
 
@@ -35,7 +35,7 @@ pub fn get_manual_sale_record(
     let conn = state
         .db
         .lock()
-        .map_err(|_| CmdError::internal("DB接続エラー"))?;
+        .map_err(|error| CmdError::internal("DB接続エラー", error))?;
     inventory_service::get_manual_sale_record(&conn, record_id).map_err(CmdError::from)
 }
 

@@ -379,7 +379,15 @@ Contract ID: SPEC-ERR-BOUNDARY-2026-07-26
 
 ## Implementation Results
 
-Fill after implementation.
+- `CmdError` の internal / restore 系に診断ログ相関 ID を実装し、internal 呼出しを
+  利用者向け定型文言と raw detail の分離契約へ移行した。
+- PLU formatter 失敗を `ExportError` / `export_error` へ分離し、内部出力型・field を
+  実体に合う PLU 語彙へ改名した。IPC response shape は維持した。
+- 共通 `describeError` を新設して対象 4 画面を移行し、復元固有の recovery 文言と
+  state machine を保ったまま error_id を別要素で併記した。
+- 独立 oracle の契約 test、raw-detail / ローカル helper の静的回帰 test、復元 3 分岐の
+  表示 test を追加した。計画時に引用された import recovery の直接 hook test が
+  baseline に存在しなかったため、隣接契約を固定する回帰 test を追加した。
 
 Do not transcribe exact-HEAD SHA or test counts here (D-035/D-038 Evidence Ownership). Record a qualitative summary and the PR link only.
 

@@ -37,7 +37,7 @@ pub fn parse_and_validate_daily_report(
         let conn = state
             .db
             .lock()
-            .map_err(|_| CmdError::internal("DB接続エラー"))?;
+            .map_err(|error| CmdError::internal("DB接続エラー", error))?;
         let source_files = files
             .into_iter()
             .map(|file| DailyReportInputFile {
@@ -58,7 +58,7 @@ pub fn parse_and_validate_daily_report(
     let mut cache = state
         .daily_report_preview_cache
         .lock()
-        .map_err(|_| CmdError::internal("キャッシュ取得エラー"))?;
+        .map_err(|error| CmdError::internal("キャッシュ取得エラー", error))?;
     evict_oldest_daily_report_preview(&mut cache);
     cache.insert(preview_token, result.cached_preview);
 
@@ -85,12 +85,13 @@ fn commit_daily_report_import_with_state(
         let mut cache = state
             .daily_report_preview_cache
             .lock()
-            .map_err(|_| CmdError::internal("キャッシュ取得エラー"))?;
+            .map_err(|error| CmdError::internal("キャッシュ取得エラー", error))?;
         let Some(cached) = cache.get(&preview_token) else {
             return Err(CmdError {
                 kind: "import_error".to_string(),
                 message: "プレビューが見つかりません。再度ファイルを選択してください".to_string(),
                 field: None,
+                error_id: None,
             });
         };
         if cached.created_at.elapsed().as_secs() > constants::PREVIEW_CACHE_TTL_SECS {
@@ -100,6 +101,7 @@ fn commit_daily_report_import_with_state(
                 message: "プレビューの有効期限が切れました（30分）。再度ファイルを選択してください"
                     .to_string(),
                 field: None,
+                error_id: None,
             });
         }
         cached.clone()
@@ -108,7 +110,7 @@ fn commit_daily_report_import_with_state(
     let mut conn = state
         .db
         .lock()
-        .map_err(|_| CmdError::internal("DB接続エラー"))?;
+        .map_err(|error| CmdError::internal("DB接続エラー", error))?;
     match daily_report_import_service::commit_daily_report_import(
         &mut conn,
         cached_preview,
@@ -119,7 +121,7 @@ fn commit_daily_report_import_with_state(
             let mut cache = state
                 .daily_report_preview_cache
                 .lock()
-                .map_err(|_| CmdError::internal("キャッシュ取得エラー"))?;
+                .map_err(|error| CmdError::internal("キャッシュ取得エラー", error))?;
             cache.remove(&preview_token);
             Ok(result)
         }
@@ -136,7 +138,7 @@ pub fn rollback_daily_report_import(
     let mut conn = state
         .db
         .lock()
-        .map_err(|_| CmdError::internal("DB接続エラー"))?;
+        .map_err(|error| CmdError::internal("DB接続エラー", error))?;
     daily_report_import_service::rollback_daily_report_import(&mut conn, daily_report_import_id)
         .map_err(CmdError::from)
 }
@@ -153,7 +155,7 @@ pub fn list_daily_report_imports(
     let conn = state
         .db
         .lock()
-        .map_err(|_| CmdError::internal("DB接続エラー"))?;
+        .map_err(|error| CmdError::internal("DB接続エラー", error))?;
     daily_report_import_service::list_daily_report_imports(
         &conn,
         ListDailyReportImportsQuery {
@@ -173,6 +175,7 @@ fn validate_daily_report_files(files: &[DailyReportSourceFileRequest]) -> Result
             kind: "validation".to_string(),
             message: "Z001/Z002/Z005の3ファイルを選択してください".to_string(),
             field: None,
+            error_id: None,
         });
     }
     if files
@@ -183,6 +186,7 @@ fn validate_daily_report_files(files: &[DailyReportSourceFileRequest]) -> Result
             kind: "validation".to_string(),
             message: "ファイルサイズが上限(20MB)を超えています".to_string(),
             field: None,
+            error_id: None,
         });
     }
     Ok(())
@@ -194,6 +198,7 @@ fn validate_preview_token(preview_token: &str) -> Result<(), CmdError> {
             kind: "validation".to_string(),
             message: "不正なプレビュートークンです".to_string(),
             field: None,
+            error_id: None,
         });
     }
     Ok(())

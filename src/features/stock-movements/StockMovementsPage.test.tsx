@@ -117,7 +117,7 @@ describe("StockMovementsPage (UI-06c)", () => {
   it("REQ-303: 商品情報取得失敗でもmovement listを表示する", async () => {
     mockGetStockDetail.mockResolvedValue({
       status: "error",
-      error: { kind: "not_found", message: "商品が見つかりません", field: null },
+      error: { kind: "not_found", message: "商品が見つかりません", field: null, error_id: null },
     });
     mockListMovements.mockResolvedValue({
       status: "ok",

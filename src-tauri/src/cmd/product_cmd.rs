@@ -21,7 +21,7 @@ pub fn create_product(
     let mut conn = state
         .db
         .lock()
-        .map_err(|_| CmdError::internal("DB接続エラー"))?;
+        .map_err(|error| CmdError::internal("DB接続エラー", error))?;
     product_service::create_product(&mut conn, req).map_err(CmdError::from)
 }
 
@@ -36,7 +36,7 @@ pub fn update_product(
     let mut conn = state
         .db
         .lock()
-        .map_err(|_| CmdError::internal("DB接続エラー"))?;
+        .map_err(|error| CmdError::internal("DB接続エラー", error))?;
     product_service::update_product(&mut conn, &product_code, &req).map_err(CmdError::from)
 }
 
@@ -49,7 +49,7 @@ pub fn toggle_discontinue(state: State<AppState>, product_code: String) -> Resul
     let mut conn = state
         .db
         .lock()
-        .map_err(|_| CmdError::internal("DB接続エラー"))?;
+        .map_err(|error| CmdError::internal("DB接続エラー", error))?;
     product_service::toggle_discontinue(&mut conn, &product_code).map_err(CmdError::from)
 }
 
@@ -63,7 +63,7 @@ pub fn search_products(
     let conn = state
         .db
         .lock()
-        .map_err(|_| CmdError::internal("DB接続エラー"))?;
+        .map_err(|error| CmdError::internal("DB接続エラー", error))?;
     product_service::search_products(&conn, query).map_err(CmdError::from)
 }
 
@@ -74,7 +74,7 @@ pub fn list_departments(state: State<AppState>) -> Result<Vec<Department>, CmdEr
     let conn = state
         .db
         .lock()
-        .map_err(|_| CmdError::internal("DB接続エラー"))?;
+        .map_err(|error| CmdError::internal("DB接続エラー", error))?;
     product_service::list_departments(&conn).map_err(CmdError::from)
 }
 
@@ -85,7 +85,7 @@ pub fn list_suppliers(state: State<AppState>) -> Result<Vec<Supplier>, CmdError>
     let conn = state
         .db
         .lock()
-        .map_err(|_| CmdError::internal("DB接続エラー"))?;
+        .map_err(|error| CmdError::internal("DB接続エラー", error))?;
     product_service::list_suppliers(&conn).map_err(CmdError::from)
 }
 
@@ -101,7 +101,7 @@ pub fn get_product(
     let conn = state
         .db
         .lock()
-        .map_err(|_| CmdError::internal("DB接続エラー"))?;
+        .map_err(|error| CmdError::internal("DB接続エラー", error))?;
     product_service::get_product(&conn, &product_code).map_err(CmdError::from)
 }
 
@@ -122,7 +122,7 @@ pub fn preview_import(
     let conn = state
         .db
         .lock()
-        .map_err(|_| CmdError::internal("DB接続エラー"))?;
+        .map_err(|error| CmdError::internal("DB接続エラー", error))?;
     product_service::preview_import(&conn, &file_bytes).map_err(CmdError::from)
 }
 
@@ -139,7 +139,7 @@ pub fn commit_import(
     let mut conn = state
         .db
         .lock()
-        .map_err(|_| CmdError::internal("DB接続エラー"))?;
+        .map_err(|error| CmdError::internal("DB接続エラー", error))?;
     product_service::commit_import(&mut conn, valid_rows, overwrite_codes).map_err(CmdError::from)
 }
 

@@ -146,7 +146,12 @@ describe("StockInquiryPage (REQ-301 自動展開)", () => {
     // 詳細を独立描画する（§58.8、Codex Round 1 P2-1 の契約を構造変更後も維持）。
     mockSearch.mockResolvedValue({
       status: "error",
-      error: { kind: "internal", message: "一覧の取得に失敗しました", field: null },
+      error: {
+        kind: "internal",
+        message: "一覧の取得に失敗しました",
+        field: null,
+        error_id: null,
+      },
     });
     mockDetail.mockResolvedValue({
       status: "ok",

@@ -9,7 +9,7 @@ use crate::constants::SCANNING_PLU_EXPORT_LIMIT;
 use crate::db::product_repo::{self, Product, ProductUpdates};
 use crate::db::system_repo::{self, NewOperationLog};
 use crate::db::DbConnection;
-use crate::io::plu_formatter::{self, PluCsvOutput, PluExportRow};
+use crate::io::plu_formatter::{self, PluExportRow, PluFileOutput};
 
 use super::BizError;
 use std::collections::{BTreeMap, HashSet};
@@ -37,7 +37,7 @@ pub struct PluExportPrepareRequest {
 #[derive(Debug)]
 pub struct PluExportPreparedResult {
     /// IO-04生成のPLUファイルデータ
-    pub csv_output: PluCsvOutput,
+    pub plu_output: PluFileOutput,
     /// 書出し件数
     pub count: usize,
     /// PLUファイルに含めた商品コード一覧
@@ -167,11 +167,11 @@ pub fn prepare_plu_export(
     }
     let over_limit_warning = false;
 
-    let csv_output = plu_formatter::generate_plu_tsv(&rows)
-        .map_err(|e| BizError::ImportError(format!("PLUファイルの生成に失敗しました: {}", e)))?;
+    let plu_output = plu_formatter::generate_plu_tsv(&rows)
+        .map_err(|e| BizError::ExportError(format!("PLUファイルの生成に失敗しました: {}", e)))?;
 
     Ok(PluExportPreparedResult {
-        csv_output,
+        plu_output,
         count,
         target_product_codes,
         excluded,
@@ -403,7 +403,7 @@ mod tests {
             result.target_product_codes,
             vec!["PLU-P01".to_string(), "PLU-P02".to_string()]
         );
-        assert!(!result.csv_output.bytes.is_empty());
+        assert!(!result.plu_output.bytes.is_empty());
 
         for code in ["PLU-P01", "PLU-P02"] {
             let product = product_repo::find_by_product_code(&conn, code)
@@ -566,7 +566,7 @@ mod tests {
             vec!["PLU-001".to_string(), "PLU-002".to_string()]
         );
         assert!(!result.over_limit_warning);
-        assert!(!result.csv_output.bytes.is_empty());
+        assert!(!result.plu_output.bytes.is_empty());
 
         let p1 = product_repo::find_by_product_code(&conn, "PLU-001")
             .unwrap()
@@ -619,6 +619,29 @@ mod tests {
         let result = prepare_plu_export(&conn, req);
 
         assert!(matches!(result, Err(BizError::ValidationFailed(_))));
+    }
+
+    #[test]
+    fn test_plu_format_failure_req402_maps_to_export_error() {
+        // REQ-402 / BIZ-04-D2: formatter failure は書出し専用 error 語彙へ変換する。
+        let (_dir, conn) = setup_test_db();
+        seed_product_for_plu(&conn, "PLU-ERR", "合成商品😀", 1, false, true);
+
+        let result = prepare_plu_export(
+            &conn,
+            PluExportPrepareRequest {
+                mode: ExportMode::Diff,
+            },
+        );
+
+        assert!(
+            matches!(
+                result,
+                Err(BizError::ExportError(ref message))
+                    if message.starts_with("PLUファイルの生成に失敗しました:")
+            ),
+            "unexpected result: {result:?}"
+        );
     }
 
     #[test]
@@ -770,7 +793,7 @@ mod tests {
             result.target_product_codes,
             vec!["DEDUP-A".to_string(), "DEDUP-B".to_string()]
         );
-        assert!(!result.csv_output.bytes.is_empty());
+        assert!(!result.plu_output.bytes.is_empty());
         assert!(result.excluded.iter().any(|excluded| {
             excluded.product_code == "MISMATCH-A"
                 && matches!(excluded.reason, PluExcludedReason::GroupPriceMismatch)

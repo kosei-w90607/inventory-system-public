@@ -36,7 +36,7 @@ pub fn get_active_stocktake(state: State<AppState>) -> Result<Option<Stocktake>,
     let conn = state
         .db
         .lock()
-        .map_err(|_| CmdError::internal("DB接続エラー"))?;
+        .map_err(|error| CmdError::internal("DB接続エラー", error))?;
     stocktake_service::get_active_stocktake(&conn).map_err(CmdError::from)
 }
 
@@ -51,7 +51,7 @@ pub fn start_stocktake(
     let mut conn = state
         .db
         .lock()
-        .map_err(|_| CmdError::internal("DB接続エラー"))?;
+        .map_err(|error| CmdError::internal("DB接続エラー", error))?;
     stocktake_service::start_stocktake(&mut conn).map_err(CmdError::from)
 }
 
@@ -71,7 +71,7 @@ pub fn get_stocktake_items(
     let conn = state
         .db
         .lock()
-        .map_err(|_| CmdError::internal("DB接続エラー"))?;
+        .map_err(|error| CmdError::internal("DB接続エラー", error))?;
 
     let (paginated, progress) = stocktake_service::get_stocktake_items(
         &conn,
@@ -105,7 +105,7 @@ pub fn find_stocktake_item(
     let conn = state
         .db
         .lock()
-        .map_err(|_| CmdError::internal("DB接続エラー"))?;
+        .map_err(|error| CmdError::internal("DB接続エラー", error))?;
     stocktake_service::find_stocktake_item(&conn, stocktake_id, &code).map_err(CmdError::from)
 }
 
@@ -120,7 +120,7 @@ pub fn get_last_completed_stocktake(
     let conn = state
         .db
         .lock()
-        .map_err(|_| CmdError::internal("DB接続エラー"))?;
+        .map_err(|error| CmdError::internal("DB接続エラー", error))?;
     stocktake_service::get_last_completed_stocktake(&conn).map_err(CmdError::from)
 }
 
@@ -137,7 +137,7 @@ pub fn update_count(
     let conn = state
         .db
         .lock()
-        .map_err(|_| CmdError::internal("DB接続エラー"))?;
+        .map_err(|error| CmdError::internal("DB接続エラー", error))?;
     let req = UpdateCountRequest {
         stocktake_item_id,
         actual_count,
@@ -159,7 +159,7 @@ pub fn complete_stocktake(
     let mut conn = state
         .db
         .lock()
-        .map_err(|_| CmdError::internal("DB接続エラー"))?;
+        .map_err(|error| CmdError::internal("DB接続エラー", error))?;
     let req = CompleteStocktakeRequest {
         stocktake_id,
         force_fill,

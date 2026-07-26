@@ -21,7 +21,7 @@ pub fn get_stock_detail(
     let conn = state
         .db
         .lock()
-        .map_err(|_| CmdError::internal("DB接続エラー"))?;
+        .map_err(|error| CmdError::internal("DB接続エラー", error))?;
     product_service::get_stock_detail(&conn, &product_code).map_err(CmdError::from)
 }
 
@@ -37,7 +37,7 @@ pub fn list_low_stock(
     let conn = state
         .db
         .lock()
-        .map_err(|_| CmdError::internal("DB接続エラー"))?;
+        .map_err(|error| CmdError::internal("DB接続エラー", error))?;
     product_service::list_low_stock(&conn, include_discontinued).map_err(CmdError::from)
 }
 
@@ -53,7 +53,7 @@ pub fn list_movements(
     let conn = state
         .db
         .lock()
-        .map_err(|_| CmdError::internal("DB接続エラー"))?;
+        .map_err(|error| CmdError::internal("DB接続エラー", error))?;
     inventory_service::list_movements(&conn, &query).map_err(CmdError::from)
 }
 
