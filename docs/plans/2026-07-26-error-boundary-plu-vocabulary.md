@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: implementing
+- Phase: human-confirm
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: cb7050d
@@ -11,7 +11,7 @@
 - Writer: Codex（owner relay 発注。Plan 承認後の単独 writer）
 - Plan Reviewer: Sonnet 5 fresh context（Fable が subagent として起動し、findings を Fable が裁定）
 - Final Reviewer: Sonnet 5 fresh context（Fable が subagent として起動し、findings を Fable が裁定）
-- Reviewed Content HEAD: pending
+- Reviewed Content HEAD: bd72a12
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
 - Human Gate: 視認確認 1 件 — internal error 表示（error_id 付き定型文言）の dev 環境スクリーンショットを PR body で owner が目視 PASS/FAIL。Windows native L3 checklist は不要（L3 Eligibility 条件 (1) 不成立: 観察対象は dev 環境で再現可能で Windows/Tauri native 固有ではない）
@@ -57,6 +57,16 @@
   transition として materialize する。P1/P2=0 の reviewer 報告・plan-first commit が全
   実装 commit に先行する条件は、この state-only commit より前に存在する。実装は Codex
   発注（owner relay）で開始する。
+
+- State Narrative（2026-07-26、Final Review 収束 / state-only）: content candidate
+  `bd72a12` は Writer の L1 full CLEAN evidence（PR #25 body）を持ち、Final Reviewer
+  （Sonnet 5 fresh context、worktree 隔離）は Contract Audit 全 10 項目・X1〜X8 mutation
+  の clean tree 実注入 red 独立再実測を経て、P2 是正確認後に P1/P2/P3 = 0/0/0 を報告
+  した。Findings Freeze を確定し、`implementing -> local-verified -> independent-review
+  -> human-confirm` を隣接 forward transition として materialize する。
+  `Reviewed Content HEAD` は `bd72a12`。各遷移の evidence（L1 CLEAN / reviewer 従事 /
+  P1/P2=0 裁定）はこの state-only commit より前に存在する。残る Human Gate は
+  視認確認 1 件（PR body の synthetic スクショ、owner 目視 PASS/FAIL）。
 
 ## Owner Effort Budget
 
@@ -410,4 +420,8 @@ Do not transcribe exact-HEAD SHA or test counts here (D-035/D-038 Evidence Owner
   経路は既存から message に raw text を含む（本 PR 非接触。packet 宣言どおり restore
   semantics 不変の scope 判断に整合）。CMD-ERR-D2 趣旨との整合は別是正単位の
   follow-up 候補として post-merge closeout で Plans.md に記録する。
-- Findings Freeze: not yet frozen（P2 是正の reviewer 確認後に freeze）; post-freeze exceptions: none.
+- Final Review 是正確認（同 reviewer context、candidate `bd72a12`）: a941a83→bd72a12 の
+  diff が REQ tag 改名 + 生成物再生成のみであること、REQ-402 行から csv-import test の
+  混入消滅・REQ-401 側への正着、`generate_traceability` re-run diff clean、PR body の
+  candidate SHA / L1 evidence と実 PR HEAD の整合をすべて確認し、P1/P2/P3 = 0/0/0 を報告。
+- Findings Freeze: frozen after Broad Audit（P1=0 / P2=0 / P3=0、2026-07-26）; post-freeze exceptions: none.
