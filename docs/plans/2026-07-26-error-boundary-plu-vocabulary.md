@@ -2,11 +2,11 @@
 
 ## Workflow State
 
-- Phase: plan-gate
+- Phase: implementing
 - Risk: R3
 - Execution Mode: fable-window
-- Plan Commit: pending
-- Amendments: none
+- Plan Commit: cb7050d
+- Amendments: 9615b8e, 67cef27
 - Coordinator: Fable 5（本 thread。scope 精査・Design Phase・packet 作成・レビュー裁定）
 - Writer: Codex（owner relay 発注。Plan 承認後の単独 writer）
 - Plan Reviewer: Sonnet 5 fresh context（Fable が subagent として起動し、findings を Fable が裁定）
@@ -48,6 +48,15 @@
   一括反映。P3 = error_id の DOM 配置未規定 — accept、68 §68.7 に「別要素併記で既存
   完全一致 assertion の書換え最小化」を追記。反映後、reviewer の P1/P2=0 確認を経て
   plan-approved 遷移を owner に諮る。
+
+- State Narrative（2026-07-26、owner Plan 承認 / state-only）: 再レビュー第 3 round で
+  Plan Reviewer が P1/P2/P3 = 0 と「新たな矛盾なく plan-approved 遷移可」を報告した。
+  owner は Plan を承認した（この change での介入 1 回目 / 予算 3 回）。plan-first
+  commit `cb7050d` を `Plan Commit` へ固定し、plan-gate 内是正 `9615b8e` / `67cef27` を
+  `Amendments` へ記録する。`plan-gate -> plan-approved -> implementing` を隣接 forward
+  transition として materialize する。P1/P2=0 の reviewer 報告・plan-first commit が全
+  実装 commit に先行する条件は、この state-only commit より前に存在する。実装は Codex
+  発注（owner relay）で開始する。
 
 ## Owner Effort Budget
 
