@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: human-confirm
+- Phase: ready-hosted-final
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: 83d8fdd
@@ -72,6 +72,19 @@
   forward transition として materialize し、`Reviewed Content HEAD` を content
   candidate `7d6e441` に固定する。残 gate = Human Gate ①視認 ②L3 1 項目 →
   owner の Ready 承認（介入 2/3）→ ready-hosted-final。
+
+- State Narrative（2026-07-27、Human Gate 完了 / state-only）: owner が Human Gate
+  を実施（この change での介入 2 回目 / 予算 3 回）。①視認 = PR body の 3 画面
+  synthetic スクショを目視 PASS。②L3 = 現行 parser 受理 shape の synthetic Z004
+  で native dialog 起動 → file 選択 → プレビュー → 取込みの 1 flow 完走を確認。
+  あわせて実採取 layout A file（メタ 6 行・日付 5 行目）の「精算日を抽出できません」
+  graceful stop を再観測 — これは PR #125 L3 / 2026-07-06 issue #135 に続く既知
+  挙動の 3 回目の再確認であり、本 packet の Non-scope（parser 変更なし）どおり。
+  追跡は既存 backlog「Z004 parser の layout A 対応」（Post-PLU Z004 再評価、
+  D-025）に既在のため新規積増しなし。owner が Ready を承認し、
+  `human-confirm -> ready-hosted-final` を materialize する。以後 = 本 commit を
+  含む exact HEAD で L1 full → PR body 全体 refresh → owner の Ready 化 +
+  hosted dispatch → hosted green 確認 → merge（介入 3/3）。
 
 ## Owner Effort Budget
 
