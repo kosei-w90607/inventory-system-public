@@ -555,6 +555,10 @@ CMD層の `CmdError` は `kind: string` / `message: string` / `field?` / `error_
 
 **日報取込みは path-based input へ移行済み（移行第一号、2026-07-04 PR #125）**: REQ-401 日報取込み（Z001/Z002/Z005）は当初 HTML input の複数ファイル選択で実装したが、Windows native L3 で WebView2 が HTML file input のネイティブダイアログ起動後に DOM 変化まで画面を再描画しない白画面バグ（JS 例外なし・console 無出力、選択後の state 遷移で復帰）を踏んだため、`@tauri-apps/plugin-dialog.open()` + `@tauri-apps/plugin-fs.readFile()`（capability: `dialog:allow-open` + `fs:allow-read-file`）の path-based 方式へ切り替えた。open() のキャンセル（null）は state 据え置きで安全。残りの暫定例外画面の移行は Plans.md backlog「ファイル選択 UI の共通化（FilePicker パターン + plugin-dialog 移行統合）」で扱い、複数ファイル取込み画面を優先する（同バグの再発リスクがあるため）。
 
+**共通 FilePicker（D-054、監査是正 順9）**: ファイル選択は共通 `FilePicker` component に一元化する。入口は native dialog ボタン（`plugin-dialog.open()` + `plugin-fs.readFile()` の path-based 方式）と任意の drag&drop 経路の 2 つ、出力は `{ bytes, filename, size }` の単一契約。`open()` の cancel（null）は state 据え置き。accept / disabled / 上限サイズ表示 / accessible label は props で供給する。画面ローカルの plain `<input type="file">` / 独自 dropzone の新設は禁止。
+
+**cross-language validation 定数（D-054）**: file サイズ上限等、frontend と backend が同値を要する validation 定数は `src-tauri/src/constants.rs` を SSOT とし、bindings 生成で `bindings.ts` に export された値を frontend が import する。frontend 側の local 複製は禁止（静的 sweep test で検出）。L1 の bindings clean diff 検査が cross-language 同期の機械検査を兼ねる。
+
 ### 6.6 ダークモード見送り
 
 **決定**: Phase 1〜4 で**ダークモード対応はしない**。

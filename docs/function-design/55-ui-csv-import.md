@@ -43,7 +43,7 @@ UI 層関数設計書の 2 段階テンプレ（業務ロジック有無で使�
 **判定根拠**:
 
 - CMD 呼び出し: `commands.parseAndValidateCsv` / `commands.commitCsvImport` / `commands.rollbackCsvImport` / `commands.listCsvImports` の 4 件（3 useMutation + 1 useQuery）
-- 入力バリデーション: ファイル拡張子 `.csv` / `.txt` + 上限 20MB の事前防御（BIZ-03 / CMD-07 でも検証されるが、UI 側でも誤選択を弾く）
+- 入力バリデーション: ファイル拡張子 `.csv` / `.txt` + 上限 `CSV_IMPORT_FILE_SIZE_LIMIT`（bindings 生成定数、constants.rs SSOT。D-054）の事前防御（BIZ-03 / CMD-07 でも検証されるが、UI 側でも誤選択を弾く）
 - 画面内部 state 駆動のフロー分岐: あり（6 variant discriminated union `CsvImportState` × 9 action の reducer、`DuplicateStatus` による上書き確認分岐、`useBlocker` の importing 中常時 block）
 
 → **業務ロジックあり版**（複数 CMD + reducer 駆動分岐 + 排他制御）。共通 6 項目（モジュール構成 / React State / CMD 呼び出し / 利用者操作フロー / エラー表示 / ローディング表示）+ ショートカット・lifecycle / 状態遷移図 / エラーハンドリング備考 / テスト方針の 10 章構成。
@@ -161,7 +161,7 @@ invalid 遷移（例: `idle` で `parse_succeeded`）は reducer 内で現 state
 
 #### File → Vec<u8> 変換
 
-`<input type="file">` から得た `File` オブジェクトを `await file.arrayBuffer()` → `Array.from(new Uint8Array(buffer))` で `number[]` 化（specta 経由で Rust `Vec<u8>` に直マップ）。20MB 上限は CMD-07 で再検証されるが、UI 側でも `file.size > 20 * 1024 * 1024` で早期 reject + Sonner トースト（CMD-07 経由のラウンドトリップを避ける）。
+共通 FilePicker（D-054）から得た `bytes` を `number[]` 化（specta 経由で Rust `Vec<u8>` に直マップ）。上限は CMD-07 で再検証されるが、UI 側でも `size > CSV_IMPORT_FILE_SIZE_LIMIT`（bindings 生成定数）で早期 reject + Sonner トースト（CMD-07 経由のラウンドトリップを避ける）。
 
 #### 派生値
 
@@ -226,7 +226,7 @@ Phase 2 closeout で `typedInvoke` fallback / baseline 監視は撤去済み。C
 
 **ファイル選択 / drag&drop**:
 
-3. `<input type="file" accept=".csv,.txt">` または `onDrop` ハンドラで `File` 取得 → サイズ判定（>20MB なら Sonner トースト + 早期 reject）→ `await file.arrayBuffer()` → `number[]` 化 → `dispatch({ type: "select_file", filename })` + `parseAndValidateMutation.mutate({ fileBytes, filename })`
+3. 共通 FilePicker（accept=".csv,.txt"、native dialog + 任意 drop。D-054）で `{ bytes, filename, size }` 取得 → サイズ判定（`size > CSV_IMPORT_FILE_SIZE_LIMIT` なら Sonner トースト + 早期 reject）→ `number[]` 化 → `dispatch({ type: "select_file", filename })` + `parseAndValidateMutation.mutate({ fileBytes, filename })`
 4. parsing 中: `ParseStep` が `Loader2 + animate-spin` + 「ファイルを解析中…」状態文言 + 5 秒目安の補助文言
 5. 成功時: `dispatch({ type: "parse_succeeded", preview, previewToken })` → `preview` state へ遷移
 
