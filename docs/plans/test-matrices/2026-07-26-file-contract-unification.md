@@ -26,7 +26,8 @@ Risk: R3
 
 | Contract | Failure Mode | Test Type | Test Name | Would fail if... |
 |---|---|---|---|---|
-| UI-01c-D15 | 商品 import が上限超過を受理 | unit (Rust) | `test_import_products_req104_rejects_oversize_file`（境界値: 上限ちょうど受理 / +1 拒否） | guard 削除・境界反転 |
+| UI-01c-D15 | 商品 import が上限超過を受理 | unit (Rust) | `test_import_products_req104_rejects_oversize_file`（境界値: 上限ちょうど受理 / +1 拒否） | CMD guard 削除・境界反転 |
+| UI-01c-D15 | BIZ 安全網の欠落（CMD bypass 時） | unit (Rust, BIZ) | `test_preview_import_req104_rejects_oversize_file` | BIZ 安全網削除（X9） |
 | UI-01c-D15 隣接 | 売上/日報 CMD の上限挙動変化 | regression (既存) | 既存上限 test（実在確認の上引用） | 共通化で既存 guard が変わる |
 | D-054① | local 複製残存・復活 | static regression test | `file-contract-no-local-duplicates.test.ts`（`20 \* 1024 \* 1024` / `20971520` リテラルと `type="file"` の sweep。許容 list は FilePicker 実装 + fixture の明示列挙のみ） | 複製・plain input 再導入 |
 | D-054① | 生成定数の欠落 | 生成系 (L1) | bindings clean diff + hook の実 import（rg、AC） | 定数 export 削除（FE compile も red） |
@@ -56,7 +57,7 @@ workflow-state 行: 順8 と同一運用（content candidate → L1 → 独立 r
 | Source pattern / contract | Repository sites inspected | Ported sites | Explicit exclusions and reason | Test / evidence |
 |---|---|---|---|---|
 | file 選択実装 | FileDropzone / ProductImportDropzone / ReturnExchange input / PreviewStep・ProductImportPreview 再選択 / 日報 path-based（PR #125） | 共通 FilePicker + 5 置換 | 日報画面は移行済み pattern の原型 — 等価 refactor のみ（工数超過時 defer 可、Non-scope） | sweep + 各画面 test |
-| 20MB 定数 | constants.rs / 3 hook / 3 CMD | 生成定数 + 商品 CMD guard | `CSV_IMPORT_LINE_LIMIT` は Rust 内完結のため対象外 | sweep + cargo test |
+| 20MB 定数 | constants.rs / 3 hook / 3 CMD / BIZ 側二重防御 2 site（csv_import_service/parse.rs・daily_report_import_service/parse.rs） | 生成定数 + 商品の CMD 早期拒否 + BIZ `preview_import` 安全網（既存二重防御と同型） | `CSV_IMPORT_LINE_LIMIT` は Rust 内完結のため対象外 | sweep + cargo test |
 | 実配線 hook test | useDailyReportImportFlow.test.tsx（原型） | useCsvImportFlow.test.tsx | useProductImportFlow の実配線化は P8b 系 follow-up（本 unit は Z004 が対象） | vitest |
 
 ## Negative Paths
@@ -98,6 +99,7 @@ workflow-state 行: 順8 と同一運用（content candidate → L1 → 独立 r
 主要 mutation（Final Review で clean committed tree に実注入・kill 実測）:
 
 - X1: 商品 import CMD の上限 guard 削除 → `test_import_products_req104_rejects_oversize_file` red。
+- X9: 商品 import BIZ の安全網削除 → `test_preview_import_req104_rejects_oversize_file` red。
 - X2: 3 hook のどれかを local リテラルへ戻す → `file-contract-no-local-duplicates.test.ts` red。
 - X3: useCsvImportFlow の guard 削除 → 実配線 hook test red。
 - X4: import_error recovery 配線切断 → 同 red。

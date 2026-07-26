@@ -24,6 +24,17 @@
   commit にまとめ、`kickoff -> spec-check -> design -> plan-draft -> plan-gate` を
   materialize する。Plan 承認前に production code は変更しない。
 
+- State Narrative（2026-07-26、Plan Review 一次）: Plan Reviewer（Sonnet 5 fresh
+  context）は P1=1 / P2=3 / P3=0、総評「条件付き承認可」。P1 = UI_TECH_STACK 内の
+  旧「暫定例外維持」記述と新 D-054 節の自己矛盾 — accept、旧記述を D-054 supersede へ
+  書換え。P2-1 = Contract Probe の「外部前提なし」は誤りで tauri-specta に定数 export
+  API がない — accept、実装方式を「specta export 後の手書き append（idempotent）」に
+  確定し Probe を訂正。P2-2 = File 型中間 handler の signature 変更の明記漏れ — accept、
+  Scope / Ledger に追加。P2-3 = 商品 import guard の CMD 単独は既存の CMD+BIZ 二重防御
+  慣行と非対称 — accept、**BIZ `preview_import` 安全網も追加**する方向で UI-01c-D15 /
+  Scope / Ledger / Matrix（X9）を更新。是正は plan-gate 内修正、再レビューは同 reviewer
+  context の差分確認。
+
 ## Owner Effort Budget
 
 - 介入回数上限: 3（Plan 承認 / L3+視認+Ready / merge）
@@ -79,9 +90,14 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 ## Scope
 
 - 生成系: bindings 生成に `CSV_IMPORT_FILE_SIZE_LIMIT` の export を追加
-  （constants.rs SSOT → bindings.ts。D-054①）。
-- CMD: 商品 import command に上限超過の validation 拒否を追加（UI-01c-D15。
-  文言は売上/日報 CMD の既存上限文言と整合させる）。
+  （constants.rs SSOT → bindings.ts。D-054①。実装方式は specta export 後の手書き
+  append — Contract Probe 参照）。
+- CMD/BIZ: 商品 import に上限超過の validation 拒否を **CMD 早期拒否 + BIZ
+  `preview_import` 安全網の二重**で追加（UI-01c-D15。売上/日報の既存二重防御
+  パターンと同型。文言は既存上限文言と整合させる）。
+- UI 中間層: `selectFile` / `handleReceiptFile` 等、Web `File` 型を受け取る中間
+  handler / hook / component props の signature を FilePicker 出力
+  `{ bytes, filename, size }` へ変更する（D-054② の伝播。挙動は等価）。
 - UI: 共通 `FilePicker` component 新設（D-054②: dialog 経路 + 任意 drop 経路、
   出力 `{ bytes, filename, size }`、cancel null 据え置き、accept / disabled /
   上限表示 / accessible label props）。移行対象 = csv-import `FileDropzone` /
@@ -206,8 +222,12 @@ Minimum design checks:
 
 ## Contract Probe
 
-- N/A — 未検証の外部前提なし。plugin-dialog + plugin-fs の path-based 読取りは
-  日報取込み（PR #125）で production 実証済み。bindings 生成器は repo 内自作 code。
+- tauri-specta に定数 export の公式 API はない（Plan Review 一次 P2-1 で確認）→ 定数
+  export は `export_specta_bindings` 内で specta の export **後** に手書き append する
+  方式で実装する（specta が file 全体を上書きしてから append するため re-run は
+  idempotent）。specta 側 API の有無に依存しない設計。
+- plugin-dialog + plugin-fs の path-based 読取りは日報取込み（PR #125）で production
+  実証済み — 追加 probe 不要。
 
 ## Contract Coverage Ledger
 
@@ -215,8 +235,10 @@ Minimum design checks:
 |---|---|---|---|
 | D-054①: constants.rs SSOT → bindings 定数 export | 生成器 + `bindings.ts` | 生成 diff clean（L1）+ sweep test | — |
 | D-054①: 3 hook の local 複製排除 | useCsvImportFlow / useDailyReportImportFlow / useProductImportFlow | `file-contract-no-local-duplicates.test.ts` | — |
-| UI-01c-D15: 商品 import CMD の上限拒否 | product cmd | `test_import_products_req104_rejects_oversize_file` | — |
-| UI-01c-D15 隣接: 売上/日報 CMD の既存上限挙動不変 | csv_import_cmd / daily_report_import_cmd | 既存上限 test green（実在確認は Matrix） | — |
+| UI-01c-D15: 商品 import CMD の上限拒否（早期） | product cmd | `test_import_products_req104_rejects_oversize_file` | — |
+| UI-01c-D15: 商品 import BIZ の上限安全網 | `product_service::preview_import` | `test_preview_import_req104_rejects_oversize_file`（BIZ unit） | — |
+| UI-01c-D15 隣接: 売上/日報 CMD+BIZ の既存上限挙動不変 | csv/daily の cmd + parse service | 既存上限 test green（実在確認は Matrix） | — |
+| D-054② 伝播: File 型中間 handler の signature 変更が挙動等価 | selectFile / handleReceiptFile 等 | 実配線 hook test + 各画面既存 test green | — |
 | D-054②: FilePicker 出力契約 `{bytes, filename, size}` | `src/components` FilePicker | `FilePicker.test.tsx` | — |
 | D-054②: cancel null 据え置き | FilePicker | 同上（X7） | — |
 | D-054②: drop 経路維持 | FilePicker | 同上（X8） | — |
