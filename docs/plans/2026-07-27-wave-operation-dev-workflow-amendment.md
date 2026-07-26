@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: implementing
+- Phase: ready-hosted-final
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: b7c29c2
@@ -11,10 +11,10 @@
 - Writer: Codex（実装。packet 設計は Fable = design board 例外の適用: workflow design-only change、owner 明示指示 = 2026-07-27 wave 運用決定・引き継ぎ書）
 - Plan Reviewer: Sonnet（独立 fresh context subagent。rally round 1〜3 実施、round 3 で P1/P2 = 0。owner 判断で Codex 追加 round 可）
 - Final Reviewer: Codex review-only subagents（独立 Double Audit、closure 済み）
-- Reviewed Content HEAD: ac12745fbfb32d887f1c971f3bf920d815d09535
+- Reviewed Content HEAD: 38fe86acf14f847dca93c8b0bda2efefe40f8dba
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
-- Human Gate: pending（Ready 化 / merge。この change での介入 2 回目 / 予算 3 回）
+- Human Gate: merge のみ pending（owner が後処理を Coordinator へ委任）。plan 承認 + wave 1 選定 = 介入 1/3、Ready 承認 + 後処理委任 = 介入 2/3（いずれも 2026-07-27）
 
 ## Owner Effort Budget
 
@@ -261,6 +261,13 @@ Exact-HEAD SHA と test count は D-035/D-038 に従い PR body を正本とす�
 - Findings Freeze 後の新規発見だが、実再実測の failure で立証されているため blocker として accept。是正 = M-A11a assertion を定義文 literal（`Rebase Map: <旧 SHA> -> <新 SHA>`）へ特定化（X7 の注入内容は不変、oracle 側の弁別性を回復）。DEV_WORKFLOW / checker / test の実装は無変更（oracle 定義のみの是正）
 - 併せて AC の mutation range「X1〜X6」が X7/X8 追加時に未追随だった stale 表記を是正
 - 手順 = state-backtrack `human-confirm -> implementing`（`adc5bc6`）→ 本 Amendment content commit → Amendments 行追記 → Coordinator が新 M-A11a で X7 を再実測 → L1 full 再実行 → 再 walk（evidence 充足後、Ready 承認時に adjacent forward 一括実体化。forward state-only は cap 3 の残 1 枠に収める）
+
+**遷移記録（2026-07-27、state-only、再 walk 一括実体化）**
+
+- owner が Ready 化を承認し後処理（Ready / hosted final / merge / closeout）を Coordinator へ委任（この change での介入 2 回目 / 予算 3 回）。既存 evidence により `implementing -> local-verified -> independent-review -> human-confirm -> ready-hosted-final` を本 state-only commit（forward state-only 3/3）で一括実体化:
+  - implementing -> local-verified: content candidate = Reviewed Content HEAD 記載 SHA、L1 full PASS / CLEAN / MERGE_EVIDENCE_VALID（evidence は PR body と `.local/ci-evidence/`）
+  - local-verified -> independent-review -> human-confirm: Double Audit closure（P1/P2 = 0、ac12745 時点）+ Amendment 2 の delta（Matrix oracle 是正 + Plans.md 同期のみ、実装無変更）は Coordinator の閉包確認 = X7 含む全 10 mutation の独立再実測 red で閉じる（Findings Freeze 下の closure confirmation）
+  - human-confirm -> ready-hosted-final: owner Ready 承認（本記録冒頭）。本 commit 後の resulting HEAD で L1 full を再実行し PR body を全面 refresh する
 
 **Final Double Audit と遷移記録（2026-07-27、state-only）**
 
