@@ -33,7 +33,7 @@
 - R4・workflow gate change は Double Audit（独立2回の Contract Audit。詳細は [DEV_WORKFLOW.md](DEV_WORKFLOW.md)「Contract Audit (R3/R4)」参照）
 - Human Gate は owner 限定
 - 希少・高コストな model slot は通常実装の Writer に充てない（現行の容量温存規範を model-neutral に継承。投入条件は §3.1 参照）。例外を適用する場合は Workflow State に理由を 1 行記録する
-- 高自律・低制約適性 slot（§3.4 で対応。過程指示を減らすほど性能が出る世代特性の model slot）は read-only の Reviewer / Explorer 発注書ロール専任とし、Writer / Coordinator / state 遷移管理に割り当てない。§3.1 の design board 例外の対象外（同例外の主語は希少・最高能力 slot であり、本区分には適用しない）。投入はレビュー難所・広域調査の発注書単位で Coordinator が判断し、通常レビューは既存分業を維持する。発注書は §5.4 の低制約 profile を用いる（D-056）
+- 高自律・低制約適性 slot（§3.4 で対応。過程指示を減らすほど性能が出る世代特性の model slot）は read-only の Reviewer / Explorer 発注書ロール専任とし、Writer / Coordinator / state 遷移管理に割り当てない。§3.1 の design board 例外の対象外（同例外の主語は希少・最高能力 slot であり、本区分には適用しない）。投入はレビュー難所・広域調査の発注書単位で Coordinator が判断し、通常レビューは既存分業を維持する。発注書は §5.4 の低制約 profile を用いる。本項の Reviewer / Explorer は §2 の Plan Reviewer / Final Reviewer / Explorer / Evidence を指す総称（D-056）
 
 数値閾値（`Owner Effort Budget` 等）は [DEV_WORKFLOW.md](DEV_WORKFLOW.md) を参照し、本書には再掲しない。
 
@@ -160,7 +160,7 @@ docs/Plans.md cleanup は DEV_WORKFLOW.md の Post-Merge Closeout に準拠す�
 4. 報告フォーマット（Verdict 形式・件数上限・file:line 実読・全文 dump 禁止）
 5. subagent 生成上限（既定 0。委譲過多傾向への上限明記は必須）
 
-出力契約（4）と委譲上限（5）は必ず書く。観点 list・必読順・検証 command の指定は書かない。従来型発注書（手順込み）は他 slot 向けに従来どおり使用する。
+出力契約（4）と委譲上限（5）は必ず書く。観点 list・必読順・検証 command の指定は書かない。従来型発注書（手順込み）は他 slot 向けに従来どおり使用する。Contract Audit / Final Review 役への発注では、[DEV_WORKFLOW.md](DEV_WORKFLOW.md)「Contract Audit」の実施項目を**検証対象として scope 境界（2）に列挙する** — これは対象物の指定（出力契約）であり過程指示ではない。検証の手順・順序・command は引き続き指定しない。
 
 ## 6. ハーネス間の既知の非対称（重要な注意）
 
