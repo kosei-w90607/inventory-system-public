@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: implementing
+- Phase: human-confirm
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: 83d8fdd
@@ -11,7 +11,7 @@
 - Writer: Codex（owner relay 発注。Plan 承認後の単独 writer）
 - Plan Reviewer: Sonnet 5 fresh context（Fable が subagent 起動・裁定）
 - Final Reviewer: Sonnet 5 fresh context（Fable が subagent 起動・裁定）
-- Reviewed Content HEAD: pending
+- Reviewed Content HEAD: 7d6e441
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
 - Human Gate: ①視認確認 — 3 画面（csv-import / product-import / return-exchange）の FilePicker 表示・選択後 state の dev スクショを PR body で owner が目視 PASS/FAIL。②Windows native L3 1 項目 — 代表 1 画面（csv-import）で FilePicker の native dialog 起動 → 選択 → 取込み 1 flow（L3 Eligibility 充足: WebView2 固有挙動は native でのみ観察可、既存ツールのみ、fault-injection 不要）
@@ -60,6 +60,18 @@
   追発注（relay 2/2）、Matrix へ X10（drop 経路 basename 正規化）を plan-first で
   追加済み。再レビューは同 Final Reviewer 系統の fresh context による差分確認 +
   X10 実注入で行う。
+
+- State Narrative（2026-07-27、Final Review 収束 / state-only）: writer 是正
+  `7d6e441` に対し差分再レビュー（Sonnet 5 fresh context）を実施、P1/P2/P3 =
+  0/0/0。X10 / X7 / X8 は clean committed tree への実注入で red を独立再実測。
+  移設 test（`src/lib/extractFilename.test.ts`）の case 等価、Non-scope（日報
+  hook は共有 basename 関数への等価置換のみ）、writer docs 変更が裁定 narrative
+  無改変の追記のみであることを確認。L1 / release check / traceability / AC sweep
+  の証跡は PR #26 body を正とする。評価条件が全て本 commit より前に存在するため、
+  `implementing -> local-verified -> independent-review -> human-confirm` を隣接
+  forward transition として materialize し、`Reviewed Content HEAD` を content
+  candidate `7d6e441` に固定する。残 gate = Human Gate ①視認 ②L3 1 項目 →
+  owner の Ready 承認（介入 2/3）→ ready-hosted-final。
 
 ## Owner Effort Budget
 
