@@ -101,6 +101,8 @@
    前段の **順10 scope 精査（拡張版）は 2026-07-27 実施済み**: [report](research/audit-2026-07/report.md) の優先度付き是正リスト 22 単位を順1〜9 消化実績（PR #14〜#26、上記完了リスト）と突合し、**残 = 順10〜22 の 13 単位**を確定（numbering の正本は report.md。[adjudication](research/audit-2026-07/adjudication.md) の「新順/旧順」表記は第 1 パス旧番号）。同一 file 干渉 pair = 順13×順14（`src/lib/bindings.ts` 生成物）/ 順15×順17（`OperationLogsPage.tsx`）/ 順15×順18（`navigation.ts`）/ 順15×順21（`ManualSaleRecordDetailPage.tsx`）/ 順10×順18（`53-ui-home.md`）。順9 は PR #26 squash merge `9cba5aa` で完了（archived [Packet](archive/plans/2026-07-26-file-contract-unification.md) 参照）。
    **是正記録（2026-07-21）**: closeout `8a36224` は「次 = roadmap 1-2 横断監査」としていたが、1-2 は **PR #13 squash merge `d9e16fe`（2026-07-17）で消化済み**（上記完了リスト参照。監査発注書 [00-order.md](research/audit-2026-07/00-order.md) 自身が roadmap 1-2 と明記）。roadmap リストの取り消し線漏れに起因して PR #17 closeout 以降 3 closeout 連続で「1-2 は未着手」扱いの drift が伝播していたため、owner 確認の上で是正。D-050 (iii) の revisit 先「roadmap 1-2 横断監査の発注書作成時」は「次回の横断監査発注書作成時」と読み替える。
 
+0-b. **進行中（独立 track、R2 docs-only）**: **Opus 5 役割確定の正本化（D-056 候補）** — active packet: [plans/2026-07-27-opus5-role-docs.md](plans/2026-07-27-opus5-role-docs.md)。owner 最終決定（2026-07-27）: Opus 5 = read-only 発注書駆動の claims-producer 専任（低制約 profile 5 点）、メインスレッド代役不採用・ドラフト条件付き凍結（revisit = Fable slot 恒久喪失）、投入は難所 lane から。AGENT_OPERATING_MANUAL + decision-log へ正本化する。wave 1 とは file footprint 互いに素。
+
 ### Wave Registry
 
 - 形式: 現 wave ごとに status / lane 数 / merge train 順序を置き、各 lane に是正単位、branch、active packet link、Draft PR、Workflow State Phase、owner 介入回数を記録する。lane packet の選択と PK4 は、この「次の行動」節内の link を正本として fail-closed 判定する。
