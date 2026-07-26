@@ -42,7 +42,8 @@ CMD層は「画面からバックエンドへ渡す入口」であり、以下�
 - **業務ルール、業務バリデーション、DB操作は一切行わない**
 
 同じ業務条件をCMD層とBIZ層の双方で判定してはならない。CMD層で返す
-`CmdError` の `kind` / `message` / `field` は、BIZ層のエラーを変換して保持する。
+`CmdError` の `kind` / `message` / `field` は、BIZ層のエラーを変換して保持する
+（internal / restore_*系の `error_id` のみCMD境界で付与する。40-cmd-product.md 5.3 CMD-ERR-D1）。
 この単一所有ルールを **ARCH-VAL-D1** とする。
 
 wire型変換の失敗と、source designが明示するresource-safetyの早期拒否

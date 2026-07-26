@@ -23,7 +23,7 @@ src-tauri/src/
 - tax_rate: String（"10" / "8" / "0"）
 - department_name: String
 
-**PluCsvOutput構造体**（IO-04の戻り値。型名は互換維持でCsvのまま据え置き、実体はタブ区切りテキスト。将来リネーム検討）:
+**PluFileOutput構造体**（IO-04の戻り値。旧名 PluCsvOutput。実体が CV17 向けタブ区切り `.txt` であることに合わせ実体語彙へ改名。IO-04-D1、監査是正 順8 / P7b-3）:
 - bytes: Vec\<u8\>（CP932エンコード済みPLUファイルバイト列）
 - suggested_filename: String（例: "PLU_20260408.txt"）
 - content_type: &'static str = "text/tab-separated-values"
@@ -49,7 +49,7 @@ enum PluFormatError {
 
 **シグネチャ**:
 ```
-fn generate_plu_tsv(rows: &[PluExportRow]) -> Result<PluCsvOutput, PluFormatError>
+fn generate_plu_tsv(rows: &[PluExportRow]) -> Result<PluFileOutput, PluFormatError>
 ```
 
 **処理ステップ**:
@@ -81,7 +81,7 @@ fn generate_plu_tsv(rows: &[PluExportRow]) -> Result<PluCsvOutput, PluFormatErro
    - エンコード不能文字が検出された場合 → PluFormatError::EncodingError（product_code + 原因文字を含む）
    - 注: 商品名は加工パイプラインで事前にCP932安全な文字に変換済みのため、通常はここでエラーにならない。防御的チェック
 
-5. **PluCsvOutput構築**:
+5. **PluFileOutput構築**:
    - bytes = CP932エンコード済みバイト列
    - suggested_filename = `PLU_{YYYYMMDD}.txt`（現在日付。CV17 1.1.1 の import dialog で既定選択可能な拡張子）
    - content_type = "text/tab-separated-values"
@@ -148,7 +148,7 @@ fn generate_plu_tsv(rows: &[PluExportRow]) -> Result<PluCsvOutput, PluFormatErro
 ### 12.6 ステートレス設計
 
 - DB接続不要。純関数
-- 入力は PluExportRow のスライス、出力は PluCsvOutput
+- 入力は PluExportRow のスライス、出力は PluFileOutput
 - 日付取得（suggested_filename用）のみ外部依存（chrono::Local::now()）
 - テスト安定化のため、suggested_filename 生成は内部ヘルパーに切り出し、テストでは固定日付を注入可能にする（例: `generate_plu_tsv_with_date(rows, date)` を内部関数として持ち、公開関数は Local::now() で呼ぶ）
 
