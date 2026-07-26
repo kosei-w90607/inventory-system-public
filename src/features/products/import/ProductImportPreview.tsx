@@ -193,7 +193,7 @@ export function ProductImportPreview({
         </Button>
         <FilePicker
           accept=".csv,.txt"
-          ariaLabel="商品マスタCSVを選び直す"
+          ariaLabel="ファイルを選び直す（商品マスタCSV）"
           buttonLabel="ファイルを選び直す"
           buttonIcon={<RefreshCw aria-hidden="true" />}
           dialogFilterName="CSV / TXT"

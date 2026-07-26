@@ -142,7 +142,9 @@ describe("ProductImportPage (UI-01c / REQ-104)", () => {
     await waitFor(() => {
       expect(screen.queryByRole("link", { name: "商品一覧へ戻る" })).not.toBeInTheDocument();
       expect(screen.getByRole("button", { name: "インポート中..." })).toBeDisabled();
-      expect(screen.getByRole("button", { name: "商品マスタCSVを選び直す" })).toBeDisabled();
+      expect(
+        screen.getByRole("button", { name: "ファイルを選び直す（商品マスタCSV）" }),
+      ).toBeDisabled();
     });
 
     act(() => {

@@ -347,6 +347,9 @@ Contract ID: SPEC-FILE-CONTRACT-2026-07-26
 
 ## Review Response
 
-Fill after review.
-If R3 review-only sub-agent is skipped, record an explicit line beginning with `Review-only skipped because:` and the reason.
+- Final Review 一次の P1 / P2 / P3 を受理し、basename 抽出を共有純関数へ統合して
+  dialog / drop の両経路へ適用した。5 call site の accessible name は可視ボタン文言を
+  包含する形へ揃え、55-ui の stale な実装記述も現行 FilePicker 契約へ追随した。
+- X10 は独立 oracle の POSIX / Windows path fixture で固定し、mutation 実測を含む
+  検証証跡は PR body に記録する。
 - Findings Freeze: not yet frozen; post-freeze exceptions: none.

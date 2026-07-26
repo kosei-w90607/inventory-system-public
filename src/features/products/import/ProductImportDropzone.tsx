@@ -12,7 +12,7 @@ export function ProductImportDropzone({
   return (
     <FilePicker
       accept=".csv,.txt"
-      ariaLabel="商品マスタCSVを選択"
+      ariaLabel="ファイルを選択（商品マスタCSV）"
       buttonLabel="ファイルを選択"
       dialogFilterName="CSV / TXT"
       dropLabel="商品マスタCSVをドラッグ&ドロップ"

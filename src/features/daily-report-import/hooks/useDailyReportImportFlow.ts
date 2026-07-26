@@ -3,6 +3,7 @@ import { useBlocker } from "@tanstack/react-router";
 import { useCallback, useReducer, useState } from "react";
 import { toast } from "sonner";
 import { commands, CSV_IMPORT_FILE_SIZE_LIMIT } from "@/lib/bindings";
+import { extractFilename } from "@/lib/extractFilename";
 import { invalidateByContract, invalidationContract } from "@/lib/invalidation-contract";
 import { CMD_ERROR_KIND, InvokeError, isInvokeError, unwrapResult } from "@/lib/invoke";
 import { open } from "@tauri-apps/plugin-dialog";
@@ -34,11 +35,6 @@ function ensureInvokeError(error: unknown, cmd: string): InvokeError {
 function decideRecoverTo(error: InvokeError): DailyReportErrorRecoverTo {
   if (error.cmdError.kind === CMD_ERROR_KIND.IMPORT_ERROR) return "idle";
   return "preview";
-}
-
-function filenameFromPath(path: string) {
-  const parts = path.split(/[\\/]/);
-  return parts[parts.length - 1] ?? path;
 }
 
 export const DAILY_REPORT_LAST_DIR_STORAGE_KEY = "inventory:daily-report-import:last-dir:v1";
@@ -198,7 +194,7 @@ export function useDailyReportImportFlow() {
         paths.map(async (path) => {
           const bytes = await readFile(path);
           return {
-            filename: filenameFromPath(path),
+            filename: extractFilename(path),
             size: bytes.byteLength,
             readBytes: () => Promise.resolve(bytes),
           };

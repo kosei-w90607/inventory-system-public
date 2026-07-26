@@ -113,7 +113,7 @@ export function PreviewStep({
         </Button>
         <FilePicker
           accept=".csv,.txt"
-          ariaLabel="商品別CSVを選び直す"
+          ariaLabel="ファイルを選び直す（商品別CSV）"
           buttonLabel="ファイルを選び直す"
           dialogFilterName="CSV / TXT"
           dropEnabled={false}

@@ -5,6 +5,7 @@ import { useState, type DragEvent, type ReactNode } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { extractFilename } from "@/lib/extractFilename";
 import { cn } from "@/lib/utils";
 
 export interface PickedFile {
@@ -32,10 +33,6 @@ export interface FilePickerProps {
 
 const IMAGE_EXTENSIONS = ["jpg", "jpeg", "png", "gif", "webp"];
 const READ_ERROR_MESSAGE = "ファイルの選択または読み取りに失敗しました";
-
-function filenameFromPath(path: string): string {
-  return path.slice(Math.max(path.lastIndexOf("/"), path.lastIndexOf("\\")) + 1);
-}
 
 function extensionsFromAccept(accept: string): string[] {
   if (accept === "image/*") return IMAGE_EXTENSIONS;
@@ -81,7 +78,7 @@ export function FilePicker({
       const bytes = await readFile(path);
       onSelect({
         bytes,
-        filename: filenameFromPath(path),
+        filename: extractFilename(path),
         size: bytes.byteLength,
       });
     } catch {
@@ -97,7 +94,7 @@ export function FilePicker({
     const file = event.dataTransfer.files[0];
     try {
       const bytes = new Uint8Array(await file.arrayBuffer());
-      onSelect({ bytes, filename: file.name, size: file.size });
+      onSelect({ bytes, filename: extractFilename(file.name), size: file.size });
     } catch {
       reportReadError();
     }

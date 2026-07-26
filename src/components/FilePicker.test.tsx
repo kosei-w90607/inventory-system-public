@@ -31,14 +31,14 @@ describe("FilePicker (D-054)", () => {
     render(
       <FilePicker
         accept=".csv,.txt"
-        ariaLabel="商品マスタCSVを選択"
+        ariaLabel="ファイルを選択（商品マスタCSV）"
         buttonLabel="ファイルを選択"
         dialogFilterName="CSV / TXT"
         onSelect={onSelect}
       />,
     );
 
-    await user.click(screen.getByRole("button", { name: "商品マスタCSVを選択" }));
+    await user.click(screen.getByRole("button", { name: "ファイルを選択（商品マスタCSV）" }));
 
     expect(mockOpen).toHaveBeenCalledWith({
       multiple: false,
@@ -50,9 +50,9 @@ describe("FilePicker (D-054)", () => {
       filename: "products.csv",
       size: 3,
     });
-    expect(screen.getByRole("button", { name: "商品マスタCSVを選択" })).toHaveTextContent(
-      "ファイルを選択",
-    );
+    expect(
+      screen.getByRole("button", { name: "ファイルを選択（商品マスタCSV）" }),
+    ).toHaveTextContent("ファイルを選択");
   });
 
   it("REQ-401: native dialog の cancel は state 通知を行わない", async () => {
@@ -63,13 +63,13 @@ describe("FilePicker (D-054)", () => {
     render(
       <FilePicker
         accept=".csv,.txt"
-        ariaLabel="商品別CSVを選択"
+        ariaLabel="ファイルを選択（商品別CSV）"
         buttonLabel="ファイルを選択"
         onSelect={onSelect}
       />,
     );
 
-    await user.click(screen.getByRole("button", { name: "商品別CSVを選択" }));
+    await user.click(screen.getByRole("button", { name: "ファイルを選択（商品別CSV）" }));
 
     expect(mockReadFile).not.toHaveBeenCalled();
     expect(onSelect).not.toHaveBeenCalled();
@@ -85,14 +85,14 @@ describe("FilePicker (D-054)", () => {
     render(
       <FilePicker
         accept=".csv,.txt"
-        ariaLabel="商品マスタCSVを選択"
+        ariaLabel="ファイルを選択（商品マスタCSV）"
         buttonLabel="ファイルを選択"
         onSelect={onSelect}
         onError={onError}
       />,
     );
 
-    await user.click(screen.getByRole("button", { name: "商品マスタCSVを選択" }));
+    await user.click(screen.getByRole("button", { name: "ファイルを選択（商品マスタCSV）" }));
 
     expect(onSelect).not.toHaveBeenCalled();
     expect(onError).toHaveBeenCalledWith("ファイルの選択または読み取りに失敗しました");
@@ -103,7 +103,7 @@ describe("FilePicker (D-054)", () => {
     render(
       <FilePicker
         accept=".csv,.txt"
-        ariaLabel="商品別CSVを選択"
+        ariaLabel="ファイルを選択（商品別CSV）"
         buttonLabel="ファイルを選択"
         dropLabel="CSV / TXT ファイルをドラッグ&ドロップ"
         onSelect={onSelect}
@@ -123,13 +123,50 @@ describe("FilePicker (D-054)", () => {
     });
   });
 
+  it.each([
+    {
+      rawName: "/synthetic/incoming/sales-posix.csv",
+      expectedFilename: "sales-posix.csv",
+    },
+    {
+      rawName: "C:\\synthetic\\incoming\\sales-windows.csv",
+      expectedFilename: "sales-windows.csv",
+    },
+  ])(
+    "REQ-401: drop 経路の File.name を basename に正規化する ($rawName)",
+    async ({ rawName, expectedFilename }) => {
+      const onSelect = vi.fn();
+      render(
+        <FilePicker
+          accept=".csv,.txt"
+          ariaLabel="ファイルを選択（商品別CSV）"
+          buttonLabel="ファイルを選択"
+          onSelect={onSelect}
+        />,
+      );
+      const file = new File(["x10"], rawName, { type: "text/csv" });
+
+      fireEvent.drop(screen.getByTestId("file-picker-dropzone"), {
+        dataTransfer: { files: [file] },
+      });
+
+      await waitFor(() => {
+        expect(onSelect).toHaveBeenCalledWith({
+          bytes: new Uint8Array([120, 49, 48]),
+          filename: expectedFilename,
+          size: 3,
+        });
+      });
+    },
+  );
+
   it("REQ-202: image accept・上限表示・disabled・accessible label を維持する", async () => {
     const user = userEvent.setup();
     const onSelect = vi.fn();
     render(
       <FilePicker
         accept="image/*"
-        ariaLabel="レシート画像"
+        ariaLabel="画像を選択（レシート画像）"
         buttonLabel="画像を選択"
         id="receipt-image"
         helperText="jpg / png / gif / webp"
@@ -139,7 +176,7 @@ describe("FilePicker (D-054)", () => {
       />,
     );
 
-    const button = screen.getByRole("button", { name: "レシート画像" });
+    const button = screen.getByRole("button", { name: "画像を選択（レシート画像）" });
     expect(button).toBeDisabled();
     expect(button).toHaveAttribute("id", "receipt-image");
     expect(button).toHaveAttribute("data-accept", "image/*");

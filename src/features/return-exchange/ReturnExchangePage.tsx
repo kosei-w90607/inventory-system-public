@@ -600,7 +600,7 @@ export function ReturnExchangePage() {
           <FilePicker
             id="receipt-image"
             accept="image/*"
-            ariaLabel="レシート画像"
+            ariaLabel="画像を選択（レシート画像）"
             buttonLabel="画像を選択"
             dialogFilterName="レシート画像"
             dropLabel="クリックして選択、またはここにドラッグ＆ドロップ"

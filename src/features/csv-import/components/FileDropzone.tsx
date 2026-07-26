@@ -9,7 +9,7 @@ export function FileDropzone({ onFileSelect, disabled = false }: FileDropzonePro
   return (
     <FilePicker
       accept=".csv,.txt"
-      ariaLabel="商品別CSVを選択"
+      ariaLabel="ファイルを選択（商品別CSV）"
       buttonLabel="ファイルを選択"
       dialogFilterName="CSV / TXT"
       dropLabel="CSV / TXT ファイルをドラッグ&ドロップ"
