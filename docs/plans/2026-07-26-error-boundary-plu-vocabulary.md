@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: human-confirm
+- Phase: ready-hosted-final
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: cb7050d
@@ -14,7 +14,7 @@
 - Reviewed Content HEAD: bd72a12
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
-- Human Gate: 視認確認 1 件 — internal error 表示（error_id 付き定型文言）の dev 環境スクリーンショットを PR body で owner が目視 PASS/FAIL。Windows native L3 checklist は不要（L3 Eligibility 条件 (1) 不成立: 観察対象は dev 環境で再現可能で Windows/Tauri native 固有ではない）
+- Human Gate: none（視認確認は owner が PASS 判定済み、2026-07-26。Windows native L3 checklist は不要 — L3 Eligibility 条件 (1) 不成立: 観察対象は dev 環境で再現可能で Windows/Tauri native 固有ではない）
 
 - State Narrative（2026-07-26）: Fable 5 が本 thread で scope 精査を実施した。監査 finding
   P3-4 / P7b-3 の証拠行を現 HEAD（`c90a54e` 基準）で再確認し、監査時の行番号ズレはあるが
@@ -67,6 +67,14 @@
   `Reviewed Content HEAD` は `bd72a12`。各遷移の evidence（L1 CLEAN / reviewer 従事 /
   P1/P2=0 裁定）はこの state-only commit より前に存在する。残る Human Gate は
   視認確認 1 件（PR body の synthetic スクショ、owner 目視 PASS/FAIL）。
+
+- State Narrative（2026-07-26、owner Ready 承認 / state-only）: owner は PR #25 body の
+  synthetic スクリーンショット（エラーID併記の internal error 表示）を目視 PASS と判定し、
+  Ready を承認した（この change での介入 2 回目 / 予算 3 回）。利用者可視の完了は
+  「internal エラーが技術詳細なしのエラーID付き定型文言で表示され診断ログと突合でき、
+  PLU 書出し誤分類が是正された候補を hosted final へ進められる状態」。Draft のまま
+  `human-confirm -> ready-hosted-final` を materialize し、この commit の exact HEAD で
+  L1 full、PR body 全面更新、Ready 化、hosted CI headSha 一致確認を行う。
 
 ## Owner Effort Budget
 
