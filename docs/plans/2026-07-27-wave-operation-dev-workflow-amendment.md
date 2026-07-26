@@ -62,6 +62,8 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 - `docs/AGENT_OPERATING_MANUAL.md`: §4 router 表への wave 運用 1 行（必要最小限）
 - `scripts/doc-consistency-check.sh`: PK4 の最小改訂 — 複数 active packet の無条件 ERROR（一意性検査）を「全 active packet が `Plans.md`『次の行動』節内から link されていること」の per-packet 検査へ置換。link のない packet は従来どおり ERROR（fail-closed 維持）
 - `scripts/check-workflow-git.sh`: PK5 の最小改訂 — packet に `Rebase Map:` 行がある場合、ancestry 検証を Map 最新の rebase 後 plan-first SHA に対して行う（`Plan Commit` field は不変のまま）
+- `scripts/tests/doc-consistency-plan-packet.test.sh`: 常設 regression の追随 — test #11（複数 active packet の旧文言 assert）を新意味論へ書換え（全 link ありの正例 = PASS / link なし 1 packet 混在の負例 = ERROR。T-PK4a/b をこの常設 fixture として実装）
+- `scripts/tests/workflow-git-checks.test.sh`: `Rebase Map` の正例・負例 fixture 追加（T-PK5 を常設化。既存の Plan Commit rewrite 検出・Amendments append-only fixture と共存し、それらを弱めない）
 
 ## Non-scope
 
@@ -77,6 +79,7 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 - `bash scripts/doc-consistency-check.sh` PASS（active plan があるため `--target plan` も PASS）
 - synthetic 複数 active packet（全て次の行動節内 link あり）で `bash scripts/doc-consistency-check.sh --target plan` が PASS、link のない packet を 1 つ混ぜると `ERROR` になることを実測し PR body に記録（Matrix T-PK4a/b）
 - synthetic rebase 状況で `Rebase Map:` 行ありの packet が `bash scripts/check-workflow-git.sh` の ancestry 検査を通過し、Map なし・旧 SHA 非 ancestor では fail することを実測し PR body に記録（Matrix T-PK5）
+- T-PK4a/b と T-PK5 は ad-hoc 実測に留めず、`scripts/tests/doc-consistency-plan-packet.test.sh`（test #11 書換え含む）と `scripts/tests/workflow-git-checks.test.sh` の常設 fixture として実装し、`run_required` の `doc-consistency-plan-packet-tests` / `workflow-git-checks-tests` が green であることを含む `bash scripts/local-ci.sh full` CLEAN を L1 evidence とする
 - Matrix X1〜X6 の実 mutation 注入で、対応する `rg` assertion が exit 1 へ反転することを clean tree で実測し、注入 → red → 復元 → green の記録を PR body に残す
 - 旧文言 grep evidence: `rg -n 'single active packet' docs/ Plans.md AGENTS.md .agents/ .claude/` の live hit（archive 配下の歴史記述を除く）が 0、または読み替え注記の同一 PR 追記で解消済みであることを PR body に記録
 
@@ -149,9 +152,9 @@ Minimum design checks: 製品 code 非接触のため layer ownership / DTO / pe
 | Design contract / decision ID | Implementation target | Automated test | L3 or non-scope |
 |---|---|---|---|
 | D-055-D1 lane/wave 定義・編成入口条件（footprint 互いに素、生成 file 再生成 lane は wave に 1 つ、同一 source doc 編集 lane の同居禁止） | DEV_WORKFLOW `Wave Operation` 新節 | anchor A1/A2 baseline-red→green、X4 mutation red | non-scope（実運用は wave 1 pilot で dogfood） |
-| D-055-D2 Wave Registry と packet selection rule 改訂（registry 記載の複数 active は許可、fail-closed 3 経路〈registry 外 / 不一致 / 陳腐化〉維持、PK4 最小改訂 = 全 active packet の次の行動節内 link 必須） | DEV_WORKFLOW `Workflow State` + Plans.md `Wave Registry` 節 + `scripts/doc-consistency-check.sh` PK4 | anchor A3/A4/A4b/A4c、X1/X1b/X1c mutation red、T-PK4a/b | non-scope |
+| D-055-D2 Wave Registry と packet selection rule 改訂（registry 記載の複数 active は許可、fail-closed 3 経路〈registry 外 / 不一致 / 陳腐化〉維持、PK4 最小改訂 = 全 active packet の次の行動節内 link 必須） | DEV_WORKFLOW `Workflow State` + Plans.md `Wave Registry` 節 + `scripts/doc-consistency-check.sh` PK4 | anchor A3/A4/A4b/A4c、X1/X1b/X1c mutation red、T-PK4a/b（`doc-consistency-plan-packet.test.sh` test #11 書換えの常設 fixture） | non-scope |
 | D-055-D3 wave batch 承認（per-change 介入 ≤3 不変、batch は各 lane に 1 回計上、wave summary 依頼形式） | DEV_WORKFLOW `Owner Effort Budget` | anchor A5、X3 mutation red | non-scope |
-| D-055-D4 merge train（Draft 並列・merge 直列・train 先頭のみ ready-hosted-final〈先頭は owner 指定・Coordinator が到達順で提案〉・conflict-free rebase は patch-id 証明で Phase 維持 + L1 full 再実行・Rebase Map で PK5 再充足・conflict は implementing 戻り・rebase は Codex） | DEV_WORKFLOW `Draft PR Checkpoint` / `Post-Merge Closeout` + `scripts/check-workflow-git.sh` PK5 | anchor A6/A7/A11、X2/X7 mutation red、T-PK5、Contract Probe 1 | non-scope |
+| D-055-D4 merge train（Draft 並列・merge 直列・train 先頭のみ ready-hosted-final〈先頭は owner 指定・Coordinator が到達順で提案〉・conflict-free rebase は patch-id 証明で Phase 維持 + L1 full 再実行・Rebase Map で PK5 再充足・conflict は implementing 戻り・rebase は Codex） | DEV_WORKFLOW `Draft PR Checkpoint` / `Post-Merge Closeout` + `scripts/check-workflow-git.sh` PK5 | anchor A6/A7/A11、X2/X7 mutation red、T-PK5（`workflow-git-checks.test.sh` の常設 fixture、既存 rewrite 検出・Amendments fixture と共存）、Contract Probe 1 | non-scope |
 | D-055-D5 レビュー並列・裁定直列（per-lane 独立 reviewer、mutation 再実測・Findings Freeze・Double Audit 不変） | DEV_WORKFLOW `Wave Operation` 新節（Review Rules 参照） | anchor A8 | non-scope |
 | D-055-D6 subagent 合算同時上限 4（per-lane 上限は D-034 表のまま） | DEV_WORKFLOW `Subagent Budget` | X5 mutation red | non-scope |
 | D-055-D7 pilot 条項（wave 1 = 2 lane、WER 必須、rollback 条件 = fail-closed / budget 超過の同時多発で単線へ戻す） | decision-log D-055 | X6 mutation red | non-scope |
@@ -160,7 +163,7 @@ Minimum design checks: 製品 code 非接触のため layer ownership / DTO / pe
 
 Test Design Matrix: [test-matrices/2026-07-27-wave-operation-dev-workflow-amendment.md](test-matrices/2026-07-27-wave-operation-dev-workflow-amendment.md)
 
-- targeted tests: anchor phrase A1〜A8 の baseline-red 固定（実装前に `rg` で 0 hit を実測）→ 実装後 green
+- targeted tests: anchor phrase A 系の baseline-red 固定（実装前に `rg` で 0 hit を実測）→ 実装後 green。checker 変更は常設 regression（`scripts/tests/` の 2 suite、`local-ci.sh full` の `run_required`）の fixture 追随・追加で守る
 - negative tests: X1〜X6 の実 mutation 注入（clean tree、実装後）で anchor 検査 or checker が red
 - compatibility checks: `bash scripts/doc-consistency-check.sh`（full + `--target plan`）、`bash scripts/check-workflow-git.sh`
 - data safety checks: 実 POS / 店舗 data 非接触。commit 対象は docs + `scripts/` checker 2 file のみ
@@ -228,3 +231,8 @@ Do not transcribe exact-HEAD SHA or test counts here (D-035/D-038 Evidence Owner
 - P3-1: M-N2 guard が file 全域対象で誤爆リスク → 遷移表の行形へ regex を絞り、新規表 cell で `→` を使わない実装注記を追加
 - P3-2: train 先頭の選定規則が未記載 → D4 に owner 指定 + Coordinator 到達順提案を明文化
 - P3-3: 複数 lane の L3 同席方式が未記載 → D7 に wave 1 dogfood で決定・WER 記録を明文化
+
+**Plan Review round 2（2026-07-27、同 reviewer による closure 確認）**
+
+- 結果: round 1 の 7 件は全件解消確認。新規 P1×1 = PK4/PK5 の常設 regression suite（`scripts/tests/doc-consistency-plan-packet.test.sh` test #11 が旧・無条件 ERROR 文言を assert / `workflow-git-checks.test.sh` の PK5 rewrite 検出網）が Scope から漏れており、実装すると `local-ci.sh full` の `run_required` gate が red になる — Coordinator が `local-ci.sh` の登録行と test #11 fixture を実読して再現性を確認、accept
+- 是正: 両 test file を Scope へ編入（test #11 の新意味論書換え + Rebase Map fixture 追加、既存 rewrite 検出・Amendments fixture と共存）、T-PK4/T-PK5 を ad-hoc 実測から常設 fixture 化へ変更、AC に `local-ci.sh full` CLEAN（両 run_required green 含む）を明記

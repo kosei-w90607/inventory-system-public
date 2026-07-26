@@ -107,7 +107,9 @@ rg -F 'interventions ≤3' docs/DEV_WORKFLOW.md
 
 実測は commit 済み clean tree 上で行い、注入 → red 確認 → `git checkout -- <file>` 復元 → 復元後の green 再確認を X ごとに記録する（記録先 = PR body、count / SHA は tracked doc に書かない）。
 
-## Checker 挙動テスト（PK4/PK5 最小改訂の実装後、synthetic 状況で実測 → 記録は PR body）
+## Checker 挙動テスト（PK4/PK5 最小改訂と同一 PR で常設 fixture 化）
+
+T-PK4a/b は `scripts/tests/doc-consistency-plan-packet.test.sh` の常設 fixture として実装する（test #11 の旧・無条件 ERROR 文言 assert を新意味論へ書換え）。T-PK5 は `scripts/tests/workflow-git-checks.test.sh` の常設 fixture として実装する（既存の Plan Commit rewrite 検出・Amendments append-only fixture と共存し、それらの assert を弱めない）。両 suite は `bash scripts/local-ci.sh full` の `run_required`（`doc-consistency-plan-packet-tests` / `workflow-git-checks-tests`）であり、green が L1 evidence の一部になる。下表は fixture の期待挙動（実行記録は PR body）。
 
 | Test ID | 状況（synthetic、検証後撤去・非 commit） | 期待 |
 |---|---|---|
