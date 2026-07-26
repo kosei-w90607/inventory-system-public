@@ -1,20 +1,20 @@
-# Plan Packet: Opus 5 役割確定の正本化（D-056 候補、R2 docs-only）
+# Plan Packet: Opus 5 役割確定の正本化（D-056 候補、R3 workflow gate change docs-only）
 
 ## Workflow State
 
-- Phase: plan-draft
-- Risk: R2
+- Phase: plan-gate
+- Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: pending
 - Amendments: none
 - Coordinator: Fable
-- Writer: Fable（design board 例外: workflow design-only change、owner 明示指示 = 2026-07-27 協議での「R2 docs PR で即正本化」選択。実装 code なし）
-- Plan Reviewer: pending（Sonnet 独立 fresh context）
-- Final Reviewer: pending（Sonnet 独立 fresh context、Plan Reviewer とも別 context）
+- Writer: Fable（design board 例外: workflow design-only change、owner 明示指示 = 2026-07-27 協議での「R2 docs PR で即正本化」選択〈Risk は Plan Review round 1 指摘で R3 へ是正〉。実装 code なし）
+- Plan Reviewer: Sonnet（独立 fresh context subagent）
+- Final Reviewer: pending（独立 fresh context ×2 = Double Audit、Plan Reviewer とも別 context）
 - Reviewed Content HEAD: pending
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
-- Human Gate: pending（Ready 化 / merge）
+- Human Gate: pending（Ready 化 / docs-only workflow change のため owner-directed workflow_dispatch / merge）
 
 ## Owner Effort Budget
 
@@ -27,10 +27,10 @@
 
 ## Risk
 
-Risk: R2
+Risk: R3
 
 Reason:
-docs-only の運用ルール正本化。workflow gate（merge gate / 検証 gate / state machine / Subagent Budget / Owner Effort Budget / 独立性制約の既存 5 項）はいずれも変更しない。追加するのは role assignment の適用指針（slot の適所固定）、informational slot 表の行、発注書の書式 profile、decision-log entry のみで、evidence 要件・承認経路・検査内容はすべて不変。gate に触れないため R3（merge gate changes / workflow gate change）には該当しないと判断する — この判断自体を Plan Reviewer の検証対象とする。
+docs-only だが、AGENT_OPERATING_MANUAL §3 の制約 list（現行 6 項: Writer≠Plan Reviewer / Writer≠Final Reviewer / Final Reviewer fresh context / R4・workflow gate change = Double Audit / Human Gate owner 限定 / 希少・高コスト slot は Writer 不可）に第 7 項を追加し、審査体制の実施者制約を定める governance 変更に当たる。当初 R2 と自己判定したが、独立 Plan Review round 1 が「uncertain なら R3」原則と D-055 precedent（同種 governance doc 改訂を R3 workflow gate change として Double Audit）を根拠に根拠不足を指摘し、accept して R3 へ再分類した。workflow gate change 扱いとして Double Audit を実施する。既存 gate（evidence 要件 / 承認経路 / 検査内容 / 既存 6 項の意味）は変更しない — これは Matrix の不変 guard で機械証明する。
 
 ## Goal
 
@@ -38,16 +38,17 @@ Goal Invariant:
 
 ### 最小完了条件
 
-- 2026-07-27 の owner 最終決定（Opus 5 = read-only 発注書駆動の claims-producer 専任 / メインスレッド代役不採用 / 代役ドラフト条件付き凍結 / 発注書二形化 / 難所 lane からの投入基準）が、agent memory ではなく repository 正本（AGENT_OPERATING_MANUAL + decision-log）から読める状態になる。
+- 2026-07-27 の owner 最終決定（Opus 5 = read-only 発注書駆動の claims-producer 専任 / メインスレッド代役不採用 / 代役ドラフト条件付き凍結 / 発注書二形化 / 難所からの投入基準）が、agent memory ではなく repository 正本（AGENT_OPERATING_MANUAL + decision-log）から読める状態になる。
 
 ### 失敗定義
 
-- 正本化の過程で workflow gate・独立性制約・予算のいずれかの意味が変わる。または「決定の理由と revisit 条件（Fable slot 恒久喪失）」が正本から読めず、将来の再協議が memory 依存のままになる。
+- 正本化の過程で既存の workflow gate・独立性制約 6 項・予算のいずれかの意味が変わる。または「決定の理由と revisit 条件（Fable slot 恒久喪失）」が正本から読めず、将来の再協議が memory 依存のままになる。
 
 ### 非目的
 
 - 代役ドラフト 3 点（output style / hook / rules 点検）の実装（凍結対象。revisit 条件のみ D-056 に記録する）
 - DEV_WORKFLOW / Subagent Budget / Wave Operation 節の変更
+- §3.1「希少・最高能力 slot の投入条件」の改訂（同節の主語は従来どおり Fable 系 slot のまま。新 slot 区分は self-contained な新項で扱い、§3.1 に接続しない）
 - Opus 5 への初回実発注（難所 lane 着手時の別作業）
 
 Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
@@ -55,25 +56,26 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 ## Scope
 
 - `docs/AGENT_OPERATING_MANUAL.md`:
-  - §3 の制約 list に 1 項追加: 高自律・低制約適性 slot（§3.4 で対応）は read-only の Reviewer / Explorer 発注書ロール専任とし、Writer / Coordinator に割り当てない（D-056）
-  - §3.4 slot 表に `Opus` 行を追加（informational: 現行実体 = Claude Opus 5、read-only 発注書駆動の claims-producer 専任）
-  - §5 に §5.4「低制約発注書 profile」を新設: 必須 5 点（goal / scope 境界 / read-only 宣言 / 報告フォーマット / subagent 生成上限）のみで構成し、過程指示・検証手順の指定を書かないことを本 manual を正本として規定
-- `docs/decision-log.md`: D-056 新設（決定・理由〈公式 prompting 指針の非対称性 + workflow の claims-until-verified 構造への適所配置〉・棄却代替案〈代役整備 / 単純不使用〉・revisit 条件〈Fable slot 恒久喪失で代役ドラフト解凍を検討〉・投入基準〈難所 lane から、通常レビューは Sonnet 維持〉）
-- `Plans.md`: 『次の行動』節へ本 packet link の追加（改訂後 PK4 の per-packet link 要件）と独立 track 1 行
+  - §3 の制約 list に第 7 項を追加（self-contained な新 slot 区分）: **高自律・低制約適性 slot**（§3.4 で対応）は read-only の Reviewer / Explorer 発注書ロール専任とし、Writer / Coordinator / state 遷移管理に割り当てない。**§3.1 の design board 例外の対象外**（同例外の主語は希少・最高能力 slot であり本区分に適用しない旨を明示）。投入はレビュー難所・広域調査の発注書単位で Coordinator が判断し、通常レビューは既存分業を維持（D-056）
+  - §3.4 slot 表に `Opus` 行を追加（**informational のみ**: 現行実体 = Claude Opus 5。区分・規範は §3 第 7 項 / D-056 への参照に留め、規範文を表内に転記しない — Plan Review round 1 P2-1）
+  - §5 見出しを「追加 prompt / 発注 profile（本 manual が正本）」へ改称（固定カウント「3 本」の drift 解消 — round 1 P2-2）し、§5.4「低制約発注書 profile」を新設: 必須 5 点（goal / scope 境界 / read-only 宣言 / 報告フォーマット / subagent 生成上限）のみで構成し、過程指示・検証手順の指定を書かないことを規定
+- `docs/decision-log.md`: D-056 新設（決定・理由〈公式 prompting 指針の非対称性 + workflow の claims-until-verified 構造への適所配置〉・棄却代替案〈代役整備 / 単純不使用〉・revisit 条件〈Fable slot 恒久喪失で代役ドラフト解凍を検討〉・投入基準〈レビュー難所から、通常レビューは既存分業を維持〉・凍結対象〈代役ドラフト 3 点〉）
+- `Plans.md`: 『次の行動』節の本 packet link（追加済み、PK4 要件）
 - `docs/PROJECT_HANDOFF.md`: 同期 1 行
+- Test Design Matrix: [test-matrices/2026-07-27-opus5-role-docs.md](test-matrices/2026-07-27-opus5-role-docs.md)
 
 ## Non-scope
 
-- `docs/DEV_WORKFLOW.md` 全節（gate 非接触の機械証明は AC の diff guard で行う）
+- `docs/DEV_WORKFLOW.md` / `docs/ci.md` / `scripts/` 全て（gate 非接触の機械証明 = Matrix M-N1）
+- `docs/AGENT_OPERATING_MANUAL.md` の §3 既存 6 項・§3.1〜§3.3・§3.5・§5.1〜§5.3 の既存文（非改変 guard = Matrix M-N2。§5 見出し 1 行の改称のみ例外として許可）
 - `.claude/` / `.agents/` の skill・rules・hook（凍結ドラフトの実装を含む）
-- `scripts/` 全て
 
 ## Acceptance Criteria
 
 - `rg -F 'D-056' docs/decision-log.md docs/AGENT_OPERATING_MANUAL.md` が両 file で hit する（決定と適用指針の接続）
-- `rg -F '低制約発注書 profile' docs/AGENT_OPERATING_MANUAL.md` が hit し、profile 節に必須 5 点（goal / scope 境界 / read-only / 報告フォーマット / subagent 生成上限）が全て列挙されている
-- `rg -F '恒久喪失' docs/decision-log.md` が hit する（revisit 条件の正本化）
-- `git diff main -- docs/DEV_WORKFLOW.md docs/ci.md scripts/` が空（gate 非接触の機械証明、exit 0 かつ無出力）
+- Matrix の anchor A1〜A6 が全て baseline 0 hit → 実装後 hit で実測され、mutation X1〜X6 の実注入で対応 assertion が exit 1 へ反転することを clean tree で実測（記録は PR body）
+- `git diff origin/main -- docs/DEV_WORKFLOW.md docs/ci.md scripts/` が空（gate 非接触、Matrix M-N1）
+- `git diff origin/main -- docs/AGENT_OPERATING_MANUAL.md` の削除行が §5 見出し 1 行のみ（既存規範の非改変、Matrix M-N2）
 - `bash scripts/doc-consistency-check.sh` PASS（active plan があるため `--target plan` も PASS）
 - 最終 HEAD で `bash scripts/local-ci.sh full` CLEAN PASS（evidence は PR body）
 
@@ -92,39 +94,78 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 
 ## Registration / Generation Obligations
 
-該当なし（新規 command / route / 画面 / function-design doc なし。AGENT_OPERATING_MANUAL の節追加は同 file 内構成で、doc-consistency-check の既存対象内）
+該当なし（新規 command / route / 画面 / function-design doc なし。AGENT_OPERATING_MANUAL の節追加・見出し改称は同 file 内構成で、doc-consistency-check の既存対象内）
 
-## Design Readiness
+## Design Intent Trace
 
-- Existing design docs are sufficient because: 変更は運用ルールの正本化のみで、AGENT_OPERATING_MANUAL の既存構成（§3 制約 list / §3.4 slot 表 / §5 prompt 正本群）にそのまま収まる
-- Source docs updated in this PR: AGENT_OPERATING_MANUAL / decision-log / Plans.md / PROJECT_HANDOFF
-- Design gaps intentionally deferred: 低制約 profile の実運用調整は難所 lane 初投入後（必要なら D-056 の revisit で追記）
-- Durable decisions discovered in this plan and promoted: D-056 全体
+| Spec / requirement ID | Source design doc section | Decision ID | Why / rejected alternatives | Implementation target | Test target |
+|---|---|---|---|---|---|
+| SPEC-WF-OPUS5 | AGENT_OPERATING_MANUAL §3 第 7 項 | D-056-D1 | 新 slot 区分の self-contained 項。棄却: 希少・最高能力 slot 区分への編入（§3.1 design board 例外・投入条件と衝突 — round 1 P1-1） | §3 制約 list | A1/A2, X1/X2 |
+| SPEC-WF-OPUS5 | AGENT_OPERATING_MANUAL §5.4 | D-056-D2 | 低制約発注書 profile（5 点のみ・過程指示なし）。棄却: 従来型発注書の共用（公式指針の非対称性と衝突） | §5.4 新設 + §5 見出し改称 | A3/A4, X3/X4 |
+| SPEC-WF-OPUS5 | decision-log D-056 | D-056-D3 | 代役不採用 + ドラフト凍結 + revisit 条件。棄却: 廃案（Fable 恒久喪失時の保険価値を失う）/ 代役整備（process 規律と公式指針の正面衝突） | decision-log | A5, X5 |
+| SPEC-WF-OPUS5 | decision-log D-056 | D-056-D4 | 投入基準 = レビュー難所から。棄却: 全レビュー置換（Sonnet 分業の実績を捨てるコスト） | decision-log + §3 第 7 項の投入 1 文 | A6, X6 |
+| SPEC-WF-OPUS5 | （変更なし） | D-056-D5 | security 隣接迂回は従来どおり維持 | 変更なし（D-056 に記録のみ） | M-N1/M-N2（非接触 guard） |
+
+## Contract Probe
+
+N/A — 外部 library / OS / hardware の未検証前提なし（docs-only の運用ルール正本化。checker 挙動にも非接触で、PK4 の per-packet link 要件は既に Plans.md 上で充足を実測済み）。
+
+## Contract Coverage Ledger
+
+| Design contract / decision ID | Implementation target | Automated test | L3 or non-scope |
+|---|---|---|---|
+| D-056-D1 高自律・低制約適性 slot = read-only 発注専任、design board 例外対象外 | §3 第 7 項 + §3.4 informational 行 | A1/A2 baseline-red→green、X1/X2 mutation red | non-scope（初回実発注は難所 lane 着手時） |
+| D-056-D2 低制約発注書 profile（5 点のみ・過程指示なし） | §5.4 + §5 見出し改称 | A3/A4、X3/X4 mutation red | non-scope |
+| D-056-D3 代役不採用・ドラフト凍結・revisit = Fable slot 恒久喪失 | decision-log D-056 | A5、X5 mutation red | non-scope |
+| D-056-D4 投入基準（難所から、通常は既存分業） | decision-log + §3 第 7 項 | A6、X6 mutation red | non-scope |
+| D-056-D5 security 隣接迂回の維持（変更なし） | 非接触 | M-N1/M-N2 guard | non-scope |
 
 ## Test Plan
 
-R2 のため Test Design Matrix は作成しない（Risk Tiers どおり）。検証は AC の観測 token（`rg` hit / diff guard 空 / checker PASS / L1 full CLEAN）で行う。
+Test Design Matrix: [test-matrices/2026-07-27-opus5-role-docs.md](test-matrices/2026-07-27-opus5-role-docs.md)
+
+- targeted tests: anchor A1〜A6 の baseline-red 固定 → 実装後 green
+- negative tests: X1〜X6 の実 mutation 注入（clean tree、注入 → red → 復元 → green、記録は PR body）
+- compatibility checks: `bash scripts/doc-consistency-check.sh`（full + `--target plan`）、M-N1/M-N2 不変 guard
+- data safety checks: 実 POS / 店舗 data 非接触、commit は docs のみ
+- main wiring/integration checks: なし（code 非接触）
+
+## Boundary / Wire Contract
+
+該当なし（JSON / CSV / DTO / bindings / DB 非接触の docs-only 変更）。
 
 ## Review Focus
 
-- Risk 判定の妥当性: 本変更が workflow gate change（R3 + Double Audit 対象)に該当しないか — §3 制約 list への追加が既存独立性制約の意味を変えないか
-- D-056 の記述が「決定・理由・棄却代替案・revisit 条件」を将来の再協議に十分な形で残しているか
-- 低制約 profile の必須 5 点が、既存の Subagent Budget（上限表・output contract・one-writer）と矛盾なく接続するか
-- model-neutral 原則: 規範文の主語が slot 抽象（§3.4 対応表経由）になっており、model 名が規範に直書きされていないか
+- R3 再分類後の残リスク: §3 第 7 項の文言が既存 6 項・§3.1〜§3.3 のいずれかの読みを変えないか（特に §3.3 Capacity-degraded の代替担当指名と第 7 項の専任制約の交差）
+- 低制約 profile 5 点が DEV_WORKFLOW `Subagent Budget`（output contract / one-writer / 上限表）と矛盾なく接続するか
+- model-neutral 原則: 規範の主語が slot 抽象で、model 名が §3.4 informational 表にのみ現れるか
+- Matrix の anchor 弁別性（重複出現の有無 — memory `matrix-anchor-uniqueness` の教訓を authoring 時に適用済みかの検証）
 
 ## Spec Contract
 
 Contract ID: SPEC-WF-OPUS5-2026-07-27
 
-- D-056-D1: 高自律・低制約適性 slot は read-only の Reviewer / Explorer 発注書ロール専任。Writer / Coordinator / state 遷移管理に割り当てない
-- D-056-D2: 当該 slot への発注書は低制約 profile（goal / scope 境界 / read-only 宣言 / 報告フォーマット / subagent 生成上限の 5 点のみ、過程指示なし）を用いる
+- D-056-D1: 高自律・低制約適性 slot（§3.4 対応表で解決）は read-only の Reviewer / Explorer 発注書ロール専任。Writer / Coordinator / state 遷移管理に割り当てず、§3.1 の design board 例外の対象外とする
+- D-056-D2: 当該 slot への発注書は低制約 profile（goal / scope 境界 / read-only 宣言 / 報告フォーマット / subagent 生成上限の 5 点のみ）を用い、過程指示・検証手順の指定を書かない
 - D-056-D3: メインスレッド代役は不採用。代役ドラフト 3 点は凍結し、revisit 条件 = Fable slot の恒久喪失
-- D-056-D4: 投入基準 = レビュー難所（L 級 lane の一次等）から。通常レビューは既存分業を維持
+- D-056-D4: 投入基準 = レビュー難所（L 級 lane の一次等）・広域調査から。通常レビューは既存分業を維持
 - D-056-D5: security 隣接の敵対的レビュー迂回は従来どおり（本決定で変更しない）
+
+## Trace Matrix
+
+| Spec ID | Plan Step | Test | Review Focus | Evidence |
+|---|---|---|---|---|
+| D-056-D1 | §3 第 7 項 + §3.4 行 | A1/A2, X1/X2 | §3.1/§3.3 との交差 | Matrix 実測（PR body） |
+| D-056-D2 | §5.4 + 見出し改称 | A3/A4, X3/X4 | Subagent Budget 接続 | Matrix 実測（PR body） |
+| D-056-D3 | decision-log | A5, X5 | revisit 条件の永続性 | Matrix 実測（PR body） |
+| D-056-D4 | decision-log + §3 | A6, X6 | 投入判断の帰属（Coordinator） | Matrix 実測（PR body） |
+| D-056-D5 | 非接触 | M-N1/M-N2 | 迂回契約の非改変 | Matrix 実測（PR body） |
 
 ## Data Safety
 
-- 実 POS / 店舗 data 非接触。commit 対象は docs のみ
+- 実 POS CSV / 店舗 data / DB file / backup / log / secret は commit しない（本 change は docs のみ）
+- local-only paths: `.local/ci-evidence/`（L1 証跡、非 commit）
+- synthetic-only paths: なし
 
 ## Implementation Results
 
@@ -133,3 +174,12 @@ Fill after implementation.
 ## Review Response
 
 - Findings Freeze: not yet frozen; post-freeze exceptions: none.
+
+**Plan Review round 1（2026-07-27、独立 Plan Reviewer = Sonnet fresh context）**
+
+- 結果: P1×2 / P2×2 / P3×1、全件 accept（P1-1 は相互修正案方式で修正方向を変更）
+- P1-1: §3.4 追加だけでは design board 例外（§3.1）と D-056-D1 が矛盾し、投入基準が manual 上で空文化 → **修正方向を変更して解消**: Opus を希少・最高能力 slot 区分に入れず、self-contained な新区分「高自律・低制約適性 slot」の第 7 項を立て、design board 例外対象外を明示。§3.1 は無改訂（Non-scope に明記）
+- P1-2: 「既存 5 項」は誤カウント（正 = 6 項）+ R2 自己判定は uncertain-rule と D-055 precedent に照らし根拠不足 → **R3 workflow gate change 扱いへ再分類**（Matrix 新設 + Double Audit + Contract Audit）
+- P2-1: §3.4 informational 表への規範転記は将来 drift → Opus 行は現行実体のみ + §3/D-056 参照に変更
+- P2-2: §5 見出し「3 本」の固定カウント drift → 見出し改称を Scope に追加
+- P3-1: AC diff guard の `main` 参照 → `origin/main` へ変更
