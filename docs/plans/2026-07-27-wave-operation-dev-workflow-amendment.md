@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: implementing
+- Phase: human-confirm
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: b7c29c2
@@ -10,11 +10,11 @@
 - Coordinator: Fable
 - Writer: Codex（実装。packet 設計は Fable = design board 例外の適用: workflow design-only change、owner 明示指示 = 2026-07-27 wave 運用決定・引き継ぎ書）
 - Plan Reviewer: Sonnet（独立 fresh context subagent。rally round 1〜3 実施、round 3 で P1/P2 = 0。owner 判断で Codex 追加 round 可）
-- Final Reviewer: pending（Codex 独立 fresh context、Double Audit 2 pass 目担当）
-- Reviewed Content HEAD: pending
+- Final Reviewer: Codex review-only subagents（独立 Double Audit、closure 済み）
+- Reviewed Content HEAD: ac12745fbfb32d887f1c971f3bf920d815d09535
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
-- Human Gate: pending（Ready 化 / merge。D-055 plan 承認 + wave 1 lane 選定 = 順17 × 順22 は 2026-07-27 介入 1 回目/予算 3 回で消化済み）
+- Human Gate: pending（Ready 化 / merge。この change での介入 2 回目 / 予算 3 回）
 
 ## Owner Effort Budget
 
@@ -214,13 +214,13 @@ Contract ID: SPEC-WF-WAVE-2026-07-27
 
 ## Implementation Results
 
-Fill after implementation.
+D-055 と gated Amendment 1 を docs、PK4 / PK5 checker、常設 fixture に反映し、anchor / guard、mutation、L1 full、独立 Double Audit を完了した。Draft PR: https://github.com/kosei-w90607/inventory-system-public/pull/27
 
-Do not transcribe exact-HEAD SHA or test counts here (D-035/D-038 Evidence Ownership). Record a qualitative summary and the PR link only.
+Exact-HEAD SHA と test count は D-035/D-038 に従い PR body を正本とする。
 
 ## Review Response
 
-- Findings Freeze: not yet frozen; post-freeze exceptions: none.
+- Findings Freeze: 2026-07-27 final Double Audit closure 時点; post-freeze exceptions: none.
 
 **Plan Review round 1（2026-07-27、独立 Plan Reviewer = Sonnet fresh context）**
 
@@ -254,3 +254,9 @@ Do not transcribe exact-HEAD SHA or test counts here (D-035/D-038 Evidence Owner
   3. Matrix M-A11 oracle 欠陥（Coordinator の authoring ミス）: combined `rg` が checker 側 hit で X7 を検出不能 → M-A11a（DEV_WORKFLOW）/ M-A11b（checker）へ分割、X7 は M-A11a で検出
   4. M-N5 期待表記誤り（期待 1 → 正 0/UNCHANGED 出力）+ PK4 link 判定の fail-open 防止負例（T-PK4c）+ 多段 rebase chain / Amendments 込み fixture の追加
 - 本 Amendment は packet / Matrix の契約精緻化のみ。実装への反映（checker / test / DEV_WORKFLOW 文言の追随）は Codex 再開 scope
+
+**Final Double Audit と遷移記録（2026-07-27、state-only）**
+
+- 独立 reviewer 2 pass で D1〜D7、gated Amendment 1、PK4 / PK5 と常設 fixture を突合した。code fence / comment / code span の pseudo-link、Rebase Map root 間流入、chain 負例の感度に関する findings は受理して実装・回帰 fixture を追加し、closure で P1/P2 = 0 を確認した。
+- packet / Matrix の元 Scope・Spec Contract を gated Amendment 1 より前の履歴として保持する指摘は、append-only 契約と正本優先順位に従い非採用とした。追加 amendment を要する契約変更はない。
+- L1 full、anchor / guard、全 mutation の独立再実測、Draft PR 作成が完了したため、`local-verified -> independent-review -> human-confirm` を一括実体化する。Ready 化と hosted final は owner の Human Gate 待ち。
