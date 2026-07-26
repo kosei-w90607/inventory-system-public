@@ -45,6 +45,22 @@
   （owner relay）。Final Review 以降は次セッションの Coordinator が
   `Plans.md` 次の行動 0 → 本 packet の順で再開する。
 
+- State Narrative（2026-07-27、Final Review 一次裁定）: Final Reviewer（Sonnet 5
+  fresh context）が実装 `9a78a4a`（Draft PR #26）をレビュー。X1〜X9 は全件 clean
+  committed tree への実注入で red を独立再実測（writer の kill 主張に虚偽なし）。
+  findings P1=1 / P2=2 / P3=2。P1 = FilePicker 共通化で旧 `extractFilename` の
+  Windows WebView2 drag&drop 絶対パス防御が drop 経路から消失（`FilePicker.tsx`
+  handleDrop が `file.name` 無加工。dialog 経路のみ正規化）— Coordinator が
+  `77012b1` の実配線（useCsvImportFlow / useProductImportFlow 両方が適用）と現
+  HEAD の production 参照ゼロを実読で裏取りし accept。P2-1 = 55-ui-csv-import.md
+  §機能一覧（extractFilename 現役記載 / FileDropzone plain input 記載）の stale —
+  accept。P2-2 = FilePicker 5 箇所で aria-label が可視ボタン文言を含まない
+  （WCAG 2.5.3 Label in Name、今回の統合で新規導入）— accept。P3 2 件（死コード
+  extractFilename / basename ロジック重複）は P1 是正へ統合して消化。是正は Codex
+  追発注（relay 2/2）、Matrix へ X10（drop 経路 basename 正規化）を plan-first で
+  追加済み。再レビューは同 Final Reviewer 系統の fresh context による差分確認 +
+  X10 実注入で行う。
+
 ## Owner Effort Budget
 
 - 介入回数上限: 3（Plan 承認 / L3+視認+Ready / merge）

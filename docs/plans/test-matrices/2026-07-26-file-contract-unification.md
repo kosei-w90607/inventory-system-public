@@ -33,6 +33,7 @@ Risk: R3
 | D-054① | 生成定数の欠落 | 生成系 (L1) | bindings clean diff + hook の実 import（rg、AC） | 定数 export 削除（FE compile も red） |
 | D-054② | cancel が state を消す | unit (vitest) | `FilePicker.test.tsx` cancel case（X7） | null 時に onSelect 発火 / state clear |
 | D-054② | drop 経路欠落 | unit (vitest) | `FilePicker.test.tsx` drop case（X8） | drop handler 削除 |
+| D-054② | drop 経路の filename が絶対パスのまま流出（Windows WebView2 quirk、旧 `extractFilename` の防御対象） | unit (vitest) | `FilePicker.test.tsx` drop filename 正規化 case（X10。`/`・`\` 入り File.name fixture で basename を期待） | drop 経路の basename 正規化削除 |
 | D-054② | 出力契約・属性欠落 | unit (vitest) | `FilePicker.test.tsx`（bytes/filename/size、accept、disabled、a11y label） | 出力欠落・属性 prop 無視 |
 | P8b-1 | 20MB guard 削除 | 実配線 hook test | `useCsvImportFlow.test.tsx` guard case（X3。境界 +1 で reject、command 不呼出し） | guard 削除・境界反転 |
 | P8b-1 | recovery 反転 | 実配線 hook test | 同 import_error recovery case（X4） | `decideRecoverTo` 配線切断・kind 判定反転 |
@@ -107,6 +108,8 @@ workflow-state 行: 順8 と同一運用（content candidate → L1 → 独立 r
 - X6: 成功後 invalidation 削除 → 同 red（+ 既存 D-052 契約 test）。
 - X7: FilePicker cancel で state clear → `FilePicker.test.tsx` red。
 - X8: drop 経路削除 → 同 red。
+- X10: drop 経路の basename 正規化削除 → 同 red（Final Review 一次 P1 是正で追加。旧
+  `extractFilename` が担っていた Windows WebView2 絶対パス防御の等価維持を検査）。
 
 - guard 境界反転 → X1/X3 の境界 case red。key branch 反転 → X4。guard 除去 → X1/X3/X5。
   出力 field 欠落 → FilePicker 出力 case red。mock 定数と設計値の区別 → oracle 独立転記
