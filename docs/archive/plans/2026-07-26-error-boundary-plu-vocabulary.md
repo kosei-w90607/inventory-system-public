@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: ready-hosted-final
+- Phase: archive
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: cb7050d
@@ -75,6 +75,15 @@
   PLU 書出し誤分類が是正された候補を hosted final へ進められる状態」。Draft のまま
   `human-confirm -> ready-hosted-final` を materialize し、この commit の exact HEAD で
   L1 full、PR body 全面更新、Ready 化、hosted CI headSha 一致確認を行う。
+
+- State Narrative（2026-07-26、merge / archive）: PR #25 は exact-HEAD hosted final
+  success（run 30202928851）と三点 SHA 一致（PR HEAD = PR body L1 SHA = hosted
+  headSha）を確認後、owner の merge 承認（この change での介入 3 回目 / 予算 3 回）に
+  より squash merge `da09fa0` となった。post-merge closeout で packet / Matrix を
+  archive し、WER・`Plans.md`・`docs/PROJECT_HANDOFF.md` を同期して `merge -> archive`
+  を完了した。follow-up 2 件（raw message 直接表示 約15 箇所の共通 describeError 化、
+  `restore_failed_recovered` の既存 message==detail raw text の CMD-ERR-D2 整合）は
+  `Plans.md` に記録した。
 
 ## Owner Effort Budget
 
