@@ -6,7 +6,7 @@
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: bb4aa29
-- Amendments: none
+- Amendments: 9fa2ca8
 - Coordinator: Fable
 - Writer: Fable（design board 例外: workflow design-only change、owner 明示指示 = 2026-07-27 協議での「R2 docs PR で即正本化」選択〈Risk は Plan Review round 1 指摘で R3 へ是正〉。実装 code なし）
 - Plan Reviewer: Sonnet（独立 fresh context、rally round 1〜3）+ Opus 5（round 4 較正 = 低制約 profile、owner 指示の dogfood）。両系統とも P1/P2 = 0 で収束
