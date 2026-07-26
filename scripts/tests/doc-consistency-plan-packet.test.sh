@@ -47,13 +47,15 @@ setup_repo_dirs() {
 }
 
 write_plans_md_linking() {
-    local basename="$1"
     {
         echo "# Plans"
         echo ""
         echo "## 次の行動"
         echo ""
-        echo "1. fixture entry: [plans/${basename}](plans/${basename})"
+        local basename
+        for basename in "$@"; do
+            echo "1. fixture entry: [plans/${basename}](plans/${basename})"
+        done
     } > "$repo/docs/Plans.md"
 }
 
@@ -64,6 +66,17 @@ write_plans_md_no_link() {
         echo "## 次の行動"
         echo ""
         echo "1. fixture entry: (リンクなし)"
+    } > "$repo/docs/Plans.md"
+}
+
+write_plans_md_text_only() {
+    local basename="$1"
+    {
+        echo "# Plans"
+        echo ""
+        echo "## 次の行動"
+        echo ""
+        echo "1. fixture entry mentions ${basename} without a Markdown link"
     } > "$repo/docs/Plans.md"
 }
 
@@ -313,16 +326,29 @@ if ! run_check "docs/plans/2026-01-10-fixture.md"; then
 fi
 assert_not_contains "$out" "Contract Probe"
 
-# --- 11. 複数 active packet が docs/plans/ 直下に同時存在 ---
+# --- 11. D-055 T-PK4a/b: 複数 active packet は全 packet の「次の行動」link を必須化 ---
 setup_repo_dirs
 reset_packet_defaults
 write_packet "$repo/docs/plans/2026-01-11-fixture-a.md"
 write_packet "$repo/docs/plans/2026-01-11-fixture-b.md"
+write_plans_md_linking "2026-01-11-fixture-a.md" "2026-01-11-fixture-b.md"
+if ! run_check ""; then
+    cat "$out" >&2
+    fail "multiple active packets with complete Plans.md links were unexpectedly rejected"
+fi
+assert_contains "$out" "PK4: Workflow State machine 整合 OK"
+
 write_plans_md_linking "2026-01-11-fixture-a.md"
 if run_check ""; then
-    fail "multiple active packets under docs/plans/ were not rejected"
+    fail "an active packet missing from Plans.md was not rejected"
 fi
-assert_contains "$out" "複数の active packet が同時存在します"
+assert_contains "$out" "active packet '2026-01-11-fixture-b.md' へのリンクが見つかりません"
+
+write_plans_md_text_only "2026-01-11-fixture-a.md"
+if run_check ""; then
+    fail "a plain-text packet basename was incorrectly accepted as a Plans.md link"
+fi
+assert_contains "$out" "active packet '2026-01-11-fixture-a.md' へのリンクが見つかりません"
 
 # --- 12. active packet と docs/Plans.md「次の行動」リンクの不一致 ---
 setup_repo_dirs

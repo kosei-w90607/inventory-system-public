@@ -52,6 +52,9 @@ workflow_phase_index() {
 check_plan_commit_ancestry() {
     local file="$1"
     local plan_commit amendments amendment first_value
+    local effective_plan_commit rebase_line map_old map_new
+    local expected_old expected_old_full map_old_full map_new_full
+    local old_patch_id new_patch_id
 
     plan_commit="$(grep -m1 -E '^- Plan Commit:[[:space:]]*' "$file" 2>/dev/null \
         | sed -E 's/^- Plan Commit:[[:space:]]*//; s/[[:space:]]+$//')"
@@ -67,8 +70,48 @@ check_plan_commit_ancestry() {
         return 0
     fi
 
-    if ! git merge-base --is-ancestor "$plan_commit" HEAD 2>/dev/null; then
-        echo "❌ [workflow-git] PK5: $file の Plan Commit '$plan_commit' は現在の HEAD の祖先ではありません"
+    # D-055 Rebase Map: conflict-free rebase で書き換わった plan-first commit を
+    # append-only に対応付ける。各段の patch-id 同値と chain を検証し、最新 SHA
+    # だけを ancestry の実効値にする。Plan Commit field 自体は不変。
+    effective_plan_commit="$plan_commit"
+    expected_old="$plan_commit"
+    while IFS= read -r rebase_line; do
+        [[ -n "$rebase_line" ]] || continue
+        if [[ ! "$rebase_line" =~ ^Rebase[[:space:]]Map:[[:space:]]([0-9a-f]{7,40})[[:space:]]-\>[[:space:]]([0-9a-f]{7,40})[[:space:]]*$ ]]; then
+            echo "❌ [workflow-git] PK5: $file の Rebase Map 形式が不正です -> $rebase_line"
+            FAIL=1
+            continue
+        fi
+        map_old="${BASH_REMATCH[1]}"
+        map_new="${BASH_REMATCH[2]}"
+
+        if ! map_old_full="$(git rev-parse --verify "${map_old}^{commit}" 2>/dev/null)" ||
+            ! map_new_full="$(git rev-parse --verify "${map_new}^{commit}" 2>/dev/null)"; then
+            echo "❌ [workflow-git] PK5: $file の Rebase Map SHA を解決できません -> $rebase_line"
+            FAIL=1
+            continue
+        fi
+        expected_old_full="$(git rev-parse --verify "${expected_old}^{commit}" 2>/dev/null || true)"
+        if [[ -z "$expected_old_full" || "$map_old_full" != "$expected_old_full" ]]; then
+            echo "❌ [workflow-git] PK5: $file の Rebase Map chain が不連続です（期待 old '$expected_old'） -> $rebase_line"
+            FAIL=1
+            continue
+        fi
+
+        old_patch_id="$(git show --pretty=format: --binary "$map_old_full" 2>/dev/null | git patch-id --stable | awk '{print $1}')"
+        new_patch_id="$(git show --pretty=format: --binary "$map_new_full" 2>/dev/null | git patch-id --stable | awk '{print $1}')"
+        if [[ -z "$old_patch_id" || "$old_patch_id" != "$new_patch_id" ]]; then
+            echo "❌ [workflow-git] PK5: $file の Rebase Map は patch-id が同値ではありません -> $rebase_line"
+            FAIL=1
+            continue
+        fi
+
+        effective_plan_commit="$map_new_full"
+        expected_old="$map_new_full"
+    done < <(grep -E '^Rebase[[:space:]]Map:' "$file" 2>/dev/null || true)
+
+    if ! git merge-base --is-ancestor "$effective_plan_commit" HEAD 2>/dev/null; then
+        echo "❌ [workflow-git] PK5: $file の Plan Commit 実効 SHA '$effective_plan_commit' は現在の HEAD の祖先ではありません"
         FAIL=1
     fi
 

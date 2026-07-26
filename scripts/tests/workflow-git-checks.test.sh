@@ -67,6 +67,14 @@ write_packet() {
 EOF
 }
 
+append_rebase_map() {
+    local repo="$1"
+    local packet_name="$2"
+    local old_sha="$3"
+    local new_sha="$4"
+    printf '\nRebase Map: %s -> %s\n' "$old_sha" "$new_sha" >> "$repo/docs/plans/$packet_name"
+}
+
 run_check() {
     local repo="$1"
     (cd "$repo" && bash "$CHECK_SCRIPT" 2>&1)
@@ -190,6 +198,67 @@ commit_all "$repo" "docs(plans): gated amendment を記録" > /dev/null
 capture_check "$repo" output
 [[ "$CHECK_STATUS" -eq 0 ]] || fail "Amendments 追記正例が ERROR 判定された:\n$output"
 assert_not_contains "$output" "PK5:" "Amendments 正例で PK5 出力が発生した"
+
+# ============================================================================
+# D-055 T-PK5: conflict-free rebase の Rebase Map 正例
+# ============================================================================
+repo="$tmp/pk5-rebase-map-ok"
+init_repo "$repo"
+printf 'base\n' > "$repo/README.md"
+commit_all "$repo" "base" > /dev/null
+git -C "$repo" branch feature
+
+git -C "$repo" switch -q feature
+write_packet "$repo" "packet.md" "pending" "none"
+old_plan_sha="$(commit_all "$repo" "docs(plans): plan-first")"
+write_packet "$repo" "packet.md" "$old_plan_sha" "none"
+commit_all "$repo" "docs(plans): state-only遷移 plan-gate->plan-approved" > /dev/null
+printf 'impl\n' > "$repo/impl.txt"
+commit_all "$repo" "feat: implement" > /dev/null
+
+git -C "$repo" switch -q main
+printf 'main advance\n' > "$repo/main.txt"
+commit_all "$repo" "chore: advance main" > /dev/null
+git -C "$repo" switch -q feature
+git -C "$repo" rebase main > /dev/null
+new_plan_sha="$(git -C "$repo" log --format=%H --grep='^docs(plans): plan-first$' -1)"
+
+capture_check "$repo" output
+[[ "$CHECK_STATUS" -ne 0 ]] || fail "Rebase Map なしの非 ancestor が ERROR 判定されなかった"
+assert_contains "$output" "は現在の HEAD の祖先ではありません" "Rebase Map なし負例で ancestry ERROR が出力されない"
+
+append_rebase_map "$repo" "packet.md" "$old_plan_sha" "$new_plan_sha"
+commit_all "$repo" "docs(plans): rebase map を記録" > /dev/null
+
+capture_check "$repo" output
+[[ "$CHECK_STATUS" -eq 0 ]] || fail "patch-id 同値の Rebase Map 正例が ERROR 判定された:\n$output"
+assert_not_contains "$output" "PK5:" "Rebase Map 正例で PK5 出力が発生した"
+
+# ============================================================================
+# D-055 T-PK5: patch-id 同値証明のない Rebase Map は escape hatch にしない
+# ============================================================================
+repo="$tmp/pk5-rebase-map-patch-id-negative"
+init_repo "$repo"
+printf 'base\n' > "$repo/README.md"
+commit_all "$repo" "base" > /dev/null
+git -C "$repo" branch feature
+
+git -C "$repo" switch -q feature
+write_packet "$repo" "packet.md" "pending" "none"
+old_plan_sha="$(commit_all "$repo" "docs(plans): plan-first")"
+write_packet "$repo" "packet.md" "$old_plan_sha" "none"
+commit_all "$repo" "docs(plans): state-only遷移 plan-gate->plan-approved" > /dev/null
+
+git -C "$repo" switch -q main
+printf 'different patch\n' > "$repo/unrelated.txt"
+different_sha="$(commit_all "$repo" "chore: unrelated mapped commit")"
+write_packet "$repo" "packet.md" "$old_plan_sha" "none"
+append_rebase_map "$repo" "packet.md" "$old_plan_sha" "$different_sha"
+commit_all "$repo" "docs(plans): invalid rebase map を記録" > /dev/null
+
+capture_check "$repo" output
+[[ "$CHECK_STATUS" -ne 0 ]] || fail "patch-id 非同値の Rebase Map が ERROR 判定されなかった"
+assert_contains "$output" "patch-id が同値ではありません" "Rebase Map escape hatch 負例で patch-id ERROR が出力されない"
 
 # ============================================================================
 # PK5: Amendments 非 descendant の負例（並行ブランチの SHA を記録）

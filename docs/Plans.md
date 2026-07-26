@@ -96,9 +96,16 @@
 
 ## 次の行動
 
-0. **進行中**: **wave 運用の DEV_WORKFLOW amendment（D-055 候補、R3 workflow gate change、implementing）** — active packet: [plans/2026-07-27-wave-operation-dev-workflow-amendment.md](plans/2026-07-27-wave-operation-dev-workflow-amendment.md)（[Matrix](plans/test-matrices/2026-07-27-wave-operation-dev-workflow-amendment.md)）。owner 決定（2026-07-27）の pipeline + wave 編成（Wave Registry / wave batch 承認 / merge train / レビュー並列化、検査の深さは per-lane 維持）を DEV_WORKFLOW へ契約化する。Plan Gate rally 3 round P1/P2=0 収束、**owner plan 承認 + wave 1 lane 選定 = 順17 × 順22（2026-07-27、介入 1/3）**。実装 = Codex 発注、merge 後に wave 1 の 2 lane pilot を起票。
+0. **進行中**: **wave 運用の DEV_WORKFLOW amendment（D-055、R3 workflow gate change、implementing）** — active packet: [plans/2026-07-27-wave-operation-dev-workflow-amendment.md](plans/2026-07-27-wave-operation-dev-workflow-amendment.md)（[Matrix](plans/test-matrices/2026-07-27-wave-operation-dev-workflow-amendment.md)）。owner 決定（2026-07-27）の pipeline + wave 編成（Wave Registry / wave batch 承認 / merge train / レビュー並列化、検査の深さは per-lane 維持）を DEV_WORKFLOW へ契約化する。Plan Gate rally 3 round P1/P2=0 収束、**owner plan 承認 + wave 1 lane 選定 = 順17 × 順22（2026-07-27、介入 1/3）**。実装 = Codex 発注、merge 後に wave 1 の 2 lane pilot を起票。
    前段の **順10 scope 精査（拡張版）は 2026-07-27 実施済み**: [report](research/audit-2026-07/report.md) の優先度付き是正リスト 22 単位を順1〜9 消化実績（PR #14〜#26、上記完了リスト）と突合し、**残 = 順10〜22 の 13 単位**を確定（numbering の正本は report.md。[adjudication](research/audit-2026-07/adjudication.md) の「新順/旧順」表記は第 1 パス旧番号）。同一 file 干渉 pair = 順13×順14（`src/lib/bindings.ts` 生成物）/ 順15×順17（`OperationLogsPage.tsx`）/ 順15×順18（`navigation.ts`）/ 順15×順21（`ManualSaleRecordDetailPage.tsx`）/ 順10×順18（`53-ui-home.md`）。順9 は PR #26 squash merge `9cba5aa` で完了（archived [Packet](archive/plans/2026-07-26-file-contract-unification.md) 参照）。
    **是正記録（2026-07-21）**: closeout `8a36224` は「次 = roadmap 1-2 横断監査」としていたが、1-2 は **PR #13 squash merge `d9e16fe`（2026-07-17）で消化済み**（上記完了リスト参照。監査発注書 [00-order.md](research/audit-2026-07/00-order.md) 自身が roadmap 1-2 と明記）。roadmap リストの取り消し線漏れに起因して PR #17 closeout 以降 3 closeout 連続で「1-2 は未着手」扱いの drift が伝播していたため、owner 確認の上で是正。D-050 (iii) の revisit 先「roadmap 1-2 横断監査の発注書作成時」は「次回の横断監査発注書作成時」と読み替える。
+
+### Wave Registry
+
+- 形式: 現 wave ごとに status / lane 数 / merge train 順序を置き、各 lane に是正単位、branch、active packet link、Draft PR、Workflow State Phase、owner 介入回数を記録する。lane packet の選択と PK4 は、この「次の行動」節内の link を正本として fail-closed 判定する。
+- wave 1（2 lane pilot）: owner 選定済み = 順17 × 順22。D-055 amendment merge 後に起票する。
+- wave 1 lane packet link: wave 1 起票時に各 lane の branch / packet / Draft PR とともに追加する（現時点では未起票）。
+
 1. 中期 roadmap（owner 裁定 2026-07-16、実施順。backlog は系統ごとに 1 PR ずつ束ねる）:
    1. ~~workflow docs PR~~（**完了: PR #18 squash merge `bbb61f6`、2026-07-21**。WER Adjustment は D-050 裁定で正本化・消化、defer 4 件は D-050 の revisit 条件で追跡。先行消化 4 件 = Public PR #7 `a75be5d` + PR #15 `b47cd5a`。上記完了リスト参照）
    2. ~~横断アーキテクチャ + コード品質監査~~（**完了: PR #13 squash merge `d9e16fe`、2026-07-17**。1-1 より先に繰上げ実行。30 findings → 22 是正単位、全単位 accept 裁定。成果物 = [report](research/audit-2026-07/report.md) / [adjudication](research/audit-2026-07/adjudication.md)。上記完了リスト参照）

@@ -412,3 +412,12 @@ Use concise ADR-style entries.
 - Impact: `docs/UI_TECH_STACK.md`（共通 FilePicker + 定数供給規範）、`docs/function-design/60-ui-product-import.md`（UI-01c-D14/D15）、`63-ui-return-exchange.md`（UI-03-D20）、`55-ui-csv-import.md`、`src-tauri/src/constants.rs` doc、bindings 生成器。実装は監査是正 順9 packet。
 - Alternatives considered: 定数を command で取得（1 invoke = 1 業務操作の原則に反する過剰）; frontend 側 SSOT（backend guard が派生になり直接 IPC bypass を防げない）; native dialog 一本化で drop 廃止（operator UX 変更 + SCREEN_DESIGN 更新 + 視認負荷が増えるため owner 裁定で不採用、drop は共通 component 内に維持）。
 - Revisit: 新規に file を扱う画面を追加するとき（FilePicker 経由が既定）、または validation 定数を frontend が必要とする新 domain が増えるとき。
+
+## D-055
+
+- Decision: 監査是正の複数 change を wave として運用する。lane は `1 是正単位 = 1 Plan Packet = 1 branch = 1 Draft PR`、wave は file footprint が互いに素な 2〜3 lane とし、plan-first、独立 mutation、oracle、Contract Audit、L3 準備、Workflow State、merge evidence は lane ごとに維持する。`Plans.md` の Wave Registry だけを意図された複数 active packet の入口とし、Draft PR までは並列、Ready / hosted final / merge は owner 指定の merge train で直列化する。wave 1 は順17 × 順22 の 2 lane pilot とし、完了時に WER を行う。
+- Status: accepted（2026-07-27、owner が plan と wave 1 lane を承認）
+- Why: 残る監査是正を単線で進めると owner gate と独立 review の待ち時間が直列に積み上がる一方、非干渉 lane なら検査の深さを落とさず Draft PR まで並列化できる。Wave Registry に packet 選択を限定し、merge train を直列に保つことで、複数 active packet の誤 resume と hosted final の再実行増加を抑える。
+- Alternatives considered: 複数是正単位を 1 packet に統合する案（Scope、Findings Freeze、reviewer 独立性が崩れるため却下）; registry を設けず複数 active packet を全面許可する案（fail-closed 保護を失うため却下）; 全 lane を同時に Ready にする案（rebase ごとの hosted run と exact-HEAD evidence が増えるため却下）; 初回から 3 lane 以上に広げる案（運用摩擦の実測前なので却下）。
+- Rollback: wave 1 で複数 lane の fail-closed 停止または Owner Effort Budget 超過が同時発生した場合は wave を中断し、`単線運用へ戻す`。各 lane の安全な state と Draft PR は保持し、Coordinator が再開順を owner に提示する。
+- Revisit: wave 1 WER で registry 更新、review 裁定、rebase、owner batch gate、L3 fixture 準備の摩擦を評価した後。3 lane 化と複数 lane の L3 を 1 session に束ねるかは、その evidence に基づき owner が判断する。

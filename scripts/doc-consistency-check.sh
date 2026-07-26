@@ -1163,24 +1163,27 @@ check_plan_packet_workflow_state() {
         fi
     done < <(iter_plan_packet_targets "$@")
 
-    # --- active packet 一意性 + Plans.md「次の行動」リンク整合 ---
+    # --- active packet と Plans.md「次の行動」リンク整合 ---
     # 対象は docs/plans/ 直下の実状態そのもの（PLAN_FILES / TARGET_PATH には依存しない）。
     local active_packets active_count
     active_packets=$(iter_active_dated_plans)
     active_count=$(printf '%s\n' "$active_packets" | grep -c . || true)
 
-    if [ "$active_count" -gt 1 ]; then
-        error "PK4: docs/plans/ 直下に複数の active packet が同時存在します -> $(printf '%s' "$active_packets" | tr '\n' ' ')"
-    fi
-
     local plans_md="docs/Plans.md"
-    if [ "$active_count" -eq 1 ] && [ -f "$plans_md" ]; then
-        local active_basename next_actions_section
-        active_basename=$(basename "$(printf '%s\n' "$active_packets" | head -1)")
-        next_actions_section=$(extract_markdown_section "$plans_md" "次の行動")
-        if [ -z "$next_actions_section" ] || ! printf '%s\n' "$next_actions_section" | grep -qF "$active_basename"; then
-            error "PK4: docs/Plans.md の '## 次の行動' に active packet '${active_basename}' へのリンクが見つかりません"
+    if [ "$active_count" -gt 0 ]; then
+        local active_packet active_basename next_actions_section=""
+        if [ -f "$plans_md" ]; then
+            next_actions_section=$(extract_markdown_section "$plans_md" "次の行動")
         fi
+        while IFS= read -r active_packet; do
+            [ -n "$active_packet" ] || continue
+            active_basename=$(basename "$active_packet")
+            if [ -z "$next_actions_section" ] ||
+                { ! printf '%s\n' "$next_actions_section" | grep -qF "](plans/${active_basename})" &&
+                    ! printf '%s\n' "$next_actions_section" | grep -qF "](./plans/${active_basename})"; }; then
+                error "PK4: docs/Plans.md の '## 次の行動' に active packet '${active_basename}' へのリンクが見つかりません"
+            fi
+        done <<< "$active_packets"
     fi
 
     if [ "$ERRORS" -eq "$before" ]; then
