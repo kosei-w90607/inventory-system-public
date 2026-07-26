@@ -2,19 +2,19 @@
 
 ## Workflow State
 
-- Phase: plan-gate
+- Phase: implementing
 - Risk: R3
 - Execution Mode: fable-window
-- Plan Commit: pending
+- Plan Commit: b7c29c2
 - Amendments: none
 - Coordinator: Fable
-- Writer: Fable（design board 例外の適用: workflow design-only change、owner 明示指示 = 2026-07-27 wave 運用決定・引き継ぎ書。実装 code の Writer には割り当てない）
+- Writer: Codex（実装。packet 設計は Fable = design board 例外の適用: workflow design-only change、owner 明示指示 = 2026-07-27 wave 運用決定・引き継ぎ書）
 - Plan Reviewer: Sonnet（独立 fresh context subagent。rally round 1〜3 実施、round 3 で P1/P2 = 0。owner 判断で Codex 追加 round 可）
 - Final Reviewer: pending（Codex 独立 fresh context、Double Audit 2 pass 目担当）
 - Reviewed Content HEAD: pending
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
-- Human Gate: pending（D-055 plan 承認 + wave 1 lane 選定 / Ready 化 / merge）
+- Human Gate: pending（Ready 化 / merge。D-055 plan 承認 + wave 1 lane 選定 = 順17 × 順22 は 2026-07-27 介入 1 回目/予算 3 回で消化済み）
 
 ## Owner Effort Budget
 
@@ -240,3 +240,7 @@ Do not transcribe exact-HEAD SHA or test counts here (D-035/D-038 Evidence Owner
 **Plan Review round 3（2026-07-27、同 reviewer による closure 確認）**
 
 - 結果: round 2 P1 の解消確認（test #11 の既存 primitive で新 fixture が実装可能なことまで実 file で検証）、**P1/P2 = 0、plan-gate 通過可**。新規 P3×2 = Scope 拡大後の数値 echo 陳腐化（Non-scope「2 点」/ Data Safety「2 file」）→ 同日修正（数値でなく Scope 列挙への参照に置換、数値 echo の rg sweep 済み）
+
+**遷移記録（2026-07-27、state-only）**
+
+- owner が D-055 plan を承認し wave 1 lane = 順17 × 順22 を選定（この change での介入 1 回目/予算 3 回）。既存 evidence（plan-first commit `b7c29c2` が全実装 commit に先行 = 実装 commit 未着手 / 独立 Plan Reviewer round 3 で P1/P2 = 0）により `plan-gate -> plan-approved -> implementing` を本 state-only commit で一括実体化。実装 Writer = Codex（発注書は Coordinator が提示、owner relay で起動）
