@@ -81,7 +81,7 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 - synthetic rebase 状況で `Rebase Map:` 行ありの packet が `bash scripts/check-workflow-git.sh` の ancestry 検査を通過し、Map なし・旧 SHA 非 ancestor では fail することを実測し PR body に記録（Matrix T-PK5。多段 rebase chain 正例 + gated Amendment SHA 込み rebase の正例・負例を含む — Amendment 1）
 - PK4 の link 判定が code fence / comment 内の見かけ上の link を有効 link と誤認せず `bash scripts/doc-consistency-check.sh --target plan` が `ERROR` になる（fail-open 防止）ことを負例 fixture で実測し PR body に記録（Matrix T-PK4c — Amendment 1）
 - T-PK4a/b と T-PK5 は ad-hoc 実測に留めず、`scripts/tests/doc-consistency-plan-packet.test.sh`（test #11 書換え含む）と `scripts/tests/workflow-git-checks.test.sh` の常設 fixture として実装し、`run_required` の `doc-consistency-plan-packet-tests` / `workflow-git-checks-tests` が green であることを含む `bash scripts/local-ci.sh full` CLEAN を L1 evidence とする
-- Matrix X1〜X6 の実 mutation 注入で、対応する `rg` assertion が exit 1 へ反転することを clean tree で実測し、注入 → red → 復元 → green の記録を PR body に残す
+- Matrix X1/X1b/X1c/X2〜X8 の実 mutation 注入で、対応する `rg` assertion が exit 1 へ反転することを clean tree で実測し、注入 → red → 復元 → green の記録を PR body に残す（X 追加時の range 追随漏れを Amendment 2 で是正）
 - 旧文言 grep evidence: `rg -n 'single active packet' docs/ Plans.md AGENTS.md .agents/ .claude/` の live hit（archive 配下の歴史記述を除く）が 0、または読み替え注記の同一 PR 追記で解消済みであることを PR body に記録
 
 ## Design Sources
@@ -254,6 +254,13 @@ Exact-HEAD SHA と test count は D-035/D-038 に従い PR body を正本とす�
   3. Matrix M-A11 oracle 欠陥（Coordinator の authoring ミス）: combined `rg` が checker 側 hit で X7 を検出不能 → M-A11a（DEV_WORKFLOW）/ M-A11b（checker）へ分割、X7 は M-A11a で検出
   4. M-N5 期待表記誤り（期待 1 → 正 0/UNCHANGED 出力）+ PK4 link 判定の fail-open 防止負例（T-PK4c）+ 多段 rebase chain / Amendments 込み fixture の追加
 - 本 Amendment は packet / Matrix の契約精緻化のみ。実装への反映（checker / test / DEV_WORKFLOW 文言の追随）は Codex 再開 scope
+
+**gated Amendment 2（2026-07-27、Coordinator 独立再実測による X7 oracle 欠陥の是正）**
+
+- human-confirm 到達後、Coordinator が独立 fresh context（worktree 隔離）で X1〜X8 全 10 mutation を Matrix どおり実注入再実測。結果 9/10 red 実証、**X7 のみ FAIL**: DEV_WORKFLOW の Rebase Map 定義文を削除しても Draft PR Checkpoint 節の cross-reference hit（`Rebase Map` は Wave Operation に従う）が残るため、汎用 literal の M-A11a が反転しない。Writer の「X7 red 実証」記録は Matrix の注入内容どおりには再現不能（PR body の該当 evidence は訂正対象）
+- Findings Freeze 後の新規発見だが、実再実測の failure で立証されているため blocker として accept。是正 = M-A11a assertion を定義文 literal（`Rebase Map: <旧 SHA> -> <新 SHA>`）へ特定化（X7 の注入内容は不変、oracle 側の弁別性を回復）。DEV_WORKFLOW / checker / test の実装は無変更（oracle 定義のみの是正）
+- 併せて AC の mutation range「X1〜X6」が X7/X8 追加時に未追随だった stale 表記を是正
+- 手順 = state-backtrack `human-confirm -> implementing`（`adc5bc6`）→ 本 Amendment content commit → Amendments 行追記 → Coordinator が新 M-A11a で X7 を再実測 → L1 full 再実行 → 再 walk（evidence 充足後、Ready 承認時に adjacent forward 一括実体化。forward state-only は cap 3 の残 1 枠に収める）
 
 **Final Double Audit と遷移記録（2026-07-27、state-only）**
 

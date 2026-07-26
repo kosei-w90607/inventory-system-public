@@ -60,8 +60,9 @@ rg -F 'patch-id 同値' docs/DEV_WORKFLOW.md
 rg -F 'conflict が出た rebase は content change として implementing へ戻る' docs/DEV_WORKFLOW.md
 # M-A8 期待: 0
 rg -F '裁定は Coordinator が直列' docs/DEV_WORKFLOW.md
-# M-A11a 期待: 0（DEV_WORKFLOW 側。X7 の検出 oracle はこちら — combined 形は checker 側 hit で mutation を素通しするため分割。Amendment 1）
-rg -F 'Rebase Map' docs/DEV_WORKFLOW.md
+# M-A11a 期待: 0（DEV_WORKFLOW 側。X7 の検出 oracle はこちら — combined 形は checker 側 hit で mutation を素通しするため分割〈Amendment 1〉。
+# assertion は定義文 literal に特定化: 汎用 'Rebase Map' では Draft PR Checkpoint 節の cross-reference hit が残り、定義文削除を検出できない〈Amendment 2、Coordinator 独立再実測で実証〉）
+rg -F 'Rebase Map: <旧 SHA> -> <新 SHA>' docs/DEV_WORKFLOW.md
 # M-A11b 期待: 0（checker 側）
 rg -F 'Rebase Map' scripts/check-workflow-git.sh
 # M-A9 期待: 0
@@ -104,7 +105,7 @@ rg -F 'interventions ≤3' docs/DEV_WORKFLOW.md
 | X4 | A1a 文（互いに素）を削除 | M-A1a が exit 1 に反転 | D1 |
 | X5 | A9 文の上限 `4` を `16` に書換 | M-A9 が exit 1 に反転 | D6 |
 | X6 | decision-log D-055 の rollback 文（単線運用へ戻す）を削除 | M-A10 が exit 1 に反転 | D7 |
-| X7 | DEV_WORKFLOW の Rebase Map 文を削除 | M-A11a が exit 1 に反転 | D4 |
+| X7 | DEV_WORKFLOW の Rebase Map 定義文（Wave Operation 節、`Rebase Map: <旧 SHA> -> <新 SHA>` を含む文）を削除 | M-A11a（定義文 literal）が exit 1 に反転 | D4 |
 | X8 | D3 の decision point 計上文を削除 | M-A5b が exit 1 に反転 | D3 |
 
 実測は commit 済み clean tree 上で行い、注入 → red 確認 → `git checkout -- <file>` 復元 → 復元後の green 再確認を X ごとに記録する（記録先 = PR body、count / SHA は tracked doc に書かない）。
