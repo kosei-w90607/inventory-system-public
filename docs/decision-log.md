@@ -421,3 +421,12 @@ Use concise ADR-style entries.
 - Alternatives considered: 複数是正単位を 1 packet に統合する案（Scope、Findings Freeze、reviewer 独立性が崩れるため却下）; registry を設けず複数 active packet を全面許可する案（fail-closed 保護を失うため却下）; 全 lane を同時に Ready にする案（rebase ごとの hosted run と exact-HEAD evidence が増えるため却下）; 初回から 3 lane 以上に広げる案（運用摩擦の実測前なので却下）。
 - Rollback: wave 1 で複数 lane の fail-closed 停止または Owner Effort Budget 超過が同時発生した場合は wave を中断し、`単線運用へ戻す`。各 lane の安全な state と Draft PR は保持し、Coordinator が再開順を owner に提示する。
 - Revisit: wave 1 WER で registry 更新、review 裁定、rebase、owner batch gate、L3 fixture 準備の摩擦を評価した後。3 lane 化と複数 lane の L3 を 1 session に束ねるかは、その evidence に基づき owner が判断する。
+
+## D-056
+
+- Decision: Opus 系の高自律・低制約適性 slot（AGENT_OPERATING_MANUAL §3.4 対応表で解決）を read-only 発注書駆動の claims-producer 専任とする。担当はレビュー難所の一次（並行性 / mutation 感度 / 大型 diff / L 級 lane）と広域調査・重い単発分析。Writer / Coordinator / state 遷移管理には割り当てず、§3.1 の design board 例外の対象外とする。発注書は低制約 profile（§5.4 = goal / scope 境界 / read-only 宣言 / 報告フォーマット / subagent 生成上限の 5 点のみ）を用い、通常レビューは既存分業を維持する。メインスレッド代役（Fable 不在時の Coordinator）は不採用とし、代役整備ドラフト 3 点（output style / hook 注入 / rules 点検）は凍結する。security 隣接の敵対的レビュー迂回は本決定の対象外で従来どおり。
+- Status: accepted（2026-07-27、owner 協議で確定）
+- Why: 公式 prompting 指針は本世代で非対称であり（検証系・過程系の指示は削る / 出力契約と委譲上限は明示する）、process 規律の内面化を要求する Coordinator / Writer 業務と正面衝突する。一方、本 repo の workflow は「実行者の claims を信用せず独立検証と裁定で受ける」構造（D-055 のレビュー体制）を既に持ち、read-only の claims-producer 席なら process 契約を内面化させずに検出力だけを使える。初回較正（本 change の plan review round 4）では低制約 profile 5 点のみの発注で、Sonnet rally 3 round と checker が見逃した必須節欠落 P1 を含む 4 件を検出し、read-only・報告契約・委譲上限 0 を全て遵守した。
+- Alternatives considered: 代役整備（output style + hook + rules 書換えで process 準拠の Coordinator に仕立てる案 — model 特性に逆行し、既存 fallback〈Codex + Sonnet 分業〉の実績があるため却下）; 単純不使用（レビュー難所での検出力を捨てるため却下）; 希少・最高能力 slot 区分への編入（§3.1 の design board 例外・投入条件と矛盾するため却下、self-contained な新区分とした）。
+- Rollback: 低制約 profile 運用で報告契約違反・scope 逸脱・委譲超過が反復する場合は当該 slot への発注を停止し、既存分業（Sonnet 一次 + Codex）へ戻す。
+- Revisit: Fable slot の恒久喪失（サブスク枠からの消滅）時に、凍結中の代役整備ドラフト 3 点の解凍を検討する。低制約 profile の過不足は難所 lane 初投入後に見直す。

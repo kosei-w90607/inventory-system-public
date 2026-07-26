@@ -151,6 +151,7 @@
 
 ### 大方針（セッション#1で確定した最重要判断）
 - **workflow の wave 運用（D-055）**: 互いに非干渉な lane は `Plans.md` の Wave Registry で 2〜3 lane を Draft PR まで並列化し、per-lane gate を維持したまま merge train は直列に進める。wave 1 は順17 × 順22 の 2 lane pilot。
+- **Opus 系 slot の役割確定（D-056）**: 高自律・低制約適性 slot は read-only の claims-producer 専任（レビュー難所一次・広域調査）。発注は AGENT_OPERATING_MANUAL §5.4 の低制約 profile、メインスレッド代役は不採用（代役ドラフトは Fable slot 恒久喪失時に revisit）。
 - **PLU一括登録方式を採用。ただし 2026-07-02 field gate でCV17 1.1.1形式を更新**: 商品マスタからPLU登録用 `.txt` を生成→カシオPCツール経由でレジに一括書込み、という REQ-402 方針は維持する。CV17 1.1.1向けは `.txt` / 11列 / 13桁JAN必須で、PLU総枠5000を通常PLUとスキャニングPLUで共有する。現地profileでは通常PLU216枠使用によりスキャニングPLU217始まり。CV17 import成功だけでは完了扱いにしない。PR #122 では承認済み field file とアプリformatterの構造一致を external gate として受容し、最新アプリ生成 `.txt` の実機再確認は Post-UI-08 follow-up に残す。一方、現店舗の日報主入力は `Z001`/`Z002`/`Z005` であり、日次の SALES 取込みを Z004 単独前提で進めない。Z004 は PLU登録後の商品別売上・在庫引落し候補として再評価する。
 - **会計フローは変更しない**: 利用者は今まで通りレジでバーコードスキャン→精算→レシート発行。レジ側の操作は一切変えない
 - **システムは日次バッチ更新**: 精算後にSDカード→PC→CSV取込みの流れ。リアルタイム連携はしない
