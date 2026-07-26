@@ -47,13 +47,15 @@ setup_repo_dirs() {
 }
 
 write_plans_md_linking() {
-    local basename="$1"
     {
         echo "# Plans"
         echo ""
         echo "## 次の行動"
         echo ""
-        echo "1. fixture entry: [plans/${basename}](plans/${basename})"
+        local basename
+        for basename in "$@"; do
+            echo "1. fixture entry: [plans/${basename}](plans/${basename})"
+        done
     } > "$repo/docs/Plans.md"
 }
 
@@ -64,6 +66,87 @@ write_plans_md_no_link() {
         echo "## 次の行動"
         echo ""
         echo "1. fixture entry: (リンクなし)"
+    } > "$repo/docs/Plans.md"
+}
+
+write_plans_md_text_only() {
+    local basename="$1"
+    {
+        echo "# Plans"
+        echo ""
+        echo "## 次の行動"
+        echo ""
+        echo "1. fixture entry mentions ${basename} without a Markdown link"
+    } > "$repo/docs/Plans.md"
+}
+
+write_plans_md_hidden_links() {
+    local fenced_basename="$1"
+    local comment_basename="$2"
+    {
+        echo "# Plans"
+        echo ""
+        echo "## 次の行動"
+        echo ""
+        echo '```markdown'
+        echo "1. fixture entry: [plans/${fenced_basename}](plans/${fenced_basename})"
+        echo '```'
+        echo ""
+        echo "<!--"
+        echo "1. fixture entry: [plans/${comment_basename}](plans/${comment_basename})"
+        echo "-->"
+    } > "$repo/docs/Plans.md"
+}
+
+write_plans_md_mixed_fence_and_inline_code() {
+    local fenced_basename="$1"
+    local inline_basename="$2"
+    {
+        echo "# Plans"
+        echo ""
+        echo "## 次の行動"
+        echo ""
+        echo '```markdown'
+        echo "~~~"
+        echo "1. fixture entry: [plans/${fenced_basename}](plans/${fenced_basename})"
+        echo '```'
+        echo ""
+        echo "1. inline code only: \`[plans/${inline_basename}](plans/${inline_basename})\`"
+    } > "$repo/docs/Plans.md"
+}
+
+write_plans_md_escaped_link() {
+    local basename="$1"
+    {
+        echo "# Plans"
+        echo ""
+        echo "## 次の行動"
+        echo ""
+        echo "1. escaped syntax only: \\[plans/${basename}](plans/${basename})"
+    } > "$repo/docs/Plans.md"
+}
+
+write_plans_md_double_inline_code() {
+    local basename="$1"
+    {
+        echo "# Plans"
+        echo ""
+        echo "## 次の行動"
+        echo ""
+        printf '1. double-code: `` `[plans/%s](plans/%s)` ``\n' "$basename" "$basename"
+    } > "$repo/docs/Plans.md"
+}
+
+write_plans_md_multiline_inline_code() {
+    local basename="$1"
+    {
+        echo "# Plans"
+        echo ""
+        echo "## 次の行動"
+        echo ""
+        echo '1. multiline code only: `'
+        echo "[plans/${basename}](plans/${basename})"
+        echo '`'
     } > "$repo/docs/Plans.md"
 }
 
@@ -313,16 +396,63 @@ if ! run_check "docs/plans/2026-01-10-fixture.md"; then
 fi
 assert_not_contains "$out" "Contract Probe"
 
-# --- 11. 複数 active packet が docs/plans/ 直下に同時存在 ---
+# --- 11. D-055 T-PK4a/b: 複数 active packet は全 packet の「次の行動」link を必須化 ---
 setup_repo_dirs
 reset_packet_defaults
 write_packet "$repo/docs/plans/2026-01-11-fixture-a.md"
 write_packet "$repo/docs/plans/2026-01-11-fixture-b.md"
+write_plans_md_linking "2026-01-11-fixture-a.md" "2026-01-11-fixture-b.md"
+if ! run_check ""; then
+    cat "$out" >&2
+    fail "multiple active packets with complete Plans.md links were unexpectedly rejected"
+fi
+assert_contains "$out" "PK4: Workflow State machine 整合 OK"
+
 write_plans_md_linking "2026-01-11-fixture-a.md"
 if run_check ""; then
-    fail "multiple active packets under docs/plans/ were not rejected"
+    fail "an active packet missing from Plans.md was not rejected"
 fi
-assert_contains "$out" "複数の active packet が同時存在します"
+assert_contains "$out" "active packet '2026-01-11-fixture-b.md' へのリンクが見つかりません"
+
+write_plans_md_text_only "2026-01-11-fixture-a.md"
+if run_check ""; then
+    fail "a plain-text packet basename was incorrectly accepted as a Plans.md link"
+fi
+assert_contains "$out" "active packet '2026-01-11-fixture-a.md' へのリンクが見つかりません"
+
+# --- 11c. D-055 T-PK4c: code fence / HTML comment 内の見かけ上の link は無効 ---
+write_plans_md_hidden_links "2026-01-11-fixture-a.md" "2026-01-11-fixture-b.md"
+if run_check ""; then
+    fail "links visible only inside a code fence or HTML comment were incorrectly accepted"
+fi
+assert_contains "$out" "active packet '2026-01-11-fixture-a.md' へのリンクが見つかりません"
+assert_contains "$out" "active packet '2026-01-11-fixture-b.md' へのリンクが見つかりません"
+
+write_plans_md_mixed_fence_and_inline_code \
+    "2026-01-11-fixture-a.md" "2026-01-11-fixture-b.md"
+if run_check ""; then
+    fail "mixed fence delimiters or inline code exposed a non-rendered link"
+fi
+assert_contains "$out" "active packet '2026-01-11-fixture-a.md' へのリンクが見つかりません"
+assert_contains "$out" "active packet '2026-01-11-fixture-b.md' へのリンクが見つかりません"
+
+write_plans_md_double_inline_code "2026-01-11-fixture-a.md"
+if run_check ""; then
+    fail "a double-backtick code span exposed a non-rendered link"
+fi
+assert_contains "$out" "active packet '2026-01-11-fixture-a.md' へのリンクが見つかりません"
+
+write_plans_md_multiline_inline_code "2026-01-11-fixture-a.md"
+if run_check ""; then
+    fail "a multiline code span exposed a non-rendered link"
+fi
+assert_contains "$out" "active packet '2026-01-11-fixture-a.md' へのリンクが見つかりません"
+
+write_plans_md_escaped_link "2026-01-11-fixture-a.md"
+if run_check ""; then
+    fail "escaped Markdown syntax was incorrectly accepted as a rendered link"
+fi
+assert_contains "$out" "active packet '2026-01-11-fixture-a.md' へのリンクが見つかりません"
 
 # --- 12. active packet と docs/Plans.md「次の行動」リンクの不一致 ---
 setup_repo_dirs

@@ -107,7 +107,7 @@ Transition table — every transition requires the listed evidence. Phases move 
 - A correction that moves to an earlier phase is a D-035 state-only transition commit and uses the canonical subject `docs(plans): state-backtrack <from>-><to>`. It records exactly one backward transition to the earliest affected phase, is excluded from the forward STATECAP count, and cannot contain a forward transition, same-phase transition, unknown phase, or transition chain. Two `state-backtrack` commits may not be adjacent in history: splitting one multi-phase jump into consecutive single-hop commits is the same forbidden chain and fails the git check; legitimate separate corrections have real work commits between them. The state-only file allowlist and zero-context hunk audit still apply. After the backtrack, re-walk forward transitions under the normal evidence rules. Preserve the original `Plan Commit`; if the correction changes a gated packet contract, record the reviewed change as an append-only `Amendments` SHA instead of rewriting the original plan identity.
 - A state-only commit may materialize multiple **adjacent forward transitions** from the table when every transition's required evidence already exists before that commit. The packet's append-only narrative must name the complete sequence and evidence. This is recording compression, not a phase skip: implementation content remains forbidden until the `plan-gate -> plan-approved` evidence exists, and every intermediate transition must be reconstructable. For example, after a fresh Plan Reviewer reports P1/P2 = 0 and the plan-first commit is known to precede implementation, one state-only commit may materialize `plan-gate -> plan-approved -> implementing` immediately before implementation begins.
 - Fail-closed rule: any reader — a resume procedure, reviewer, or implementer — that finds the `## Workflow State` section missing, incomplete, or holding a value outside the enums must treat the packet as still pre-plan-gate: no implementation, no phase progression, no Ready. Report the defect to the owner instead of repairing it silently. This rule applies from day one, independent of whether the mechanical PK4 check has landed.
-- Packet selection rule for resume: start from the single active packet linked from the current-work section of `Plans.md`. If `docs/plans/` holds multiple active packets for the task, the packet disagrees with `Plans.md`, the linked packet is missing, or the packet's branch/PR no longer matches the work being resumed, stop and report to the owner instead of picking one (same fail-closed posture).
+- Packet selection rule for resume: outside [Wave Operation](#wave-operation), start from the one active packet linked from the current-work section of `Plans.md`. During a registered wave, start from the named lane in the `Plans.md` `Wave Registry`, then follow that lane's packet link; never select a packet merely because it is active. `registry に列挙されていない複数 active packet は従来どおり fail-closed` とし、停止して owner に報告する。`registry と実在 packet の不一致`（packet の欠落、または branch / Draft PR が lane 記録と一致しない場合）も同様に停止する。現 wave を反映していない兆候など `registry の陳腐化` が疑われる場合も、推測で補正・選択せず停止して owner に報告する。
 
 State / evidence separation (D-035):
 
@@ -236,6 +236,18 @@ Design completion criteria:
 - When a Plan Packet includes L3 in its Human Gate, the Writer must run `cargo check --release` before the owner performs the native build; this is a Writer completion condition, not a CI gate (backup/migration implementation PR1 WER lesson).
 - Dashboard-only merge baseline sync can be batched with the next related docs cleanup when there is no blocker, user-facing ambiguity, or stale next action.
 
+## Wave Operation
+
+Wave Operation は、互いに干渉しない複数 change を Draft PR まで並列化し、owner gate と merge をまとめて運用するための D-055 契約である。
+
+- lane は `1 是正単位 = 1 Plan Packet = 1 branch = 1 Draft PR` であり、既存の change の別名とする。plan-first、Test Design Matrix、mutation 独立再実測、oracle 独立性、Contract Audit、L3 fixture 準備、Workflow State と hosted evidence はすべて per-lane で維持する。複数単位を 1 packet に統合しない。
+- wave は `file footprint が互いに素`な 2〜3 lane の集合とする。同じ source document を編集する lane は同居させず、`生成 file を再生成する lane は 1 wave に 1 つまで`とする。Coordinator は lane packet 起票前に Scope の予定 file と生成物を突合し、条件を証明できない組合せを単線に戻す。
+- 現 wave と lane の task、branch、packet、Draft PR、Phase、owner 介入状況、merge train 順序は `Plans.md` の `Wave Registry` に置く。packet の選択と fail-closed 条件は [Workflow State](#workflow-state) に従う。
+- Plan Reviewer と Final Reviewer は lane ごとの独立 fresh context とし、一次レビューは並列に実行できるが、相互修正案の `裁定は Coordinator が直列`に行う。Review Rules の Findings Freeze と workflow gate change の Double Audit を lane ごとに適用する。
+- Draft PR までは lane を並列に進める。`ready-hosted-final への遷移は merge train 先頭の lane のみ`とし、owner は batch Ready 承認時に train 順序を指定する。Coordinator は既定案として human-confirm 到達順を提示する。
+- 先頭 lane の merge 後、次 lane の rebase は Codex が行う。rebase 前後の plan-first commit と各 gated Amendment commit が `patch-id 同値`であることを証明できる conflict-free rebase に限り Phase を維持し、rebase 後 HEAD で L1 full を再実行して PR body を更新する。Writer は packet の append-only narrative に、plan-first commit と `Amendments` 行の各 SHA をそれぞれ root とする `Rebase Map: <旧 SHA> -> <新 SHA>` を追記し、`Plan Commit` field と `Amendments` 行の原 SHA 列は変更しない。機械検査の第 1 層として PK5 は mapped pair ごとの単一 commit `patch-id 同値`、旧 object の解決、root ごとの多段 chain 整合を検査し、第 2 層として Map 適用後の実効 SHA で plan-first の ancestry と各 Amendment の descendant / ancestry を検証する。lane 全体の rebase 前後 whole-diff 同値は Writer evidence として PR body に記録し、PK5 の機械検査対象にはしない。`conflict が出た rebase は content change として implementing へ戻る`ものとし、通常の再検証・再レビューを行う。
+- owner は 1 回の train 承認で全 lane の Ready 遷移実行を Coordinator に委任できるが、[Owner Effort Budget](#owner-effort-budget) の lane ごとの decision point 計上と、各 lane の merge gate は省略できない。
+
 ## Subagent Budget
 
 Risk-tiered ceiling for delegated sub-agents, regardless of harness (D-034):
@@ -247,6 +259,7 @@ Risk-tiered ceiling for delegated sub-agents, regardless of harness (D-034):
 | R3 | 2 |
 | R4 or workflow gate change | 3 |
 
+- Wave Operation でも上表の per-lane 上限を維持し、加えて `全 lane 合算の同時 subagent 上限は 4` とする（D-055）。上限には Writer 以外の Plan Reviewer / Final Reviewer / review-only subagent を含め、空き枠がなければ新規 delegation を待機する。
 - Max delegation depth is 1: sub-agents must not spawn sub-agents.
 - One-writer rule: at most one agent holds write ownership of a file set at a time. Write-parallelism requires separate worktrees or non-overlapping file ownership declared in the Plan Packet.
 - Sub-agent output contract: a bounded evidence summary (about 20 items max) with file:line references. No raw logs, no full-file dumps.
@@ -258,6 +271,7 @@ Risk-tiered ceiling for delegated sub-agents, regardless of harness (D-034):
 R2+ Plan Packets carry a default owner-effort ceiling (D-038): interventions ≤3, hands-on time ≤30 minutes, relay round-trips ≤2. A packet may adjust these with a recorded reason. This ceiling is a hard stop, not a target that the owner absorbs.
 
 - Every owner approval request must state `この change での介入 N 回目 / 予算 M 回` and one sentence explaining what becomes complete from the user's point of view if approved. Include the approximate elapsed hands-on time when known.
+- Wave Operation の owner 承認は wave summary として batch できるが、`batch で進めた各 lane に介入 1 回を計上`し、各 lane の既定 3 回を緩和しない。summary は lane ごとの `介入 N/M + 完了 1 文` を束ね、lane ごとの承認・却下を独立に扱う。計上は session 数ではなく `decision point 単位`であり、同一 lane の複数 decision point を 1 session で判断した場合はその数だけ計上する（D-055）。
 - When any ceiling is likely to be exceeded, stop before requesting another approval or generating more evidence, scripts, or ceremony. Restate the Goal Invariant and return to its minimal sufficient completion route; defer optional evidence and follow-ups. If the remaining route cannot fit, report the blocker instead of silently widening the budget.
 - An owner's qualitative discomfort such as “this is taking too long” or “I cannot tell what is being built” is a `goal-drift signal`. Stop immediately, compare the current outcome state with the Goal Invariant, classify candidate-safety work separately from supporting evidence, and do not resume until the next step visibly advances the minimum completion condition within the remaining budget.
 - For the one-time, irreversible, owner-gated task shape, use the `one-shot irreversible` owner-attended time-boxed session in [AGENT_OPERATING_MANUAL.md](AGENT_OPERATING_MANUAL.md) §3.5. This task-shape choice is separate from the vendor-oriented Execution Mode.
@@ -360,6 +374,7 @@ Definition of first implementation pass complete:
 Default behavior:
 
 - Open a Draft PR after Verify + Review when the branch is ready for external review, Windows native L3, or owner handoff.
+- Wave Operation では各 lane の Draft PR を並列に開けるが、`ready-hosted-final への遷移は merge train 先頭の lane のみ`とする。train 順序、後続 lane の rebase、L1 再実行、`Rebase Map` は [Wave Operation](#wave-operation) に従う。
 - The PR body includes a `Human Gate` field for each pending owner approval: `この change での介入 N 回目 / 予算 M 回` plus one user-visible completion sentence. This field is the approval interface; do not hide the counter in review logs or tracked evidence.
 - Keep the PR Draft while required Windows native L3, human visual confirmation, or owner manual checks are still pending.
 - Record pending manual checks in the PR body and `Plans.md`.
@@ -397,6 +412,7 @@ Repository evidence:
 
 - Move completed active Plan Packets and Test Matrices from `docs/plans/` to `docs/archive/plans/`, preserving evidence and fixing links.
 - Update `Plans.md` so it reflects current live state, completed work, archived evidence, and next action.
+- Wave Operation では merge 済み lane を個別に archive し、`Wave Registry` の lane 状態を同期してから train の次 lane を進める。全 lane の closeout 後に wave 1 の WER を完了し、3 lane 化の判断材料とする。
 - Update `docs/PROJECT_HANDOFF.md` after meaningful project progress.
 - For R3/R4 or workflow changes, complete Workflow Effectiveness Review or name the next dogfood target.
 

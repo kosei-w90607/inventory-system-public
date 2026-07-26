@@ -868,6 +868,129 @@ extract_prose_keep_inline() {
     ' "$file"
 }
 
+strip_fenced_code_and_html_comments() {
+    awk '
+        function marker_run_length(text, marker, count) {
+            marker = substr(text, 1, 1)
+            if (marker != "`" && marker != "~") {
+                return 0
+            }
+            count = 1
+            while (substr(text, count + 1, 1) == marker) {
+                count++
+            }
+            return count
+        }
+        {
+            trimmed = $0
+            sub(/^[[:space:]]*/, "", trimmed)
+            marker = substr(trimmed, 1, 1)
+            marker_length = marker_run_length(trimmed)
+
+            if (in_fence) {
+                remainder = substr(trimmed, marker_length + 1)
+                if (marker == fence_marker &&
+                    marker_length >= fence_length &&
+                    remainder ~ /^[[:space:]]*$/) {
+                    in_fence = 0
+                }
+                next
+            }
+            if (marker_length >= 3) {
+                in_fence = 1
+                fence_marker = marker
+                fence_length = marker_length
+                next
+            }
+
+            line = $0
+            while (1) {
+                if (in_comment) {
+                    comment_end = index(line, "-->")
+                    if (comment_end == 0) {
+                        next
+                    }
+                    line = substr(line, comment_end + 3)
+                    in_comment = 0
+                }
+
+                comment_start = index(line, "<!--")
+                if (comment_start == 0) {
+                    print line
+                    next
+                }
+
+                before = substr(line, 1, comment_start - 1)
+                remainder = substr(line, comment_start + 4)
+                comment_end = index(remainder, "-->")
+                if (comment_end == 0) {
+                    print before
+                    in_comment = 1
+                    next
+                }
+
+                line = before substr(remainder, comment_end + 3)
+            }
+        }
+    '
+}
+
+strip_inline_code_spans() {
+    awk '
+        function backtick_run_length(text, position, count) {
+            count = 0
+            while (substr(text, position + count, 1) == "`") {
+                count++
+            }
+            return count
+        }
+        {
+            document = document $0 ORS
+        }
+        END {
+            output = ""
+            cursor = 1
+
+            while (cursor <= length(document)) {
+                relative_open = index(substr(document, cursor), "`")
+                if (relative_open == 0) {
+                    output = output substr(document, cursor)
+                    break
+                }
+
+                open_position = cursor + relative_open - 1
+                output = output substr(document, cursor, open_position - cursor)
+                open_length = backtick_run_length(document, open_position)
+                search_position = open_position + open_length
+                close_position = 0
+
+                while (search_position <= length(document)) {
+                    relative_close = index(substr(document, search_position), "`")
+                    if (relative_close == 0) {
+                        break
+                    }
+                    candidate_position = search_position + relative_close - 1
+                    candidate_length = backtick_run_length(document, candidate_position)
+                    if (candidate_length == open_length) {
+                        close_position = candidate_position
+                        break
+                    }
+                    search_position = candidate_position + candidate_length
+                }
+
+                if (close_position == 0) {
+                    output = output substr(document, open_position)
+                    break
+                }
+                output = output " "
+                cursor = close_position + open_length
+            }
+
+            printf "%s", output
+        }
+    '
+}
+
 # Workflow State セクション本文（extract_markdown_section の出力）から
 # "- <field>: <value>" 形式の1行目の値を取り出す。値は enum/SHA/pending を
 # 想定し英数字・アンダースコア・ハイフンのみを対象にする（末尾の注記括弧等は無視）。
@@ -1163,24 +1286,32 @@ check_plan_packet_workflow_state() {
         fi
     done < <(iter_plan_packet_targets "$@")
 
-    # --- active packet 一意性 + Plans.md「次の行動」リンク整合 ---
+    # --- active packet と Plans.md「次の行動」リンク整合 ---
     # 対象は docs/plans/ 直下の実状態そのもの（PLAN_FILES / TARGET_PATH には依存しない）。
     local active_packets active_count
     active_packets=$(iter_active_dated_plans)
     active_count=$(printf '%s\n' "$active_packets" | grep -c . || true)
 
-    if [ "$active_count" -gt 1 ]; then
-        error "PK4: docs/plans/ 直下に複数の active packet が同時存在します -> $(printf '%s' "$active_packets" | tr '\n' ' ')"
-    fi
-
     local plans_md="docs/Plans.md"
-    if [ "$active_count" -eq 1 ] && [ -f "$plans_md" ]; then
-        local active_basename next_actions_section
-        active_basename=$(basename "$(printf '%s\n' "$active_packets" | head -1)")
-        next_actions_section=$(extract_markdown_section "$plans_md" "次の行動")
-        if [ -z "$next_actions_section" ] || ! printf '%s\n' "$next_actions_section" | grep -qF "$active_basename"; then
-            error "PK4: docs/Plans.md の '## 次の行動' に active packet '${active_basename}' へのリンクが見つかりません"
+    if [ "$active_count" -gt 0 ]; then
+        local active_packet active_basename next_actions_section=""
+        local next_actions_links=""
+        if [ -f "$plans_md" ]; then
+            next_actions_section=$(extract_markdown_section "$plans_md" "次の行動")
+            next_actions_links=$(printf '%s\n' "$next_actions_section" \
+                | strip_fenced_code_and_html_comments \
+                | strip_inline_code_spans \
+                | grep -oE '(^|[^!\\])\[[^][]+\]\((\./)?plans/[^()[:space:]]+\)' || true)
         fi
+        while IFS= read -r active_packet; do
+            [ -n "$active_packet" ] || continue
+            active_basename=$(basename "$active_packet")
+            if [ -z "$next_actions_links" ] ||
+                { ! printf '%s\n' "$next_actions_links" | grep -qF "](plans/${active_basename})" &&
+                    ! printf '%s\n' "$next_actions_links" | grep -qF "](./plans/${active_basename})"; }; then
+                error "PK4: docs/Plans.md の '## 次の行動' に active packet '${active_basename}' へのリンクが見つかりません"
+            fi
+        done <<< "$active_packets"
     fi
 
     if [ "$ERRORS" -eq "$before" ]; then

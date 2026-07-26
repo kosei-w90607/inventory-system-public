@@ -10,9 +10,12 @@
 #
 # 検査内容:
 #   PK5: docs/plans/ 直下の各 active packet について
-#     (a) `Plan Commit` の SHA が現 HEAD の ancestor であること
-#     (b) `Amendments` 行の各 SHA が `Plan Commit` の descendant かつ HEAD の ancestor であること
-#     (c) `Plan Commit` の値が過去に書き換えられていないこと（初回 non-pending 値と現在値の比較）
+#     (a) `Plan Commit` の実効 SHA が現 HEAD の ancestor であること
+#     (b) `Amendments` 行の各実効 SHA が `Plan Commit` の実効 SHA の descendant かつ
+#         HEAD の ancestor であること
+#     (c) `Rebase Map` の各 pair が単一 commit patch-id 同値であり、Plan Commit または
+#         Amendments SHA を root とする chain として整合すること
+#     (d) `Plan Commit` の値が過去に書き換えられていないこと（初回 non-pending 値と現在値の比較）
 #   STATECAP: `$(git merge-base origin/main HEAD)..HEAD` の範囲で
 #     - forward `docs(plans): state-only遷移` prefix の commit が 3 件超で ERROR
 #     - そのうち post-implementation 相当（subject に local-verified / independent-review /
@@ -47,11 +50,52 @@ workflow_phase_index() {
 }
 
 # ----------------------------------------------------------------------------
-# PK5: 単一 packet ファイルの Plan Commit ancestry 検査
+# PK5: Rebase Map chain の実効 SHA 解決
+# ----------------------------------------------------------------------------
+resolve_rebase_chain() {
+    local root_sha="$1"
+    local root_label="$2"
+    local file="$3"
+    local output_name="$4"
+    local next_name="$5"
+    local used_name="$6"
+    local -n output_ref="$output_name"
+    local -n next_ref="$next_name"
+    local -n used_ref="$used_name"
+    local current="$root_sha"
+    declare -A seen=()
+
+    while [[ -n "${next_ref[$current]+x}" ]]; do
+        if [[ -n "${seen[$current]+x}" ]]; then
+            echo "❌ [workflow-git] PK5: $file の Rebase Map chain に循環があります（root: $root_label）"
+            FAIL=1
+            output_ref="$current"
+            return 0
+        fi
+        seen["$current"]=1
+        used_ref["$current"]=1
+        current="${next_ref[$current]}"
+    done
+
+    output_ref="$current"
+}
+
+# ----------------------------------------------------------------------------
+# PK5: 単一 packet ファイルの Plan Commit / Amendments ancestry 検査
 # ----------------------------------------------------------------------------
 check_plan_commit_ancestry() {
     local file="$1"
-    local plan_commit amendments amendment first_value
+    local plan_commit plan_commit_full amendments amendment amendment_full first_value
+    local effective_plan_commit effective_amendment rebase_line map_old map_new
+    local map_old_full map_new_full mapped_old
+    local old_patch_id new_patch_id
+    local -a amendment_shas=()
+    local -a amendment_full_shas=()
+    local -a rebase_map_olds=()
+    declare -A rebase_next=()
+    declare -A rebase_previous=()
+    declare -A rebase_roots=()
+    declare -A rebase_used=()
 
     plan_commit="$(grep -m1 -E '^- Plan Commit:[[:space:]]*' "$file" 2>/dev/null \
         | sed -E 's/^- Plan Commit:[[:space:]]*//; s/[[:space:]]+$//')"
@@ -61,40 +105,129 @@ check_plan_commit_ancestry() {
         return 0
     fi
 
-    if ! git rev-parse --verify "${plan_commit}^{commit}" >/dev/null 2>&1; then
+    if ! plan_commit_full="$(git rev-parse --verify "${plan_commit}^{commit}" 2>/dev/null)"; then
         echo "❌ [workflow-git] PK5: $file の Plan Commit '$plan_commit' は解決できない SHA です"
         FAIL=1
         return 0
     fi
+    rebase_roots["$plan_commit_full"]="Plan Commit '$plan_commit'"
 
-    if ! git merge-base --is-ancestor "$plan_commit" HEAD 2>/dev/null; then
-        echo "❌ [workflow-git] PK5: $file の Plan Commit '$plan_commit' は現在の HEAD の祖先ではありません"
-        FAIL=1
-    fi
-
-    # Amendments: SHA らしきトークン（16進 7〜40 文字）を区切り文字非依存で抽出する。
-    # "none" や未確定の記述にはこの形の文字列は現れないため、抽出結果が空なら検査対象なし。
+    # Amendments の原 SHA は Plan Commit と同様に不変。各 SHA を Rebase Map の
+    # 独立 root として扱うため、Map の検査前に解決しておく。
     amendments="$(grep -m1 -E '^- Amendments:[[:space:]]*' "$file" 2>/dev/null \
         | sed -E 's/^- Amendments:[[:space:]]*//; s/[[:space:]]+$//')"
-
     if [[ -n "$amendments" ]]; then
         while IFS= read -r amendment; do
             [[ -z "$amendment" ]] && continue
-            if ! git rev-parse --verify "${amendment}^{commit}" >/dev/null 2>&1; then
+            amendment_shas+=("$amendment")
+            if ! amendment_full="$(git rev-parse --verify "${amendment}^{commit}" 2>/dev/null)"; then
                 echo "❌ [workflow-git] PK5: $file の Amendments SHA '$amendment' は解決できません"
                 FAIL=1
+                amendment_full_shas+=("")
                 continue
             fi
-            if ! git merge-base --is-ancestor "$plan_commit" "$amendment" 2>/dev/null; then
+            amendment_full_shas+=("$amendment_full")
+            rebase_roots["$amendment_full"]="Amendments SHA '$amendment'"
+            if ! git merge-base --is-ancestor "$plan_commit_full" "$amendment_full" 2>/dev/null; then
                 echo "❌ [workflow-git] PK5: $file の Amendments SHA '$amendment' は Plan Commit '$plan_commit' の descendant ではありません"
                 FAIL=1
             fi
-            if ! git merge-base --is-ancestor "$amendment" HEAD 2>/dev/null; then
-                echo "❌ [workflow-git] PK5: $file の Amendments SHA '$amendment' は現在の HEAD の祖先ではありません"
-                FAIL=1
-            fi
-        done < <(printf '%s' "$amendments" | grep -oE '[0-9a-f]{7,40}')
+        done < <(printf '%s' "$amendments" | grep -oE '[0-9a-f]{7,40}' || true)
     fi
+
+    # D-055 Rebase Map: conflict-free rebase で書き換わった plan-first commit と
+    # 各 gated Amendment commit を append-only に対応付ける。全 pair の単一 commit
+    # patch-id 同値を検証し、root ごとの chain を後段で解決する。
+    while IFS= read -r rebase_line; do
+        [[ -n "$rebase_line" ]] || continue
+        if [[ ! "$rebase_line" =~ ^Rebase[[:space:]]Map:[[:space:]]([0-9a-f]{7,40})[[:space:]]-\>[[:space:]]([0-9a-f]{7,40})[[:space:]]*$ ]]; then
+            echo "❌ [workflow-git] PK5: $file の Rebase Map 形式が不正です -> $rebase_line"
+            FAIL=1
+            continue
+        fi
+        map_old="${BASH_REMATCH[1]}"
+        map_new="${BASH_REMATCH[2]}"
+
+        if ! map_old_full="$(git rev-parse --verify "${map_old}^{commit}" 2>/dev/null)" ||
+            ! map_new_full="$(git rev-parse --verify "${map_new}^{commit}" 2>/dev/null)"; then
+            echo "❌ [workflow-git] PK5: $file の Rebase Map SHA を解決できません -> $rebase_line"
+            FAIL=1
+            continue
+        fi
+
+        if [[ "$map_old_full" == "$map_new_full" ]]; then
+            echo "❌ [workflow-git] PK5: $file の Rebase Map chain が自己循環しています -> $rebase_line"
+            FAIL=1
+            continue
+        fi
+
+        if [[ -n "${rebase_roots[$map_new_full]+x}" ]]; then
+            echo "❌ [workflow-git] PK5: $file の Rebase Map chain が別 root '${rebase_roots[$map_new_full]}' へ接続しています -> $rebase_line"
+            FAIL=1
+            continue
+        fi
+
+        old_patch_id="$(git show --pretty=format: --binary "$map_old_full" 2>/dev/null | git patch-id --stable | awk '{print $1}')"
+        new_patch_id="$(git show --pretty=format: --binary "$map_new_full" 2>/dev/null | git patch-id --stable | awk '{print $1}')"
+        if [[ -z "$old_patch_id" || "$old_patch_id" != "$new_patch_id" ]]; then
+            echo "❌ [workflow-git] PK5: $file の Rebase Map は patch-id が同値ではありません -> $rebase_line"
+            FAIL=1
+            continue
+        fi
+
+        if [[ -n "${rebase_next[$map_old_full]+x}" ]]; then
+            echo "❌ [workflow-git] PK5: $file の Rebase Map chain で old SHA '$map_old' が重複しています -> $rebase_line"
+            FAIL=1
+            continue
+        fi
+        if [[ -n "${rebase_previous[$map_new_full]+x}" ]]; then
+            echo "❌ [workflow-git] PK5: $file の Rebase Map chain で new SHA '$map_new' に複数の old SHA が接続しています -> $rebase_line"
+            FAIL=1
+            continue
+        fi
+
+        rebase_next["$map_old_full"]="$map_new_full"
+        rebase_previous["$map_new_full"]="$map_old_full"
+        rebase_map_olds+=("$map_old_full")
+    done < <(grep -E '^Rebase[[:space:]]Map:' "$file" 2>/dev/null || true)
+
+    effective_plan_commit="$plan_commit_full"
+    resolve_rebase_chain "$plan_commit_full" "Plan Commit '$plan_commit'" "$file" \
+        effective_plan_commit rebase_next rebase_used
+
+    if ! git merge-base --is-ancestor "$effective_plan_commit" HEAD 2>/dev/null; then
+        echo "❌ [workflow-git] PK5: $file の Plan Commit 実効 SHA '$effective_plan_commit' は現在の HEAD の祖先ではありません"
+        FAIL=1
+    fi
+
+    local index
+    for ((index = 0; index < ${#amendment_shas[@]}; index++)); do
+        amendment="${amendment_shas[$index]}"
+        amendment_full="${amendment_full_shas[$index]}"
+        [[ -n "$amendment_full" ]] || continue
+
+        effective_amendment="$amendment_full"
+        resolve_rebase_chain "$amendment_full" "Amendments SHA '$amendment'" "$file" \
+            effective_amendment rebase_next rebase_used
+
+        if ! git merge-base --is-ancestor "$effective_plan_commit" "$effective_amendment" 2>/dev/null; then
+            echo "❌ [workflow-git] PK5: $file の Amendments 実効 SHA '$effective_amendment' は Plan Commit 実効 SHA '$effective_plan_commit' の descendant ではありません"
+            FAIL=1
+        fi
+        if ! git merge-base --is-ancestor "$effective_amendment" HEAD 2>/dev/null; then
+            echo "❌ [workflow-git] PK5: $file の Amendments SHA '$amendment'（実効 SHA '$effective_amendment'）は現在の HEAD の祖先ではありません"
+            FAIL=1
+        fi
+    done
+
+    # Map は Plan Commit または Amendments のいずれかを root とする chain に
+    # 全 edge が接続していなければならない。孤立 pair を escape hatch にしない。
+    for mapped_old in "${rebase_map_olds[@]}"; do
+        if [[ -z "${rebase_used[$mapped_old]+x}" ]]; then
+            echo "❌ [workflow-git] PK5: $file の Rebase Map chain が Plan Commit / Amendments の root に接続していません（old SHA '$mapped_old'）"
+            FAIL=1
+        fi
+    done
 
     # Plan Commit 書き換え検出: ファイル履歴の全 diff から追加された
     # "- Plan Commit: <value>" 行を新しい commit 順に集め、pending を除外した上で
