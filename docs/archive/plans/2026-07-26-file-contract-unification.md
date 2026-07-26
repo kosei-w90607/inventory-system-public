@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: ready-hosted-final
+- Phase: archive
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: 83d8fdd
@@ -85,6 +85,16 @@
   `human-confirm -> ready-hosted-final` を materialize する。以後 = 本 commit を
   含む exact HEAD で L1 full → PR body 全体 refresh → owner の Ready 化 +
   hosted dispatch → hosted green 確認 → merge（介入 3/3）。
+
+- State Narrative（2026-07-27、Post-Merge Closeout）: exact HEAD `af5877a` の L1 full
+  PASS と PR body 全体 refresh の後、owner が Ready 化 + hosted dispatch を実行、
+  hosted final green（run 30212830170、exact HEAD 一致）を Coordinator が実確認。
+  owner が squash merge `9cba5aa`（介入 3/3、予算どおり）。packet / Matrix を
+  `docs/archive/plans/` へ移動して `merge -> archive` を materialize、`Plans.md` /
+  PROJECT_HANDOFF を同期。振り返りは
+  [WER](2026-07-27-file-contract-unification-workflow-effectiveness-review.md)。
+  L3 で再観測した実採取 layout A file の graceful stop は既存 backlog
+  「Z004 parser の layout A 対応」（Post-PLU Z004 再評価、D-025）で追跡する。
 
 ## Owner Effort Budget
 
