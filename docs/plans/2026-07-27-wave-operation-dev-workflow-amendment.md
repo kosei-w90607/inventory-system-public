@@ -6,7 +6,7 @@
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: b7c29c2
-- Amendments: 20d0dad
+- Amendments: 20d0dad 4a8a899
 - Coordinator: Fable
 - Writer: Codex（実装。packet 設計は Fable = design board 例外の適用: workflow design-only change、owner 明示指示 = 2026-07-27 wave 運用決定・引き継ぎ書）
 - Plan Reviewer: Sonnet（独立 fresh context subagent。rally round 1〜3 実施、round 3 で P1/P2 = 0。owner 判断で Codex 追加 round 可）
