@@ -98,6 +98,34 @@ write_plans_md_hidden_links() {
     } > "$repo/docs/Plans.md"
 }
 
+write_plans_md_mixed_fence_and_inline_code() {
+    local fenced_basename="$1"
+    local inline_basename="$2"
+    {
+        echo "# Plans"
+        echo ""
+        echo "## 次の行動"
+        echo ""
+        echo '```markdown'
+        echo "~~~"
+        echo "1. fixture entry: [plans/${fenced_basename}](plans/${fenced_basename})"
+        echo '```'
+        echo ""
+        echo "1. inline code only: \`[plans/${inline_basename}](plans/${inline_basename})\`"
+    } > "$repo/docs/Plans.md"
+}
+
+write_plans_md_escaped_link() {
+    local basename="$1"
+    {
+        echo "# Plans"
+        echo ""
+        echo "## 次の行動"
+        echo ""
+        echo "1. escaped syntax only: \\[plans/${basename}](plans/${basename})"
+    } > "$repo/docs/Plans.md"
+}
+
 reset_packet_defaults() {
     PKT_INCLUDE_WS=1
     PKT_PHASE="implementing"
@@ -375,6 +403,20 @@ if run_check ""; then
 fi
 assert_contains "$out" "active packet '2026-01-11-fixture-a.md' へのリンクが見つかりません"
 assert_contains "$out" "active packet '2026-01-11-fixture-b.md' へのリンクが見つかりません"
+
+write_plans_md_mixed_fence_and_inline_code \
+    "2026-01-11-fixture-a.md" "2026-01-11-fixture-b.md"
+if run_check ""; then
+    fail "mixed fence delimiters or inline code exposed a non-rendered link"
+fi
+assert_contains "$out" "active packet '2026-01-11-fixture-a.md' へのリンクが見つかりません"
+assert_contains "$out" "active packet '2026-01-11-fixture-b.md' へのリンクが見つかりません"
+
+write_plans_md_escaped_link "2026-01-11-fixture-a.md"
+if run_check ""; then
+    fail "escaped Markdown syntax was incorrectly accepted as a rendered link"
+fi
+assert_contains "$out" "active packet '2026-01-11-fixture-a.md' へのリンクが見つかりません"
 
 # --- 12. active packet と docs/Plans.md「次の行動」リンクの不一致 ---
 setup_repo_dirs

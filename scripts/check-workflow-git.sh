@@ -94,6 +94,7 @@ check_plan_commit_ancestry() {
     local -a rebase_map_olds=()
     declare -A rebase_next=()
     declare -A rebase_previous=()
+    declare -A rebase_roots=()
     declare -A rebase_used=()
 
     plan_commit="$(grep -m1 -E '^- Plan Commit:[[:space:]]*' "$file" 2>/dev/null \
@@ -109,6 +110,7 @@ check_plan_commit_ancestry() {
         FAIL=1
         return 0
     fi
+    rebase_roots["$plan_commit_full"]="Plan Commit '$plan_commit'"
 
     # Amendments の原 SHA は Plan Commit と同様に不変。各 SHA を Rebase Map の
     # 独立 root として扱うため、Map の検査前に解決しておく。
@@ -125,6 +127,7 @@ check_plan_commit_ancestry() {
                 continue
             fi
             amendment_full_shas+=("$amendment_full")
+            rebase_roots["$amendment_full"]="Amendments SHA '$amendment'"
             if ! git merge-base --is-ancestor "$plan_commit_full" "$amendment_full" 2>/dev/null; then
                 echo "❌ [workflow-git] PK5: $file の Amendments SHA '$amendment' は Plan Commit '$plan_commit' の descendant ではありません"
                 FAIL=1
@@ -154,6 +157,12 @@ check_plan_commit_ancestry() {
 
         if [[ "$map_old_full" == "$map_new_full" ]]; then
             echo "❌ [workflow-git] PK5: $file の Rebase Map chain が自己循環しています -> $rebase_line"
+            FAIL=1
+            continue
+        fi
+
+        if [[ -n "${rebase_roots[$map_new_full]+x}" ]]; then
+            echo "❌ [workflow-git] PK5: $file の Rebase Map chain が別 root '${rebase_roots[$map_new_full]}' へ接続しています -> $rebase_line"
             FAIL=1
             continue
         fi

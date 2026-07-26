@@ -870,12 +870,39 @@ extract_prose_keep_inline() {
 
 strip_fenced_code_and_html_comments() {
     awk '
-        /^[[:space:]]*(```|~~~)/ {
-            in_fence = !in_fence
-            next
+        function marker_run_length(text, marker, count) {
+            marker = substr(text, 1, 1)
+            if (marker != "`" && marker != "~") {
+                return 0
+            }
+            count = 1
+            while (substr(text, count + 1, 1) == marker) {
+                count++
+            }
+            return count
         }
-        in_fence { next }
         {
+            trimmed = $0
+            sub(/^[[:space:]]*/, "", trimmed)
+            marker = substr(trimmed, 1, 1)
+            marker_length = marker_run_length(trimmed)
+
+            if (in_fence) {
+                remainder = substr(trimmed, marker_length + 1)
+                if (marker == fence_marker &&
+                    marker_length >= fence_length &&
+                    remainder ~ /^[[:space:]]*$/) {
+                    in_fence = 0
+                }
+                next
+            }
+            if (marker_length >= 3) {
+                in_fence = 1
+                fence_marker = marker
+                fence_length = marker_length
+                next
+            }
+
             line = $0
             while (1) {
                 if (in_comment) {
@@ -905,7 +932,7 @@ strip_fenced_code_and_html_comments() {
                 line = before substr(remainder, comment_end + 3)
             }
         }
-    '
+    ' | sed -E 's/`+[^`]*`+//g'
 }
 
 # Workflow State セクション本文（extract_markdown_section の出力）から
@@ -1217,7 +1244,7 @@ check_plan_packet_workflow_state() {
             next_actions_section=$(extract_markdown_section "$plans_md" "次の行動")
             next_actions_links=$(printf '%s\n' "$next_actions_section" \
                 | strip_fenced_code_and_html_comments \
-                | grep -oE '(^|[^!])\[[^][]+\]\((\./)?plans/[^()[:space:]]+\)' || true)
+                | grep -oE '(^|[^!\\])\[[^][]+\]\((\./)?plans/[^()[:space:]]+\)' || true)
         fi
         while IFS= read -r active_packet; do
             [ -n "$active_packet" ] || continue

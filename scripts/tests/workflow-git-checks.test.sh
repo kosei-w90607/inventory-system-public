@@ -307,6 +307,36 @@ capture_check "$repo" output
 [[ "$CHECK_STATUS" -ne 0 ]] || fail "stale old SHA で途切れた Rebase Map chain が ERROR 判定されなかった"
 assert_contains "$output" "Rebase Map chain" "多段 Rebase Map chain 負例を識別する ERROR が出力されない"
 
+# 同じ patch-id の edge が同じ new SHA へ収束する graph も chain 不整合。
+write_packet "$repo" "packet.md" "$old_plan_sha" "none"
+append_rebase_map "$repo" "packet.md" "$old_plan_sha" "$middle_plan_sha"
+append_rebase_map "$repo" "packet.md" "$new_plan_sha" "$middle_plan_sha"
+commit_all "$repo" "docs(plans): duplicate target rebase map を記録" > /dev/null
+
+capture_check "$repo" output
+[[ "$CHECK_STATUS" -ne 0 ]] || fail "複数 old SHA が同じ new SHA へ接続する Map が ERROR 判定されなかった"
+assert_contains "$output" "複数の old SHA" "duplicate-new の chain ERROR が出力されない"
+
+# 同じ patch-id の commit を循環させても ancestry escape hatch にしない。
+write_packet "$repo" "packet.md" "$old_plan_sha" "none"
+append_rebase_map "$repo" "packet.md" "$old_plan_sha" "$middle_plan_sha"
+append_rebase_map "$repo" "packet.md" "$middle_plan_sha" "$new_plan_sha"
+append_rebase_map "$repo" "packet.md" "$new_plan_sha" "$old_plan_sha"
+commit_all "$repo" "docs(plans): cyclic rebase map を記録" > /dev/null
+
+capture_check "$repo" output
+[[ "$CHECK_STATUS" -ne 0 ]] || fail "循環する Rebase Map chain が ERROR 判定されなかった"
+assert_contains "$output" "Rebase Map chain" "循環 Rebase Map chain の ERROR が出力されない"
+
+# 旧 / 新 object の一方でも local に無ければ fail-closed。
+write_packet "$repo" "packet.md" "$old_plan_sha" "none"
+append_rebase_map "$repo" "packet.md" "$old_plan_sha" "deadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
+commit_all "$repo" "docs(plans): unresolved rebase map を記録" > /dev/null
+
+capture_check "$repo" output
+[[ "$CHECK_STATUS" -ne 0 ]] || fail "解決不能 object を持つ Rebase Map が ERROR 判定されなかった"
+assert_contains "$output" "Rebase Map SHA を解決できません" "解決不能 object の ERROR が出力されない"
+
 # ============================================================================
 # D-055 T-PK5c: Plan Commit と gated Amendment をともに rebase した正例 /
 # Amendment 側 Rebase Map 欠落の負例
@@ -324,9 +354,11 @@ write_packet "$repo" "packet.md" "$old_plan_sha" "none"
 commit_all "$repo" "docs(plans): state-only遷移 plan-gate->plan-approved" > /dev/null
 printf 'impl\n' > "$repo/impl.txt"
 commit_all "$repo" "feat: implement" > /dev/null
-printf 'amendment\n' > "$repo/amendment.txt"
-old_amendment_sha="$(commit_all "$repo" "docs(plans): gated amendment content")"
-write_packet "$repo" "packet.md" "$old_plan_sha" "$old_amendment_sha"
+printf 'amendment one\n' > "$repo/amendment-one.txt"
+old_amendment_one_sha="$(commit_all "$repo" "docs(plans): gated amendment content one")"
+printf 'amendment two\n' > "$repo/amendment-two.txt"
+old_amendment_two_sha="$(commit_all "$repo" "docs(plans): gated amendment content two")"
+write_packet "$repo" "packet.md" "$old_plan_sha" "$old_amendment_one_sha, $old_amendment_two_sha"
 commit_all "$repo" "docs(plans): gated amendment を記録" > /dev/null
 
 git -C "$repo" switch -q main
@@ -335,7 +367,8 @@ commit_all "$repo" "chore: advance main for amendment rebase" > /dev/null
 git -C "$repo" switch -q feature
 git -C "$repo" rebase main > /dev/null
 new_plan_sha="$(git -C "$repo" log --format=%H --grep='^docs(plans): plan-first$' -1)"
-new_amendment_sha="$(git -C "$repo" log --format=%H --grep='^docs(plans): gated amendment content$' -1)"
+new_amendment_one_sha="$(git -C "$repo" log --format=%H --grep='^docs(plans): gated amendment content one$' -1)"
+new_amendment_two_sha="$(git -C "$repo" log --format=%H --grep='^docs(plans): gated amendment content two$' -1)"
 
 append_rebase_map "$repo" "packet.md" "$old_plan_sha" "$new_plan_sha"
 commit_all "$repo" "docs(plans): plan rebase map のみ記録" > /dev/null
@@ -345,12 +378,94 @@ capture_check "$repo" output
 assert_contains "$output" "Amendments SHA" "Amendment 側 Rebase Map 欠落を識別する ERROR が出力されない"
 assert_contains "$output" "は現在の HEAD の祖先ではありません" "Amendment 側 Rebase Map 欠落で ancestry ERROR が出力されない"
 
-append_rebase_map "$repo" "packet.md" "$old_amendment_sha" "$new_amendment_sha"
-commit_all "$repo" "docs(plans): amendment rebase map を記録" > /dev/null
+append_rebase_map "$repo" "packet.md" "$old_amendment_one_sha" "$new_amendment_one_sha"
+commit_all "$repo" "docs(plans): first amendment rebase map を記録" > /dev/null
+
+capture_check "$repo" output
+[[ "$CHECK_STATUS" -ne 0 ]] || fail "2 件目の Amendment 側 Rebase Map 欠落が ERROR 判定されなかった"
+assert_contains "$output" "$old_amendment_two_sha" "2 件目の Amendment Map 欠落を識別する ERROR が出力されない"
+
+append_rebase_map "$repo" "packet.md" "$old_amendment_two_sha" "$new_amendment_two_sha"
+commit_all "$repo" "docs(plans): second amendment rebase map を記録" > /dev/null
 
 capture_check "$repo" output
 [[ "$CHECK_STATUS" -eq 0 ]] || fail "Plan Commit と Amendment の Rebase Map 正例が ERROR 判定された:\n$output"
 assert_not_contains "$output" "PK5:" "Plan Commit と Amendment の Rebase Map 正例で PK5 出力が発生した"
+
+# ============================================================================
+# D-055 T-PK5c: 別 original root への Map 接続は独立 chain を潰すため拒否
+# ============================================================================
+repo="$tmp/pk5-rebase-map-cross-root"
+init_repo "$repo"
+printf 'base\n' > "$repo/README.md"
+write_packet "$repo" "packet.md" "pending" "none"
+commit_all "$repo" "base" > /dev/null
+git -C "$repo" branch feature
+
+git -C "$repo" switch -q feature
+printf 'same patch\n' > "$repo/same.txt"
+old_plan_sha="$(commit_all "$repo" "docs(plans): plan-first")"
+write_packet "$repo" "packet.md" "$old_plan_sha" "none"
+commit_all "$repo" "docs(plans): state-only遷移 plan-gate->plan-approved" > /dev/null
+git -C "$repo" rm -q same.txt
+commit_all "$repo" "test: prepare repeated patch" > /dev/null
+printf 'same patch\n' > "$repo/same.txt"
+old_amendment_sha="$(commit_all "$repo" "docs(plans): gated amendment repeated patch")"
+write_packet "$repo" "packet.md" "$old_plan_sha" "$old_amendment_sha"
+commit_all "$repo" "docs(plans): gated amendment を記録" > /dev/null
+
+git -C "$repo" switch -q main
+printf 'main advance\n' > "$repo/main.txt"
+commit_all "$repo" "chore: advance main for cross-root rebase" > /dev/null
+git -C "$repo" switch -q feature
+git -C "$repo" rebase main > /dev/null
+new_amendment_sha="$(git -C "$repo" log --format=%H --grep='^docs(plans): gated amendment repeated patch$' -1)"
+
+append_rebase_map "$repo" "packet.md" "$old_plan_sha" "$old_amendment_sha"
+append_rebase_map "$repo" "packet.md" "$old_amendment_sha" "$new_amendment_sha"
+commit_all "$repo" "docs(plans): cross-root rebase map を記録" > /dev/null
+
+capture_check "$repo" output
+[[ "$CHECK_STATUS" -ne 0 ]] || fail "Plan Commit root を Amendment root へ吸収する Map が ERROR 判定されなかった"
+assert_contains "$output" "別 root" "cross-root Rebase Map の ERROR が出力されない"
+
+# ============================================================================
+# D-055 T-PK5c: patch-id 同値でも root から孤立した Map edge は拒否
+# ============================================================================
+repo="$tmp/pk5-rebase-map-orphan"
+init_repo "$repo"
+printf 'base\n' > "$repo/README.md"
+write_packet "$repo" "packet.md" "pending" "none"
+commit_all "$repo" "base" > /dev/null
+git -C "$repo" branch feature
+
+git -C "$repo" switch -q feature
+printf 'plan patch\n' > "$repo/plan.txt"
+old_plan_sha="$(commit_all "$repo" "docs(plans): plan-first")"
+write_packet "$repo" "packet.md" "$old_plan_sha" "none"
+commit_all "$repo" "docs(plans): state-only遷移 plan-gate->plan-approved" > /dev/null
+
+git -C "$repo" switch -q main
+printf 'main advance one\n' > "$repo/main-one.txt"
+commit_all "$repo" "chore: orphan base one" > /dev/null
+git -C "$repo" switch -q -c orphan-old
+git -C "$repo" cherry-pick "$old_plan_sha" > /dev/null
+orphan_old_sha="$(git -C "$repo" rev-parse HEAD)"
+
+git -C "$repo" switch -q main
+printf 'main advance two\n' > "$repo/main-two.txt"
+commit_all "$repo" "chore: orphan base two" > /dev/null
+git -C "$repo" switch -q -c orphan-new
+git -C "$repo" cherry-pick "$old_plan_sha" > /dev/null
+orphan_new_sha="$(git -C "$repo" rev-parse HEAD)"
+
+git -C "$repo" switch -q feature
+append_rebase_map "$repo" "packet.md" "$orphan_old_sha" "$orphan_new_sha"
+commit_all "$repo" "docs(plans): orphan rebase map を記録" > /dev/null
+
+capture_check "$repo" output
+[[ "$CHECK_STATUS" -ne 0 ]] || fail "root から孤立した Rebase Map edge が ERROR 判定されなかった"
+assert_contains "$output" "root に接続していません" "孤立 Rebase Map edge の ERROR が出力されない"
 
 # ============================================================================
 # PK5: Amendments 非 descendant の負例（並行ブランチの SHA を記録）
