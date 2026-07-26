@@ -283,11 +283,11 @@ describe("DisposalPage (UI-05 / REQ-204)", () => {
     mockCreateDisposal
       .mockResolvedValueOnce({
         status: "error",
-        error: { kind: "internal", message: "一時的なエラー", field: null },
+        error: { kind: "internal", message: "一時的なエラー", field: null, error_id: null },
       })
       .mockResolvedValueOnce({
         status: "error",
-        error: { kind: "internal", message: "一時的なエラー", field: null },
+        error: { kind: "internal", message: "一時的なエラー", field: null, error_id: null },
       })
       .mockResolvedValueOnce({
         status: "ok",
@@ -518,7 +518,7 @@ describe("DisposalPage (UI-05 / REQ-204)", () => {
     const user = userEvent.setup();
     mockCreateDisposal.mockResolvedValue({
       status: "error",
-      error: { kind: "internal", message: "保存command失敗", field: null },
+      error: { kind: "internal", message: "保存command失敗", field: null, error_id: null },
     });
     renderWithClient(<DisposalPage />);
     await addSingleProduct(user);

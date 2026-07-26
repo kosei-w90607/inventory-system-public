@@ -35,7 +35,7 @@ enum ExportMode {
 - tax_rate: String（"10" / "8" / "0"）
 - department_name: String
 
-**PluCsvOutput構造体**（IO-04の戻り値。E-4オンライン調査で確定、2026-04-08）:
+**PluFileOutput構造体**（IO-04の戻り値。E-4オンライン調査で確定、2026-04-08。旧名 PluCsvOutput、実体語彙への改名は IO-04-D1 / 監査是正 順8）:
 - bytes: Vec<u8>
 - suggested_filename: String
 - content_type: &'static str（確定: "text/tab-separated-values"）
@@ -58,7 +58,7 @@ enum PluExcludedReason {
 ```
 
 **PluExportPreparedResult構造体**:
-- csv_output: PluCsvOutput
+- plu_output: PluFileOutput
 - count: usize（書出し行数。dedup 後の生成行数）
 - target_product_codes: Vec\<String\>（confirm対象の商品コード。dedup 群は代表行だけでなく**全メンバー**を含むため、count と len は一致しないことがある。excluded の商品は含まない。confirm時にこのexact setを送る）
 - excluded: Vec\<PluExcludedProduct\>（要修正バケット。UI-08 が理由付き一覧で表示し、商品マスタ修正へ誘導する）
@@ -107,10 +107,10 @@ fn prepare_plu_export(conn: &DbConnection, req: PluExportPrepareRequest) -> Resu
    - product_code, jan_code, name, selling_price, tax_rate はProductForPluからそのままコピー
    - department_name = ProductForPlu.department_name（INNER JOINで取得済み）
    - target_product_codes = 生成行の代表商品と dedup 群の非代表メンバーを合わせた product_code 一覧（excluded の商品は含まない）
-8. **IO-04呼出し**: plu_formatter::generate_plu_tsv(&rows) → PluCsvOutput
+8. **IO-04呼出し**: plu_formatter::generate_plu_tsv(&rows) → PluFileOutput
    - IO-04仕様はCV17 1.1.1 adapter profile。25-io-plu-formatter.md 参照
-   - 失敗（PluFormatError） → BizError::ImportError("PLUファイルの生成に失敗しました: {details}")
-9. PluExportPreparedResult { csv_output, count, target_product_codes, excluded, over_limit_warning=false } を返す
+   - 失敗（PluFormatError） → BizError::ExportError("PLUファイルの生成に失敗しました: {details}")（BIZ-04-D2。取込み専用の ImportError には変換しない）
+9. PluExportPreparedResult { plu_output, count, target_product_codes, excluded, over_limit_warning=false } を返す
 
 **設計判断 — prepareではplu_dirtyを更新しない**:
 - D-027により、PLUファイル生成はPCツール受理やレジ反映の証明ではない。生成または保存に成功しても、利用者が書出し済み確認を押すまで `plu_dirty` は残す
@@ -124,7 +124,7 @@ fn prepare_plu_export(conn: &DbConnection, req: PluExportPrepareRequest) -> Resu
 - 対象0件（抽出0件、または全件が要修正で生成行0件）→ BizError::ValidationFailed
 - dedup 後の生成行数が `SCANNING_PLU_EXPORT_LIMIT` を超える → BizError::ValidationFailed
 - JANなし / 13桁数字以外 / チェックディジット不正 / 同一JAN内の価格・税率不一致 → エラーにせず excluded（要修正リスト）として結果に含めて返す（D-028）
-- IO-04失敗 → BizError::ImportError（plu_dirtyは変更なし）
+- IO-04失敗 → BizError::ExportError（plu_dirtyは変更なし。BIZ-04-D2）
 
 ---
 
@@ -166,7 +166,7 @@ PluExportPrepareRequest { mode: ExportMode::Diff }
 **出力例**:
 ```
 PluExportPreparedResult {
-    csv_output: PluCsvOutput {  // 注: 型名は互換維持でCsvのまま据え置き。実体はタブ区切りPLUファイル
+    plu_output: PluFileOutput {  // 実体はタブ区切りPLUファイル（IO-04-D1）
         bytes: [0x83, 0x81, 0x83, ...],  // CP932エンコード済みPLUファイル
         suggested_filename: "PLU_20260408.txt",
         content_type: "text/tab-separated-values",
@@ -205,12 +205,12 @@ IO-04（PLUフォーマッター）はカシオレジスターツール（CV17�
 
 **シグネチャ**:
 ```
-fn generate_plu_tsv(rows: &[PluExportRow]) -> Result<PluCsvOutput, PluFormatError>
+fn generate_plu_tsv(rows: &[PluExportRow]) -> Result<PluFileOutput, PluFormatError>
 ```
 
 **入力**: &[PluExportRow]（product_code昇順）
 
-**出力**: PluCsvOutput { bytes, suggested_filename, content_type, encoding }
+**出力**: PluFileOutput { bytes, suggested_filename, content_type, encoding }
 
 **確定仕様（CV17 1.1.1 import profile）**:
 - content_type: "text/tab-separated-values"

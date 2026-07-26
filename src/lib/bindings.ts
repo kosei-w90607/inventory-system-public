@@ -368,6 +368,8 @@ export type CmdError = {
 	message: string,
 	// バリデーションエラー時のフィールド名
 	field: string | null,
+	// 診断ログとの相関 ID（internal / restore_* 系のみ）
+	error_id: string | null,
 };
 
 /**
@@ -972,7 +974,7 @@ export type PluExportConfirmResponse = {
 /**
  *  PLUファイル生成レスポンス（フロントエンド返却用）
  *
- *  PluCsvOutput の bytes を base64 エンコードして返す。
+ *  PluFileOutput の bytes を base64 エンコードして返す。
  *  フロントエンド側で base64デコード → native save dialog の保存先へ書き込む。
  */
 export type PluExportPrepareResponse = {

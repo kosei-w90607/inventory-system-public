@@ -34,7 +34,7 @@ const preview: ImportPreview = {
 
 function invokeError(message = "失敗しました") {
   return new InvokeError(
-    { kind: CMD_ERROR_KIND.INTERNAL, message, field: null },
+    { kind: CMD_ERROR_KIND.INTERNAL, message, field: null, error_id: null },
     { source: "commands", cmd: "commit_import" },
   );
 }

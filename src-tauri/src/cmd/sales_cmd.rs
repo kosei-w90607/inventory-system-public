@@ -39,7 +39,7 @@ pub fn get_daily_sales(
     let conn = state
         .db
         .lock()
-        .map_err(|_| CmdError::internal("DB接続エラー"))?;
+        .map_err(|error| CmdError::internal("DB接続エラー", error))?;
     sales_service::get_daily_sales(&conn, &date).map_err(CmdError::from)
 }
 
@@ -62,13 +62,14 @@ pub fn get_monthly_sales(
                 kind: "validation".to_string(),
                 message: "不正な集計モードです".to_string(),
                 field: Some("mode".to_string()),
+                error_id: None,
             });
         }
     };
     let conn = state
         .db
         .lock()
-        .map_err(|_| CmdError::internal("DB接続エラー"))?;
+        .map_err(|error| CmdError::internal("DB接続エラー", error))?;
     sales_service::get_monthly_sales(&conn, &month, sales_mode).map_err(CmdError::from)
 }
 
@@ -91,7 +92,7 @@ pub fn export_sales_csv(
     let conn = state
         .db
         .lock()
-        .map_err(|_| CmdError::internal("DB接続エラー"))?;
+        .map_err(|error| CmdError::internal("DB接続エラー", error))?;
 
     // Step 2: BIZ層呼び出し
     let result =
@@ -401,7 +402,7 @@ mod tests {
             .db
             .lock()
             .map(|_| ())
-            .map_err(|_| CmdError::internal("DB接続エラー"));
+            .map_err(|error| CmdError::internal("DB接続エラー", error));
         let err = result.unwrap_err();
         assert_eq!(err.kind, "internal");
         assert_eq!(err.message, "DB接続エラー");

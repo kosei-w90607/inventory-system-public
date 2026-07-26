@@ -49,7 +49,10 @@ function ok<T>(data: T) {
 }
 
 function cmdError(kind: string, message: string) {
-  return { status: "error" as const, error: { kind, message, field: null } };
+  return {
+    status: "error" as const,
+    error: { kind, message, field: null, error_id: null },
+  };
 }
 
 function stocktakeItem(overrides: Partial<StocktakeItemDetail> = {}): StocktakeItemDetail {

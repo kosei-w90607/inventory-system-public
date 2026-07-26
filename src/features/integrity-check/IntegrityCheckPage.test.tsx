@@ -347,19 +347,27 @@ describe("UI-13 REQ-904 在庫整合性検証", () => {
           kind: "internal",
           message: "合成チェックエラー。もう一度お試しください",
           field: null,
+          error_id: "E-20260726-204901-a1b2",
         },
       })
       .mockResolvedValueOnce(checkResult([mismatch("SYN-001")]));
     fixIntegrity
       .mockResolvedValueOnce({
         status: "error",
-        error: { kind: "internal", message: "合成補正エラー。もう一度お試しください", field: null },
+        error: {
+          kind: "internal",
+          message: "合成補正エラー。もう一度お試しください",
+          field: null,
+          error_id: "E-20260726-204902-c3d4",
+        },
       })
       .mockResolvedValueOnce(fixResult());
     renderPage();
     await runCheck();
     expect(
-      await screen.findByText("合成チェックエラー。もう一度お試しください"),
+      await screen.findByText(
+        "合成チェックエラー。もう一度お試しください（エラーID: E-20260726-204901-a1b2）。詳細は診断ログに記録されています。",
+      ),
     ).toBeInTheDocument();
     await userEvent.setup().click(screen.getByRole("button", { name: "再試行" }));
     expect(await screen.findByText("合成商品 SYN-001")).toBeInTheDocument();
@@ -367,7 +375,11 @@ describe("UI-13 REQ-904 在庫整合性検証", () => {
     await selectForFix("SYN-001");
     await openFixDialog();
     await confirmFix();
-    expect(await screen.findByText("合成補正エラー。もう一度お試しください")).toBeInTheDocument();
+    expect(
+      await screen.findByText(
+        "合成補正エラー。もう一度お試しください（エラーID: E-20260726-204902-c3d4）。詳細は診断ログに記録されています。",
+      ),
+    ).toBeInTheDocument();
     expect(screen.getByRole("checkbox", { name: "SYN-001を補正する" })).toBeChecked();
     await userEvent.setup().click(screen.getByRole("button", { name: "補正を再試行" }));
     await waitFor(() => {

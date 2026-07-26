@@ -94,12 +94,12 @@
 
 ## 次の行動
 
-0. **次**: **監査是正 順8 — 利用者向け error と診断相関情報の共通境界化 + PLU書出し error 語彙の分離**。統合finding P3-4 / P7b-3、労力M。順7で確定したfilesystem failure contractを前提に、利用者向け recovery文言・診断相関情報・PLU `.txt` の内部 error分類をDesign Phaseからscope精査する。順14 generated enum化より先に利用者向けcontractを固定する。
+0. **進行中**: **監査是正 順8 — 利用者向け error と診断相関情報の共通境界化 + PLU書出し error 語彙の分離**。統合finding P3-4 / P7b-3、労力M。active packet: [plans/2026-07-26-error-boundary-plu-vocabulary.md](plans/2026-07-26-error-boundary-plu-vocabulary.md)（Design Phase 完了 = D-053 / CMD-ERR-D1/D2 / BIZ-04-D2 / IO-04-D1 / UI-ERR-D1 を source docs に正本化済み。Plan Review 3 round 収束 P1/P2=0、owner Plan 承認済み・Phase: implementing、branch `agent/error-boundary-plu-vocabulary`。実装 Draft PR #25・Final Review 収束 P1/P2/P3=0/0/0（X1-X8 mutation 独立再実測込み）・Findings Freeze 済み・owner 視認 PASS + Ready 承認済み（介入 2/3）・Phase: ready-hosted-final。残り = exact-HEAD L1 → Ready 化 → hosted final 三点一致 → owner merge）。owner 裁定（2026-07-26）: raw message 直接表示 約15 箇所の共通 describeError 移行は順8 に含めず **follow-up**（backend sanitize で技術詳細漏れの害は塞がるため。移行は UI 部品・UX 系 track で消化）。順14 generated enum化より先に利用者向けcontractを固定する。
    **是正記録（2026-07-21）**: closeout `8a36224` は「次 = roadmap 1-2 横断監査」としていたが、1-2 は **PR #13 squash merge `d9e16fe`（2026-07-17）で消化済み**（上記完了リスト参照。監査発注書 [00-order.md](research/audit-2026-07/00-order.md) 自身が roadmap 1-2 と明記）。roadmap リストの取り消し線漏れに起因して PR #17 closeout 以降 3 closeout 連続で「1-2 は未着手」扱いの drift が伝播していたため、owner 確認の上で是正。D-050 (iii) の revisit 先「roadmap 1-2 横断監査の発注書作成時」は「次回の横断監査発注書作成時」と読み替える。
 1. 中期 roadmap（owner 裁定 2026-07-16、実施順。backlog は系統ごとに 1 PR ずつ束ねる）:
    1. ~~workflow docs PR~~（**完了: PR #18 squash merge `bbb61f6`、2026-07-21**。WER Adjustment は D-050 裁定で正本化・消化、defer 4 件は D-050 の revisit 条件で追跡。先行消化 4 件 = Public PR #7 `a75be5d` + PR #15 `b47cd5a`。上記完了リスト参照）
    2. ~~横断アーキテクチャ + コード品質監査~~（**完了: PR #13 squash merge `d9e16fe`、2026-07-17**。1-1 より先に繰上げ実行。30 findings → 22 是正単位、全単位 accept 裁定。成果物 = [report](research/audit-2026-07/report.md) / [adjudication](research/audit-2026-07/adjudication.md)。上記完了リスト参照）
-   3. **コード品質・整合性系の是正 PR 群**: 監査 findings + 既存 backlog（SortableHeader 共通化 / `low_stock` SSOT 定数 / focus-visible / docs drift 系）を優先度順に統合。順 1+2 は design PR #14 + 実装 PR #16/#17、順 3 は design PR #19 + 実装 PR #20、順 4 は PR #21、順 5 は PR #22、順 6 はPR #23で完了（各系列完結、上記完了リスト参照）。次 = 順 7 のscope精査（上記 0）
+   3. **コード品質・整合性系の是正 PR 群**: 監査 findings + 既存 backlog（SortableHeader 共通化 / `low_stock` SSOT 定数 / focus-visible / docs drift 系）を優先度順に統合。順 1+2 は design PR #14 + 実装 PR #16/#17、順 3 は design PR #19 + 実装 PR #20、順 4 は PR #21、順 5 は PR #22、順 6 は PR #23、順 7 は PR #24 で完了（各系列完結、上記完了リスト参照）。次 = 順 8（上記 0、進行中）
    4. **業務シナリオ受入テスト**: CSV 取込み → 在庫反映 → 在庫少検知 → 棚卸し → 整合性検証 → バックアップ/復元 の一気通貫をシナリオ台本化し、Windows native で owner が operator 役で 1 周。自動 E2E はここで穴が出た箇所のみ最小 smoke を後付け評価
    5. **v1.0 gate**: Windows MSI 配布手順 docs 化 + 配布判定（4 の受入テスト pass が入口条件）
 

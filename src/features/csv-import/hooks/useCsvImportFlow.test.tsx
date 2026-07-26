@@ -84,6 +84,44 @@ beforeEach(() => {
 });
 
 describe("useCsvImportFlow UI-07 D-052-C8/C9", () => {
+  it("REQ-401: import_error commit failure recovers to idle", async () => {
+    mockCommit.mockResolvedValueOnce({
+      status: "error",
+      error: {
+        kind: "import_error",
+        message: "合成済み preview が見つかりません",
+        field: null,
+        error_id: null,
+      },
+    });
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    });
+    const { result } = renderHook(() => useCsvImportFlow(), {
+      wrapper: makeWrapper(queryClient),
+    });
+    const file = new File(["dummy"], "sales.csv", { type: "text/csv" });
+
+    await act(async () => {
+      await result.current.selectFile(file);
+    });
+    await waitFor(() => {
+      expect(result.current.state.status).toBe("preview");
+    });
+    act(() => {
+      result.current.confirmImport(false);
+    });
+    await waitFor(() => {
+      expect(result.current.state.status).toBe("error");
+    });
+    expect(result.current.state).toMatchObject({ status: "error", recoverTo: "idle" });
+
+    act(() => {
+      result.current.dismissError();
+    });
+    expect(result.current.state.status).toBe("idle");
+  });
+
   it("commit invalidates the exact independent oracle set", async () => {
     const queryClient = new QueryClient({
       defaultOptions: { queries: { retry: false }, mutations: { retry: false } },

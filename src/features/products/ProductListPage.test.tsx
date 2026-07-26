@@ -96,7 +96,7 @@ describe("ProductListPage (UI-01a)", () => {
   it("keeps controls visible when product query fails", async () => {
     mockSearchProducts.mockResolvedValue({
       status: "error",
-      error: { kind: "internal", message: "取得に失敗しました", field: null },
+      error: { kind: "internal", message: "取得に失敗しました", field: null, error_id: null },
     });
     mockListDepartments.mockResolvedValue({ status: "ok", data: [makeMockDepartment()] });
 
@@ -148,7 +148,12 @@ describe("ProductListPage (UI-01a)", () => {
     });
     mockListDepartments.mockResolvedValue({
       status: "error",
-      error: { kind: "internal", message: "部門取得に失敗しました", field: null },
+      error: {
+        kind: "internal",
+        message: "部門取得に失敗しました",
+        field: null,
+        error_id: null,
+      },
     });
 
     renderWithClient(<ProductListPage search={{}} onSearchChange={vi.fn()} />);

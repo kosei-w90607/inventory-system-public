@@ -19,7 +19,7 @@ pub fn run_integrity_check(
     let conn = state
         .db
         .lock()
-        .map_err(|_| CmdError::internal("DB接続エラー"))?;
+        .map_err(|error| CmdError::internal("DB接続エラー", error))?;
     integrity_service::run_integrity_check(&conn).map_err(CmdError::from)
 }
 
@@ -35,7 +35,7 @@ pub fn fix_integrity(
     let mut conn = state
         .db
         .lock()
-        .map_err(|_| CmdError::internal("DB接続エラー"))?;
+        .map_err(|error| CmdError::internal("DB接続エラー", error))?;
     integrity_service::fix_integrity(&mut conn, &product_codes).map_err(CmdError::from)
 }
 

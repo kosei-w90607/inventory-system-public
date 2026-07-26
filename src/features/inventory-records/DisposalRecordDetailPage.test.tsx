@@ -100,7 +100,12 @@ describe("DisposalRecordDetailPage (REQ-204 / REQ-206)", () => {
   it("REQ-206: 存在しない廃棄・破損詳細は戻り導線付きで表示する", async () => {
     mockGetDisposalRecord.mockResolvedValue({
       status: "error",
-      error: { kind: "not_found", message: "廃棄・破損記録が見つかりません", field: null },
+      error: {
+        kind: "not_found",
+        message: "廃棄・破損記録が見つかりません",
+        field: null,
+        error_id: null,
+      },
     });
 
     renderWithClient(<DisposalRecordDetailPage recordId={404} />);

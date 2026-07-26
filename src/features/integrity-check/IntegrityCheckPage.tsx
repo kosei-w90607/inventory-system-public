@@ -36,8 +36,9 @@ import {
 } from "@/components/ui/table";
 import { ProductPagination } from "@/features/products/components/ProductPagination";
 import { commands, type IntegrityFixResult, type IntegrityResult } from "@/lib/bindings";
+import { describeError } from "@/lib/describe-error";
 import { invalidateByContract, invalidationContract } from "@/lib/invalidation-contract";
-import { isInvokeError, unwrapResult } from "@/lib/invoke";
+import { unwrapResult } from "@/lib/invoke";
 
 const PER_PAGE = 100;
 
@@ -46,11 +47,6 @@ type PendingOperation = "check" | "fix" | null;
 interface OperationError {
   operation: "check" | "fix";
   message: string;
-}
-
-function describeError(error: unknown): string {
-  if (isInvokeError(error)) return error.cmdError.message;
-  return "処理を完了できませんでした。もう一度お試しください。";
 }
 
 function formatCheckedAt(value: string): string {
@@ -125,7 +121,10 @@ export function IntegrityCheckPage() {
       void latestCheckQuery.refetch();
     } catch (error) {
       setPhase(previousPhase);
-      setOperationError({ operation: "check", message: describeError(error) });
+      setOperationError({
+        operation: "check",
+        message: describeError(error, "処理を完了できませんでした。もう一度お試しください。"),
+      });
     } finally {
       setPendingOperation(null);
     }
@@ -153,7 +152,10 @@ export function IntegrityCheckPage() {
       );
       await invalidateByContract(queryClient, invalidationContract.integrityFix());
     } catch (error) {
-      setOperationError({ operation: "fix", message: describeError(error) });
+      setOperationError({
+        operation: "fix",
+        message: describeError(error, "処理を完了できませんでした。もう一度お試しください。"),
+      });
     } finally {
       setPhase("completed");
       setPendingOperation(null);

@@ -17,6 +17,7 @@ function ensureInvokeError(error: unknown, cmd: string): InvokeError {
       kind: CMD_ERROR_KIND.INTERNAL,
       message: error instanceof Error ? error.message : String(error),
       field: null,
+      error_id: null,
     },
     { source: "commands", cmd },
   );

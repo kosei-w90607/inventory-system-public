@@ -275,7 +275,7 @@ describe("ManualSalePage (UI-04 / REQ-203)", () => {
     const user = userEvent.setup();
     mockCreateManualSale.mockResolvedValueOnce({
       status: "error",
-      error: { kind: "internal", message: "一時的なエラー", field: null },
+      error: { kind: "internal", message: "一時的なエラー", field: null, error_id: null },
     });
 
     renderWithClient(<ManualSalePage />);

@@ -125,6 +125,8 @@ UI は PR #141 で生成済みの `commands.*` だけを使う。
 
 recoverable / unrecoverable の判別は **CMD が返す構造化された `CmdError.kind`** で行う。**実装 PR1 確定値**は `restore_failed_recovered` / `restore_failed_unrecoverable` / `restore_durability_unknown` であり、**エラーメッセージ文字列の部分一致に依存しない**（順 8 = P3-4 の error 表示統一と前方互換）。unrecoverable 分類内でも表示文言は結果確定度で異なる — 復元結果が durability 不明のケース（71 MNT-01-D5 (e)(ii)）は失敗を断定せず「復元が完了したか確定できませんでした。アプリを再起動してください。」とし、結果は再起動後の reconcile が確定し、確認手段は §68.11 の best-effort 契約（操作ログが第一手段、記録系障害の持続時は復元対象日時のデータ内容確認）に従う（state machine への影響なし、terminal 分岐のまま。Codex 第 8 round P2-2）。文言（「アプリを再起動してください」等）は表示専用とし、frontend テストも識別子で固定する（PR #14 Codex 再々レビュー P2-2）。
 
+restore_* 3 kind の表示（recoverable の定型 message、fatal Alert）には `CmdError.error_id`（40-cmd-product.md 5.3 CMD-ERR-D1）を「（エラーID: …）」として併記する（監査是正 順8 / D-053）。error_id は診断ログ突合のための correlation 情報であり、本節の文言設計・state machine・recovery 導線は不変。restore_* の表示所有権は本節にあり、共通 `describeError`（UI_TECH_STACK §6.4 UI-ERR-D1）は restore_* 表示には使わない。error_id が欠落した payload では ID 節を省略する。error_id は既存の固定文言と同一テキストノードに結合せず、別要素（例: Alert 内の別 `<p>`）で併記し、既存の完全一致 assertion の書換え範囲を最小化する。
+
 ## 68.8 Command Contract
 
 | UI action | Command | Contract note |

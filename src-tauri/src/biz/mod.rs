@@ -59,6 +59,8 @@ pub enum BizError {
     DatabaseError(DbError),
     /// インポートエラー（BIZ-03 CSV取込みパイプライン）
     ImportError(String),
+    /// エクスポートエラー（BIZ-04 PLU書出し）
+    ExportError(String),
     /// 同じ冪等キーで異なる内容のリクエスト
     IdempotencyConflict(String),
     /// 棚卸し進行中（BIZ-06）
@@ -80,6 +82,7 @@ impl fmt::Display for BizError {
             }
             BizError::DatabaseError(e) => write!(f, "データベースエラー: {}", e),
             BizError::ImportError(msg) => write!(f, "インポートエラー: {}", msg),
+            BizError::ExportError(msg) => write!(f, "エクスポートエラー: {}", msg),
             BizError::IdempotencyConflict(msg) => write!(f, "冪等性キー競合: {}", msg),
             BizError::StocktakeInProgress(msg) => write!(f, "棚卸し進行中: {}", msg),
             BizError::StocktakeNotInProgress(msg) => write!(f, "棚卸し未進行: {}", msg),

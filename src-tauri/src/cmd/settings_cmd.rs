@@ -58,13 +58,13 @@ fn get_backup_dir<R: tauri::Runtime>(
     let app_data = app_handle
         .path()
         .app_data_dir()
-        .map_err(|e| CmdError::internal(&format!("app_data_dir取得エラー: {}", e)))?;
+        .map_err(|e| CmdError::internal("アプリデータの保存先を取得できませんでした", e))?;
     backup::resolve_backup_dir(conn, &app_data).map_err(db_err)
 }
 
 /// DbError → CmdError::internal 変換ヘルパー
 fn db_err(e: db::DbError) -> CmdError {
-    CmdError::internal(&format!("{}", e))
+    CmdError::internal("データベース処理でエラーが発生しました", e)
 }
 
 fn terminal_restore_error(error: backup::RestoreError) -> CmdError {
@@ -136,6 +136,7 @@ fn validate_log_date_range(
         kind: "validation".to_string(),
         message: "開始日・終了日はYYYY-MM-DD形式で入力してください".to_string(),
         field: None,
+        error_id: None,
     };
     let start = start_date.map(parse).transpose().map_err(|_| invalid())?;
     let end = end_date.map(parse).transpose().map_err(|_| invalid())?;
@@ -144,6 +145,7 @@ fn validate_log_date_range(
             kind: "validation".to_string(),
             message: "開始日は終了日と同じ日か、それより前の日付にしてください".to_string(),
             field: None,
+            error_id: None,
         });
     }
     Ok(())
@@ -160,7 +162,7 @@ pub fn get_settings(state: State<AppState>) -> Result<Vec<system_repo::AppSettin
     let conn = state
         .db
         .lock()
-        .map_err(|_| CmdError::internal("DB接続エラー"))?;
+        .map_err(|error| CmdError::internal("DB接続エラー", error))?;
     system_repo::get_all_settings(&conn).map_err(db_err)
 }
 
@@ -174,7 +176,7 @@ pub fn update_setting(
     let conn = state
         .db
         .lock()
-        .map_err(|_| CmdError::internal("DB接続エラー"))?;
+        .map_err(|error| CmdError::internal("DB接続エラー", error))?;
     system_repo::upsert_setting(&conn, &request.key, &request.value).map_err(db_err)
 }
 
@@ -189,7 +191,7 @@ pub fn list_logs(
     let conn = state
         .db
         .lock()
-        .map_err(|_| CmdError::internal("DB接続エラー"))?;
+        .map_err(|error| CmdError::internal("DB接続エラー", error))?;
     system_repo::list_operation_logs(
         &conn,
         query.page,
@@ -207,7 +209,7 @@ pub fn list_log_operation_types(state: State<AppState>) -> Result<Vec<String>, C
     let conn = state
         .db
         .lock()
-        .map_err(|_| CmdError::internal("DB接続エラー"))?;
+        .map_err(|error| CmdError::internal("DB接続エラー", error))?;
     system_repo::find_distinct_operation_types(&conn).map_err(db_err)
 }
 
@@ -221,7 +223,7 @@ pub fn create_backup(
     let conn = state
         .db
         .lock()
-        .map_err(|_| CmdError::internal("DB接続エラー"))?;
+        .map_err(|error| CmdError::internal("DB接続エラー", error))?;
     let backup_dir = get_backup_dir(&conn, &app_handle)?;
     backup::create_backup(&conn, &backup_dir).map_err(db_err)
 }
@@ -238,7 +240,7 @@ pub fn check_auto_backup(
     let conn = state
         .db
         .lock()
-        .map_err(|_| CmdError::internal("DB接続エラー"))?;
+        .map_err(|error| CmdError::internal("DB接続エラー", error))?;
     let backup_dir = get_backup_dir(&conn, &app_handle)?;
     backup::check_auto_backup(&conn, &backup_dir).map_err(db_err)
 }
@@ -256,7 +258,7 @@ pub fn get_effective_backup_dir(
     let conn = state
         .db
         .lock()
-        .map_err(|_| CmdError::internal("DB接続エラー"))?;
+        .map_err(|error| CmdError::internal("DB接続エラー", error))?;
     let backup_dir = get_backup_dir(&conn, &app_handle)?;
     Ok(backup_dir.to_string_lossy().to_string())
 }
@@ -271,10 +273,10 @@ pub fn list_backups(
     let conn = state
         .db
         .lock()
-        .map_err(|_| CmdError::internal("DB接続エラー"))?;
+        .map_err(|error| CmdError::internal("DB接続エラー", error))?;
     let backup_dir = get_backup_dir(&conn, &app_handle)?;
     backup::list_backups(&backup_dir)
-        .map_err(|e| CmdError::internal(&format!("バックアップ一覧取得エラー: {}", e)))
+        .map_err(|e| CmdError::internal("バックアップ一覧の取得でエラーが発生しました", e))
 }
 
 /// バックアップから復元する（§43.9）
@@ -291,7 +293,7 @@ pub fn restore_backup(
     let app_data = app_handle
         .path()
         .app_data_dir()
-        .map_err(|e| CmdError::internal(&format!("app_data_dir取得エラー: {}", e)))?;
+        .map_err(|e| CmdError::internal("アプリデータの保存先を取得できませんでした", e))?;
     let db_path = app_data.join("inventory.db");
     let backup_path = std::path::Path::new(&request.backup_path);
 
@@ -299,13 +301,16 @@ pub fn restore_backup(
     let mut guard = state
         .db
         .lock()
-        .map_err(|_| CmdError::internal("DB接続エラー"))?;
+        .map_err(|error| CmdError::internal("DB接続エラー", error))?;
 
     // dummy接続を作成し、現在の接続を取り出す
     let dummy = match rusqlite::Connection::open_in_memory() {
         Ok(c) => c,
         Err(e) => {
-            return Err(CmdError::internal(&format!("一時接続の作成に失敗: {}", e)));
+            return Err(CmdError::internal(
+                "復元準備中にデータベースへ接続できませんでした",
+                e,
+            ));
         }
     };
     let old_conn = std::mem::replace(&mut *guard, dummy);
@@ -335,13 +340,14 @@ pub fn save_receipt_image(
             kind: "validation".to_string(),
             message: "画像データが不正です".to_string(),
             field: None,
+            error_id: None,
         })?;
 
     // 2. app_data_dir 取得
     let app_data = app_handle
         .path()
         .app_data_dir()
-        .map_err(|e| CmdError::internal(&format!("app_data_dir取得エラー: {}", e)))?;
+        .map_err(|e| CmdError::internal("アプリデータの保存先を取得できませんでした", e))?;
 
     // 3. 画像保存
     let relative_path =
@@ -353,9 +359,10 @@ pub fn save_receipt_image(
                         kind: "validation".to_string(),
                         message: format!("{}", e),
                         field: Some("extension".to_string()),
+                        error_id: None,
                     }
                 } else {
-                    CmdError::internal(&format!("画像保存エラー: {}", e))
+                    CmdError::internal("画像の保存でエラーが発生しました", e)
                 }
             },
         )?;
@@ -392,7 +399,9 @@ mod tests {
         let error = get_backup_dir(&conn, app.handle()).unwrap_err();
 
         assert_eq!(error.kind, "internal");
-        assert!(error.message.contains("backup_path"));
+        assert_eq!(error.message, "データベース処理でエラーが発生しました");
+        assert!(!error.message.contains("backup_path"));
+        assert!(error.error_id.is_some());
     }
 
     #[test]
@@ -676,9 +685,10 @@ mod tests {
                 kind: "validation".to_string(),
                 message: format!("{}", io_err),
                 field: Some("extension".to_string()),
+                error_id: None,
             }
         } else {
-            CmdError::internal(&format!("画像保存エラー: {}", io_err))
+            CmdError::internal("画像の保存でエラーが発生しました", io_err)
         };
         assert_eq!(cmd_err.kind, "validation", "拡張子不正は validation");
         assert_eq!(
@@ -701,11 +711,9 @@ mod tests {
         // DbError → CmdError 変換を検証
         let cmd_err = super::db_err(result.unwrap_err());
         assert_eq!(cmd_err.kind, "internal", "DbError は internal に変換");
-        assert!(
-            cmd_err.message.contains("page"),
-            "エラーメッセージに page が含まれるべき: {}",
-            cmd_err.message
-        );
+        assert_eq!(cmd_err.message, "データベース処理でエラーが発生しました");
+        assert!(!cmd_err.message.contains("page"));
+        assert!(cmd_err.error_id.is_some());
     }
 
     #[test]
@@ -780,10 +788,8 @@ mod tests {
             cmd_err.kind, "internal",
             "DbError は internal に変換されるべき"
         );
-        assert!(
-            cmd_err.message.contains("テストエラー"),
-            "元メッセージが含まれるべき: {}",
-            cmd_err.message
-        );
+        assert_eq!(cmd_err.message, "データベース処理でエラーが発生しました");
+        assert!(!cmd_err.message.contains("テストエラー"));
+        assert!(cmd_err.error_id.is_some());
     }
 }

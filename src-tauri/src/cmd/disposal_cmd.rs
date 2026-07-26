@@ -21,7 +21,7 @@ pub fn create_disposal(
     let mut conn = state
         .db
         .lock()
-        .map_err(|_| CmdError::internal("DB接続エラー"))?;
+        .map_err(|error| CmdError::internal("DB接続エラー", error))?;
     inventory_service::create_disposal(&mut conn, req).map_err(CmdError::from)
 }
 
@@ -40,7 +40,7 @@ pub fn list_disposals(
     let conn = state
         .db
         .lock()
-        .map_err(|_| CmdError::internal("DB接続エラー"))?;
+        .map_err(|error| CmdError::internal("DB接続エラー", error))?;
     let query = ListQuery {
         page,
         per_page,
@@ -62,7 +62,7 @@ pub fn list_inventory_records(
     let conn = state
         .db
         .lock()
-        .map_err(|_| CmdError::internal("DB接続エラー"))?;
+        .map_err(|error| CmdError::internal("DB接続エラー", error))?;
     inventory_service::list_inventory_records(&conn, &query).map_err(CmdError::from)
 }
 
@@ -78,7 +78,7 @@ pub fn get_disposal_record(
     let conn = state
         .db
         .lock()
-        .map_err(|_| CmdError::internal("DB接続エラー"))?;
+        .map_err(|error| CmdError::internal("DB接続エラー", error))?;
     inventory_service::get_disposal_record(&conn, record_id).map_err(CmdError::from)
 }
 

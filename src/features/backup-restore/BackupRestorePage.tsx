@@ -39,6 +39,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { commands, type AppSetting, type BackupInfo, type BackupResult } from "@/lib/bindings";
+import { describeError } from "@/lib/describe-error";
 import { isInvokeError, unwrapResult } from "@/lib/invoke";
 import { queryKeys } from "@/lib/query-keys";
 import { open } from "@tauri-apps/plugin-dialog";
@@ -49,12 +50,6 @@ const BACKUP_SETTING_KEYS = new Set([
   "backup_path",
   "backup_retention_days",
 ]);
-
-function describeError(error: unknown): string {
-  if (isInvokeError(error)) return error.cmdError.message;
-  if (error instanceof Error) return error.message;
-  return String(error);
-}
 
 function settingValue(settings: AppSetting[] | undefined, key: string, fallback: string): string {
   return settings?.find((setting) => setting.key === key)?.value ?? fallback;
@@ -78,6 +73,10 @@ function restoreErrorKind(error: unknown): string | null {
   return isInvokeError(error) ? error.cmdError.kind : null;
 }
 
+function restoreErrorId(error: unknown): string | null {
+  return isInvokeError(error) ? (error.cmdError.error_id ?? null) : null;
+}
+
 interface RestoreState {
   selected: BackupInfo | null;
   preBackupFailed: boolean;
@@ -99,6 +98,7 @@ export function BackupRestorePage() {
   const [manualBackupResult, setManualBackupResult] = useState<BackupResult | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [restoreFailureErrorId, setRestoreFailureErrorId] = useState<string | null>(null);
   const [isCreatingBackup, setIsCreatingBackup] = useState(false);
   const [isUpdatingSetting, setIsUpdatingSetting] = useState(false);
   const [isRunningPreBackup, setIsRunningPreBackup] = useState(false);
@@ -183,6 +183,7 @@ export function BackupRestorePage() {
     if (!BACKUP_SETTING_KEYS.has(key)) return;
     setIsUpdatingSetting(true);
     setErrorMessage(null);
+    setRestoreFailureErrorId(null);
     setStatusMessage(null);
     try {
       await unwrapResult(commands.updateSetting({ key, value }), {
@@ -214,6 +215,7 @@ export function BackupRestorePage() {
     setIsCreatingBackup(true);
     setManualBackupResult(null);
     setErrorMessage(null);
+    setRestoreFailureErrorId(null);
     setStatusMessage(null);
     try {
       const result = await unwrapResult(commands.createBackup(), {
@@ -234,6 +236,7 @@ export function BackupRestorePage() {
 
   function selectRestoreBackup(backup: BackupInfo) {
     setErrorMessage(null);
+    setRestoreFailureErrorId(null);
     setStatusMessage(null);
     setRestoreState({
       selected: backup,
@@ -247,6 +250,7 @@ export function BackupRestorePage() {
     if (!restoreState.selected) return;
     setIsRunningPreBackup(true);
     setErrorMessage(null);
+    setRestoreFailureErrorId(null);
     setStatusMessage(null);
     try {
       await unwrapResult(commands.createBackup(), {
@@ -272,6 +276,7 @@ export function BackupRestorePage() {
     if (!restoreState.selected) return;
     setIsRestoring(true);
     setErrorMessage(null);
+    setRestoreFailureErrorId(null);
     setStatusMessage(null);
     setRestoreState((current) => ({ ...current, confirmOpen: false }));
     try {
@@ -284,6 +289,7 @@ export function BackupRestorePage() {
       void navigate({ to: "/" });
     } catch (error) {
       const kind = restoreErrorKind(error);
+      setRestoreFailureErrorId(restoreErrorId(error));
       if (kind === "restore_failed_unrecoverable" || kind === "restore_durability_unknown") {
         setFatalRestoreKind(kind);
         setErrorMessage(null);
@@ -319,6 +325,7 @@ export function BackupRestorePage() {
                 : "バックアップの復元に失敗し、DB接続の復旧もできませんでした。"}
             </p>
             <p className="font-medium">アプリを閉じて、もう一度開いてください</p>
+            {restoreFailureErrorId ? <p>（エラーID: {restoreFailureErrorId}）</p> : null}
           </AlertDescription>
         </Alert>
       ) : null}
@@ -351,7 +358,10 @@ export function BackupRestorePage() {
               ? "復元前のバックアップを作成できませんでした"
               : "操作に失敗しました"}
           </AlertTitle>
-          <AlertDescription>{errorMessage}</AlertDescription>
+          <AlertDescription className="space-y-2">
+            <p>{errorMessage}</p>
+            {restoreFailureErrorId ? <p>（エラーID: {restoreFailureErrorId}）</p> : null}
+          </AlertDescription>
         </Alert>
       ) : null}
 

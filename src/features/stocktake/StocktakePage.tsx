@@ -47,6 +47,7 @@ import {
   type StocktakeItemDetail,
   type StocktakeResult,
 } from "@/lib/bindings";
+import { describeError } from "@/lib/describe-error";
 import { isInvokeError, unwrapResult } from "@/lib/invoke";
 import { invalidateByContract, invalidationContract } from "@/lib/invalidation-contract";
 import { queryKeys } from "@/lib/query-keys";
@@ -82,12 +83,6 @@ function formatLastStocktake(last: LastStocktakeSummary | null | undefined): str
     return "前回の記録はありません";
   }
   return `前回の棚卸し（${formatCountedAt(last.completed_at)}）: 仕入原価総額 ${formatYen(last.total_cost)}`;
-}
-
-function describeError(error: unknown): string {
-  if (isInvokeError(error)) return error.cmdError.message;
-  if (error instanceof Error) return error.message;
-  return String(error);
 }
 
 function isStocktakeNotInProgressError(error: unknown): boolean {

@@ -34,7 +34,7 @@ function ok<T>(data: T) {
 function cmdError(message: string) {
   return {
     status: "error" as const,
-    error: { kind: "internal", message, field: null },
+    error: { kind: "internal", message, field: null, error_id: null },
   };
 }
 

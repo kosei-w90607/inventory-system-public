@@ -27,10 +27,8 @@ pub struct PluExportRow {
 }
 
 /// PLUファイル生成結果
-///
-/// 型名は互換維持で "Csv" のまま（実体はタブ区切りPLUファイル）
 #[derive(Debug)]
-pub struct PluCsvOutput {
+pub struct PluFileOutput {
     /// CP932エンコード済みPLUファイルバイト列
     pub bytes: Vec<u8>,
     /// 推奨ファイル名（例: "PLU_20260408.txt"）
@@ -93,7 +91,7 @@ const NAME_MAX_BYTES: usize = 16;
 /// PluExportRow リストからカシオレジスターツール用PLUファイルを生成する
 ///
 /// 25-io-plu-formatter.md セクション12.3
-pub fn generate_plu_tsv(rows: &[PluExportRow]) -> Result<PluCsvOutput, PluFormatError> {
+pub fn generate_plu_tsv(rows: &[PluExportRow]) -> Result<PluFileOutput, PluFormatError> {
     let date = chrono::Local::now().format("%Y%m%d").to_string();
     generate_plu_tsv_with_date(rows, &date)
 }
@@ -104,7 +102,7 @@ pub fn generate_plu_tsv(rows: &[PluExportRow]) -> Result<PluCsvOutput, PluFormat
 pub(crate) fn generate_plu_tsv_with_date(
     rows: &[PluExportRow],
     date_str: &str,
-) -> Result<PluCsvOutput, PluFormatError> {
+) -> Result<PluFileOutput, PluFormatError> {
     let mut output = Vec::new();
 
     // ヘッダ行（CP932エンコード）
@@ -159,7 +157,7 @@ pub(crate) fn generate_plu_tsv_with_date(
         output.extend_from_slice(b"\r\n");
     }
 
-    Ok(PluCsvOutput {
+    Ok(PluFileOutput {
         bytes: output,
         suggested_filename: format!("PLU_{}.txt", date_str),
         content_type: "text/tab-separated-values",

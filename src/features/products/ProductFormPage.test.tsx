@@ -92,7 +92,7 @@ describe("ProductFormPage (UI-01b)", () => {
     });
     mockListSuppliers.mockResolvedValue({
       status: "error",
-      error: { kind: "internal", message: "取引先取得失敗", field: null },
+      error: { kind: "internal", message: "取引先取得失敗", field: null, error_id: null },
     });
     mockCreateProduct.mockResolvedValue({
       status: "ok",
@@ -135,7 +135,7 @@ describe("ProductFormPage (UI-01b)", () => {
   it("blocks save when department options fail", async () => {
     mockListDepartments.mockResolvedValue({
       status: "error",
-      error: { kind: "internal", message: "部門取得失敗", field: null },
+      error: { kind: "internal", message: "部門取得失敗", field: null, error_id: null },
     });
     mockListSuppliers.mockResolvedValue({ status: "ok", data: [] });
 
@@ -152,7 +152,7 @@ describe("ProductFormPage (UI-01b)", () => {
     mockListSuppliers.mockResolvedValue({ status: "ok", data: [] });
     mockGetProduct.mockResolvedValue({
       status: "error",
-      error: { kind: "not_found", message: "商品が見つかりません", field: null },
+      error: { kind: "not_found", message: "商品が見つかりません", field: null, error_id: null },
     });
 
     renderWithClient(
@@ -182,7 +182,12 @@ describe("ProductFormPage (UI-01b)", () => {
     });
     mockUpdateProduct.mockResolvedValue({
       status: "error",
-      error: { kind: "duplicate", message: "この商品コードは既に使用されています", field: null },
+      error: {
+        kind: "duplicate",
+        message: "この商品コードは既に使用されています",
+        field: null,
+        error_id: null,
+      },
     });
 
     const { queryClient } = renderWithClient(

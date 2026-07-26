@@ -504,14 +504,18 @@ Tauri 初期ウィンドウは `src-tauri/tauri.conf.json` で 1280x800、最小
 
 ### 6.4 CmdError → ユーザー向け日本語メッセージ変換表
 
-CMD層の `CmdError` は `kind: 'validation' | 'duplicate' | 'not_found' | 'internal'` と `message: string` を持つ。UIでの表示変換:
+CMD層の `CmdError` は `kind: string` / `message: string` / `field?` / `error_id?`（internal / restore_*系のみ。40-cmd-product.md 5.3 CMD-ERR-D1）を持つ。UI側の変換は共通ユーティリティ `describeError`（`src/lib/describe-error.ts`、UI-ERR-D1）に一元化し、画面ローカルに同名の変換関数を重複定義しない。UIでの表示変換:
 
 | kind | UI表示戦略 | 例 |
 |------|----------|---|
 | `validation` | `message` をそのまま表示（BIZ/CMD層で日本語化済み） | "JANコードは13桁または8桁で入力してください" |
-| `duplicate` | `message` + 既存レコードへの導線 | "商品コード HZ-0047 は既に登録されています。[既存商品を開く]" |
-| `not_found` | `message` + 戻り先の提示 | "指定された商品が見つかりません。[商品一覧に戻る]" |
-| `internal` | 汎用文言 + 詳細は **ログに誘導** + 操作ログID表示 | "処理中にエラーが発生しました（操作ID: log_12345）。操作ログ画面で詳細を確認できます。" |
+| `duplicate` | `message` を表示。既存レコードへの導線は画面側で追加してよい | "商品コード HZ-0047 は既に登録されています。[既存商品を開く]" |
+| `not_found` | `message` を表示。戻り先の提示は画面側で追加してよい | "指定された商品が見つかりません。[商品一覧に戻る]" |
+| `internal` | `message`（操作文脈の定型文言。raw 技術詳細は CMD-ERR-D2 により含まれない）+ エラーID + 診断ログへの誘導 | "バックアップ一覧の取得でエラーが発生しました（エラーID: E-20260726-153021-a1b2）。詳細は診断ログに記録されています。" |
+| `restore_*` 系 | 表示所有権は 68-ui-backup-restore §68.7（kind 別 recovery 文言 + state machine）。describeError は使わず、画面固有表示に `エラーID` のみ併記 | "アプリを閉じて、もう一度開いてください（エラーID: E-…）" |
+| その他（`import_error` / `export_error` 等） | `message` をそのまま表示。画面固有の recovery 分岐（55-ui-csv-import §55.5 等）は各画面の設計に従う | — |
+
+旧記載の「操作ログID（operation_logs）表示」は実装と乖離していたため廃止し、相関キーは `error_id` × 診断ログ（70-mnt-diagnostic-log.md）に確定した（D-053）。
 
 `internal` の場合の原因詳細はファイルログ（MNT-04）に記録され、ユーザーは UI-11 の操作ログ画面 + ログファイルディレクトリから追跡可能。
 

@@ -84,12 +84,15 @@ let result = biz::some_function(&mut conn, ...);
 | BizError | CmdError.kind | CmdError.message |
 |----------|--------------|------------------|
 | ImportError(msg) | "import_error" | msg をそのまま使用 |
+| ExportError(msg) | "export_error" | msg をそのまま使用 |
 | IdempotencyConflict(msg) | "idempotency_conflict" | msg をそのまま使用 |
 | ValidationFailed(msg) | "validation" | msg をそのまま使用（既存） |
 | NotFound(msg) | "not_found" | msg をそのまま使用（既存） |
-| DatabaseError(_) | "internal" | "データベースエラーが発生しました。もう一度お試しください"（既存） |
+| DatabaseError(_) | "internal" | "データベースエラーが発生しました。もう一度お試しください"（既存。error_id: Some(発行) — 40-cmd-product.md 5.3 CMD-ERR-D1 参照） |
 
 **import_error を新設した理由**: CSV取込み固有のエラー（ファイル形式不正、重複ブロック、キャッシュ期限切れ等）は validation とは性質が異なる。UI側で「再度ファイルを選択してください」等のCSV取込み固有の案内を出すために種別を分ける。
+
+**export_error を新設した理由（BIZ-04-D2、監査是正 順8 / P7b-3）**: `import_error` は取込み画面の recovery 分岐（プレビューキャッシュ消失 → ファイル再選択）と結びついた種別であり、PLU書出し（export）失敗を `import_error` で返すと、取込み向け recovery 文言・分岐へ誤誘導する。書出し系の失敗（PluFormatError 由来等）は `export_error` として分離し、取込み語彙を書出し経路に持ち込まない。
 
 ---
 
@@ -408,10 +411,10 @@ mode: String   // "full" または "diff"
 ```
 // CMD層はBIZ-04のPluExportPreparedResultをフロントエンド向けに変換して返す
 struct PluExportPrepareResponse {
-    bytes_base64: String,            // PluCsvOutput.bytes をbase64エンコード
-    suggested_filename: String,      // PluCsvOutput.suggested_filename（例: PLU_20260408.txt）
-    content_type: String,            // PluCsvOutput.content_type
-    encoding: String,                // PluCsvOutput.encoding
+    bytes_base64: String,            // PluFileOutput.bytes をbase64エンコード
+    suggested_filename: String,      // PluFileOutput.suggested_filename（例: PLU_20260408.txt）
+    content_type: String,            // PluFileOutput.content_type
+    encoding: String,                // PluFileOutput.encoding
     count: usize,                    // 書出し行数（dedup 後）
     target_product_codes: Vec<String>,  // confirm対象。dedup 群の全メンバーを含むため count と長さが一致しないことがある（D-028）
     excluded: Vec<PluExcludedProductResponse>,  // 要修正一覧（D-028）

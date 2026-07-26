@@ -78,6 +78,7 @@ export function toCmdError(err: unknown): CmdError {
     kind: CMD_ERROR_KIND.INTERNAL,
     message: err instanceof Error ? err.message : String(err),
     field: null,
+    error_id: null,
   };
 }
 

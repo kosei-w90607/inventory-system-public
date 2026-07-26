@@ -57,19 +57,16 @@ pub struct CmdError {
     pub message: String,
     /// バリデーションエラー時のフィールド名
     pub field: Option<String>,
+    /// 診断ログとの相関 ID（internal / restore_* 系のみ）
+    pub error_id: Option<String>,
 }
 
 impl CmdError {
     /// 内部エラー（DB接続取得失敗等）
     ///
     /// §70.7.1: CmdError::internal で直接生成するケースも ERROR ログを出力する。
-    fn internal(message: &str) -> Self {
-        tracing::error!(message, "CMD層内部エラー");
-        Self {
-            kind: "internal".to_string(),
-            message: message.to_string(),
-            field: None,
-        }
+    fn internal(message: &str, detail: impl std::fmt::Display) -> Self {
+        Self::correlated("internal", message, detail)
     }
 
     pub(crate) fn restore_failed_recovered(message: &str) -> Self {
@@ -89,11 +86,21 @@ impl CmdError {
     }
 
     fn restore_with_detail(kind: &str, message: &str, detail: &str) -> Self {
-        tracing::error!(kind, message, detail, "CMD層リストアエラー");
+        Self::correlated(kind, message, detail)
+    }
+
+    fn correlated(kind: &str, message: &str, detail: impl std::fmt::Display) -> Self {
+        let error_id = format!(
+            "E-{}-{}",
+            chrono::Local::now().format("%Y%m%d-%H%M%S"),
+            &uuid::Uuid::new_v4().simple().to_string()[..4]
+        );
+        tracing::error!(kind, error_id, detail = %detail, "CMD層相関エラー");
         Self {
             kind: kind.to_string(),
             message: message.to_string(),
             field: None,
+            error_id: Some(error_id),
         }
     }
 }
@@ -104,52 +111,68 @@ impl CmdError {
 /// §70.7.1: エラー境界での1回記録。全variantで tracing::error! を出力する。
 impl From<BizError> for CmdError {
     fn from(err: BizError) -> Self {
+        if let BizError::DatabaseError(detail) = &err {
+            return CmdError::internal(
+                "データベースエラーが発生しました。もう一度お試しください",
+                detail,
+            );
+        }
         tracing::error!(error = %err, "CMD層エラー");
         match err {
             BizError::ValidationFailed(msg) => CmdError {
                 kind: "validation".to_string(),
                 message: msg,
                 field: None,
+                error_id: None,
             },
             BizError::ValidationFailedAt { message, field } => CmdError {
                 kind: "validation".to_string(),
                 message,
                 field: Some(field),
+                error_id: None,
             },
             BizError::NotFound(msg) => CmdError {
                 kind: "not_found".to_string(),
                 message: msg,
                 field: None,
+                error_id: None,
             },
             BizError::DuplicateProductCode(code) => CmdError {
                 kind: "duplicate".to_string(),
                 message: format!("この商品コードは既に使用されています: {}", code),
                 field: None,
+                error_id: None,
             },
-            BizError::DatabaseError(_) => CmdError {
-                kind: "internal".to_string(),
-                message: "データベースエラーが発生しました。もう一度お試しください".to_string(),
-                field: None,
-            },
+            BizError::DatabaseError(_) => unreachable!("handled before generic logging"),
             BizError::ImportError(msg) => CmdError {
                 kind: "import_error".to_string(),
                 message: msg,
                 field: None,
+                error_id: None,
+            },
+            BizError::ExportError(msg) => CmdError {
+                kind: "export_error".to_string(),
+                message: msg,
+                field: None,
+                error_id: None,
             },
             BizError::IdempotencyConflict(msg) => CmdError {
                 kind: "idempotency_conflict".to_string(),
                 message: msg,
                 field: None,
+                error_id: None,
             },
             BizError::StocktakeInProgress(msg) => CmdError {
                 kind: "stocktake_in_progress".to_string(),
                 message: msg,
                 field: None,
+                error_id: None,
             },
             BizError::StocktakeNotInProgress(msg) => CmdError {
                 kind: "stocktake_not_in_progress".to_string(),
                 message: msg,
                 field: None,
+                error_id: None,
             },
         }
     }
@@ -163,6 +186,7 @@ impl From<BizError> for CmdError {
 mod tests {
     use super::*;
     use crate::db::DbError;
+    use regex::Regex;
 
     #[test]
     fn test_cmd_error_req905_from_import_error() {
@@ -213,6 +237,7 @@ mod tests {
         let cmd_err: CmdError = biz_err.into();
         assert_eq!(cmd_err.kind, "internal");
         assert!(cmd_err.message.contains("データベースエラー"));
+        assert!(cmd_err.error_id.is_some());
     }
 
     #[test]
@@ -239,6 +264,68 @@ mod tests {
             CmdError::restore_durability_unknown("unknown", "detail").kind,
             "restore_durability_unknown"
         );
+    }
+
+    #[test]
+    fn test_internal_error_id_req700_wire_log_match() {
+        // REQ-700 / CMD-ERR-D1: wire と診断ログは同じ相関 ID を共有する。
+        let raw_detail = "synthetic sqlite detail: /tmp/synthetic.db";
+        let (cmd_err, logs) = crate::test_tracing::capture(|| {
+            CmdError::internal("在庫情報の取得でエラーが発生しました", raw_detail)
+        });
+        let error_id = cmd_err.error_id.as_deref().expect("internal error_id");
+        let pattern = Regex::new(r"^E-\d{8}-\d{6}-[0-9a-f]{4}$").unwrap();
+
+        assert!(
+            pattern.is_match(error_id),
+            "unexpected error_id: {error_id}"
+        );
+        assert!(logs.contains(error_id), "captured logs: {logs:?}");
+        assert!(logs.contains(raw_detail), "captured logs: {logs:?}");
+    }
+
+    #[test]
+    fn test_internal_message_req700_excludes_raw_detail() {
+        // REQ-700 / CMD-ERR-D2: raw detail は wire message に混ぜない。
+        let raw_detail = "synthetic OS error: permission denied /tmp/synthetic.db";
+        let cmd_err =
+            CmdError::internal("バックアップ一覧の取得でエラーが発生しました", raw_detail);
+
+        assert_eq!(
+            cmd_err.message,
+            "バックアップ一覧の取得でエラーが発生しました"
+        );
+        assert!(!cmd_err.message.contains(raw_detail));
+        assert!(!cmd_err.message.contains("/tmp/synthetic.db"));
+    }
+
+    #[test]
+    fn test_restore_kinds_req700_carry_error_id() {
+        // REQ-700 / CMD-ERR-D1 / 68 §68.7: restore 3 kind は相関 ID を持つ。
+        let errors = [
+            CmdError::restore_failed_recovered("recovered"),
+            CmdError::restore_failed_unrecoverable("fatal", "fatal detail"),
+            CmdError::restore_durability_unknown("unknown", "unknown detail"),
+        ];
+        let pattern = Regex::new(r"^E-\d{8}-\d{6}-[0-9a-f]{4}$").unwrap();
+
+        for error in errors {
+            let error_id = error.error_id.as_deref().expect("restore error_id");
+            assert!(
+                pattern.is_match(error_id),
+                "unexpected error_id: {error_id}"
+            );
+        }
+    }
+
+    #[test]
+    fn test_plu_format_failure_req402_maps_to_export_error() {
+        // REQ-402 / BIZ-04-D2: PLU 書出し失敗は import_error と分離する。
+        let cmd_err: CmdError = BizError::ExportError("PLU生成失敗".to_string()).into();
+
+        assert_eq!(cmd_err.kind, "export_error");
+        assert_eq!(cmd_err.message, "PLU生成失敗");
+        assert!(cmd_err.error_id.is_none());
     }
 
     #[test]

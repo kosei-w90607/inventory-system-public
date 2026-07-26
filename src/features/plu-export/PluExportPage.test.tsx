@@ -223,6 +223,7 @@ describe("PluExportPage (UI-08 / REQ-402)", () => {
         message:
           "PLUファイルに書き出せる商品がありません。商品マスタで13桁JANを確認してください。対象: JAN-NONE（JAN未登録）、JAN-SHORT（JANが13桁ではありません）",
         field: null,
+        error_id: null,
       },
     });
 
@@ -418,7 +419,9 @@ describe("PluExportPage (UI-08 / REQ-402)", () => {
 
     expect(await screen.findByText("未反映から外せませんでした")).toBeInTheDocument();
     const statusRegion = expectStatusRegionBeforeContent();
-    expect(within(statusRegion).getByText("confirm failed")).toBeInTheDocument();
+    expect(
+      within(statusRegion).getByText("confirm failed。詳細は診断ログに記録されています。"),
+    ).toBeInTheDocument();
     expect(
       within(statusRegion).getByRole("button", { name: "もう一度未反映から外す" }),
     ).toBeEnabled();
@@ -450,6 +453,7 @@ describe("PluExportPage (UI-08 / REQ-402)", () => {
         kind: "ValidationFailed",
         message: "スキャニングPLU上限の4,784件を超えています",
         field: null,
+        error_id: null,
       },
     });
 

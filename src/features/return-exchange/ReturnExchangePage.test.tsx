@@ -299,7 +299,7 @@ describe("ReturnExchangePage (UI-03 / REQ-202)", () => {
     mockCreateReturn
       .mockResolvedValueOnce({
         status: "error",
-        error: { kind: "internal", message: "一時的なエラー", field: null },
+        error: { kind: "internal", message: "一時的なエラー", field: null, error_id: null },
       })
       .mockResolvedValueOnce({
         status: "ok",
@@ -366,7 +366,7 @@ describe("ReturnExchangePage (UI-03 / REQ-202)", () => {
     mockCreateReturn
       .mockResolvedValueOnce({
         status: "error",
-        error: { kind: "internal", message: "一時的なエラー", field: null },
+        error: { kind: "internal", message: "一時的なエラー", field: null, error_id: null },
       })
       .mockResolvedValueOnce({
         status: "ok",
@@ -414,7 +414,7 @@ describe("ReturnExchangePage (UI-03 / REQ-202)", () => {
 
     deferred.resolve({
       status: "error",
-      error: { kind: "internal", message: "一時的なエラー", field: null },
+      error: { kind: "internal", message: "一時的なエラー", field: null, error_id: null },
     });
     expect(await screen.findByText("一時的なエラー")).toBeInTheDocument();
   });
@@ -428,7 +428,7 @@ describe("ReturnExchangePage (UI-03 / REQ-202)", () => {
     mockCreateReturn
       .mockResolvedValueOnce({
         status: "error",
-        error: { kind: "internal", message: "一時的なエラー", field: null },
+        error: { kind: "internal", message: "一時的なエラー", field: null, error_id: null },
       })
       .mockResolvedValueOnce({
         status: "ok",
@@ -460,7 +460,7 @@ describe("ReturnExchangePage (UI-03 / REQ-202)", () => {
     mockCreateReturn
       .mockResolvedValueOnce({
         status: "error",
-        error: { kind: "internal", message: "一時的なエラー", field: null },
+        error: { kind: "internal", message: "一時的なエラー", field: null, error_id: null },
       })
       .mockResolvedValueOnce({
         status: "ok",

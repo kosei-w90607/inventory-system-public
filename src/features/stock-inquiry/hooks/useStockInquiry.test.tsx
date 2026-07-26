@@ -165,7 +165,7 @@ describe("useStockInquiry (REQ-301/302)", () => {
     });
     mockDetail.mockResolvedValue({
       status: "error",
-      error: { kind: "not_found", message: "商品が見つかりません", field: null },
+      error: { kind: "not_found", message: "商品が見つかりません", field: null, error_id: null },
     });
     const navigate = vi.fn();
     const { result } = renderHook(
