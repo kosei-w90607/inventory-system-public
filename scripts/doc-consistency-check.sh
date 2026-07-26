@@ -932,7 +932,60 @@ strip_fenced_code_and_html_comments() {
                 line = before substr(remainder, comment_end + 3)
             }
         }
-    ' | sed -E 's/`+[^`]*`+//g'
+    '
+}
+
+strip_inline_code_spans() {
+    awk '
+        function backtick_run_length(text, position, count) {
+            count = 0
+            while (substr(text, position + count, 1) == "`") {
+                count++
+            }
+            return count
+        }
+        {
+            line = $0
+            output = ""
+            cursor = 1
+
+            while (cursor <= length(line)) {
+                relative_open = index(substr(line, cursor), "`")
+                if (relative_open == 0) {
+                    output = output substr(line, cursor)
+                    break
+                }
+
+                open_position = cursor + relative_open - 1
+                output = output substr(line, cursor, open_position - cursor)
+                open_length = backtick_run_length(line, open_position)
+                search_position = open_position + open_length
+                close_position = 0
+
+                while (search_position <= length(line)) {
+                    relative_close = index(substr(line, search_position), "`")
+                    if (relative_close == 0) {
+                        break
+                    }
+                    candidate_position = search_position + relative_close - 1
+                    candidate_length = backtick_run_length(line, candidate_position)
+                    if (candidate_length == open_length) {
+                        close_position = candidate_position
+                        break
+                    }
+                    search_position = candidate_position + candidate_length
+                }
+
+                if (close_position == 0) {
+                    output = output substr(line, open_position)
+                    break
+                }
+                cursor = close_position + open_length
+            }
+
+            print output
+        }
+    '
 }
 
 # Workflow State セクション本文（extract_markdown_section の出力）から
@@ -1244,6 +1297,7 @@ check_plan_packet_workflow_state() {
             next_actions_section=$(extract_markdown_section "$plans_md" "次の行動")
             next_actions_links=$(printf '%s\n' "$next_actions_section" \
                 | strip_fenced_code_and_html_comments \
+                | strip_inline_code_spans \
                 | grep -oE '(^|[^!\\])\[[^][]+\]\((\./)?plans/[^()[:space:]]+\)' || true)
         fi
         while IFS= read -r active_packet; do

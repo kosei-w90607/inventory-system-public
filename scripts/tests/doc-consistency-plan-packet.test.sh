@@ -126,6 +126,17 @@ write_plans_md_escaped_link() {
     } > "$repo/docs/Plans.md"
 }
 
+write_plans_md_double_inline_code() {
+    local basename="$1"
+    {
+        echo "# Plans"
+        echo ""
+        echo "## 次の行動"
+        echo ""
+        printf '1. double-code: `` `[plans/%s](plans/%s)` ``\n' "$basename" "$basename"
+    } > "$repo/docs/Plans.md"
+}
+
 reset_packet_defaults() {
     PKT_INCLUDE_WS=1
     PKT_PHASE="implementing"
@@ -411,6 +422,12 @@ if run_check ""; then
 fi
 assert_contains "$out" "active packet '2026-01-11-fixture-a.md' へのリンクが見つかりません"
 assert_contains "$out" "active packet '2026-01-11-fixture-b.md' へのリンクが見つかりません"
+
+write_plans_md_double_inline_code "2026-01-11-fixture-a.md"
+if run_check ""; then
+    fail "a double-backtick code span exposed a non-rendered link"
+fi
+assert_contains "$out" "active packet '2026-01-11-fixture-a.md' へのリンクが見つかりません"
 
 write_plans_md_escaped_link "2026-01-11-fixture-a.md"
 if run_check ""; then
