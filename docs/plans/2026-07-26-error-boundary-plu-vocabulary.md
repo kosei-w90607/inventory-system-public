@@ -40,6 +40,15 @@
   accept・反映済み。是正は plan-gate 内修正（Phase 据え置き）で、再レビューは同
   reviewer context の差分確認で行う。
 
+- State Narrative（2026-07-26、Plan Review 再レビュー）: 同 reviewer context の差分
+  再レビューは P1=0 / P2=1 / P3=1。P1（restore_* 配線ギャップ）の是正方向・検出手段は
+  妥当と確認された。P2 = 是正で新たに生じた packet 内自己矛盾（Boundary / Wire
+  Contract・Spec Contract・Design Intent Trace・Review Focus の 4 セクションが
+  「restore_* も describeError を通る」前提のまま）— accept、4 箇所へ restore_* 例外を
+  一括反映。P3 = error_id の DOM 配置未規定 — accept、68 §68.7 に「別要素併記で既存
+  完全一致 assertion の書換え最小化」を追記。反映後、reviewer の P1/P2=0 確認を経て
+  plan-approved 遷移を owner に諮る。
+
 ## Owner Effort Budget
 
 - 介入回数上限: 3（Plan 承認 / Ready / merge）
@@ -203,6 +212,7 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。AC や�
 | P3-4 | UI_TECH_STACK §6.4 | UI-ERR-D1 | 表示変換の一元化。画面ローカル重複は表示分裂の再発源 | `src/lib/describe-error.ts` + 4 画面 | `describe-error.test.ts` + 静的 sweep test |
 | P7b-3 / REQ-402 | 41-cmd-pos §17.4 | BIZ-04-D2 | export 失敗を取込み recovery 語彙から分離。import_error 温存は将来の共通 handler 化で誤誘導 | `biz/plu_export_service.rs` / `biz/mod.rs` / `cmd/mod.rs` | `test_plu_format_failure_req402_maps_to_export_error` |
 | P7b-3 / REQ-402 | 25-io / 33-biz | IO-04-D1 | 実体（tab 区切り `.txt`）語彙へ改名。「互換維持」注記は IPC contract 制約ではないと監査で確認済み | `io/plu_formatter.rs` ほか rename 全域 | AC rg 0 hit + 既存 PLU test green |
+| P3-4 | 68-ui-backup-restore §68.7 | 68 §68.7 error_id 併記（D-053 配下） | describeError への置換案は Codex round で確定した kind 別 recovery 文言・state machine 契約を壊すため却下し、文言維持 + error_id 別要素併記を採用（Plan Review 一次 P1 裁定） | `BackupRestorePage.tsx` restore catch / fatal Alert | `BackupRestorePage.test.tsx` restore_* error_id case |
 
 ## Design Intent Audit
 
@@ -299,12 +309,13 @@ Test Design Matrix: [test-matrices/2026-07-26-error-boundary-plu-vocabulary.md](
 ## Boundary / Wire Contract
 
 - producer: `src-tauri` `CmdError`（serde serialize、specta 型）
-- consumer: `src/lib/invoke.ts`（`toCmdError` 正規化）→ `src/lib/describe-error.ts` → 各画面
+- consumer: `src/lib/invoke.ts`（`toCmdError` 正規化）→ `src/lib/describe-error.ts` → 各画面。
+  例外: restore_* 表示は describe-error.ts を通らず 68 §68.7 の画面固有表示（error_id 併記のみ）
 - wire type: JSON `{ kind: string, message: string, field?: string | null, error_id?: string | null }`
 - internal type: Rust `CmdError` / TS `InvokeError.cmdError`
 - precision/range: `error_id` は ASCII `E-` prefix 固定長形式（`E-<8桁日付>-<6桁時刻>-<4hex>`）。数値精度の論点なし
 - round-trip path: Rust serde → Tauri IPC JSON → bindings.ts 型 → describeError 表示
-- invalid input: `error_id` 欠落（旧 payload / 非 internal kind）は describeError が ID 節を省略して表示。unknown kind は message そのまま表示（既存挙動維持）
+- invalid input: `error_id` 欠落（旧 payload / 非 internal kind）は describeError が ID 節を省略して表示。restore_* 側の ID 省略動作は 68 §68.7 が独立に規定。unknown kind は message そのまま表示（既存挙動維持）
 - compatibility: additive field のため既存 frontend 型と後方互換。`export_error` は新 kind — 既存 consumer に `export_error` 専用分岐は存在せず（scope 精査で実査済み）、default 分岐で message 表示されるため挙動互換。PLU 画面は kind 非依存実装のため表示文言は BIZ message のまま不変
 
 ## Review Focus
@@ -317,6 +328,8 @@ Test Design Matrix: [test-matrices/2026-07-26-error-boundary-plu-vocabulary.md](
   非影響が対で揃っているか。
 - rename の取り残し: comment / doc-string / test 名内の旧語彙。
 - describeError 置換による 4 画面の文言 regression（非 internal kind で表示が変わらないこと）。
+- restore_* error_id 併記が 68 §68.7 の固定文言・state machine・recovery 導線を変えて
+  いないか（既存の識別子固定 test の維持、error_id は別要素併記）。
 
 ## Spec Contract
 
@@ -330,9 +343,12 @@ Contract ID: SPEC-ERR-BOUNDARY-2026-07-26
 - PLU 書出し失敗は `kind="export_error"` で返り、`import_error` 語彙・型語彙
   （PluCsvOutput / csv_output）は書出し経路から排除される（BIZ-04-D2 / IO-04-D1。Test:
   `test_plu_format_failure_req402_maps_to_export_error` + AC rg 0 hit）。
-- UI の kind→文言変換は `src/lib/describe-error.ts` に一元化され、internal 系は
+- UI の kind→文言変換は `src/lib/describe-error.ts` に一元化され、internal は
   message + error_id + 診断ログ誘導で表示される（UI-ERR-D1。Test:
   `describe-error.test.ts` + 静的 sweep test）。
+- restore_* 3 kind の画面表示は 68 §68.7 の kind 別 recovery 文言・state machine を
+  維持したまま error_id を併記する（describeError 非使用。Test:
+  `BackupRestorePage.test.tsx` restore_* error_id case）。
 
 ## Trace Matrix
 
