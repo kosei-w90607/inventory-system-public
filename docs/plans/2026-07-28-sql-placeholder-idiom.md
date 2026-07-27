@@ -2,16 +2,16 @@
 
 ## Workflow State
 
-- Phase: plan-gate
+- Phase: ready-hosted-final
 - Risk: R3
 - Execution Mode: fable-window
-- Plan Commit: pending
-- Amendments: none
+- Plan Commit: 01660e9
+- Amendments: 8feee651cf3ab293fe558c7b48e82b9632197db6, 011ba335590a8dfb57223f8c06846e09c74d803d, f511414787e4d2cc601b8d68859b806da1841ce5
 - Coordinator: Fable 5（本 thread。wave 編成・packet 作成・レビュー裁定）
 - Writer: Codex（owner relay 発注。plan-approved 後の単独 writer）
 - Plan Reviewer: Sonnet 5 fresh context（Coordinator が subagent として起動し、findings を Coordinator が裁定）
 - Final Reviewer: Sonnet 5 fresh context（同上、Plan Reviewer とは別 context）
-- Reviewed Content HEAD: pending
+- Reviewed Content HEAD: 2257dcc
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
 - Human Gate: Ready 承認（wave batch 可）/ merge。視認・L3 なし（挙動不変 refactor で画面変更を含まない）
@@ -21,6 +21,17 @@ Narrative（append-only）:
 - 2026-07-28 plan-draft -> plan-gate: packet + Test Design Matrix を wave 1 scaffolding として main 上に commit（D-055 Wave Operation）。lane branch `agent/sql-placeholder-idiom` はこの commit 以降の main から分岐する。wave 編成と lane 状態の正本は `Plans.md` `Wave Registry`。
 - 2026-07-28 plan-gate round 1（Sonnet 独立 fresh context）: P1×1 = Matrix F3/X4 が実在しない機構（pagination placeholder）への mutation 設計 — LIMIT/OFFSET は両 fn とも format! literal 埋め込みと Coordinator が独立実測し CONFIRMED / P2×1 = C4 の「必要なら」裁量表現が Goal Invariant「全 filter 組合せ」と内部矛盾。全 2 件 accept、in place 是正（F3 撤回注記・X4 撤去・C4 の dept×counted=false 必須化・Review Focus 同期）。Phase は plan-gate のまま round 2 で再検査。
 - 2026-07-28 cross-lane 是正: lane 1 の plan-gate round 1 P1（Workflow State 必須 field 7 点欠落、DEV_WORKFLOW :75-86）が wave 1 scaffolding の系統的欠落と判明したため、本 packet にも同一是正（field 補完）を適用。round 2 で再検査。
+- 2026-07-28 plan-gate -> plan-approved -> implementing（state-only 遷移、compression 規則の canonical 例）: round 2（Sonnet 独立 fresh context、round 1 とは別 context）が round 1 是正 3 件（F3 撤回 / C4 必須化 / field 補完）の実効性込み検証 PASS と新規指摘 0（P1/P2 = 0）を報告し、rally 収束。組合せ網羅（product 2^3 全 8 通り / stocktake 全 6 通り）も round 2 で実測確認済み。plan-first commit `01660e9` は全実装 commit に先行（実装未着手）。`Plan Commit` を `01660e9` に固定（plan-gate 内是正 `2e493b6` / `3ddaa19` は本 Narrative 記録どおり、precedent = 順9 の gate 内是正扱い）。Writer = Codex（発注書 relay、この遷移 commit 後に発注）。
+- 2026-07-28 implementing 中 fail-closed 停止 → gated amendment 1: Writer が REQ token 必須規則と packet の「traceability 再生成不要」の矛盾、および Matrix G1 の clippy red 再現不能（dummy read は警告抑止側）を検出し停止。Coordinator 裁定 = 全件 accept、traceability 再生成を Scope 編入、G1b を分離定義。Plan Commit `01660e9` は不変
+- 2026-07-28 gated amendment 2: Writer の contradiction scan が Spec Contract の「traceability 再生成不要」残存を検出（review-only P2-1）、Coordinator の全節 sweep で Scope 冒頭の「生成 file 再生成なし」残存も確認。両方を gated amendment 1 の前提へ同期。amendment 起草時の全節 sweep 漏れは Coordinator 起因として WER 記録対象
+- 2026-07-28 gated amendment 3: Coordinator mutation 独立再実測が X2 survivor を検出（discontinued=true 系組合せの全空集合期待による oracle 衝突）。X1/X3/G1/G1b は再現。combined oracle の非空期待要件を Matrix に契約化し、seed / 期待値を強化。Plan Commit `01660e9` 不変
+- 2026-07-28 fail-closed 3 回目: Coordinator の amendment 3 発注が共有 seed 変更を指示し「既存 test 改変なし」規範と矛盾（Writer review-only P2 が検出）。裁定 = 新規組合せ test 内への seed 隔離、共有 seed・既存 test は不変へ復元。amendment 4 は不要（amendment 3 の契約文は隔離実装で充足）
+- 2026-07-28 implementing -> local-verified -> independent-review -> human-confirm（state-only 遷移、隣接遷移の一括実体化）: 既存 evidence = content candidate `2257dcc` の L1 full CLEAN / Final Review 一次（`e2f16f8` 対象）P1/P2 = 0 + Coordinator mutation 独立再実測（X1/X3/G1/G1b 再現、X2 survivor 検出 → gated amendment 3 + seed 隔離是正 → survivor 形 kill を独立実証）+ closure pass（`e2f16f8..2257dcc` delta、独立 fresh context）P1/P2 = 0・findings 0。`Reviewed Content HEAD` = closure が audit した `2257dcc`。残 Human Gate = Ready 承認（wave batch）と merge。
+Rebase Map: 8feee65 -> ec201d38fa6397ff7d00a56e6212ede831ac8412
+Rebase Map: 011ba33 -> d21baff47f5f6be9a9f94059c85a13bda5cdac34
+Rebase Map: f511414 -> 11b2b0f15411b182063441e2b405638fd39cbeda
+- 2026-07-28 wave 1 lane 2 train rebase: plan-first `01660e9` は main 上のため不変。`origin/main` `4fafaa1` への rebase は conflict-free で、Amendments 3 commit の per-commit patch-id と lane whole-diff patch-id が rebase 前後で同値。Phase = human-confirm を維持（D-055）。
+- 2026-07-28 human-confirm -> ready-hosted-final（state-only 遷移 3/3）: owner の wave 1 batch Ready 承認（train = #29 → #30、本 lane の介入 1 回目/予算 3 回）に基づき、train 先頭 lane 1 の merge（`5573446`）と rebase の Coordinator 独立検証（whole-diff・per-commit patch-id 全 MATCH・PK5 OK）を経て実体化。本 commit 後の resulting HEAD で L1 full を再実行し PR body を更新、Draft のまま push 後に Ready 化する。
 
 ## Owner Effort Budget
 
@@ -59,10 +70,11 @@ Goal Invariant: `product_repo.rs` `search_products` と `stocktake_repo.rs` `lis
 
 ## Scope
 
-予定 file footprint（wave の互いに素条件の証明対象。lane 1 との共有 file なし、生成 file 再生成なし = DTO / bindings 不変）:
+予定 file footprint（wave の互いに素条件の証明対象。lane 1 との共有 file なし。生成 file 再生成は `90-traceability.md` のみ = wave 1 で本 lane のみ〈D-055 条件維持〉、DTO / bindings は不変）:
 
 - `src-tauri/src/db/product_repo.rs` — `search_products`（現 HEAD 実測 :586-:624。手動 counter :602、dummy read :623）の慣用統一 + filter 組合せ test の追加（同 file 内 inline test）
 - `src-tauri/src/db/stocktake_repo.rs` — `list_stocktake_items`（現 HEAD 実測 :461-:495。手動 counter :480、dummy read :495。param を追加しない固定条件 filter `counted_only` を含む）の慣用統一
+- `docs/function-design/90-traceability.md` — 新規 test の REQ token（req103 / req205、既存 suite と同一）追加に伴う生成物再生成（T1 追随）。生成 file 再生成 lane は wave 1 で本 lane のみ（PR #29 の file list に本 file なしを Coordinator 確認済み、D-055 条件維持）
 - 本 packet / Test Design Matrix
 
 ## Non-scope
@@ -77,6 +89,7 @@ Goal Invariant: `product_repo.rs` `search_products` と `stocktake_repo.rs` `lis
 - `cargo fmt --check && cargo clippy --all-targets --all-features -- -D warnings && cargo test` PASS — dummy read なしで clippy green になること自体が慣用化の構造的証明
 - `cargo test` で新規 filter 組合せ test green: oracle は seed 済み in-memory SQLite の期待結果集合を test 内に独立転記（production の SQL 生成から導出しない）
 - 既存 test green 維持（単一 filter 群、stocktake の combined case `test_list_stocktake_items_req205_dept_and_counted_combined` を含む）
+- `cd src-tauri && cargo run --bin generate_traceability -- --check` PASS（T1〜T4）
 - `bash scripts/local-ci.sh full` CLEAN（L1）
 - Matrix の mutation 実測: commit 済み clean tree で注入 → red → 復元 → green を各 X で実施し（各回 `git status` clean 確認）、PR body に記録
 
@@ -92,7 +105,7 @@ Goal Invariant: `product_repo.rs` `search_products` と `stocktake_repo.rs` `lis
 
 ## Registration / Generation Obligations
 
-- 新規 command / route / REQ / 画面: なし。新規 test は既存 inline test module へ追加（登録不要）。bindings / traceability 再生成: 不要（DTO・REQ 対応不変）
+- 新規 command / route / REQ / 画面: なし。新規 test は既存 inline test module へ追加し、test 名に既存 suite と同一の REQ token（req103 / req205）を含める（テスト命名規則）。`cd src-tauri && cargo run --bin generate_traceability` で 90-traceability.md を再生成する（T1）。bindings 再生成: 不要（DTO 不変）
 
 ## Design Intent Trace
 
@@ -151,7 +164,7 @@ Goal Invariant: `product_repo.rs` `search_products` と `stocktake_repo.rs` `lis
 ## Spec Contract
 
 - 対象: 商品検索・棚卸し明細取得の既存機能契約（REQ 対応は既存 test の REQ token を踏襲、変更なし）
-- REQ 影響: なし（機能・挙動不変の慣用統一）。traceability 再生成不要
+- REQ 影響: なし（機能・挙動不変の慣用統一。REQ token は既存 req103 / req205 を踏襲）。`90-traceability.md` は新規 test 行の追加に伴い再生成する（gated amendment 1 / T1）
 
 ## Trace Matrix
 
@@ -171,4 +184,4 @@ Goal Invariant: `product_repo.rs` `search_products` と `stocktake_repo.rs` `lis
 
 ## Review Response
 
-- Findings Freeze: not-yet（Final Review closure で発効）
+- Findings Freeze: 発効（2026-07-28、Final Review 一次 P1/P2 = 0 + Coordinator mutation 独立再実測〈X2 survivor 検出→是正→kill 実証込み〉+ closure pass P1/P2 = 0・findings 0 の収束）
