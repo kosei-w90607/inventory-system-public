@@ -23,6 +23,7 @@ Narrative（append-only）:
 - 2026-07-28 cross-lane 是正: lane 1 の plan-gate round 1 P1（Workflow State 必須 field 7 点欠落、DEV_WORKFLOW :75-86）が wave 1 scaffolding の系統的欠落と判明したため、本 packet にも同一是正（field 補完）を適用。round 2 で再検査。
 - 2026-07-28 plan-gate -> plan-approved -> implementing（state-only 遷移、compression 規則の canonical 例）: round 2（Sonnet 独立 fresh context、round 1 とは別 context）が round 1 是正 3 件（F3 撤回 / C4 必須化 / field 補完）の実効性込み検証 PASS と新規指摘 0（P1/P2 = 0）を報告し、rally 収束。組合せ網羅（product 2^3 全 8 通り / stocktake 全 6 通り）も round 2 で実測確認済み。plan-first commit `01660e9` は全実装 commit に先行（実装未着手）。`Plan Commit` を `01660e9` に固定（plan-gate 内是正 `2e493b6` / `3ddaa19` は本 Narrative 記録どおり、precedent = 順9 の gate 内是正扱い）。Writer = Codex（発注書 relay、この遷移 commit 後に発注）。
 - 2026-07-28 implementing 中 fail-closed 停止 → gated amendment 1: Writer が REQ token 必須規則と packet の「traceability 再生成不要」の矛盾、および Matrix G1 の clippy red 再現不能（dummy read は警告抑止側）を検出し停止。Coordinator 裁定 = 全件 accept、traceability 再生成を Scope 編入、G1b を分離定義。Plan Commit `01660e9` は不変
+- 2026-07-28 gated amendment 2: Writer の contradiction scan が Spec Contract の「traceability 再生成不要」残存を検出（review-only P2-1）、Coordinator の全節 sweep で Scope 冒頭の「生成 file 再生成なし」残存も確認。両方を gated amendment 1 の前提へ同期。amendment 起草時の全節 sweep 漏れは Coordinator 起因として WER 記録対象
 
 ## Owner Effort Budget
 
@@ -61,7 +62,7 @@ Goal Invariant: `product_repo.rs` `search_products` と `stocktake_repo.rs` `lis
 
 ## Scope
 
-予定 file footprint（wave の互いに素条件の証明対象。lane 1 との共有 file なし、DTO / bindings 不変）:
+予定 file footprint（wave の互いに素条件の証明対象。lane 1 との共有 file なし。生成 file 再生成は `90-traceability.md` のみ = wave 1 で本 lane のみ〈D-055 条件維持〉、DTO / bindings は不変）:
 
 - `src-tauri/src/db/product_repo.rs` — `search_products`（現 HEAD 実測 :586-:624。手動 counter :602、dummy read :623）の慣用統一 + filter 組合せ test の追加（同 file 内 inline test）
 - `src-tauri/src/db/stocktake_repo.rs` — `list_stocktake_items`（現 HEAD 実測 :461-:495。手動 counter :480、dummy read :495。param を追加しない固定条件 filter `counted_only` を含む）の慣用統一
@@ -155,7 +156,7 @@ Goal Invariant: `product_repo.rs` `search_products` と `stocktake_repo.rs` `lis
 ## Spec Contract
 
 - 対象: 商品検索・棚卸し明細取得の既存機能契約（REQ 対応は既存 test の REQ token を踏襲、変更なし）
-- REQ 影響: なし（機能・挙動不変の慣用統一）。traceability 再生成不要
+- REQ 影響: なし（機能・挙動不変の慣用統一。REQ token は既存 req103 / req205 を踏襲）。`90-traceability.md` は新規 test 行の追加に伴い再生成する（gated amendment 1 / T1）
 
 ## Trace Matrix
 
