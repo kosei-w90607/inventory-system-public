@@ -24,6 +24,7 @@ Narrative（append-only）:
 - 2026-07-28 plan-gate -> plan-approved -> implementing（state-only 遷移、compression 規則の canonical 例）: round 2（Sonnet 独立 fresh context、round 1 とは別 context）が round 1 是正 3 件（F3 撤回 / C4 必須化 / field 補完）の実効性込み検証 PASS と新規指摘 0（P1/P2 = 0）を報告し、rally 収束。組合せ網羅（product 2^3 全 8 通り / stocktake 全 6 通り）も round 2 で実測確認済み。plan-first commit `01660e9` は全実装 commit に先行（実装未着手）。`Plan Commit` を `01660e9` に固定（plan-gate 内是正 `2e493b6` / `3ddaa19` は本 Narrative 記録どおり、precedent = 順9 の gate 内是正扱い）。Writer = Codex（発注書 relay、この遷移 commit 後に発注）。
 - 2026-07-28 implementing 中 fail-closed 停止 → gated amendment 1: Writer が REQ token 必須規則と packet の「traceability 再生成不要」の矛盾、および Matrix G1 の clippy red 再現不能（dummy read は警告抑止側）を検出し停止。Coordinator 裁定 = 全件 accept、traceability 再生成を Scope 編入、G1b を分離定義。Plan Commit `01660e9` は不変
 - 2026-07-28 gated amendment 2: Writer の contradiction scan が Spec Contract の「traceability 再生成不要」残存を検出（review-only P2-1）、Coordinator の全節 sweep で Scope 冒頭の「生成 file 再生成なし」残存も確認。両方を gated amendment 1 の前提へ同期。amendment 起草時の全節 sweep 漏れは Coordinator 起因として WER 記録対象
+- 2026-07-28 gated amendment 3: Coordinator mutation 独立再実測が X2 survivor を検出（discontinued=true 系組合せの全空集合期待による oracle 衝突）。X1/X3/G1/G1b は再現。combined oracle の非空期待要件を Matrix に契約化し、seed / 期待値を強化。Plan Commit `01660e9` 不変
 
 ## Owner Effort Budget
 

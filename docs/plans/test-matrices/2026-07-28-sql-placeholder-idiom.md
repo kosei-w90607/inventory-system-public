@@ -22,8 +22,8 @@ Risk: R3（packet と同値）
 
 | Contract | Failure Mode | Test Type | Test Name / anchor | Would fail if... | Mutation |
 |---|---|---|---|---|---|
-| C1 | F1/F2 | unit (Rust) | `search_products` filter 組合せ test（新規。単体 4 filter は既存を維持し、組合せ代表 = keyword×department / department×discontinued / keyword×discontinued / 全 filter 同時。oracle は seed データから独立転記した期待行） | 組合せ時に placeholder と bind が交差・欠落 | X1: placeholder 導出を `params.len() + 2` へずらし red |
-| C1 | F1 | unit (Rust) | 同上の組合せ case | bind 値の push 順序と placeholder 対応の交差 | X2: 2 filter の params push 順序を入替え red |
+| C1 | F1/F2 | unit (Rust) | `search_products` filter 組合せ test（新規。単体 4 filter は既存を維持し、組合せ代表 = keyword×department / department×discontinued / keyword×discontinued / 全 filter 同時。oracle は seed データから独立転記した期待行）。oracle 要件: discontinued=true を含む組合せに**非空期待を最低 1 case 含める**（空集合 oracle は結果を空にする bind 交差と衝突し判別不能 — Coordinator 再実測の実測知見） | 組合せ時に placeholder と bind が交差・欠落 | X1: placeholder 導出を `params.len() + 2` へずらし red |
+| C1 | F1 | unit (Rust) | 同上の組合せ case | bind 値の push 順序と placeholder 対応の交差 | X2: 2 filter の params push 順序入替え、**および discontinued block の bind 先頭交差（`insert(0, ...)` 形 — Coordinator 再実測で survivor 判明、gated amendment 3）** の両形で red |
 | C1/C3 | F1/F2 | regression (既存) | 既存単体 filter test 群（keyword / product_code / department / discontinued true・false、sort、pagination、clamp、0 値エラー） | 単体 filter の挙動変化 | 既存 suite red |
 | C4 | F1 | unit (Rust) | 既存 `test_list_stocktake_items_req205_dept_and_counted_combined` green 維持 + dept×counted=false の新規 case を必須追加（Goal Invariant「全 filter 組合せ」に対する未網羅組合せの解消 — round 1 P2-1） | 固定条件 filter が bind を要求・誤対応 | X3: counted_only 条件式に bind param 化を注入し red（params 不足で bind error） |
 | C1/C3（stocktake） | F1/F2 | regression (既存) | 既存 basic / dept 単体 / counted 単体 test | stocktake 側の挙動変化 | 既存 suite red |
