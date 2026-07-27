@@ -39,6 +39,7 @@ import { commands, type IntegrityFixResult, type IntegrityResult } from "@/lib/b
 import { describeError } from "@/lib/describe-error";
 import { invalidateByContract, invalidationContract } from "@/lib/invalidation-contract";
 import { unwrapResult } from "@/lib/invoke";
+import { queryKeys } from "@/lib/query-keys";
 
 const PER_PAGE = 100;
 
@@ -72,7 +73,7 @@ export function IntegrityCheckPage() {
   const [operationError, setOperationError] = useState<OperationError | null>(null);
 
   const latestCheckQuery = useQuery({
-    queryKey: ["settings", "integrity", "latest-check"],
+    queryKey: queryKeys.operationLogs.latestIntegrityCheck(),
     queryFn: () =>
       unwrapResult(
         commands.listLogs({

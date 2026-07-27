@@ -19,6 +19,7 @@ import {
 import { ProductPagination } from "@/features/products/components/ProductPagination";
 import { commands, type OperationLog } from "@/lib/bindings";
 import { unwrapResult } from "@/lib/invoke";
+import { queryKeys } from "@/lib/query-keys";
 import {
   OPERATION_TYPE_LABELS,
   OPERATION_TYPE_ORDER,
@@ -236,7 +237,7 @@ export function OperationLogsPage({
     effectiveSearch.page,
   ]);
   const typesQuery = useQuery<string[]>({
-    queryKey: ["settings", "logOperationTypes"],
+    queryKey: queryKeys.operationLogs.types(),
     queryFn: () =>
       unwrapResult(commands.listLogOperationTypes(), {
         source: "commands",
@@ -247,7 +248,7 @@ export function OperationLogsPage({
     retry: 0,
   });
   const logsQuery = useQuery({
-    queryKey: ["settings", "logs", effectiveSearch],
+    queryKey: queryKeys.operationLogs.list(effectiveSearch),
     queryFn: () =>
       unwrapResult(
         commands.listLogs({

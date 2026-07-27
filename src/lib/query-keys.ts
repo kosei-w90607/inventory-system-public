@@ -5,8 +5,6 @@
  *
  * D-4 採用: オブジェクト形式の第 3 要素で命名衝突回避 + 直書き禁止
  * （タイポによる cache miss を防ぐため、すべて本 helper 経由で参照）。
- * 期限付き例外: operation-logs 画面の 2 key と integrity latest-check の計 3 literal key は
- * 監査是正 P5-4 で factory 収容するまで現状維持する（D-052-E1）。
  */
 export const queryKeys = {
   // UI-00 ホーム画面
@@ -104,6 +102,12 @@ export const queryKeys = {
   // 設計: docs/function-design/69-ui-threshold-settings.md §69.10
   thresholdSettings: {
     settings: () => ["threshold-settings", "settings"] as const,
+  },
+  // UI-11c 操作ログ / UI-13 直近の整合性チェック
+  operationLogs: {
+    types: () => ["settings", "logOperationTypes"] as const,
+    list: <T>(search: T) => ["settings", "logs", search] as const,
+    latestIntegrityCheck: () => ["settings", "integrity", "latest-check"] as const,
   },
   // UI-10 棚卸し
   // 設計: docs/function-design/73-ui-stocktake.md §73.11
