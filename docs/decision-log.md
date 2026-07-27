@@ -430,3 +430,12 @@ Use concise ADR-style entries.
 - Alternatives considered: 代役整備（output style + hook + rules 書換えで process 準拠の Coordinator に仕立てる案 — model 特性に逆行し、既存 fallback〈Codex + Sonnet 分業〉の実績があるため却下）; 単純不使用（レビュー難所での検出力を捨てるため却下）; 希少・最高能力 slot 区分への編入（§3.1 の design board 例外・投入条件と矛盾するため却下、self-contained な新区分とした）。
 - Rollback: 低制約 profile 運用で報告契約違反・scope 逸脱・委譲超過が反復する場合は当該 slot への発注を停止し、既存分業（Sonnet 一次 + Codex）へ戻す。
 - Revisit: Fable slot の恒久喪失（サブスク枠からの消滅）時に、凍結中の代役整備ドラフト 3 点の解凍を検討する。低制約 profile の過不足は難所 lane 初投入後に見直す。
+
+## D-057
+
+- Decision: Codex/OpenAI GPT-5.6 familyのrepository運用を、全slot共通のtracked contractとslot-neutralな`frontier` / `balanced` / `high-throughput` task-fit profileへ分離する。具体model slotとprofileの対応はAGENT_OPERATING_MANUAL §3.4だけが所有し、runtime identity不明時は`frontier`を使う。個人用の応答人格はroot exact `/AGENTS.override.md`だけに置いてignoreし、overrideはtracked `./AGENTS.md`とcanonical Session Startを先にloadする。local personalityはrepository facts、workflow、approval、validation、Human Gate、stop条件を変更できない。
+- Status: accepted（2026-07-28、OpenAI公式guidance照合とfresh Plan Gate完了）
+- Why: local response extensionは実務規律と混在すると判断挙動まで変え得るため、補正をextensionだけに入れるとbaselineとtreatmentで必要な契約を共有できない。公式guidanceも、promptを簡潔にしつつoutcome、autonomy/approval boundary、completion evidence、stop条件を明示することを推奨している。共有規律をtrackedに置き、応答styleをignored local extensionへ分離すれば、公開可能なworkflow契約と個人用表現を独立に評価できる。
+- Impact: root `AGENTS.md` step 5がagent-guidance indexへ条件付きroutingし、shared contractが判断順、承認範囲、検証、応答密度を所有する。profileはtask fitだけを補足し、approval / autonomy / validation / stop差を持たない。root overrideはCodex discovery上同階層の`AGENTS.md`を置換するため、base loaderを必須とする。Codex-managed worktreeではignored root overrideが自動copyされるが、手動git worktreeではtracked AGENTSだけへ安全にfallbackする。
+- Alternatives considered: 人格をtracked fileへ置く案（public repositoryへ個人的な応答設定と評価材料が露出するため却下）; model名別に完全なpromptを複製する案（D-034単一所有とprompt driftに反するため却下）; 人格側だけに判断補正を置く案（controlとの因果が交絡するため却下）; root overrideからtracked AGENTSを読まない案（canonical workflowが消えるため却下）。
+- Revisit: 同一の公開fixtureでprofile別またはmodel更改後の回帰が測定されたとき。model固有のtask-behavior差は推測で追加せず、§3.4の対応更新またはtracked contract変更を別Decisionとして裁定する。

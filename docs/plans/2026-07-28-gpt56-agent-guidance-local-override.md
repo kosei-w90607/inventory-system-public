@@ -236,7 +236,11 @@ R2のためnot applicable。Design Intent TraceとTest Design Matrixを使用す
 
 ## Implementation Results
 
-未実装。
+- root `AGENTS.md` step 5へCodex/OpenAI条件付きrouteと判断・approval boundaryを追加した。既存step 1〜4は不変。
+- `docs/agent-guidance/`にfamily shared contract、slot-neutral 3 profile、extension-neutralなexact decision-gate fixtureを新設した。
+- 具体model slotとprofileの対応は`docs/AGENT_OPERATING_MANUAL.md` §3.4だけに追加し、D-057と`docs/PROJECT_HANDOFF.md`へ設計意図を同期した。
+- root exact `/AGENTS.override.md`と`/.codex/*.local.denylist`をignoreし、local override / private denylistはtracked diffから分離した。
+- fresh-session regression、publish-boundary audit、Final Reviewは未実施。
 
 ## Review Response
 
