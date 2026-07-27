@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: human-confirm
+- Phase: ready-hosted-final
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: 01660e9
@@ -31,6 +31,7 @@ Rebase Map: 8feee65 -> ec201d38fa6397ff7d00a56e6212ede831ac8412
 Rebase Map: 011ba33 -> d21baff47f5f6be9a9f94059c85a13bda5cdac34
 Rebase Map: f511414 -> 11b2b0f15411b182063441e2b405638fd39cbeda
 - 2026-07-28 wave 1 lane 2 train rebase: plan-first `01660e9` は main 上のため不変。`origin/main` `4fafaa1` への rebase は conflict-free で、Amendments 3 commit の per-commit patch-id と lane whole-diff patch-id が rebase 前後で同値。Phase = human-confirm を維持（D-055）。
+- 2026-07-28 human-confirm -> ready-hosted-final（state-only 遷移 3/3）: owner の wave 1 batch Ready 承認（train = #29 → #30、本 lane の介入 1 回目/予算 3 回）に基づき、train 先頭 lane 1 の merge（`5573446`）と rebase の Coordinator 独立検証（whole-diff・per-commit patch-id 全 MATCH・PK5 OK）を経て実体化。本 commit 後の resulting HEAD で L1 full を再実行し PR body を更新、Draft のまま push 後に Ready 化する。
 
 ## Owner Effort Budget
 
