@@ -27,6 +27,10 @@ Narrative（append-only）:
 - 2026-07-28 gated amendment 3: Coordinator mutation 独立再実測が X2 survivor を検出（discontinued=true 系組合せの全空集合期待による oracle 衝突）。X1/X3/G1/G1b は再現。combined oracle の非空期待要件を Matrix に契約化し、seed / 期待値を強化。Plan Commit `01660e9` 不変
 - 2026-07-28 fail-closed 3 回目: Coordinator の amendment 3 発注が共有 seed 変更を指示し「既存 test 改変なし」規範と矛盾（Writer review-only P2 が検出）。裁定 = 新規組合せ test 内への seed 隔離、共有 seed・既存 test は不変へ復元。amendment 4 は不要（amendment 3 の契約文は隔離実装で充足）
 - 2026-07-28 implementing -> local-verified -> independent-review -> human-confirm（state-only 遷移、隣接遷移の一括実体化）: 既存 evidence = content candidate `2257dcc` の L1 full CLEAN / Final Review 一次（`e2f16f8` 対象）P1/P2 = 0 + Coordinator mutation 独立再実測（X1/X3/G1/G1b 再現、X2 survivor 検出 → gated amendment 3 + seed 隔離是正 → survivor 形 kill を独立実証）+ closure pass（`e2f16f8..2257dcc` delta、独立 fresh context）P1/P2 = 0・findings 0。`Reviewed Content HEAD` = closure が audit した `2257dcc`。残 Human Gate = Ready 承認（wave batch）と merge。
+Rebase Map: 8feee65 -> ec201d38fa6397ff7d00a56e6212ede831ac8412
+Rebase Map: 011ba33 -> d21baff47f5f6be9a9f94059c85a13bda5cdac34
+Rebase Map: f511414 -> 11b2b0f15411b182063441e2b405638fd39cbeda
+- 2026-07-28 wave 1 lane 2 train rebase: plan-first `01660e9` は main 上のため不変。`origin/main` `4fafaa1` への rebase は conflict-free で、Amendments 3 commit の per-commit patch-id と lane whole-diff patch-id が rebase 前後で同値。Phase = human-confirm を維持（D-055）。
 
 ## Owner Effort Budget
 
