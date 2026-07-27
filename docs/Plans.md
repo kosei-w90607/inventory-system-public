@@ -106,8 +106,8 @@
 
 - 形式: 現 wave ごとに status / lane 数 / merge train 順序を置き、各 lane に是正単位、branch、active packet link、Draft PR、Workflow State Phase、owner 介入回数を記録する。lane packet の選択と PK4 は、この「次の行動」節内の link を正本として fail-closed 判定する。
 - **wave 1（2 lane pilot、active、2026-07-28 起票）**: 順17 × 順22。footprint 互いに素の証明 = lane 1 は frontend 3 file + 設計 doc 74/75 + 新規 FE test、lane 2 は `src-tauri/src/db/` 2 file のみ（各 packet Scope 参照）。共有 file なし・生成 file 再生成 lane 0・同一 source doc 編集なし。merge train 順序 = owner batch Ready 承認時に指定（Coordinator 既定案 = human-confirm 到達順）。
-  - lane 1: 順17 operation log 系 query key の共通 factory 収容（P5-4、S） — branch `agent/oplog-query-key-factory` / [packet](plans/2026-07-28-oplog-query-key-factory.md)（[Matrix](plans/test-matrices/2026-07-28-oplog-query-key-factory.md)）/ Draft PR: 未 open（初回実装 pass 後、Draft PR Checkpoint 準拠）/ Phase: plan-gate / 介入 0/3
-  - lane 2: 順22 動的 SQL placeholder の既存慣用統一（P7-2、S） — branch `agent/sql-placeholder-idiom` / [packet](plans/2026-07-28-sql-placeholder-idiom.md)（[Matrix](plans/test-matrices/2026-07-28-sql-placeholder-idiom.md)）/ Draft PR: 未 open（同上）/ Phase: plan-gate / 介入 0/3
+  - lane 1: 順17 operation log 系 query key の共通 factory 収容（P5-4、S） — branch `agent/oplog-query-key-factory` / [packet](plans/2026-07-28-oplog-query-key-factory.md)（[Matrix](plans/test-matrices/2026-07-28-oplog-query-key-factory.md)）/ Draft PR: 未 open（初回実装 pass 後、Draft PR Checkpoint 準拠）/ Phase: implementing（rally 2 round 収束 P1/P2=0、遷移 commit は branch 上 `386405a`、Plan Commit `59a5ef9`）/ 介入 0/3
+  - lane 2: 順22 動的 SQL placeholder の既存慣用統一（P7-2、S） — branch `agent/sql-placeholder-idiom` / [packet](plans/2026-07-28-sql-placeholder-idiom.md)（[Matrix](plans/test-matrices/2026-07-28-sql-placeholder-idiom.md)）/ Draft PR: 未 open（同上）/ Phase: implementing（rally 2 round 収束 P1/P2=0、遷移 commit は branch 上 `fc74cc0`、Plan Commit `01660e9`）/ 介入 0/3
 - 観測（wave 1 dogfood、2026-07-28 起票時）: PK4 実装の section 抽出は `###` 小見出しで打ち切られるため、この `### Wave Registry` 配下の packet link は PK4 の検査対象に入らない（D-055 契約文「registry 節内 link が検査対象」と checker 実装のずれ）。起票では packet link を上記項 0 に直置きして PK4 を充足した。checker 側の是正要否は wave 1 WER で扱う。
 
 1. 中期 roadmap（owner 裁定 2026-07-16、実施順。backlog は系統ごとに 1 PR ずつ束ねる）:
