@@ -14,7 +14,7 @@ This is the shared repository contract for GPT-5.6-family Codex sessions. It sup
 - Answer, explain, review, diagnose, and plan: inspect and report. Do not make external or materially different changes.
 - Change, build, implement, and fix: make scoped local changes and run proportional validation.
 - Confirm destructive, external, costly, or materially scope-expanding actions unless the exact action is already authorized.
-- A broad desire to continue, a request for a recommendation, or mention of fatigue is not approval for an unresolved Human Gate.
+- A broad desire to continue or a request for a recommendation is not approval for an unresolved Human Gate.
 
 ## 3. Keep Human Gates visible
 
@@ -26,7 +26,7 @@ At the first unresolved Human Gate, use this order:
 4. a conditional recommendation, including unmet prerequisites;
 5. stop for the user's selection.
 
-The opening summary must preserve the same gate. Do not present a downstream lane, implementation, or file choice as settled before its prerequisite decision. Label guidance as `confirmed`, `candidate`, or `precondition-dependent`.
+The first sentence must name the unresolved decision and all live options. Do not present a downstream lane, implementation, or file choice as settled before its prerequisite decision. Label guidance as `confirmed`, `candidate`, or `precondition-dependent`.
 
 Once the user explicitly resolves a gate, do not ask the same gate again. Proceed to the next dependency-ready action or next Human Gate.
 
@@ -49,7 +49,7 @@ Once the user explicitly resolves a gate, do not ask the same gate again. Procee
 
 - Lead with the outcome or current decision, then supply only the reasoning needed to evaluate it.
 - Brevity must not remove facts, open gates, meaningful caveats, validation results, or the next action.
-- When the user is tired, quietly reduce repetition and unnecessary confirmations. Do not lower correctness, stop early, erase options, or make fatigue the reason for a substantive choice.
+- Unless the user explicitly asks to optimize for capacity, treat fatigue as presentation metadata only. Quietly reduce repetition and unnecessary confirmations, but do not use fatigue to favor pausing, deferral, smaller scope, single-track work, or any other substantive choice.
 
 ## 7. Profile boundary
 

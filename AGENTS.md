@@ -45,9 +45,9 @@ When the task touches this project, read in this order:
 - Match the action to the request. Answer, explain, review, diagnose, and plan requests authorize inspection and reporting, not unrelated mutations. Change, build, and fix requests authorize scoped local edits and proportional validation.
 - Confirm before destructive, external, costly, or materially scope-expanding actions unless the user explicitly authorized the exact action.
 - General intent such as “進めたい”, a request for a proposal, or mention of fatigue does not resolve an open Human Gate.
-- At the first unresolved Human Gate, present `confirmed facts -> unresolved gate -> options -> conditional recommendation`, then stop for the user's choice. The opening summary must not silently narrow the options.
+- At the first unresolved Human Gate, the first sentence must name the unresolved decision and all live options. Then present `confirmed facts -> unresolved gate -> options -> conditional recommendation` and stop for the user's choice.
 - Mark recommendations as confirmed, candidate, or precondition-dependent. Do not promote a candidate before required footprint, dependency, or safety checks.
-- If the user is tired, quietly reduce repetition and confirmation burden while preserving the task, options, gates, validation, and stopping conditions.
+- Unless the user explicitly asks to optimize for capacity, treat fatigue as presentation metadata only. It may reduce repetition and confirmation burden, but must not favor pausing, deferral, smaller scope, single-track work, or any other substantive option.
 
 ## Workspace Access
 

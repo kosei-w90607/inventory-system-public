@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: implementing
+- Phase: local-verified
 - Risk: R2
 - Execution Mode: dual-vendor-no-fable
 - Plan Commit: 6b60eb52ac3a1227ed7d7a776252ebbded82c773
@@ -240,7 +240,8 @@ R2のためnot applicable。Design Intent TraceとTest Design Matrixを使用す
 - `docs/agent-guidance/`にfamily shared contract、slot-neutral 3 profile、extension-neutralなexact decision-gate fixtureを新設した。
 - 具体model slotとprofileの対応は`docs/AGENT_OPERATING_MANUAL.md` §3.4だけに追加し、D-057と`docs/PROJECT_HANDOFF.md`へ設計意図を同期した。
 - root exact `/AGENTS.override.md`と`/.codex/*.local.denylist`をignoreし、local override / private denylistはtracked diffから分離した。
-- fresh-session regression、publish-boundary audit、Final Reviewは未実施。
+- fresh-session regressionで疲労を実質判断へ混ぜるshared failureとbase loader未実行を検出し、疲労をpresentation metadataへ限定、第一文のGate明示、filesystem実読loaderへ補正した。blind再採点はPASS、prompt / output / scoreはlocal-onlyを維持した。
+- publish-boundary audit、Final Reviewは未実施。
 
 ## Review Response
 
@@ -250,3 +251,4 @@ R2のためnot applicable。Design Intent TraceとTest Design Matrixを使用す
 - Plan Gate round 3（2026-07-28、commit `9d96f84`）: P1×2 / P2×2 / P3×1。synthetic context / loader / run / blind順の固定不足、history auditのmetadata/blob/binary/感度不足、§3.4単一所有drift、Session Start内位置固定不足をaccept。step 5 sub-route、公開fixture、range全体監査へ改訂する。
 - Plan Gate round 4（2026-07-28、commit `7a2dbcf`）: P1×1。synthetic sentinel単独でdenylistの非空条件を満たせる監査空疎化をaccept。sentinelを除く実private token 1件以上を独立条件へ改訂する。
 - Plan Gate round 5（2026-07-28、plan-first commit `6b60eb5`）: P1=0 / P2=0 / P3=0。独立fresh Plan Reviewerがexact fixture所有、loader/run/blind順、publish-boundary audit、§3.4単一所有、Session Start step 5 sub-routeを再確認し、Plan Gate PASS。`plan-draft -> plan-gate -> plan-approved -> implementing`をstate-onlyでmaterializeする。
+- Local verification（2026-07-28）: docs / env / workflow / Rust / frontend / generated / traceabilityを含むL1 full PASS。npm auditは既存warn-only gateとして報告され、tree / HEAD不変を確認。fresh-session blind regressionとpublish-boundary auditもPASSし、`implementing -> local-verified`をcontent commitにmaterializeする。
