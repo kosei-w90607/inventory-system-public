@@ -1306,7 +1306,7 @@ mod tests {
     }
 
     #[test]
-    fn test_list_stocktake_items_req205_dept_and_uncounted_combined() {
+    fn test_list_stocktake_items_p7_2_dept_and_uncounted_combined() {
         // REQ-205 / P7-2 C4: 部門 + 未入力 の AND フィルタ
         // 期待値はこの test の seed 行から独立転記する。
         let (_dir, conn) = setup_test_db();
