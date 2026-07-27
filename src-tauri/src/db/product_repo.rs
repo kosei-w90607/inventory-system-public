@@ -1381,24 +1381,19 @@ mod tests {
                 vec!["4976383262108", "HZ-0001", "HZ-0002", "KM-0001"],
             ),
             (true, false, false, vec!["4976383262108"]),
-            (false, true, false, vec!["HZ-0001", "HZ-0002"]),
-            (
-                false,
-                false,
-                true,
-                vec!["4976383262108", "HZ-0001", "KM-0001"],
-            ),
-            (true, true, false, vec![]),
-            (true, false, true, vec!["4976383262108"]),
-            (false, true, true, vec!["HZ-0001"]),
+            (false, true, false, vec!["4976383262108"]),
+            (false, false, true, vec!["HZ-0002"]),
+            (true, true, false, vec!["4976383262108"]),
+            (true, false, true, vec![]),
+            (false, true, true, vec![]),
             (true, true, true, vec![]),
         ];
 
         for (keyword, department, discontinued, expected_codes) in cases {
             let mut query = default_search_query();
             query.keyword = keyword.then(|| "ハマナカ".to_string());
-            query.department_id = department.then_some(2);
-            query.is_discontinued = discontinued.then_some(false);
+            query.department_id = department.then_some(3);
+            query.is_discontinued = discontinued.then_some(true);
 
             let result = search_products(&conn, &query).unwrap();
             let actual_codes: Vec<&str> = result
