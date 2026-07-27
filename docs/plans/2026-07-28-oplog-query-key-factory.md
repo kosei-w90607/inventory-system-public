@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: human-confirm
+- Phase: ready-hosted-final
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: 59a5ef9
@@ -23,6 +23,7 @@ Narrative（append-only）:
 - 2026-07-28 plan-gate -> plan-approved -> implementing（state-only 遷移、compression 規則の canonical 例）: round 2（Sonnet 独立 fresh context、round 1 とは別 context）が round 1 是正 2 件の実効性込み検証 PASS と新規指摘 0（P1/P2 = 0）を報告し、rally 収束。plan-first commit `59a5ef9` は全実装 commit に先行（実装未着手）。`Plan Commit` を `59a5ef9` に固定（plan-gate 内是正 `3ddaa19` は本 Narrative 記録どおり、precedent = 順9 の gate 内是正扱い）。Writer = Codex（発注書 relay、この遷移 commit 後に発注）。
 - 2026-07-28 gated amendment 1: Final Review 一次（Sonnet 独立 fresh context、read-only）の P2×1 = PR body の M-A4 pass 記録が実在しない check（75 doc 非該当・anchor 実体なし）を指す evidence 不正確 — Coordinator 実測で CONFIRMED、PR body を是正。P3-1 = Ledger C6 の M-A4 無条件参照の曖昧さ — 本 amendment で条件明記（P3-only のため re-review 不要の規律）。P3-2 = 3 suite 内訳非明記 — PR body で是正。code / 契約は全 6 契約適合。Coordinator の mutation 独立再実測 = Matrix 8 件（X1/X1b/X2/X3/X3b/X4/G1/G1b）全件 red→復元 green 再現、虚偽 kill なし（記録は PR body）。Plan Commit `59a5ef9` は不変。
 - 2026-07-28 implementing -> local-verified -> independent-review -> human-confirm（state-only 遷移、隣接遷移の一括実体化）: 既存 evidence = content candidate（Amendments 追記込み HEAD）の L1 full CLEAN / Final Reviewer（Sonnet 独立 fresh context）engaged・findings 裁定済み P1/P2 = 0 / mutation 独立再実測 8/8。`Reviewed Content HEAD` = Final Reviewer が audit した code content commit `d545aae`（以降の gated amendment 1 系 2 commit は P3-only の docs 是正で、re-engage 不要規律の範囲）。残 Human Gate = Ready 承認（wave batch 可）と merge。
+- 2026-07-28 human-confirm -> ready-hosted-final（state-only 遷移 3/3）: owner が wave 1 batch Ready を承認し train 順序 = lane 1（#29）→ lane 2（#30）を指定、Ready 遷移実行を Coordinator へ委任（D-055 train 承認。本 lane の介入 1 回目/予算 3 回）。本 commit 後の resulting HEAD で L1 full を再実行し PR body を更新、Draft のまま push 後に Ready 化する。
 
 ## Owner Effort Budget
 
