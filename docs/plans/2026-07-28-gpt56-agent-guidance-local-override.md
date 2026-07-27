@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: human-confirm
+- Phase: ready-hosted-final
 - Risk: R2
 - Execution Mode: dual-vendor-no-fable
 - Plan Commit: 6b60eb52ac3a1227ed7d7a776252ebbded82c773
@@ -14,7 +14,7 @@
 - Reviewed Content HEAD: e21c7cb965b7f94f9d91acf277bb4e4df7a05ad2
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
-- Human Gate: Ready / merge
+- Human Gate: none
 
 ## Owner Effort Budget
 
@@ -253,3 +253,4 @@ R2のためnot applicable。Design Intent TraceとTest Design Matrixを使用す
 - Plan Gate round 5（2026-07-28、plan-first commit `6b60eb5`）: P1=0 / P2=0 / P3=0。独立fresh Plan Reviewerがexact fixture所有、loader/run/blind順、publish-boundary audit、§3.4単一所有、Session Start step 5 sub-routeを再確認し、Plan Gate PASS。`plan-draft -> plan-gate -> plan-approved -> implementing`をstate-onlyでmaterializeする。
 - Local verification（2026-07-28）: docs / env / workflow / Rust / frontend / generated / traceabilityを含むL1 full PASS。npm auditは既存warn-only gateとして報告され、tree / HEAD不変を確認。fresh-session blind regressionとpublish-boundary auditもPASSし、`implementing -> local-verified`をcontent commitにmaterializeする。
 - Final Review（2026-07-28、Reviewed Content HEAD `e21c7cb965b7f94f9d91acf277bb4e4df7a05ad2`）: 独立fresh Final ReviewerがP1=0 / P2=0 / P3=1でPASS。P3はImplementation Results内の「publish-boundary audit / Final Review未実施」が後段のLocal verification記録と時系列不明瞭だった点で、前者はPASS済み・後者だけが当時未実施と明確化した。tracked公開境界、§3.4の具体model mapping単一所有、Session Start step 5 sub-route、override precedence / base loader、decision-gate fixture、疲労補正、Plan / Matrix整合を再確認し、`local-verified -> independent-review -> human-confirm`をstate-onlyでmaterializeする。
+- Owner Ready（2026-07-28、介入1/3）: ownerがReady / mergeを承認。Draft PR #31上で`human-confirm -> ready-hosted-final`をstate-onlyでmaterializeし、このexact HEADにL1 fullとrequired hosted finalを揃えてから追加commitなしでmergeする。
