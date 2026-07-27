@@ -2,10 +2,10 @@
 
 ## Workflow State
 
-- Phase: plan-gate
+- Phase: implementing
 - Risk: R3
 - Execution Mode: fable-window
-- Plan Commit: pending
+- Plan Commit: 59a5ef9
 - Amendments: none
 - Coordinator: Fable 5（本 thread。wave 編成・packet 作成・レビュー裁定）
 - Writer: Codex（owner relay 発注。plan-approved 後の単独 writer）
@@ -20,6 +20,7 @@ Narrative（append-only）:
 
 - 2026-07-28 plan-draft -> plan-gate: packet + Test Design Matrix を wave 1 scaffolding として main 上に commit（D-055 Wave Operation）。lane branch `agent/oplog-query-key-factory` はこの commit 以降の main から分岐する。wave 編成と lane 状態の正本は `Plans.md` `Wave Registry`。
 - 2026-07-28 plan-gate round 1（Sonnet 独立 fresh context）: P1×1 = Workflow State の必須 field 7 点欠落（DEV_WORKFLOW :75-86 の field 定義と順8 先行 packet の precedent を Coordinator が独立実読し CONFIRMED。両 lane 系統的、fail-closed 条項該当）/ P2×1 = Matrix C4/X3 の実質防御（既存 `d052InvalidationOracle` 厳密一致）が非明記で literal sweep 単独充足と誤認するリスク / P3×1 = D-052-E1 の語義重複（scope 外、backlog 記録で処置）。P1/P2 accept・in place 是正（field 補完・C4/X3 是正）、P3 は Plans.md backlog へ記録。Phase は plan-gate のまま round 2 で再検査。
+- 2026-07-28 plan-gate -> plan-approved -> implementing（state-only 遷移、compression 規則の canonical 例）: round 2（Sonnet 独立 fresh context、round 1 とは別 context）が round 1 是正 2 件の実効性込み検証 PASS と新規指摘 0（P1/P2 = 0）を報告し、rally 収束。plan-first commit `59a5ef9` は全実装 commit に先行（実装未着手）。`Plan Commit` を `59a5ef9` に固定（plan-gate 内是正 `3ddaa19` は本 Narrative 記録どおり、precedent = 順9 の gate 内是正扱い）。Writer = Codex（発注書 relay、この遷移 commit 後に発注）。
 
 ## Owner Effort Budget
 
