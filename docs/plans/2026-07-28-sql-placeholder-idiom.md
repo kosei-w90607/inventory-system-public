@@ -6,7 +6,7 @@
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: 01660e9
-- Amendments: none
+- Amendments: 8feee651cf3ab293fe558c7b48e82b9632197db6
 - Coordinator: Fable 5（本 thread。wave 編成・packet 作成・レビュー裁定）
 - Writer: Codex（owner relay 発注。plan-approved 後の単独 writer）
 - Plan Reviewer: Sonnet 5 fresh context（Coordinator が subagent として起動し、findings を Coordinator が裁定）

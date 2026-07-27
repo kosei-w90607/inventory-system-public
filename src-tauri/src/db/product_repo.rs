@@ -1367,7 +1367,7 @@ mod tests {
     }
 
     #[test]
-    fn test_search_products_p7_2_all_filter_combinations() {
+    fn test_search_products_req103_all_filter_combinations() {
         // REQ-103 / P7-2 C1: keyword × department × discontinued の全8組合せ
         // 期待値は seed_products_for_search の投入行から独立転記する。
         let (_dir, conn) = setup_test_db();
@@ -1411,7 +1411,7 @@ mod tests {
     }
 
     #[test]
-    fn test_search_products_p7_2_combined_filters_with_pagination() {
+    fn test_search_products_req103_combined_filters_with_pagination() {
         // REQ-103 / P7-2 C1: filter と pagination 併用時の結果集合
         let (_dir, conn) = setup_test_db();
         seed_products_for_search(&conn);
