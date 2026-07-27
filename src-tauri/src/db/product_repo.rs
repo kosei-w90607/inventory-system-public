@@ -599,28 +599,24 @@ pub fn search_products(
     // WHERE句の構築
     let mut conditions = Vec::new();
     let mut params: Vec<Box<dyn rusqlite::types::ToSql>> = Vec::new();
-    let mut param_idx = 1;
 
     if let Some(ref keyword) = query.keyword {
         let like = format!("%{}%", keyword);
+        let idx = params.len() + 1;
         conditions.push(format!(
             "(p.name LIKE ?{idx} OR p.product_code LIKE ?{idx} OR p.jan_code LIKE ?{idx})",
-            idx = param_idx
         ));
         params.push(Box::new(like));
-        param_idx += 1;
     }
 
     if let Some(dept_id) = query.department_id {
-        conditions.push(format!("p.department_id = ?{}", param_idx));
+        conditions.push(format!("p.department_id = ?{}", params.len() + 1));
         params.push(Box::new(dept_id));
-        param_idx += 1;
     }
 
     if let Some(discontinued) = query.is_discontinued {
-        conditions.push(format!("p.is_discontinued = ?{}", param_idx));
+        conditions.push(format!("p.is_discontinued = ?{}", params.len() + 1));
         params.push(Box::new(discontinued));
-        let _ = param_idx; // suppress unused warning
     }
 
     let where_clause = if conditions.is_empty() {
@@ -1368,6 +1364,80 @@ mod tests {
         query.is_discontinued = Some(true);
         let result = search_products(&conn, &query).unwrap();
         assert_eq!(result.total_count, 1, "廃番は1件");
+    }
+
+    #[test]
+    fn test_search_products_req103_all_filter_combinations() {
+        // REQ-103 / P7-2 C1: keyword × department × discontinued の全8組合せ
+        // 期待値は seed_products_for_search の投入行から独立転記する。
+        let (_dir, conn) = setup_test_db();
+        seed_products_for_search(&conn);
+
+        let cases = [
+            (
+                false,
+                false,
+                false,
+                vec!["4976383262108", "HZ-0001", "HZ-0002", "KM-0001"],
+            ),
+            (true, false, false, vec!["4976383262108"]),
+            (false, true, false, vec!["HZ-0001", "HZ-0002"]),
+            (
+                false,
+                false,
+                true,
+                vec!["4976383262108", "HZ-0001", "KM-0001"],
+            ),
+            (true, true, false, vec![]),
+            (true, false, true, vec!["4976383262108"]),
+            (false, true, true, vec!["HZ-0001"]),
+            (true, true, true, vec![]),
+        ];
+
+        for (keyword, department, discontinued, expected_codes) in cases {
+            let mut query = default_search_query();
+            query.keyword = keyword.then(|| "ハマナカ".to_string());
+            query.department_id = department.then_some(2);
+            query.is_discontinued = discontinued.then_some(false);
+
+            let result = search_products(&conn, &query).unwrap();
+            let actual_codes: Vec<&str> = result
+                .items
+                .iter()
+                .map(|item| item.product.product_code.as_str())
+                .collect();
+
+            assert_eq!(
+                actual_codes, expected_codes,
+                "filter combination keyword={keyword}, department={department}, discontinued={discontinued}"
+            );
+            assert_eq!(result.total_count as usize, expected_codes.len());
+        }
+    }
+
+    #[test]
+    fn test_search_products_req103_combined_filters_with_pagination() {
+        // REQ-103 / P7-2 C1: filter と pagination 併用時の結果集合
+        let (_dir, conn) = setup_test_db();
+        seed_products_for_search(&conn);
+
+        let mut query = default_search_query();
+        query.keyword = Some("ヘアゴム".to_string());
+        query.department_id = Some(2);
+        query.page = 2;
+        query.per_page = 1;
+
+        let result = search_products(&conn, &query).unwrap();
+        let actual_codes: Vec<&str> = result
+            .items
+            .iter()
+            .map(|item| item.product.product_code.as_str())
+            .collect();
+
+        assert_eq!(actual_codes, vec!["HZ-0002"]);
+        assert_eq!(result.total_count, 2);
+        assert_eq!(result.page, 2);
+        assert_eq!(result.per_page, 1);
     }
 
     #[test]

@@ -475,14 +475,11 @@ pub fn list_stocktake_items(
     }
 
     let mut conditions = vec!["si.stocktake_id = ?1".to_string()];
-    let mut params: Vec<Box<dyn rusqlite::types::ToSql>> = Vec::new();
-    params.push(Box::new(stocktake_id));
-    let mut param_idx = 2;
+    let mut params: Vec<Box<dyn rusqlite::types::ToSql>> = vec![Box::new(stocktake_id)];
 
     if let Some(dept_id) = department_id {
-        conditions.push(format!("p.department_id = ?{}", param_idx));
+        conditions.push(format!("p.department_id = ?{}", params.len() + 1));
         params.push(Box::new(dept_id));
-        param_idx += 1;
     }
 
     if let Some(counted) = counted_only {
@@ -492,7 +489,6 @@ pub fn list_stocktake_items(
             conditions.push("si.actual_count IS NULL".to_string());
         }
     }
-    let _ = param_idx; // suppress unused warning
 
     let where_clause = format!("WHERE {}", conditions.join(" AND "));
 
@@ -1307,5 +1303,29 @@ mod tests {
         let result = list_stocktake_items(&conn, st_id, Some(1), Some(true), 1, 10).unwrap();
         assert_eq!(result.total_count, 1);
         assert_eq!(result.items[0].product_code, "DC-001");
+    }
+
+    #[test]
+    fn test_list_stocktake_items_req205_dept_and_uncounted_combined() {
+        // REQ-205 / P7-2 C4: 部門 + 未入力 の AND フィルタ
+        // 期待値はこの test の seed 行から独立転記する。
+        let (_dir, conn) = setup_test_db();
+        seed_product_custom(&conn, "DU-001", false, 10, 300, 1); // 部門1 入力済み
+        seed_product_custom(&conn, "DU-002", false, 5, 200, 1); // 部門1 未入力
+        seed_product_custom(&conn, "DU-003", false, 3, 100, 3); // 部門3 未入力
+        let st_id = create_stocktake(&conn, "in_progress", "2026-10-01T09:00:00");
+        seed_stocktake_item(&conn, st_id, "DU-001", 10, Some(8));
+        seed_stocktake_item(&conn, st_id, "DU-002", 5, None);
+        seed_stocktake_item(&conn, st_id, "DU-003", 3, None);
+
+        let result = list_stocktake_items(&conn, st_id, Some(1), Some(false), 1, 10).unwrap();
+        let actual_codes: Vec<&str> = result
+            .items
+            .iter()
+            .map(|item| item.product_code.as_str())
+            .collect();
+
+        assert_eq!(actual_codes, vec!["DU-002"]);
+        assert_eq!(result.total_count, 1);
     }
 }
