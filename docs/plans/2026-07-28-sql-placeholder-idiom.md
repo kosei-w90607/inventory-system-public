@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: implementing
+- Phase: human-confirm
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: 01660e9
@@ -11,7 +11,7 @@
 - Writer: Codex（owner relay 発注。plan-approved 後の単独 writer）
 - Plan Reviewer: Sonnet 5 fresh context（Coordinator が subagent として起動し、findings を Coordinator が裁定）
 - Final Reviewer: Sonnet 5 fresh context（同上、Plan Reviewer とは別 context）
-- Reviewed Content HEAD: pending
+- Reviewed Content HEAD: 2257dcc
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
 - Human Gate: Ready 承認（wave batch 可）/ merge。視認・L3 なし（挙動不変 refactor で画面変更を含まない）
@@ -26,6 +26,7 @@ Narrative（append-only）:
 - 2026-07-28 gated amendment 2: Writer の contradiction scan が Spec Contract の「traceability 再生成不要」残存を検出（review-only P2-1）、Coordinator の全節 sweep で Scope 冒頭の「生成 file 再生成なし」残存も確認。両方を gated amendment 1 の前提へ同期。amendment 起草時の全節 sweep 漏れは Coordinator 起因として WER 記録対象
 - 2026-07-28 gated amendment 3: Coordinator mutation 独立再実測が X2 survivor を検出（discontinued=true 系組合せの全空集合期待による oracle 衝突）。X1/X3/G1/G1b は再現。combined oracle の非空期待要件を Matrix に契約化し、seed / 期待値を強化。Plan Commit `01660e9` 不変
 - 2026-07-28 fail-closed 3 回目: Coordinator の amendment 3 発注が共有 seed 変更を指示し「既存 test 改変なし」規範と矛盾（Writer review-only P2 が検出）。裁定 = 新規組合せ test 内への seed 隔離、共有 seed・既存 test は不変へ復元。amendment 4 は不要（amendment 3 の契約文は隔離実装で充足）
+- 2026-07-28 implementing -> local-verified -> independent-review -> human-confirm（state-only 遷移、隣接遷移の一括実体化）: 既存 evidence = content candidate `2257dcc` の L1 full CLEAN / Final Review 一次（`e2f16f8` 対象）P1/P2 = 0 + Coordinator mutation 独立再実測（X1/X3/G1/G1b 再現、X2 survivor 検出 → gated amendment 3 + seed 隔離是正 → survivor 形 kill を独立実証）+ closure pass（`e2f16f8..2257dcc` delta、独立 fresh context）P1/P2 = 0・findings 0。`Reviewed Content HEAD` = closure が audit した `2257dcc`。残 Human Gate = Ready 承認（wave batch）と merge。
 
 ## Owner Effort Budget
 
@@ -178,4 +179,4 @@ Goal Invariant: `product_repo.rs` `search_products` と `stocktake_repo.rs` `lis
 
 ## Review Response
 
-- Findings Freeze: not-yet（Final Review closure で発効）
+- Findings Freeze: 発効（2026-07-28、Final Review 一次 P1/P2 = 0 + Coordinator mutation 独立再実測〈X2 survivor 検出→是正→kill 実証込み〉+ closure pass P1/P2 = 0・findings 0 の収束）
