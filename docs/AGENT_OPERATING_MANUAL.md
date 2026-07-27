@@ -33,6 +33,7 @@
 - R4・workflow gate change は Double Audit（独立2回の Contract Audit。詳細は [DEV_WORKFLOW.md](DEV_WORKFLOW.md)「Contract Audit (R3/R4)」参照）
 - Human Gate は owner 限定
 - 希少・高コストな model slot は通常実装の Writer に充てない（現行の容量温存規範を model-neutral に継承。投入条件は §3.1 参照）。例外を適用する場合は Workflow State に理由を 1 行記録する
+- 高自律・低制約適性 slot（§3.4 で対応。過程指示を減らすほど性能が出る世代特性の model slot）は read-only の Reviewer / Explorer 発注書ロール専任とし、Writer / Coordinator / state 遷移管理に割り当てない。§3.1 の design board 例外の対象外（同例外の主語は希少・最高能力 slot であり、本区分には適用しない）。投入はレビュー難所・広域調査の発注書単位で Coordinator が判断し、通常レビューは既存分業を維持する。発注書は §5.4 の低制約 profile を用いる。本項の Reviewer / Explorer は §2 の Plan Reviewer / Final Reviewer / Explorer / Evidence を指す総称（D-056）
 
 数値閾値（`Owner Effort Budget` 等）は [DEV_WORKFLOW.md](DEV_WORKFLOW.md) を参照し、本書には再掲しない。
 
@@ -71,13 +72,14 @@ Execution Mode は vendor 単位の可用性を扱う。個別の役割担当（
 
 informational only（非規範。archive 文書の slot 名解読用）。本節の独立性制約・§3.1〜§3.3 の規範を代替しない。
 
-| Slot | 現行実体（2026-07-10 時点） |
+| Slot | 現行実体（2026-07-27 時点） |
 |---|---|
 | Fable | Claude Fable 5（サブスク枠にある間のみ） |
 | Sol | Codex/OpenAI 側の主力 reasoning モデル |
 | Terra | Codex/OpenAI 側の実装向けモデル |
 | Luna | Codex/OpenAI 側の軽量探索モデル |
 | Sonnet | Claude Sonnet 5（subagent または単独セッション） |
+| Opus | Claude Opus 5（区分は §3 の高自律・低制約適性 slot 項 / D-056 参照） |
 
 モデル更改時はこの表だけを更新する。owner をモデル間の伝書鳩にしない: 各役割への発注は Plan Packet / PR body / review packet という repository 証跡経由で渡し、owner の手作業転送を前提にしない。
 
@@ -103,7 +105,7 @@ informational only（非規範。archive 文書の slot 名解読用）。本節
 | 設計書レビュー観点 | [docs/quality/review-checklist.md](quality/review-checklist.md) |
 | PR handoff | [.github/pull_request_template.md](../.github/pull_request_template.md) + [DEV_WORKFLOW.md](DEV_WORKFLOW.md)「Draft PR Checkpoint」 |
 
-## 5. 追加 prompt 3 本（本 manual が正本）
+## 5. 追加 prompt / 発注 profile（本 manual が正本）
 
 ### 5.1 Field-check / 実機調査 kickoff prompt
 
@@ -147,6 +149,18 @@ docs/Plans.md cleanup は DEV_WORKFLOW.md の Post-Merge Closeout に準拠す�
 4. 「次の行動」が空なら、active runway / roadmap / backlog から補充する。
 5. bash scripts/doc-consistency-check.sh を実行し、green を確認してから PR / closeout を完了する。
 ```
+
+### 5.4 低制約発注書 profile（高自律・低制約適性 slot 向け）
+
+§3 の高自律・低制約適性 slot への発注書はこの profile を用いる。次の 5 点のみで構成し、過程指示・検証手順の指定を書かない（手順を縛るほど性能が落ちる世代特性への対応。findings は claims として Coordinator が裁定し、検証は workflow 側が担うため、実行者に process 契約を内面化させる必要がない）:
+
+1. goal（何を判定・報告してほしいか）
+2. scope 境界（対象物と読取り範囲）
+3. read-only 宣言（ファイル変更・git / PR 操作の禁止）
+4. 報告フォーマット（Verdict 形式・件数上限・file:line 実読・全文 dump 禁止）
+5. subagent 生成上限（既定 0。委譲過多傾向への上限明記は必須）
+
+出力契約（4）と委譲上限（5）は必ず書く。観点 list・必読順・検証 command の指定は書かない。従来型発注書（手順込み）は他 slot 向けに従来どおり使用する。Contract Audit / Final Review 役への発注では、[DEV_WORKFLOW.md](DEV_WORKFLOW.md)「Contract Audit」の実施項目を**検証対象として scope 境界（2）に列挙する** — これは対象物の指定（出力契約）であり過程指示ではない。検証の手順・順序・command は引き続き指定しない。
 
 ## 6. ハーネス間の既知の非対称（重要な注意）
 
