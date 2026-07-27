@@ -27,7 +27,7 @@ Risk: R3（packet と同値）
 | C1 | F1 | unit (vitest) | query-keys oracle test（期待 tuple を test 内に独立転記し `toEqual` 完全一致。3 tuple + search 引数透過 case + 空文字/undefined search case） | segment 改変・順序入替・引数透過の変質 | X1: factory の 1 segment 改変（例 `"logs"` → `"log"`）で red |
 | C1 | F1 | unit (vitest) | 同 oracle test の引数透過 case | search が factory 内で正規化・欠落する | X1b: 引数 drop 注入で red |
 | C2/C3 | F2 | static sweep (vitest) | literal 再導入 sweep test（`src/` 配下から当該 key literal を検索、許容 list は明示列挙のみ） | page へ literal 再導入・factory 迂回 | X2: page に literal 復元で red |
-| C4 | F3 | static sweep (vitest) | invalidation-contract sweep（`invalidation-contract.ts` 内の当該 3 key hit 0 維持） | contract へ当該 key 追加 | X3: contract に latest-check 追加で red |
+| C4 | F3 | regression (既存) + static sweep (vitest) | F3 の主防御は既存 `d052InvalidationOracle.integrityFix()` の厳密一致比較（`IntegrityCheckPage.test.tsx` :204、AC の既存 test green 維持で保持）。新設 sweep は literal 再導入の補完（contract は factory 呼出しのみで構成、literal 0 を 2026-07-28 実測 — round 1 P2-1） | latest-check の invalidate 化（factory 呼出し・literal のどちらの形でも） | X3: `invalidationContract.integrityFix()` へ新 factory の latest-check 呼出しを注入し既存 oracle test red / X3b: literal 追加で sweep red |
 | C5 | — | anchor (rg) | M-A1: `rg -c 'D-052-E1' src/lib/query-keys.ts` = 0（実装後）/ M-A2: 「直書き禁止」規範文言 = 1 | 例外コメント残存 / 規範文言の巻き添え削除 | G1: 例外文復元で M-A1 red、G1b: 規範文言削除で M-A2 red |
 | C6 | F4 | anchor (rg) | M-A3: 74 doc の factory 表記 anchor（実装時に定義文 literal へ特定化） | doc 未同期・literal 記述残存 | X4: doc 側 factory 表記の削除で red |
 | C1〜C3 隣接 | — | regression (既存) | `OperationLogsPage.test.tsx` / `IntegrityCheckPage.test.tsx` green 維持 | 配線変更が描画・取得動作を壊す | 既存 suite が red |

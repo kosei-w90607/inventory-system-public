@@ -7,12 +7,20 @@
 - Execution Mode: fable-window
 - Plan Commit: pending
 - Amendments: none
-- Reviewed Content HEAD: none
+- Coordinator: Fable 5（本 thread。wave 編成・packet 作成・レビュー裁定）
+- Writer: Codex（owner relay 発注。plan-approved 後の単独 writer）
+- Plan Reviewer: Sonnet 5 fresh context（Coordinator が subagent として起動し、findings を Coordinator が裁定）
+- Final Reviewer: Sonnet 5 fresh context（同上、Plan Reviewer とは別 context）
+- Reviewed Content HEAD: pending
+- Final Exact-HEAD Evidence: PR body
+- Hosted CI Requirement: required
+- Human Gate: Ready 承認（wave batch 可）/ merge。視認・L3 なし（挙動不変 refactor で画面変更を含まない）
 
 Narrative（append-only）:
 
 - 2026-07-28 plan-draft -> plan-gate: packet + Test Design Matrix を wave 1 scaffolding として main 上に commit（D-055 Wave Operation）。lane branch `agent/sql-placeholder-idiom` はこの commit 以降の main から分岐する。wave 編成と lane 状態の正本は `Plans.md` `Wave Registry`。
 - 2026-07-28 plan-gate round 1（Sonnet 独立 fresh context）: P1×1 = Matrix F3/X4 が実在しない機構（pagination placeholder）への mutation 設計 — LIMIT/OFFSET は両 fn とも format! literal 埋め込みと Coordinator が独立実測し CONFIRMED / P2×1 = C4 の「必要なら」裁量表現が Goal Invariant「全 filter 組合せ」と内部矛盾。全 2 件 accept、in place 是正（F3 撤回注記・X4 撤去・C4 の dept×counted=false 必須化・Review Focus 同期）。Phase は plan-gate のまま round 2 で再検査。
+- 2026-07-28 cross-lane 是正: lane 1 の plan-gate round 1 P1（Workflow State 必須 field 7 点欠落、DEV_WORKFLOW :75-86）が wave 1 scaffolding の系統的欠落と判明したため、本 packet にも同一是正（field 補完）を適用。round 2 で再検査。
 
 ## Owner Effort Budget
 
