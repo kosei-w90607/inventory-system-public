@@ -22,6 +22,7 @@ Narrative（append-only）:
 - 2026-07-28 plan-gate round 1（Sonnet 独立 fresh context）: P1×1 = Matrix F3/X4 が実在しない機構（pagination placeholder）への mutation 設計 — LIMIT/OFFSET は両 fn とも format! literal 埋め込みと Coordinator が独立実測し CONFIRMED / P2×1 = C4 の「必要なら」裁量表現が Goal Invariant「全 filter 組合せ」と内部矛盾。全 2 件 accept、in place 是正（F3 撤回注記・X4 撤去・C4 の dept×counted=false 必須化・Review Focus 同期）。Phase は plan-gate のまま round 2 で再検査。
 - 2026-07-28 cross-lane 是正: lane 1 の plan-gate round 1 P1（Workflow State 必須 field 7 点欠落、DEV_WORKFLOW :75-86）が wave 1 scaffolding の系統的欠落と判明したため、本 packet にも同一是正（field 補完）を適用。round 2 で再検査。
 - 2026-07-28 plan-gate -> plan-approved -> implementing（state-only 遷移、compression 規則の canonical 例）: round 2（Sonnet 独立 fresh context、round 1 とは別 context）が round 1 是正 3 件（F3 撤回 / C4 必須化 / field 補完）の実効性込み検証 PASS と新規指摘 0（P1/P2 = 0）を報告し、rally 収束。組合せ網羅（product 2^3 全 8 通り / stocktake 全 6 通り）も round 2 で実測確認済み。plan-first commit `01660e9` は全実装 commit に先行（実装未着手）。`Plan Commit` を `01660e9` に固定（plan-gate 内是正 `2e493b6` / `3ddaa19` は本 Narrative 記録どおり、precedent = 順9 の gate 内是正扱い）。Writer = Codex（発注書 relay、この遷移 commit 後に発注）。
+- 2026-07-28 implementing 中 fail-closed 停止 → gated amendment 1: Writer が REQ token 必須規則と packet の「traceability 再生成不要」の矛盾、および Matrix G1 の clippy red 再現不能（dummy read は警告抑止側）を検出し停止。Coordinator 裁定 = 全件 accept、traceability 再生成を Scope 編入、G1b を分離定義。Plan Commit `01660e9` は不変
 
 ## Owner Effort Budget
 
@@ -60,10 +61,11 @@ Goal Invariant: `product_repo.rs` `search_products` と `stocktake_repo.rs` `lis
 
 ## Scope
 
-予定 file footprint（wave の互いに素条件の証明対象。lane 1 との共有 file なし、生成 file 再生成なし = DTO / bindings 不変）:
+予定 file footprint（wave の互いに素条件の証明対象。lane 1 との共有 file なし、DTO / bindings 不変）:
 
 - `src-tauri/src/db/product_repo.rs` — `search_products`（現 HEAD 実測 :586-:624。手動 counter :602、dummy read :623）の慣用統一 + filter 組合せ test の追加（同 file 内 inline test）
 - `src-tauri/src/db/stocktake_repo.rs` — `list_stocktake_items`（現 HEAD 実測 :461-:495。手動 counter :480、dummy read :495。param を追加しない固定条件 filter `counted_only` を含む）の慣用統一
+- `docs/function-design/90-traceability.md` — 新規 test の REQ token（req103 / req205、既存 suite と同一）追加に伴う生成物再生成（T1 追随）。生成 file 再生成 lane は wave 1 で本 lane のみ（PR #29 の file list に本 file なしを Coordinator 確認済み、D-055 条件維持）
 - 本 packet / Test Design Matrix
 
 ## Non-scope
@@ -78,6 +80,7 @@ Goal Invariant: `product_repo.rs` `search_products` と `stocktake_repo.rs` `lis
 - `cargo fmt --check && cargo clippy --all-targets --all-features -- -D warnings && cargo test` PASS — dummy read なしで clippy green になること自体が慣用化の構造的証明
 - `cargo test` で新規 filter 組合せ test green: oracle は seed 済み in-memory SQLite の期待結果集合を test 内に独立転記（production の SQL 生成から導出しない）
 - 既存 test green 維持（単一 filter 群、stocktake の combined case `test_list_stocktake_items_req205_dept_and_counted_combined` を含む）
+- `cd src-tauri && cargo run --bin generate_traceability -- --check` PASS（T1〜T4）
 - `bash scripts/local-ci.sh full` CLEAN（L1）
 - Matrix の mutation 実測: commit 済み clean tree で注入 → red → 復元 → green を各 X で実施し（各回 `git status` clean 確認）、PR body に記録
 
@@ -93,7 +96,7 @@ Goal Invariant: `product_repo.rs` `search_products` と `stocktake_repo.rs` `lis
 
 ## Registration / Generation Obligations
 
-- 新規 command / route / REQ / 画面: なし。新規 test は既存 inline test module へ追加（登録不要）。bindings / traceability 再生成: 不要（DTO・REQ 対応不変）
+- 新規 command / route / REQ / 画面: なし。新規 test は既存 inline test module へ追加し、test 名に既存 suite と同一の REQ token（req103 / req205）を含める（テスト命名規則）。`cd src-tauri && cargo run --bin generate_traceability` で 90-traceability.md を再生成する（T1）。bindings 再生成: 不要（DTO 不変）
 
 ## Design Intent Trace
 

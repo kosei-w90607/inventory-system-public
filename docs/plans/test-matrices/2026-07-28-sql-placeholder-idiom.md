@@ -29,7 +29,7 @@ Risk: R3（packet と同値）
 | C1/C3（stocktake） | F1/F2 | regression (既存) | 既存 basic / dept 単体 / counted 単体 test | stocktake 側の挙動変化 | 既存 suite red |
 | C1 | F1 | unit (Rust) | pagination 併用 case（filter あり + page 指定で期待行を独立転記。LIMIT / OFFSET は literal 埋め込みで placeholder 対象外のため、結果集合の正しさのみを検証） | filter 併用時の WHERE bind ずれがページ結果に波及 | X1 が代表（pagination 専用 mutation は対象機構が実在しないため置かない — round 1 P1-1） |
 | C2 | F4 | anchor (rg) | M-A1: `rg -c 'param_idx' src-tauri/src/db/` = 0（実装後。file 別に product_repo / stocktake_repo 双方 0 を確認） | 手動 counter 再導入 | G1: `let _ = param_idx` を復元し M-A1 red |
-| C2 | F4 | 機械 gate (L1) | `cargo clippy --all-targets --all-features -- -D warnings` green | dummy read なしでは unused warning が出る形の再導入 | G1 と同経路（clippy red） |
+| C2 | F4 | 機械 gate (L1) | `cargo clippy --all-targets --all-features -- -D warnings` green | dummy read なしでは unused warning が出る形の再導入 | G1b: dummy read なしで未使用 `param_idx` を再導入し clippy red（`-D warnings` の unused variable。G1〈dummy read 復元〉では clippy green / M-A1 red のみが正しい挙動 — gated amendment 1 で分離） |
 
 anchor 規律: M-A 系は固定前に `rg -c` で一意性・出現数を確認し、file 別に判定する（combined rg 不使用）。
 
