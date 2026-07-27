@@ -6,7 +6,7 @@
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: 01660e9
-- Amendments: 8feee651cf3ab293fe558c7b48e82b9632197db6, 011ba335590a8dfb57223f8c06846e09c74d803d
+- Amendments: 8feee651cf3ab293fe558c7b48e82b9632197db6, 011ba335590a8dfb57223f8c06846e09c74d803d, f511414787e4d2cc601b8d68859b806da1841ce5
 - Coordinator: Fable 5（本 thread。wave 編成・packet 作成・レビュー裁定）
 - Writer: Codex（owner relay 発注。plan-approved 後の単独 writer）
 - Plan Reviewer: Sonnet 5 fresh context（Coordinator が subagent として起動し、findings を Coordinator が裁定）
@@ -25,6 +25,7 @@ Narrative（append-only）:
 - 2026-07-28 implementing 中 fail-closed 停止 → gated amendment 1: Writer が REQ token 必須規則と packet の「traceability 再生成不要」の矛盾、および Matrix G1 の clippy red 再現不能（dummy read は警告抑止側）を検出し停止。Coordinator 裁定 = 全件 accept、traceability 再生成を Scope 編入、G1b を分離定義。Plan Commit `01660e9` は不変
 - 2026-07-28 gated amendment 2: Writer の contradiction scan が Spec Contract の「traceability 再生成不要」残存を検出（review-only P2-1）、Coordinator の全節 sweep で Scope 冒頭の「生成 file 再生成なし」残存も確認。両方を gated amendment 1 の前提へ同期。amendment 起草時の全節 sweep 漏れは Coordinator 起因として WER 記録対象
 - 2026-07-28 gated amendment 3: Coordinator mutation 独立再実測が X2 survivor を検出（discontinued=true 系組合せの全空集合期待による oracle 衝突）。X1/X3/G1/G1b は再現。combined oracle の非空期待要件を Matrix に契約化し、seed / 期待値を強化。Plan Commit `01660e9` 不変
+- 2026-07-28 fail-closed 3 回目: Coordinator の amendment 3 発注が共有 seed 変更を指示し「既存 test 改変なし」規範と矛盾（Writer review-only P2 が検出）。裁定 = 新規組合せ test 内への seed 隔離、共有 seed・既存 test は不変へ復元。amendment 4 は不要（amendment 3 の契約文は隔離実装で充足）
 
 ## Owner Effort Budget
 

@@ -1369,24 +1369,29 @@ mod tests {
     #[test]
     fn test_search_products_req103_all_filter_combinations() {
         // REQ-103 / P7-2 C1: keyword × department × discontinued の全8組合せ
-        // 期待値は seed_products_for_search の投入行から独立転記する。
+        // 期待値は共有 seed とこの test 専用 seed の投入行から独立転記する。
         let (_dir, conn) = setup_test_db();
         seed_products_for_search(&conn);
+        let mut discontinued_product = create_test_product("HM-0001", "ハマナカ 廃番毛糸", 3);
+        discontinued_product.selling_price = 50;
+        discontinued_product.stock_quantity = 0;
+        discontinued_product.is_discontinued = true;
+        insert_product(&conn, &discontinued_product).unwrap();
 
         let cases = [
             (
                 false,
                 false,
                 false,
-                vec!["4976383262108", "HZ-0001", "HZ-0002", "KM-0001"],
+                vec!["4976383262108", "HM-0001", "HZ-0001", "HZ-0002", "KM-0001"],
             ),
-            (true, false, false, vec!["4976383262108"]),
-            (false, true, false, vec!["4976383262108"]),
-            (false, false, true, vec!["HZ-0002"]),
-            (true, true, false, vec!["4976383262108"]),
-            (true, false, true, vec![]),
-            (false, true, true, vec![]),
-            (true, true, true, vec![]),
+            (true, false, false, vec!["4976383262108", "HM-0001"]),
+            (false, true, false, vec!["4976383262108", "HM-0001"]),
+            (false, false, true, vec!["HM-0001", "HZ-0002"]),
+            (true, true, false, vec!["4976383262108", "HM-0001"]),
+            (true, false, true, vec!["HM-0001"]),
+            (false, true, true, vec!["HM-0001"]),
+            (true, true, true, vec!["HM-0001"]),
         ];
 
         for (keyword, department, discontinued, expected_codes) in cases {
@@ -1408,6 +1413,15 @@ mod tests {
             );
             assert_eq!(result.total_count as usize, expected_codes.len());
         }
+
+        // 空集合 negative oracle は非空組合せとは別入力で維持する。
+        let mut empty_query = default_search_query();
+        empty_query.keyword = Some("存在しない商品".to_string());
+        empty_query.department_id = Some(3);
+        empty_query.is_discontinued = Some(true);
+        let empty_result = search_products(&conn, &empty_query).unwrap();
+        assert!(empty_result.items.is_empty());
+        assert_eq!(empty_result.total_count, 0);
     }
 
     #[test]
