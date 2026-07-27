@@ -2,10 +2,10 @@
 
 ## Workflow State
 
-- Phase: plan-gate
+- Phase: implementing
 - Risk: R3
 - Execution Mode: fable-window
-- Plan Commit: pending
+- Plan Commit: 01660e9
 - Amendments: none
 - Coordinator: Fable 5（本 thread。wave 編成・packet 作成・レビュー裁定）
 - Writer: Codex（owner relay 発注。plan-approved 後の単独 writer）
@@ -21,6 +21,7 @@ Narrative（append-only）:
 - 2026-07-28 plan-draft -> plan-gate: packet + Test Design Matrix を wave 1 scaffolding として main 上に commit（D-055 Wave Operation）。lane branch `agent/sql-placeholder-idiom` はこの commit 以降の main から分岐する。wave 編成と lane 状態の正本は `Plans.md` `Wave Registry`。
 - 2026-07-28 plan-gate round 1（Sonnet 独立 fresh context）: P1×1 = Matrix F3/X4 が実在しない機構（pagination placeholder）への mutation 設計 — LIMIT/OFFSET は両 fn とも format! literal 埋め込みと Coordinator が独立実測し CONFIRMED / P2×1 = C4 の「必要なら」裁量表現が Goal Invariant「全 filter 組合せ」と内部矛盾。全 2 件 accept、in place 是正（F3 撤回注記・X4 撤去・C4 の dept×counted=false 必須化・Review Focus 同期）。Phase は plan-gate のまま round 2 で再検査。
 - 2026-07-28 cross-lane 是正: lane 1 の plan-gate round 1 P1（Workflow State 必須 field 7 点欠落、DEV_WORKFLOW :75-86）が wave 1 scaffolding の系統的欠落と判明したため、本 packet にも同一是正（field 補完）を適用。round 2 で再検査。
+- 2026-07-28 plan-gate -> plan-approved -> implementing（state-only 遷移、compression 規則の canonical 例）: round 2（Sonnet 独立 fresh context、round 1 とは別 context）が round 1 是正 3 件（F3 撤回 / C4 必須化 / field 補完）の実効性込み検証 PASS と新規指摘 0（P1/P2 = 0）を報告し、rally 収束。組合せ網羅（product 2^3 全 8 通り / stocktake 全 6 通り）も round 2 で実測確認済み。plan-first commit `01660e9` は全実装 commit に先行（実装未着手）。`Plan Commit` を `01660e9` に固定（plan-gate 内是正 `2e493b6` / `3ddaa19` は本 Narrative 記録どおり、precedent = 順9 の gate 内是正扱い）。Writer = Codex（発注書 relay、この遷移 commit 後に発注）。
 
 ## Owner Effort Budget
 
