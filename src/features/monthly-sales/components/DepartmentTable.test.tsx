@@ -83,6 +83,25 @@ describe("DepartmentTable (REQ-502 sort 結線)", () => {
     const ratioHeader = headers.find((h) => h.textContent?.includes("構成比"));
     expect(amountHeader?.getAttribute("aria-sort")).toBe("descending");
     expect(nameHeader?.getAttribute("aria-sort")).toBe("none");
+    expect(amountHeader).toHaveClass("text-right");
+    expect(nameHeader).not.toHaveClass("text-right");
+    const amountButton = screen.getByRole("button", { name: "売上" });
+    const amountIndicator = amountButton.querySelector('span[aria-hidden="true"]');
+    expect(amountIndicator).toHaveTextContent("▼");
+    expect(screen.getByRole("button", { name: "部門" })).not.toHaveTextContent(/[▲▼]/);
+    expect(amountButton).toHaveAttribute("type", "button");
+    expect(amountButton).toHaveAttribute("data-variant", "ghost");
+    expect(amountButton).toHaveAttribute("data-size", "sm");
+    expect(amountButton).toHaveClass(
+      "-mx-3",
+      "h-auto",
+      "gap-1",
+      "px-3",
+      "py-0",
+      "font-medium",
+      "hover:bg-transparent",
+      "hover:text-foreground",
+    );
     // 構成比列はソート対象外、aria-sort は null or "none" のいずれか (実装依存だが破綻しないこと)
     expect(["none", null]).toContain(ratioHeader?.getAttribute("aria-sort") ?? null);
   });

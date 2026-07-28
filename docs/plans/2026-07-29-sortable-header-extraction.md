@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: implementing
+- Phase: ready-hosted-final
 - Risk: R2
 - Execution Mode: dual-vendor-no-fable
 - Plan Commit: dc4aa1b
@@ -11,10 +11,10 @@
 - Writer: Codex（plan-approved後の別session / worktree、lane 3 branchへpin）
 - Plan Reviewer: Sonnet 5 fresh context（owner relay、read-only、実装非関与）
 - Final Reviewer: Sonnet 5 fresh context（Plan Reviewerとは別fresh context、owner relay、read-only）
-- Reviewed Content HEAD: pending
+- Reviewed Content HEAD: 8c9e95bbe7dd4937536fba2889bcc0d00462d941
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
-- Human Gate: wave batch Ready承認、lane merge承認（lane選定は介入1/3で完了）
+- Human Gate: none
 
 Narrative（append-only）:
 
@@ -23,13 +23,19 @@ Narrative（append-only）:
 - 2026-07-29 formal Plan Review（Sonnet 5 fresh context、owner relay）: P1=0 / P2=1 / P3=0。P2-1は`MonthlySalesPage.test.tsx`のlive commentがinline三重定義と将来の別PRを記したままで、P1-1完了後に陳腐化するScope漏れ。production/test logicは変えず、同fileのcomment-only同期とlive wording sweepをScope / Matrixへ追加してplan-gate closure reviewへ戻す。
 - 2026-07-29 P2-1 closure review（同Plan Reviewer、owner relay）: exact correction `b45a023`のPacket / Matrixだけをread-only確認し、P1=0 / P2=0 / P3=0、closure confirmed。Scope / Non-scope / AC / Review Focus / Matrix C10はcomment-only同期を一意に定め、production・test logic・他lane契約は不変。relay 2/2。
 - 2026-07-29 plan-gate -> plan-approved -> implementing（state-only compression）: 独立Plan ReviewerがP1/P2=0を報告し、plan-first `dc4aa1b`とplan-gate correction `b45a023`は全実装commitより前に存在する。`Plan Commit`を`dc4aa1b`へ固定し、本state-only commit後にlane 3 Writer実装を許可する。
+- 2026-07-29 implementing -> local-verified: reviewed content candidate `8c9e95bbe7dd4937536fba2889bcc0d00462d941`でexact-HEAD L1 fullがCLEAN / PASSとなり、PR bodyへ証跡を記録した。WriterとCoordinatorはMatrix X1〜X5 / G1を独立再実測し、review-only findingのButton `variant` / `size` oracle不足を同content candidateでclosureした。
+- 2026-07-29 local-verified -> independent-review: Draft PR #34のreviewed content candidate `8c9e95bbe7dd4937536fba2889bcc0d00462d941`を、実装非関与のSonnet 5 fresh contextへFormal Final Reviewとしてrelayした。
+- 2026-07-29 formal Final Review（Sonnet 5 fresh context、owner relay）: reviewed content candidateに対してP1=0 / P2=0 / P3=1、Approve。P3はlane branch切出し後にmainへ積まれたworktree registry同期によるbase driftで、WriterのScope違反ではない。Coordinatorはreviewed content commitをrewriteせず保持したまま`origin/main`をmergeし、実装内容不変・reviewed content ancestry維持・Plans registry同期を確認した。
+- 2026-07-29 independent-review -> human-confirm（state-only materialization）: Formal Final ReviewのP1/P2=0とP3 base同期closureを根拠に、`Reviewed Content HEAD`をreviewed content candidateへ設定した。次のHuman Gateはlane 3をmerge train先頭としてReady / mergeへ進めるowner承認。
+- 2026-07-29 owner Human Gate（介入2/3）: ownerがlane 3をmerge train先頭としてReady化し、exact-HEAD hosted CI green確認後にsquash mergeまで進めることを承認した。これにより本laneのReady / merge承認項目は解消した。
+- 2026-07-29 human-confirm -> ready-hosted-final（state-only materialization）: owner承認を根拠にDraftのままReady遷移を記録する。本state-only commitのexact HEADでL1 fullを再実行し、PR bodyを刷新した後にReady化・hosted final・mergeへ進む。
 
 ## Owner Effort Budget
 
 - 介入回数上限: 3
 - 実働時間上限: 30分
 - relay往復上限: 2
-- 現況: 介入1/3（wave 3 / lane 3 / 順21a選定）、relay 2/2
+- 現況: 介入2/3（wave選定、lane 3 Ready / merge承認）、relay 2/2
 
 ## Risk
 
@@ -256,7 +262,10 @@ DB、店舗artifact、実CSV、secret、backup、filesystem書込み、network�
 
 ## Implementation Results
 
-（実装時に追記）
+- 既存3 container testへ、日次5列 / 月次部門3列 / 月次商品4列のclick payload、active/inactive `aria-sort`、`▲` / `▼` indicator、`aria-hidden`、right/default alignment、representative Button DOMのcharacterizationを追加し、抽出前後でgreenを維持した。
+- generic `SortableHeader<T extends string>`を`src/components/sales/SortableHeader.tsx`へ抽出し、3 consumerのlocal interface/functionをcanonical importへ置換した。shared componentはfeature固有型をimportせず、既存DOM / class / callbackを維持する。
+- `MonthlySalesPage.test.tsx`は冒頭commentだけをcanonical shared ownerの現在形へ同期し、test logic / assertion / importは変更していない。
+- operator-visibleな色・文言・状態・列・sort挙動の変更はなく、Windows native固有の観測対象も増えないためL3は不要と判断した。
 
 ## Review Response
 
