@@ -20,13 +20,14 @@ Narrative（append-only）:
 
 - 2026-07-29 kickoff -> spec-check -> design -> plan-draft: ownerが初の3 lane waveと順10をlane 1に選定（本lane介入1/3）。productionと53設計は一致するが、実hook / QueryClientを通るorchestration testがなくP8b-2が未閉鎖と再確認した。production behaviorと画面表示は変えず、3 test fileと53のtest contractだけを追加する。
 - 2026-07-29 plan-draft -> plan-gate: Packet / Matrix / `UI-00-D11`を完成し、3 lane footprint分離、Workflow State 13 field、Prettier、plan consistencyをCoordinatorが確認した。plan-first content commitで固定し、fresh Sonnet Plan Reviewへ進む。
+- 2026-07-29 formal Plan Review（Sonnet 5 fresh context、owner relay）: Verdict Approve、P1=0 / P2=0 / P3=1。P3のHomePage Router harness明確化は、既存`MonthlySalesPage.test.tsx`の前例どおりrouter依存子component 4件をnull mockするWriter handoffとしてacceptし、Plan contract変更と再reviewは不要と裁定した。`53-ui-home.md`の既存pending route記述は順18の別driftとして本laneからdefer。relay 1/2。
 
 ## Owner Effort Budget
 
 - 介入回数上限: 3
 - 実働時間上限: 30分
 - relay往復上限: 2
-- 現況: 介入1/3（wave 3 / lane 1 / 順10選定）、relay 0/2
+- 現況: 介入1/3（wave 3 / lane 1 / 順10選定）、relay 1/2
 
 ## Risk
 

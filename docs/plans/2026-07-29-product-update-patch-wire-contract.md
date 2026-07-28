@@ -21,13 +21,14 @@ Narrative（append-only）:
 - 2026-07-29 kickoff -> spec-check -> design -> plan-draft: ownerがwave 3 lane 2に順13を選定（介入1/3）。CoordinatorがP4b-1、Rust DTO/serde、generated bindings、frontend builder/cast、REQ-102 source docsと既存testsをread-only監査した。
 - 2026-07-29 Design Phase: `PRODUCT-PATCH-D1`を30 / 40 / 51へ昇格。通常fieldはomitted/null=no update・value=set、clear可能なsupplier/makerはomitted=no update・null=clear・value=setに確定した。本PacketとMatrixはPlan Review前のdraftであり、production実装は未着手。
 - 2026-07-29 plan-draft -> plan-gate: exact baselineの隔離worktreeでstruct-level serde defaultを暫定適用し、generated deserialize / serialize shapeをend-to-end probeした。Packet / Matrix / source docsと3 lane footprint分離をCoordinatorが確認し、plan-first content commitで固定してfresh Sonnet Plan Reviewへ進む。
+- 2026-07-29 formal Plan Review（Sonnet 5 fresh context、owner relay）: Verdict Approve、P1=0 / P2=0 / P3=1。Reviewerがexact plan-firstの隔離worktreeでContract Probeを独立再現し、Rust 1行とbindings 14行の期待shapeを確認した。P3の`UI_TECH_STACK.md`節番号誤引用は実装契約へ影響しないfollow-upとして記録し、P3-onlyのPlan変更・再reviewは行わない。relay 1/2。
 
 ## Owner Effort Budget
 
 - 介入回数上限: 3
 - 実働時間上限: 30分
 - relay往復上限: 2（Plan Review / Final Review）
-- 現況: 介入1/3、relay 0/2
+- 現況: 介入1/3、relay 1/2
 
 ## Risk
 

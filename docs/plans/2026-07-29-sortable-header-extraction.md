@@ -21,13 +21,14 @@ Narrative（append-only）:
 - 2026-07-29 kickoff -> spec-check -> design -> plan-draft: ownerがwave 3候補のうち順21を再分解し、P1-1 `SortableHeader` 抽出だけをlane 3として選定した（本lane介入1/3）。Coordinatorのread-only footprint auditにより、P1-1 / P1-3 / P1-4は別々のsource contract・file footprint・Riskを持つため、順21を単一correction unitとして扱わない。P1-3 record detail shell / `returnTo` とP1-4 request基盤helperは本laneの非scopeであり、順21完了扱いにしない。
 - 2026-07-29 plan-draft -> plan-gate: Packet / Matrix / `UI-TABLE-D1`を完成し、3 consumerの現行DOM / ARIA / callbackと3 lane footprint分離をCoordinatorが確認した。plan-first content commitで固定し、fresh Sonnet Plan Reviewへ進む。
 - 2026-07-29 formal Plan Review（Sonnet 5 fresh context、owner relay）: P1=0 / P2=1 / P3=0。P2-1は`MonthlySalesPage.test.tsx`のlive commentがinline三重定義と将来の別PRを記したままで、P1-1完了後に陳腐化するScope漏れ。production/test logicは変えず、同fileのcomment-only同期とlive wording sweepをScope / Matrixへ追加してplan-gate closure reviewへ戻す。
+- 2026-07-29 P2-1 closure review（同Plan Reviewer、owner relay）: exact correction `b45a023`のPacket / Matrixだけをread-only確認し、P1=0 / P2=0 / P3=0、closure confirmed。Scope / Non-scope / AC / Review Focus / Matrix C10はcomment-only同期を一意に定め、production・test logic・他lane契約は不変。relay 2/2。
 
 ## Owner Effort Budget
 
 - 介入回数上限: 3
 - 実働時間上限: 30分
 - relay往復上限: 2
-- 現況: 介入1/3（wave 3 / lane 3 / 順21a選定）、relay 1/2
+- 現況: 介入1/3（wave 3 / lane 3 / 順21a選定）、relay 2/2
 
 ## Risk
 
