@@ -4,7 +4,7 @@
 >
 > **更新ルール**: 会話で進展があるたびにこのファイルを更新する。各セクションは最新の状態を反映し、過去の経緯は「経緯ログ」セクションに蓄積する。
 >
-> **最終更新**: 2026-07-28 / wave 2（PR #33 -> PR #32）は両lane merge・archive・WER完了（現在状態は `Plans.md` を優先）
+> **最終更新**: 2026-07-29 / wave 3 lane 3（PR #34）はmerge・archive完了、lane 1・2はmain rebase待ち（現在状態は `Plans.md` を優先）
 
 ---
 
@@ -31,6 +31,7 @@
 **Phase 2 の日常利用 UI 5 画面は code-complete / route active で、PR #75 closeout merge `f44f99a` に `v0.8.0-ui-daily` tag を作成済み。AI Quality Workflow は PR #87 `ef0fd73` で Design Phase を導入済み。Phase 3 商品マスタ UI と Phase 4（UI-11b / UI-11a / UI-10 / UI-11c / UI-13）は完了済み。次期 milestone と監査是正の最新順序は `Plans.md` を優先する。**
 
 ### 直近の作業状態
+- **SortableHeader共通component抽出（監査是正 順21a / wave 3 lane 3）**: **完了**（R2、PR #34 squash merge `45b4e60`、2026-07-29）。日次商品別・月次部門別・月次商品ランキングの3 tableに重複していたheader実装をgeneric canonical componentへ集約し、列集合、click payload、ARIA、indicator、alignment、operator-visible表示を維持した。exact-HEAD local / hosted三点一致とFormal Final Review P1/P2=0を確認。証跡はarchived [Plan Packet](archive/plans/2026-07-29-sortable-header-extraction.md) / [Matrix](archive/plans/test-matrices/2026-07-29-sortable-header-extraction.md)。wave 3はlane 1・2のrebase / merge trainを継続し、WERは全lane完了後に行う。
 - **未参照UI wrapper / RHF専用dependency退役（監査是正 順19 / wave 2 lane 1）**: **完了**（R2、PR #32 squash merge `2cb3380`、2026-07-28）。consumer 0のwrapper 3fileとdirect dependency 2件を退役し、フォーム採用方針をfeature-local controlled state + Zodへ一本化。現役`zod` / `radix-ui`、route、画面表示・操作、wire / DBは不変。証跡はarchived [Plan Packet](archive/plans/2026-07-28-unused-ui-wrapper-dependencies.md) / [Matrix](archive/plans/test-matrices/2026-07-28-unused-ui-wrapper-dependencies.md) / [wave 2 WER](archive/plans/2026-07-28-wave-2-workflow-effectiveness-review.md)。
 - **import内部contract最小化と日報parse診断接続（監査是正 順20 / wave 2 lane 2）**: **完了**（R3、PR #33 squash merge `45f7fa8`、2026-07-28）。CSV / 日報importの内部型からconsumer未使用fieldを除去し、日報parse error 5fieldをstructured diagnostic WARNへ接続した。CMD preview token lifecycle、利用者向けerror、operation log、wire / DB / operator UIは不変。証跡はarchived [Plan Packet](archive/plans/2026-07-28-import-internal-contract-minimization.md) / [Matrix](archive/plans/test-matrices/2026-07-28-import-internal-contract-minimization.md) / [wave 2 WER](archive/plans/2026-07-28-wave-2-workflow-effectiveness-review.md)。
 - **GPT-5.6 agent guidance / local override分離（D-057）**: **完了**（R2、docs-only、PR #31 squash merge `d26424a`、2026-07-28）。全Codex共通の判断・approval・検証契約とslot-neutral profileをtracked guidanceへ置き、具体model対応はAGENT_OPERATING_MANUAL §3.4だけが所有する。個人用の応答人格と実測出力はignored root override / local-only evidenceへ分離し、公開fixtureだけをrepositoryへ残した。fresh-session regression・独立Final Review・publish-boundary audit・exact-HEAD local / hosted三点一致を完了。証跡はarchived [Plan Packet](archive/plans/2026-07-28-gpt56-agent-guidance-local-override.md) / [Matrix](archive/plans/test-matrices/2026-07-28-gpt56-agent-guidance-local-override.md)。次は[Plans.md](../Plans.md)項0のwave 2編成または単線継続のowner選定。

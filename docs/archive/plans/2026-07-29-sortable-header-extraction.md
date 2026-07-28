@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: ready-hosted-final
+- Phase: archive
 - Risk: R2
 - Execution Mode: dual-vendor-no-fable
 - Plan Commit: dc4aa1b
@@ -29,6 +29,8 @@ Narrative（append-only）:
 - 2026-07-29 independent-review -> human-confirm（state-only materialization）: Formal Final ReviewのP1/P2=0とP3 base同期closureを根拠に、`Reviewed Content HEAD`をreviewed content candidateへ設定した。次のHuman Gateはlane 3をmerge train先頭としてReady / mergeへ進めるowner承認。
 - 2026-07-29 owner Human Gate（介入2/3）: ownerがlane 3をmerge train先頭としてReady化し、exact-HEAD hosted CI green確認後にsquash mergeまで進めることを承認した。これにより本laneのReady / merge承認項目は解消した。
 - 2026-07-29 human-confirm -> ready-hosted-final（state-only materialization）: owner承認を根拠にDraftのままReady遷移を記録する。本state-only commitのexact HEADでL1 fullを再実行し、PR bodyを刷新した後にReady化・hosted final・mergeへ進む。
+- 2026-07-29 ready-hosted-final -> merge: state HEAD `aece1fe`でlocal full evidence・live PR HEAD・required hosted runのheadShaが一致し、required jobsはsuccess、merge stateはCLEAN。ownerの介入2/3承認に基づきPR #34をsquash merge `45b4e60`として取り込んだ。
+- 2026-07-29 merge -> archive: 本packetとMatrixをarchiveへ移動し、Plans / PROJECT_HANDOFFをlane 3完了とlane 1・2のrebase待ちへ同期する。wave 3全体のWERは全lane完了後に実施する。
 
 ## Owner Effort Budget
 
@@ -269,5 +271,5 @@ DB、店舗artifact、実CSV、secret、backup、filesystem書込み、network�
 
 ## Review Response
 
-- Findings Freeze: not in effect（plan-draft）
+- Findings Freeze: 2026-07-29 formal Final Reviewのinitial broad audit完了で発効
 - P1-3 / P1-4 disposition: 本laneでは未着手・未完了。別correction unit / packetで扱う。
