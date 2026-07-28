@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: independent-review
+- Phase: ready-hosted-final
 - Risk: R2
 - Execution Mode: dual-vendor-no-fable
 - Plan Commit: dc4aa1b
@@ -11,7 +11,7 @@
 - Writer: Codex（plan-approved後の別session / worktree、lane 1 branchへpin）
 - Plan Reviewer: Sonnet 5 fresh context（owner relay、read-only、実装非関与）
 - Final Reviewer: Sonnet 5 fresh context（Plan Reviewerとは別fresh context、owner relay、read-only）
-- Reviewed Content HEAD: pending
+- Reviewed Content HEAD: 6fb3e6738dfc327556ec200d44e03708c9a5ec41
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
 - Human Gate: none
@@ -26,13 +26,15 @@ Narrative（append-only）:
 - 2026-07-29 Codex review-only preflight: P1=0。test実装のScope、production seam、oracle独立性は適合。candidate P2のうちRebase Map要求は上記の同一plan-first SHAを根拠にrejectし、旧full-skip記述の陳腐化だけをacceptして本commitで解消する。P3のFindings Freeze phase注記も同時に同期する。
 - 2026-07-29 implementing -> local-verified -> independent-review（state-only compression）: content candidate `6fb3e6738dfc327556ec200d44e03708c9a5ec41`でexact-HEAD L1 fullがCLEAN / PASSとなり、Draft PR #35 bodyへ証跡を記録した。Formal Sonnet Final Reviewerへ同content candidateのread-only reviewをrelayし、merge train先頭としてindependent-reviewへ進む。
 - 2026-07-29 owner conditional train authorization（介入2/3・3/3）: ownerはFormal Final Review P1/P2=0を条件にReady遷移を介入2/3、同一HEADのlocal / hosted / PR三点一致とmerge CLEANを条件にmergeを介入3/3として承認した。追加のowner判断は不要だが、各preconditionとper-lane merge gateは省略しない。
+- 2026-07-29 formal Final Review（Sonnet 5 fresh context、owner relay）: content candidate `6fb3e6738dfc327556ec200d44e03708c9a5ec41`をread-only監査し、Verdict Approve、P1=0 / P2=0 / P3=0。production変更0、既存test非接触、query / strict境界 / visible rollover / cleanup / warning / 独立toast oracle、L1 evidence、plan-first ancestryを独立確認した。relay 2/2。
+- 2026-07-29 independent-review -> human-confirm -> ready-hosted-final（state-only compression）: Formal Final Review P1/P2=0を根拠に`Reviewed Content HEAD`を固定し、既記録のowner条件付きReady承認を適用した。本state-only commitのexact HEADでL1 fullを再実行し、PR body刷新後にReady化・hosted finalを起動する。同一HEAD三点一致とmerge CLEANを確認できた場合だけ、承認済みmergeを実行する。
 
 ## Owner Effort Budget
 
 - 介入回数上限: 3
 - 実働時間上限: 30分
 - relay往復上限: 2
-- 現況: 介入3/3（wave 3 / lane選定、条件付きReady承認、条件付きmerge承認）、relay 1/2
+- 現況: 介入3/3（wave 3 / lane選定、条件付きReady承認、条件付きmerge承認）、relay 2/2
 
 ## Risk
 
