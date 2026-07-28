@@ -10,11 +10,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PageHeader } from "@/components/patterns/PageHeader";
-import {
-  commands,
-  type ProductUpdateRequest_Deserialize,
-  type ProductWithRelations,
-} from "@/lib/bindings";
+import { commands, type ProductWithRelations } from "@/lib/bindings";
 import { invalidateByContract, invalidationContract } from "@/lib/invalidation-contract";
 import { isInvokeError, toCmdError, unwrapResult } from "@/lib/invoke";
 import { queryKeys } from "@/lib/query-keys";
@@ -119,13 +115,10 @@ export function ProductFormPage({
       const built = buildUpdateProductRequest(values, currentProduct);
       setFormErrors(built.errors);
       if (built.request === null) throw new Error("validation");
-      return unwrapResult(
-        commands.updateProduct(productCode, built.request as ProductUpdateRequest_Deserialize),
-        {
-          source: "commands",
-          cmd: "update_product",
-        },
-      );
+      return unwrapResult(commands.updateProduct(productCode, built.request), {
+        source: "commands",
+        cmd: "update_product",
+      });
     },
     onSuccess: async () => {
       setSaveError(null);

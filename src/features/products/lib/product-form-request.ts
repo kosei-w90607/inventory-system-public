@@ -32,8 +32,6 @@ export interface ProductFormBuildResult<T> {
   errors: Partial<Record<keyof ProductFormValues, string>>;
 }
 
-export type ProductUpdatePatch = Partial<ProductUpdateRequest_Deserialize>;
-
 export const createProductFormDefaults: ProductFormValues = {
   janCode: "",
   name: "",
@@ -133,11 +131,11 @@ export function buildCreateProductRequest(
 export function buildUpdateProductRequest(
   values: ProductFormValues,
   original: ProductWithRelations,
-): ProductFormBuildResult<ProductUpdatePatch> {
-  const errors: ProductFormBuildResult<ProductUpdatePatch>["errors"] = {};
+): ProductFormBuildResult<ProductUpdateRequest_Deserialize> {
+  const errors: ProductFormBuildResult<ProductUpdateRequest_Deserialize>["errors"] = {};
   const sellingPrice = parseNonNegativeInteger(values.sellingPrice);
   const costPrice = parseNonNegativeInteger(values.costPrice);
-  const request: ProductUpdatePatch = {};
+  const request: ProductUpdateRequest_Deserialize = {};
 
   if (values.name.trim() === "") errors.name = "商品名を入力してください";
   if (values.departmentId === null) errors.departmentId = "部門を選択してください";
