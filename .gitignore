@@ -72,6 +72,8 @@ cargo-cache/
 **/.claude/state/
 
 # Codex local-only overrides
+/AGENTS.override.md
+/.codex/*.local.denylist
 **/.codex/*.local.rules
 **/.codex/*.local.toml
 **/.codex/hooks.json

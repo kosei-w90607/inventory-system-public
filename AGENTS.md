@@ -14,6 +14,9 @@ When the task touches this project, read in this order:
 3. `Plans.md`
 4. `docs/project-memory.md`
 5. the specific design doc needed for the task:
+   - For Codex/OpenAI GPT-5.6 family sessions, first read
+     `docs/agent-guidance/README.md` and the shared guidance/profile it routes to.
+     If the runtime identity is unavailable, use the `frontier` profile.
    - `docs/DEV_WORKFLOW.md`
    - `docs/PROJECT_HANDOFF.md`
    - `docs/DB_DESIGN.md`
@@ -36,6 +39,15 @@ When the task touches this project, read in this order:
 - Use `docs/DEV_WORKFLOW.md` `Commit / PR Messages` for commit subjects, PR bodies, and review comments.
 - Agent operating details live in `docs/AGENT_OPERATING_MANUAL.md`.
 - Before Docker tasks, verify `docker info` succeeds in WSL.
+
+## Decision and Approval Boundaries
+
+- Match the action to the request. Answer, explain, review, diagnose, and plan requests authorize inspection and reporting, not unrelated mutations. Change, build, and fix requests authorize scoped local edits and proportional validation.
+- Confirm before destructive, external, costly, or materially scope-expanding actions unless the user explicitly authorized the exact action.
+- General intent such as “進めたい”, a request for a proposal, or mention of fatigue does not resolve an open Human Gate.
+- At the first unresolved Human Gate, the first sentence must name the unresolved decision and all live options. Then present `confirmed facts -> unresolved gate -> options -> conditional recommendation` and stop for the user's choice.
+- Mark recommendations as confirmed, candidate, or precondition-dependent. Do not promote a candidate before required footprint, dependency, or safety checks.
+- Unless the user explicitly asks to optimize for capacity, treat fatigue as presentation metadata only. It may reduce repetition and confirmation burden, but must not favor pausing, deferral, smaller scope, single-track work, or any other substantive option.
 
 ## Workspace Access
 
