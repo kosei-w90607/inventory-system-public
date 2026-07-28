@@ -127,6 +127,15 @@ fn update_product(conn: &mut DbConnection, product_code: &str, req: &ProductUpda
 **ProductUpdateRequest構造体**: 全フィールドがOption型
 - name, department_id, selling_price, cost_price, tax_rate, maker_code, supplier_id, pos_stock_sync, plu_target
 
+**部分更新wire契約（PRODUCT-PATCH-D1 / REQ-102）**:
+
+| field群 | JSON omitted | JSON null | JSON value |
+|---|---|---|---|
+| 通常field: `name`, `department_id`, `selling_price`, `cost_price`, `tax_rate`, `pos_stock_sync`, `plu_target` | 更新しない | 更新しない | 値を設定する |
+| clear可能field: `supplier_id`, `maker_code` | 更新しない | 値をclearする | 値を設定する |
+
+Rustでは通常fieldを `Option<T>`、clear可能fieldを `Option<Option<T>>` とし、後者はmissingとnullを区別するcustom deserializerを維持する。`ProductUpdateRequest` 全体にserde defaultを明示して、tauri-spectaがcommand入力用のgenerated `ProductUpdateRequest_Deserialize`を全property optionalとして生成できるようにする。`ProductUpdateRequest_Serialize` はcommand入力契約ではなく、frontendは `_Deserialize` を直接使う。
+
 **処理ステップ**:
 1. product_repo::find_by_product_code(product_code) → existing
    - None → BizError::NotFound("商品が見つかりません")

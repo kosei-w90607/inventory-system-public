@@ -79,6 +79,13 @@ fn create_product(state: State<AppState>, req: ProductCreateRequest) -> Result<P
 fn update_product(state: State<AppState>, product_code: String, req: ProductUpdateRequest) -> Result<ProductUpdateResult, CmdError>
 ```
 
+**部分更新wire契約（PRODUCT-PATCH-D1 / REQ-102）**:
+
+- 通常field（`name`, `department_id`, `selling_price`, `cost_price`, `tax_rate`, `pos_stock_sync`, `plu_target`）は、JSON omitted / nullのどちらも「更新しない」、valueは「設定する」。
+- clear可能field（`supplier_id`, `maker_code`）は、JSON omittedが「更新しない」、nullが「clearする」、valueが「設定する」。
+- generated commandの入力型は `ProductUpdateRequest_Deserialize` とし、全propertyをoptionalにする。frontend側の `Partial` aliasや型assertionでgenerated契約を迂回しない。
+- command名、引数名、response、`CmdError`、BIZ呼出し順は変更しない。
+
 **処理ステップ**: create_productと同パターン。biz::product_service::update_product()を呼ぶ
 
 #### toggle_discontinue コマンド

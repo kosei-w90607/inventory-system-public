@@ -123,6 +123,14 @@ skeleton の例示文言・コードはすべて合成データ（架空の商�
 
 **canonical**: `src/features/products/components/ProductTable.tsx`
 
+**sortable header canonical（UI-TABLE-D1）**: 売上系tableのsortable headerは
+`src/components/sales/SortableHeader.tsx` を唯一のimplementation ownerとする。
+`SortableHeader<T extends string>` は
+`column` / `label` / `sortBy` / `sortDir` / `onClick` / optional `align`
+だけを受け取り、daily/monthly固有の`SortColumn`をimportしない。
+consumerは日次`ProductTable`、月次`DepartmentTable`、
+`ProductRankingTable`の3tableに限定する。
+
 **構造**:
 
 ```tsx
@@ -175,7 +183,7 @@ skeleton の例示文言・コードはすべて合成データ（架空の商�
 
 **バリエーション: 直近実績サマリテーブル**（PR #116）: 業務入力画面（入庫 / 返品・交換 / 手動販売 / 廃棄の 4 画面で確立）の下部に「直近の{業務名}」見出しと「すべての履歴を見る」（outline、`/inventory/records` へ recordType 付き遷移）を横並びで置き、直近 N 件テーブル（Skeleton / Error / Empty / データの 4 状態、パターン⑥）と各行の「詳細を見る」導線を付ける。直近リストの取得失敗時は「入力中の内容はそのままです。保存や商品追加は続けられます」のように業務継続を保証する文言を出し、フォーム入力を壊さない。新規の業務入力画面でも同じ構成を踏襲する。
 
-**アクセシビリティ**: `Table` primitive の `TableHead` でヘッダーセルを構造化する。状態は色だけでなく日本語ラベル（`廃番` 等の Badge）で示す（DSR-08）。桁揃えは `tabular-nums` で読み取りを助ける。
+**アクセシビリティ**: `Table` primitive の `TableHead` でヘッダーセルを構造化する。sortable headerはactive asc/descを`aria-sort="ascending"` / `"descending"`、inactiveを`aria-sort="none"`で示し、可視indicator `▲` / `▼` は`aria-hidden="true"`とする。状態は色だけでなく日本語ラベル（`廃番` 等の Badge）で示す（DSR-08）。桁揃えは `tabular-nums` で読み取りを助ける。
 
 **Do**:
 - コード列は `font-mono`、数値列は `tabular-nums + text-right`

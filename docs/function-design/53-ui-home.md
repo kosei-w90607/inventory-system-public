@@ -284,7 +284,20 @@ shadcn `Tooltip` を本 PR commit 0 で導入済（`src/components/ui/tooltip.ts
 | `DailySaleItem.source` 等の enum 化 | D-10、本 PR スコープ外 | Phase 3 UI-09a 着手時に判断（specta 化対象拡張と同タイミング） |
 | UI-08 PLU 書出し本体 | 通知バーから遷移ボタンのみ、本体は Phase 4 | UI-08 (Phase 4 10-3) |
 | ユーザー認証 / ログイン | 単一店舗 1 利用者前提、認証層なし | プロジェクトスコープ外（CLAUDE.md） |
-| Vitest unit test（`count-stock-status.ts` / hooks 等） | Phase 1 7-7 で Vitest 初期化が未着手のため、本 PR では無し。`count-stock-status.ts` 純関数は 7-7 着手後に unit test 追加（P3-F 反映） | Phase 1 7-7 → 後続 PR |
+
+---
+
+### 53.10 orchestration test contract（UI-00-D11）
+
+UI-00 の回帰 test は、表示 component 用の手組み `UseQueryResult` fixture だけで完了扱いにしない。production `useHomeSummary` と QueryClient を通し、mock boundary を generated `commands.*` に置く。
+
+| Test owner | 守る接続点 |
+|---|---|
+| `hooks/useHomeSummary.test.tsx` | 4 query の exact command 引数 / distinct literal key、派生値、strict未取込み境界、1 query error時の他query継続 |
+| `hooks/useYesterdayDate.test.tsx` | fake local Dateによる初期値、hidden中不変、翌日visible復帰時の再計算、listener cleanup |
+| `HomePage.test.tsx` | 実hookから前日未取込み警告、PLU / 取込み履歴error toast、部分障害時の他表示継続までのmain wiring |
+
+各test fileは `UI-00` tokenでWF-TRACE-04へ接続し、新規REQ coverageや `90-traceability.md` の生成差分を作らない。`SummaryCards.test.tsx` の手組みfixtureはDOM characterizationとして維持するが、本contractの代替にはしない。
 
 ---
 
@@ -295,3 +308,4 @@ shadcn `Tooltip` を本 PR commit 0 で導入済（`src/components/ui/tooltip.ts
 | 2026-05-09 | 8-1 UI-00（本 PR commit 2） | 新規作成。実装プラン [2026-05-09-phase-2-ui-00.md](../archive/plans/2026-05-09-phase-2-ui-00.md) §関数設計書の章立て / §事前確定事項 D-1〜D-10 / Q-1〜Q-3 を関数設計書形式（業務ロジックあり版テンプレ初適用）で転記。commit 1 `2c1ac37` の specta 化を前提に §53.2 / §53.3 を記述 |
 | 2026-05-09 | 8-1 UI-00（commit 4-5 plan レビュー反映） | レビュー指摘 11 件反映: §53.2 派生値表に「計算箇所」列追加 + `count-stock-status.ts` 純関数仕様明記（P2-B）/ §53.3 sales クエリ `enabled` を `yesterday !== null` から `true` に変更 + 根拠注釈追記（P2-C）/ §53.3 `useYesterdayDate` 再評価メカニズムを Visibility API listener 版に明確化（P2-A）/ §53.9 非目的に Vitest unit test 行追加（P3-F）|
 | 2026-05-09 | 8-1 UI-00（commit 4-5 実装完了） | `41929f5` features/home 11 ファイル新規 (types / lib/count-stock-status / hooks 2 / components 7) + commit 5 (本 commit) HomePage + `src/routes/index.tsx` 差替 (search_products demo 93 行 → `<HomePage />` mount 5 行)。LSP/Skills Policy hook 全 13 ファイル URI diagnostics 空 + npm run typecheck / lint (初回 6 errors → 修正後 0) / format (prettier --write 統一) 全 pass。詳細は Plans.md L23 trace |
+| 2026-07-29 | 監査是正 順10 / P8b-2 | §53.10 `UI-00-D11` を追加し、実hook / QueryClientを通る4 query・派生値・部分障害、visibility日付またぎ、HomePage warning / toastのtest ownerとmock境界を確定。Vitest未着手の旧非目的を削除 |

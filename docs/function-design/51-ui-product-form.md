@@ -21,6 +21,7 @@
 | REQ-101 / suppliers | UI-01b-D7 | 取引先候補は `commands.listSuppliers()` 由来の complete master data とする。inline 新規取引先作成は初回 UI-01b 実装では非 scope。 | `suppliers` は任意項目で、誤った master 追加は後から直しづらい。`find_or_create_supplier` の公開 CMD と新規追加 UX は別途設計してから扱う。 |
 | REQ-101 / REQ-102 | UI-01b-D8 | form は部分障害を分ける。部門候補取得失敗は保存不可、取引先候補取得失敗は取引先未指定なら保存可能、edit の `getProduct` 失敗は form 本体を出さず一覧へ戻る導線を出す。 | 商品登録で部門は必須、取引先は任意。全取得が成功するまで画面全体を空にする案は、復旧操作を阻害するため不採用。 |
 | REQ-101 / REQ-102 | UI-01b-D9 | 日本語入力を伴う form のため、実装 PR では Windows native L3 を計画する。 | Tauri 2 Linux WebView には IME 制約があり、商品名・メーカー品番・取引先名の入力品質は Linux だけでは判断できない。 |
+| REQ-102 | PRODUCT-PATCH-D1 | edit保存はgenerated `ProductUpdateRequest_Deserialize`を直接使う。通常fieldはomitted/null=no update・value=set、`supplier_id` / `maker_code`はomitted=no update・null=clear・value=setとする。 | `Partial<ProductUpdateRequest_Deserialize>` と保存時castはgenerated wire契約の誤りを隠すため不採用。 |
 | REQ-101 / REQ-102 | UI-01b-D10 | form を「商品の識別」「分類と取引先」「価格」「在庫」の 4 セクションに分割し、各セクション見出しを h2 `text-xl font-semibold` + Separator + 1 行説明にする。メーカー品番は「商品の識別」に置く。 | 1 列のフラットな入力列は、非IT利用者が入力順を把握しづらい。意味の塊でグルーピングし、入力の流れを明示する。section ごとの説明で登録後変更できない項目を予告する。 |
 | REQ-102 | UI-01b-D11 | read-only 入力（商品コード / edit の JANコード・現在庫）は `readOnly` + `bg-muted` で示す。数量単位 select は `disabled` を維持する。 | `disabled` の opacity-50 は値が読みづらく、read-only と操作不能の意味が混ざる。表示専用の値は読める muted 背景にする。`<select>` は readOnly 属性が効かないため数量単位だけ `disabled` を残す。 |
 | REQ-101 / REQ-102 | UI-01b-D12 | 必須項目（商品名・部門・売価・原価、create 時は初期在庫）のラベルに `（必須）` を付ける。色で必須を符号化しない。JANコードは対象外。 | 非IT利用者には必須項目が分かりやすい方がよい。色（赤 * 等）だけの符号化は [design-system/00-foundations.md §業務ステータスの視認性](../design-system/00-foundations.md) に反するため、テキストで明示する。JAN は任意（独自コード発番経路がある）ため必須にしない。 |
@@ -92,6 +93,8 @@ UI-01b 実装 PR では以下を generated binding に出す。
 
 `ProductCreateRequest` / `ProductCreateResult` / `ProductUpdateRequest` / `ProductUpdateResult` / `Supplier` は `specta::Type` を付与し、`src/lib/bindings.ts` に生成して commit する。
 
+`PRODUCT-PATCH-D1` により、`commands.updateProduct` の入力は全property optionalのgenerated `ProductUpdateRequest_Deserialize`を正とする。`ProductUpdateRequest_Serialize`、手書きの `Partial` alias、保存時の型assertionをcommand入力契約の代用にしない。
+
 ## 7.5 Form Behavior
 
 ### Create
@@ -125,9 +128,11 @@ UI-01b 実装 PR では以下を generated binding に出す。
    - `jan_code`
    - `stock_quantity`
    - `stock_unit`
-4. 保存時は変更された field だけを `ProductUpdateRequest` に入れる。nullable field は以下の通り:
-   - supplier 未指定へ戻す: `supplier_id: Some(None)` 相当の generated value
-   - maker_code 空へ戻す: `maker_code: Some(None)` 相当の generated value
+4. 保存時は変更されたfieldだけをgenerated `ProductUpdateRequest_Deserialize`へ入れる（PRODUCT-PATCH-D1）。
+   - 通常field: unchangedはomitted、valueは設定。nullもbackendではno updateだが、unchangedの代わりにnullを送らない。
+   - supplier未指定へ戻す: `supplier_id: null`（Rustの `Some(None)`、clear）。
+   - maker_code空へ戻す: `maker_code: null`（Rustの `Some(None)`、clear）。
+   - clear可能fieldのunchangedはomittedにし、nullと区別する。
 5. 廃番 / 復帰は edit mode だけに出す。状態は色だけでなく「廃番」「表示中」の日本語 badge と button label で示す。「廃番にする」は確認ダイアログ（`DiscontinueConfirmDialog`）を通し、「表示に戻す」は確認なしで直接実行する（UI-01b-D13）。
 
 ## 7.6 Validation / Error / Recovery
@@ -164,8 +169,9 @@ Error recovery:
 
 - route mode: `/products/new` は create、`/products/$code/edit` は edit。
 - generated command: `createProduct` / `updateProduct` / `toggleDiscontinue` / `listSuppliers` が binding に存在する。
+- generated patch contract: `ProductUpdateRequest_Deserialize`の全propertyがoptionalで、builderの戻り値と`commands.updateProduct`入力がこの型へcastなしで直結する（PRODUCT-PATCH-D1）。
 - create payload: JANあり / JANなし自動発番 / prefixなし部門 validation。
-- edit payload: read-only fields を送らず、nullable fields を正しく clear できる。
+- edit payload: read-only fieldsを送らず、通常fieldのunchangedをomitし、`supplier_id` / `maker_code`のomitted/null/valueを区別できる。
 - `stock_unit='cm'` 時の `pos_stock_sync=false` 提案と手動 override。
 - 部門取得失敗 / 取引先取得失敗 / `getProduct` not found / duplicate save error の復旧。
 - 廃番状態は日本語 badge + button label で示し、色だけにしない。

@@ -316,6 +316,7 @@ export function calculateEffectiveUnitPrice(item: DailySaleItem): number | null 
 | `Select` | DepartmentFilter |
 | `SegmentedControl` visual primitive | TabsHeader（日次 / 月次 切替、router-driven `<Link>` 視覚表現、UI-09b PR #66 で `src/components/sales/` 共通化）。二択切替の見た目は `src/components/ui/segmented-control.tsx` の list/item/active/inactive class を使い、active border は押しボタン状に見えない `border-stone-300` とする |
 | `Table` | ProductTable（6 列） |
+| `SortableHeader<T extends string>` | `src/components/sales/SortableHeader.tsx` を共通ownerとし、ProductTableの5列（`product_code` / `name` / `quantity` / `unit_price` / `amount`）で利用（UI-TABLE-D1） |
 | `Tooltip` | SummaryCardsBar（売上明細数）、ExportBar（印刷 disabled） |
 | `Badge` | ProductTable（手動行の黄色「手動」バッジ） |
 | `Alert` | DailySalesPage（当日 fail 時の画面全体 error） |
@@ -535,3 +536,4 @@ export function makeMockItem(overrides: Partial<DailySaleItem> = {}): DailySaleI
 | 2026-06-06 | PR #70 | SummaryCardsBar カード溢れ対策（§56.7）: Card + CardContent に `min-w-0` + value div `truncate`。月次版と同方針 |
 | 2026-06-07 | display-scale follow-up | H-6 feedback 対応として `ProductTable` の商品コードセルを `font-mono text-sm font-medium` に更新し、`ProductTable.test.tsx` で `text-xs` 回帰を防止 |
 | 2026-06-08 | selection-tone follow-up | TabsHeader の二択切替 visual を `SegmentedControl` primitive に寄せ、monthly ModeTabs と同じ shared segmented control 仕様を参照する形に更新 |
+| 2026-07-29 | 監査是正 順21a plan-first | UI-TABLE-D1として日次5 sortable列のheader implementation ownerを`src/components/sales/SortableHeader.tsx`へ正本化。列集合・sort callback・ARIA・表示は不変 |

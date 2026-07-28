@@ -108,6 +108,7 @@ export type MonthlySalesReport = {
 |---|---|---|---|
 | 新規 | `src/components/ui/progress.tsx` | shadcn `<Progress>` wrapper（`import { Progress as ProgressPrimitive } from "radix-ui"` 統合パッケージ慣習、G-2） | 25-35 |
 | 移送 | `src/components/sales/TabsHeader.tsx` | UI-09a 由来、router-driven `<Link>` 視覚表現、daily/monthly 共通使用（Q-3）。active tone は shared stone selection tone | 45-60 |
+| 共通 | `src/components/sales/SortableHeader.tsx` | `SortableHeader<T extends string>`。DepartmentTable 3列 / ProductRankingTable 4列と日次ProductTable 5列のheader DOM・ARIA・indicatorを一元所有（UI-TABLE-D1） | feature固有型をimportしない |
 
 #### lib/hooks（8-7 共通化）
 
@@ -385,7 +386,7 @@ function MonthlySalesPage() {
 
 #### DepartmentTable（4 列 + Progress バー、Q-4 商品数非対応）
 - 列: 部門 / 売上 / 構成比（数値 + `<Progress>` バー）/ 前月比（商品数列は `MonthlySaleItem` DTO に `product_count` field 不在のため非対応、Plans.md Backlog 参照）
-- **SortableHeader 適用列 (3 列、構成比列はソート対象外)**: 部門名 (`name`) / 売上 (`amount`) / 前月比 (`prev_month_diff`)。click で `onSortChange(column)` 発火 → MonthlySalesPage の `handleSortChange` が `sortBy/sortDir` 切替 (同列再 click → desc toggle / 別列 → asc) を `onSearchChange` 経由で URL state 更新
+- **SortableHeader 適用列 (3 列、構成比列はソート対象外)**: 共通owner `src/components/sales/SortableHeader.tsx`（UI-TABLE-D1）を使い、部門名 (`name`) / 売上 (`amount`) / 前月比 (`prev_month_diff`)を結線する。click で `onSortChange(column)` 発火 → MonthlySalesPage の `handleSortChange` が `sortBy/sortDir` 切替 (同列再 click → desc toggle / 別列 → asc) を `onSearchChange` 経由で URL state 更新
 - 前月比色分け（F-15 ±1.0% 閾値 + Q-7 prev <= 0 ガード）:
   - 緑（`bg-success-soft text-success`）: `ratio >= 0.01`
   - 灰（`bg-stone-50 text-stone-600`）: `-0.01 < ratio < 0.01`
@@ -395,7 +396,7 @@ function MonthlySalesPage() {
 #### ProductRankingTable（上位 10 + 1 位バッジ）
 - 列: 順位（`ranking`）/ 商品名 / 数量 / 金額 / 前月比 / -
 - `item.ranking === 1` → 行に黄色バッジ `<Badge className="bg-rank-top-badge-bg text-rank-top-badge-text">1位</Badge>` 強調表示（sort で順序変わっても `ranking === 1` 追従、G-3。token は PR-C で `rank-top` 系へ移行、00-foundations.md 参照）
-- **SortableHeader 適用列 (4 列、順位列はソート対象外)**: 商品名 (`name`) / 数量 (`quantity`) / 金額 (`amount`) / 前月比 (`prev_month_diff`)。click で `onSortChange(column)` 発火 → MonthlySalesPage の `handleSortChange` が `sortBy/sortDir` 切替 (同列再 click → desc toggle / 別列 → asc) を `onSearchChange` 経由で URL state 更新
+- **SortableHeader 適用列 (4 列、順位列はソート対象外)**: 共通owner `src/components/sales/SortableHeader.tsx`（UI-TABLE-D1）を使い、商品名 (`name`) / 数量 (`quantity`) / 金額 (`amount`) / 前月比 (`prev_month_diff`)を結線する。click で `onSortChange(column)` 発火 → MonthlySalesPage の `handleSortChange` が `sortBy/sortDir` 切替 (同列再 click → desc toggle / 別列 → asc) を `onSearchChange` 経由で URL state 更新
 
 #### ExportBar
 - CSV 出力 button: `exportFile({ reportType: "monthly_by_product" | "monthly_by_department", target: month })`、`isExporting === true` で button disabled + spinner
@@ -491,3 +492,4 @@ function MonthlySalesPage() {
 | 2026-05-22 | PR-1 (tone/nav fix) | page h1 を「売上レポート」→「月次売上」に分離（U4、§57.12）。TabsHeader の `activeOptions.includeSearch:false` で search params 付き URL の active 維持（B1） |
 | 2026-05-22 | PR-3 (tone/nav fix) | SummaryCardsBar カード溢れ対策（§57.7）: Card + CardContent に `min-w-0` + value div `truncate`（B2/B3、CSS 起因）。日次版も同方針 |
 | 2026-06-08 | selection-tone follow-up | TabsHeader と ModeTabs の active tone を shared stone selection tone に統一し、Sidebar / StatusChips と同じ選択状態の視覚言語へ寄せた。日次/月次と商品別ランキング/部門別構成比の二択切替は `SegmentedControl` primitive を共有する |
+| 2026-07-29 | 監査是正 順21a plan-first | UI-TABLE-D1として月次Department 3列 / Ranking 4列のheader implementation ownerを`src/components/sales/SortableHeader.tsx`へ正本化。列集合・sort callback・URL state・表示は不変 |
