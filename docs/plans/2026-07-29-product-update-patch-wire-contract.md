@@ -23,13 +23,16 @@ Narrative（append-only）:
 - 2026-07-29 plan-draft -> plan-gate: exact baselineの隔離worktreeでstruct-level serde defaultを暫定適用し、generated deserialize / serialize shapeをend-to-end probeした。Packet / Matrix / source docsと3 lane footprint分離をCoordinatorが確認し、plan-first content commitで固定してfresh Sonnet Plan Reviewへ進む。
 - 2026-07-29 formal Plan Review（Sonnet 5 fresh context、owner relay）: Verdict Approve、P1=0 / P2=0 / P3=1。Reviewerがexact plan-firstの隔離worktreeでContract Probeを独立再現し、Rust 1行とbindings 14行の期待shapeを確認した。P3の`UI_TECH_STACK.md`節番号誤引用は実装契約へ影響しないfollow-upとして記録し、P3-onlyのPlan変更・再reviewは行わない。relay 1/2。
 - 2026-07-29 plan-gate -> plan-approved -> implementing（state-only compression）: 独立Plan ReviewerがP1/P2=0を報告し、plan-first `dc4aa1b`は全実装commitより前に存在する。`Plan Commit`を同SHAへ固定し、本state-only commit後にlane 2 Writer実装を許可する。
+- 2026-07-29 lane 3 merge後のtrain rebase: 最新main `214b289`へconflict-free rebaseし、実装commitを`f436c35 -> e762b23`、`6cdb8c7 -> f7a9a5a`へ再配置した。rebase前後のwhole-diff patch-idは`47497efc30e0ea6a5297ca75dcf71694ae90475f`で一致。plan-first `dc4aa1b`はmain上の同一commitとして祖先に残りreplayされていないため、Plan Commit fieldを維持しRebase Mapは不要。
+- 2026-07-29 Codex review-only preflight: P1=0 / P2=1 / P3=2。wire実装、serde三状態、generated型、builder/page、Scope内codeは適合。P2はtouched source `51-ui-product-form.md` §7.4が4 commandをgenerated未対応の未来形で記し、同節の現行`PRODUCT-PATCH-D1`とbindingsに矛盾すること。repo-wide drift sweepで`SCREEN_DESIGN.md`にも同じ未来形を確認したため、両live source docsの現況同期をgated Amendment 1として追加し、Writerを停止してformal Amendment Reviewへ戻す。
+- 2026-07-29 owner relay budget exception: 上記gated Amendment Reviewと、その後のFormal Final Reviewを独立に完了するため、ownerがrelay上限を2回から3回へ今回限り拡張した。追加1回はsource-doc wording同期のAmendment Reviewだけに使い、実装Scopeや証跡収集の任意拡張には使わない。
 
 ## Owner Effort Budget
 
 - 介入回数上限: 3
 - 実働時間上限: 30分
-- relay往復上限: 2（Plan Review / Final Review）
-- 現況: 介入1/3、relay 1/2
+- relay往復上限: 3（既定2から今回限り拡張。Plan Review / gated Amendment Review / Final Review）
+- 現況: 介入1/3、relay 1/3
 
 ## Risk
 
@@ -67,6 +70,7 @@ Goal Invariant: Rust serdeの実際のpatch意味論とgenerated TypeScript comm
 ## Scope
 
 - source docs: `docs/function-design/{30-biz-product-service,40-cmd-product,51-ui-product-form}.md`
+- source wording sync: `docs/SCREEN_DESIGN.md`（UI-01b generated command statusの現在形同期だけ）
 - Rust DTO/test: `src-tauri/src/biz/product_service.rs`
 - generated: `src/lib/bindings.ts`（wave 3唯一のgenerated artifact lane）
 - frontend: `src/features/products/lib/product-form-request.ts`、`src/features/products/ProductFormPage.tsx`
@@ -80,6 +84,7 @@ Goal Invariant: Rust serdeの実際のpatch意味論とgenerated TypeScript comm
 - `src-tauri/src/cmd/product_cmd.rs`、BIZ update本体、repository/DB/schema/migration
 - command名/引数名/response/`CmdError`
 - create product、route、query invalidation、UI layout/style/L3
+- `docs/SCREEN_DESIGN.md`は上記generated command statusのwording同期以外
 - binding generator、Cargo/npm dependency/lockfile
 - `docs/function-design/90-traceability.md`（既存UI-01b tokenを使い再生成不要）
 - 順14と`Plans.md`
@@ -93,13 +98,14 @@ Goal Invariant: Rust serdeの実際のpatch意味論とgenerated TypeScript comm
 - `cd src-tauri && cargo run --bin generate_bindings` 後のgenerated diffが `src/lib/bindings.ts`だけ
 - Rust format/clippy/test、frontend typecheck/lint/format/test/buildをPASS。frontend gateとbindings生成は逐次実行
 - `cargo run --bin generate_traceability -- --check`、`bash scripts/doc-consistency-check.sh --target plan`、`bash scripts/local-ci.sh full` PASS
+- archive / researchを除くlive source docsで、UI-01bの`createProduct` / `updateProduct` / `toggleDiscontinue` / `listSuppliers`をgenerated未対応または将来追加と記すwordingが0件
 - Matrix baseline mutation全量をtargeted `cargo test` / `npm test` / `npm run typecheck`でCoordinatorが独立再実測し、各red、復元後green、survivor 0
 
 ## Design Sources
 
 - Requirements: `docs/spec/requirements.md` REQ-102、`docs/spec/requirements-coverage.md` REQ-102
 - BIZ/CMD/UI: 30 §4.4、40 §5.4 update、51 §7.1/§7.4/§7.5/§7.8（`PRODUCT-PATCH-D1`）
-- Generated SSOT: `docs/UI_TECH_STACK.md` §2.3
+- Generated SSOT: `docs/UI_TECH_STACK.md` §2.5
 - Audit: `docs/research/audit-2026-07/findings/p4-type-contracts.md` P4b-1、adjudication裁定注記2
 
 ## Required Design Artifacts
@@ -145,6 +151,7 @@ Coordinatorがexact baseline `818352f`の隔離worktreeで`ProductUpdateRequest`
 | UI-01b-D5 changed-only/read-only不送信 | builder | exact payload tests | L3なし |
 | BIZ-01 §4.4 update副作用不変 | existing BIZ path | existing product tests | DB/schema変更なし |
 | CMD-01 error/response不変 | generated command call | existing page/command regression | cmd source非変更 |
+| UI-01b generated command status | 51 §7.1/§7.4 + `SCREEN_DESIGN.md` UI-01b | live wording sweep + bindings presence | command登録・生成自体は不変 |
 
 ## Test Plan
 
@@ -169,6 +176,7 @@ Coordinatorがexact baseline `818352f`の隔離worktreeで`ProductUpdateRequest`
 - ordinary / clearableのnull意味をtestが混同していないか
 - frontend test期待値がproduction builderから導出されていないか
 - live `Partial`/castをrepo-wide sweepしたか
+- UI-01bのgenerated command statusが51とSCREEN_DESIGNで現在形にそろい、旧未来形がlive treeに残らないか
 - bindingsを使うfrontend commandを並列生成/検証して偽陽性を作っていないか
 - Evidence Stop Condition: `exact-HEAD L1 + baseline全量mutation + P1/P2 closure`が揃った後は、runtime failure、Scope変更、または未closureのP1/P2がない限り追加の全量証跡収集を開始しない。証跡はGoal Invariantの判定手段であり、独立した成果として扱わない。
 
@@ -194,5 +202,6 @@ synthetic product/JSONだけを使う。実店舗DB、価格/原価data、log、
 ## Review Response
 
 - Findings Freeze: formal Final Reviewのinitial broad audit完了時に発効予定
-- Plan Review: pending
+- Plan Review: Approve（P1=0 / P2=0 / P3=1）
+- Gated Amendment 1: formal review pending
 - Final Review: pending
