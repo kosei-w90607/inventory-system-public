@@ -90,6 +90,8 @@ describe("DepartmentTable (REQ-502 sort 結線)", () => {
     expect(amountIndicator).toHaveTextContent("▼");
     expect(screen.getByRole("button", { name: "部門" })).not.toHaveTextContent(/[▲▼]/);
     expect(amountButton).toHaveAttribute("type", "button");
+    expect(amountButton).toHaveAttribute("data-variant", "ghost");
+    expect(amountButton).toHaveAttribute("data-size", "sm");
     expect(amountButton).toHaveClass(
       "-mx-3",
       "h-auto",
