@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: ready-hosted-final
+- Phase: archive
 - Risk: R2
 - Execution Mode: dual-vendor-no-fable
 - Plan Commit: dc4aa1b
@@ -28,6 +28,8 @@ Narrative（append-only）:
 - 2026-07-29 owner conditional train authorization（介入2/3・3/3）: ownerはFormal Final Review P1/P2=0を条件にReady遷移を介入2/3、同一HEADのlocal / hosted / PR三点一致とmerge CLEANを条件にmergeを介入3/3として承認した。追加のowner判断は不要だが、各preconditionとper-lane merge gateは省略しない。
 - 2026-07-29 formal Final Review（Sonnet 5 fresh context、owner relay）: content candidate `6fb3e6738dfc327556ec200d44e03708c9a5ec41`をread-only監査し、Verdict Approve、P1=0 / P2=0 / P3=0。production変更0、既存test非接触、query / strict境界 / visible rollover / cleanup / warning / 独立toast oracle、L1 evidence、plan-first ancestryを独立確認した。relay 2/2。
 - 2026-07-29 independent-review -> human-confirm -> ready-hosted-final（state-only compression）: Formal Final Review P1/P2=0を根拠に`Reviewed Content HEAD`を固定し、既記録のowner条件付きReady承認を適用した。本state-only commitのexact HEADでL1 fullを再実行し、PR body刷新後にReady化・hosted finalを起動する。同一HEAD三点一致とmerge CLEANを確認できた場合だけ、承認済みmergeを実行する。
+- 2026-07-29 ready-hosted-final -> merge: state HEAD `386a822b16ece6ecd4a47362da08de800ebe9fd3`でlocal full evidence・live PR HEAD・required hosted run `30394482081`のheadShaが一致し、required jobsはsuccess、merge stateはCLEAN。ownerの条件付き介入3/3承認に基づきPR #35をsquash merge `73273cb`として取り込んだ。
+- 2026-07-29 merge -> archive: 本PacketとMatrixをarchiveへ移動し、Plans / PROJECT_HANDOFFをlane 1完了とlane 2のAmendment実装再開へ同期する。wave 3全体のWERは全lane完了後に実施する。
 
 ## Owner Effort Budget
 
@@ -220,9 +222,9 @@ DB、実CSV、店舗データ、backup、log、receipt、secretへ非接触。sy
 
 - production TypeScriptを変更せず、`useHomeSummary`、`useYesterdayDate`、`HomePage`の3 test fileを追加した。command boundaryだけをmockし、4 queryの引数/key/独立性、derived境界、visible日付またぎ、warningと2 toastを実hook経由で固定した。
 - targeted test、frontend `typecheck` / `lint` / `format:check` / full test / `build`、traceability、full docs / plan consistencyがPASSした。`90-traceability.md`差分は0。
-- production、既存test、route、bindings、operator-visible UIへの変更は0。lane 3 merge後のmainへrebaseしたことでDS1前提は充足し、exact-HEAD L1 fullをFinal Review前に実行する。
+- production、既存test、route、bindings、operator-visible UIへの変更は0。lane 3 merge後のmainへrebaseし、Final Review P1/P2=0、exact-HEAD local / hosted三点一致、merge CLEANを確認して完了した。
 
 ## Review Response
 
-- Findings Freeze: not in effect（implementing）
-- tricky R2のためfresh Sonnet Final Reviewを行い、P3-onlyでは再engagementしない。
+- Findings Freeze: 2026-07-29 formal Final Reviewのinitial broad audit完了で発効
+- fresh Sonnet Final ReviewはP1=0 / P2=0 / P3=0でApprove。追加findingなし。
