@@ -23,6 +23,7 @@ Narrative（append-only）:
 - 2026-07-28 Codex independent preflight（正式Sonnet review前）: P1=0 / P2=3 / P3=1。全件をCoordinatorが再実測してacceptし、FE test `UI-11a` token + traceability T4 check、manifest/lock/source-doc各面の独立mutation、component一覧の非網羅性明示、version表記を是正した。正式Plan Gateは未収束。
 - 2026-07-28 formal Plan Review（Sonnet 5独立fresh context、ownerがlane別terminalでrelay）: P1=0 / P2=0 / P3=1、Verdict Approve。P3のG1注入形具体化をacceptし、MatrixへZod/radix-uiの個別root dependency削除を追記した。P3-only明確化のためre-review不要。relay 1/2。
 - 2026-07-28 plan-gate -> plan-approved -> implementing（state-only compression）: formal Plan ReviewerがP1/P2=0を報告し、plan-first `eeeae9e` は実装commitより前に存在する。preflight是正 `aff70e7` とreview P3明確化 `5ea661f` は上記Narrativeどおり。`Plan Commit`を`eeeae9e`へ固定し、本state-only commit後にWriter実装を許可する。
+- 2026-07-28 Draft PR #32後のCodex review-only preflight: P1=0 / P2=1 / P3=1、Verdict Request changes。P2は `docs/ARCHITECTURE.md` 第7段階の `RHF/Zod` が `UI-FORM-D1` と矛盾し、既存contract testもこのactive source-doc driftを検出しないこと。Coordinatorがrepo-wide検索でlive hit 1件を再現してacceptした。P3はPR bodyの閾値test path誤記で、実在pathの13 test greenを再測定後にbodyだけ訂正済み。P2はScope拡張を伴うため実装を停止し、gated Amendment 1としてArchitecture同期、contract assertion、X11を追加してformal amendment reviewへ戻す。
 
 ## Owner Effort Budget
 
@@ -35,7 +36,7 @@ Narrative（append-only）:
 
 Risk: R2
 
-production consumer 0の孤立UI wrapperと、そのwrapper専用dependency、設計正本の採用表記だけを退役する。runtime behavior、route、wire、DBは変えないためR2。ただし `UI_TECH_STACK.md` を変更するため hosted CIはrequiredとする。
+production consumer 0の孤立UI wrapperと、そのwrapper専用dependency、設計正本の採用表記だけを退役する。runtime behavior、route、wire、DBは変えないためR2。ただし `UI_TECH_STACK.md` と `ARCHITECTURE.md` のactive source-doc契約を変更するため hosted CIはrequiredとする。
 
 Rollbackはlane implementation commitのrevertで可能。永続データ・cache・wire互換への影響はない。
 
@@ -47,7 +48,7 @@ Goal Invariant: productionで使われていない `DropdownMenu` / `RadioGroup`
 
 - `src/components/ui/{dropdown-menu,form,radio-group}.tsx` が存在しない
 - `package.json` / `package-lock.json` に直接dependency `@hookform/resolvers` / `react-hook-form` が存在しない
-- `docs/UI_TECH_STACK.md` の採用表、component一覧、§2.7が `UI-FORM-D1` と一致する
+- `docs/UI_TECH_STACK.md` の採用表、component一覧、§2.7と `docs/ARCHITECTURE.md` 第7段階の技術スタック表記が `UI-FORM-D1` と一致する
 - 構造契約testと既存UI-11a test、frontend gateがgreen
 
 ### 失敗定義
@@ -70,6 +71,7 @@ Goal Invariant: productionで使われていない `DropdownMenu` / `RadioGroup`
 - update: `package.json` / `package-lock.json`（直接dependency 2件だけを退役）
 - add: `src/lib/ui-form-dependency-contract.test.ts`（`UI-11a` token付き。孤立wrapper/dependency/採用正本の再導入防止）
 - source design: `docs/UI_TECH_STACK.md` `UI-FORM-D1`
+- source architecture: `docs/ARCHITECTURE.md` 第7段階のフォーム技術スタック表記を `feature-local controlled state + Zod` へ同期
 - regression: UI-11a threshold tests + frontend full gate
 - packet / Matrix（state更新はCoordinatorのみ）
 
@@ -83,17 +85,17 @@ Goal Invariant: productionで使われていない `DropdownMenu` / `RadioGroup`
 
 ## Acceptance Criteria
 
-- `npm test -- src/lib/ui-form-dependency-contract.test.ts` green: wrapper 3file不在、manifest/lock rootの直接dependency 2件不在、`UI-FORM-D1` anchor存在
+- `npm test -- src/lib/ui-form-dependency-contract.test.ts` green: wrapper 3file不在、manifest/lock rootの直接dependency 2件不在、`UI-FORM-D1`とArchitecture技術スタックのexact anchor存在
 - `npm test -- src/features/threshold-settings/ThresholdSettingsPage.test.tsx` green
 - `cd src-tauri && cargo run --bin generate_traceability -- --check` PASS（新規testの `UI-11a` tokenによりFE未参照baseline 22を維持）
 - `npm run typecheck && npm run lint && npm run format:check && npm test && npm run build` PASS
 - `bash scripts/doc-consistency-check.sh` PASS、`bash scripts/local-ci.sh full` CLEAN
-- Matrix X1〜X10をcommit済みclean treeで注入→red→復元→greenし、Coordinatorが独立再実測する
+- Matrix X1〜X11をcommit済みclean treeで注入→red→復元→greenし、Coordinatorが独立再実測する
 
 ## Design Sources
 
 - Requirements / spec: 挙動変更なし
-- Architecture: `docs/UI_TECH_STACK.md` §2.3 / §2.7 (`UI-FORM-D1`)
+- Architecture: `docs/UI_TECH_STACK.md` §2.3 / §2.7 (`UI-FORM-D1`) + `docs/ARCHITECTURE.md` 第7段階
 - Function / command / DTO: `docs/function-design/69-ui-threshold-settings.md` §69.4 / §69.7
 - DB: 該当なし
 - Screen / UI: UI-11a実装と既存test（挙動不変oracle）
@@ -103,7 +105,7 @@ Goal Invariant: productionで使われていない `DropdownMenu` / `RadioGroup`
 
 | Area touched by upcoming work | Required source doc / artifact | Status |
 |---|---|---|
-| Frontend dependency / standard component boundary | `docs/UI_TECH_STACK.md` | updated in plan-first scaffolding (`UI-FORM-D1`) |
+| Frontend dependency / standard component boundary | `docs/UI_TECH_STACK.md` + `docs/ARCHITECTURE.md` | UI-FORM-D1へ同期（Architectureはgated Amendment 1で追加） |
 | Existing operator form behavior | `docs/function-design/69-ui-threshold-settings.md` | existing sufficient、変更なし |
 | Backend / command / DTO / DB / CSV | 該当なし | intentionally not applicable |
 | Durable decision / ADR | UI stack source decision | `UI-FORM-D1`へ昇格済み |
@@ -116,12 +118,12 @@ Goal Invariant: productionで使われていない `DropdownMenu` / `RadioGroup`
 
 | Spec / requirement ID | Source design doc section | Decision ID | Why / rejected alternatives | Implementation target | Test target |
 |---|---|---|---|---|---|
-| P6-1 | UI_TECH_STACK §2.3 / §2.7 | UI-FORM-D1 | consumer 0のwrapperを採用候補として常設しない。RHF採用は横断移行を伴いS是正を逸脱 | wrapper 3file、package files | structural contract test |
+| P6-1 | UI_TECH_STACK §2.3 / §2.7 + ARCHITECTURE 第7段階 | UI-FORM-D1 | consumer 0のwrapperを採用候補として常設しない。RHF採用は横断移行を伴いS是正を逸脱 | wrapper 3file、package files、Architecture stack表記 | structural contract test |
 | UI-11a | 69 §69.4 / §69.7 | 既存controlled form契約 | 現行useState + errors + Zodを維持 | production code非変更 | ThresholdSettingsPage tests |
 
 ## Design Intent Audit
 
-- Source docs can answer what/why: `UI-FORM-D1` が採用境界、再評価条件、非採用wrapperを明記する。
+- Source docs can answer what/why: `UI-FORM-D1` が採用境界、再評価条件、非採用wrapperを明記し、Architectureの段階表も同じ現行技術スタックを指す。
 - Plan-only durable decisions: なし。フォーム方針はUI_TECH_STACKへ昇格済み。
 - Assumptions: fresh `rg` で3wrapperのproduction consumer 0、RHF importは孤立Formのみ、resolver import 0。
 - Deferred gaps: 将来、複雑な動的反復fieldまたは実測performance問題が出た場合のlibrary再評価だけ。
@@ -140,7 +142,7 @@ Goal Invariant: productionで使われていない `DropdownMenu` / `RadioGroup`
 ## Design Readiness
 
 - Existing design sufficient: 69とproduction implementationはcontrolled state + Zodで一致。
-- Source docs updated: UI_TECH_STACKの誤ったRHF採用記述と未使用component一覧を `UI-FORM-D1` へ同期。
+- Source docs updated: UI_TECH_STACKの誤ったRHF採用記述と未使用component一覧、Architecture第7段階の旧RHF表記を `UI-FORM-D1` へ同期。
 - Layer ownership: frontend-only、UI wrapper/dependency境界内。
 - Command/DTO/persistence/error/operator wording: 全て不変。
 - Testability: static structural oracle + existingbehavior regressionで分離。
@@ -160,14 +162,14 @@ R2だがmutation oracleを明確にするため記載する。
 | UI-FORM-D1-B RHF専用dependency退役 | package.json / lock | structural contract test | L3なし |
 | UI-FORM-D1-C Zod/radix-ui維持 | manifests + existing source | contract test + typecheck | active componentsはnon-scope |
 | UI-11a挙動不変 | threshold feature | existing ThresholdSettingsPage tests | L3なし |
-| source doc同期 | UI_TECH_STACK | anchor assertion + docs check | — |
+| source doc同期 | UI_TECH_STACK + ARCHITECTURE | 各面のexact anchor assertion + docs check | — |
 | WF-TRACE-04 FE test baseline | new contract test | `generate_traceability -- --check` | 90再生成なし |
 
 ## Test Plan
 
 - Matrix: [test-matrices/2026-07-28-unused-ui-wrapper-dependencies.md](test-matrices/2026-07-28-unused-ui-wrapper-dependencies.md)
 - targeted: structural contract test、ThresholdSettingsPage test
-- negative: wrapper、manifest/lock root dependency、採用表、component例、§2.7旧肯定文の各独立再導入
+- negative: wrapper、manifest/lock root dependency、採用表、component例、§2.7旧肯定文、Architecture旧RHF stack表記の各独立再導入
 - compatibility: Zod/radix-uiが残りfrontend build成功
 - data safety: 永続データ非接触
 - main wiring: production import graph 0をrepo-wide sweep
@@ -181,7 +183,7 @@ R2だがmutation oracleを明確にするため記載する。
 - direct dependencyだけを削除し、active `radix-ui` / Zodを巻き込まないこと
 - structural testがproduction sourceから期待値を導出せず、3file/2dependencyを独立列挙すること
 - lockfile transitive package残存をfalse failureにしないこと
-- UI_TECH_STACKと69の方針が再び分裂していないこと
+- UI_TECH_STACK、ARCHITECTURE、69の方針が再び分裂していないこと
 
 ## Spec Contract
 

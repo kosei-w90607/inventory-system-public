@@ -9,7 +9,7 @@ Risk: R2
 - C1: 対象wrapper 3fileが退役し再導入されない
 - C2: RHF専用direct dependency 2件がmanifest/lockへ再導入されない
 - C3: Zodと`radix-ui`は現役dependencyとして維持される
-- C4: UI_TECH_STACKが `UI-FORM-D1` を採用正本とし、RHF/Form/DropdownMenu/RadioGroupを標準component扱いしない
+- C4: UI_TECH_STACKとARCHITECTUREが `UI-FORM-D1` を採用正本とし、RHF/Form/DropdownMenu/RadioGroupを現行標準component/stack扱いしない
 - C5: UI-11aのcontrolled state + Zod behaviorは不変
 - C6: 新規FE testが `UI-11a` tokenを持ち、WF-TRACE-04未参照baseline 22を増やさない
 
@@ -18,7 +18,7 @@ Risk: R2
 - F1: 孤立export moduleが復活し、noUnusedLocalsを通過する
 - F2: consumer 0のdependencyが保守対象へ復活する
 - F3: lockfile transitive packageをdirect adoptionと誤認してactive `radix-ui`まで削る
-- F4: source docがRHF採用を再掲し、69/implementationとの分裂が戻る
+- F4: active source docがRHF採用を再掲し、UI_TECH_STACK/ARCHITECTURE/69/implementationの分裂が戻る
 - F5: cleanupがthreshold validation/save behaviorへ波及する
 
 ## Test Matrix
@@ -28,7 +28,7 @@ Risk: R2
 | C1 | F1 | static (vitest) | `ui-form-dependency-contract.test.ts` wrapper absence | 3fileのいずれかが存在 | X1/X2/X3: 各fileを最小stubで復元してred |
 | C2 | F2 | static (vitest) | 同testのmanifest/lock root direct dependency assertion | `@hookform/resolvers` または `react-hook-form` がroot direct dependencyとして復活 | X4/X5: 各dependencyをmanifestへ復元、X6/X7: lock rootへ各dependencyだけを復元して個別red |
 | C3 | F3 | static + build | 同testの`zod` / `radix-ui` presence、typecheck/build | active dependencyを巻き添え削除 | G1a: package.json rootから`zod`だけを削除、G1b: `radix-ui`だけを削除し、各presence assertionを個別red |
-| C4 | F4 | static + docs | 採用表row、主要component例block、`UI-FORM-D1`定義bulletを正本から導出しないexact anchorで個別検査 | source docの一面だけが旧採用へ戻る | X8: 採用表row、X9: component例blockへtarget wrapper、X10: §2.7旧RHF肯定文を個別復元してred |
+| C4 | F4 | static + docs | 採用表row、主要component例block、`UI-FORM-D1`定義bullet、Architecture第7段階stack行を正本から導出しないexact anchorで個別検査 | source docの一面だけが旧採用へ戻る | X8: 採用表row、X9: component例blockへtarget wrapper、X10: §2.7旧RHF肯定文、X11: Architecture stack行を`RHF/Zod`へ個別復元してred |
 | C5 | F5 | regression | `ThresholdSettingsPage.test.tsx` | validation、save、field error behaviorが変化 | existing suite red |
 | C6 | — | generator check | `cargo run --bin generate_traceability -- --check` | new testにREQ/UI tokenがなくT4 baselineが22→23 | G2: `UI-11a` tokenを除去してT4 red |
 
@@ -47,6 +47,7 @@ Cleanup自体はruntime stateを持たない。lifecycleは「既存UI-11a挙動
 | target wrapper imports | `src/` repo-wide | 退役対象3file | 他UI primitiveは順19外 | rg + structural test |
 | RHF/resolver imports | repo-wide | 退役 | Zodはactive consumer多数 | rg + package assertions |
 | controlled form | threshold feature + 69 | 変更なし | 他画面の横断再設計なし | existing tests |
+| active form stack wording | UI_TECH_STACK + ARCHITECTURE + 69のrepo-wide RHF表記 | UI-FORM-D1へ同期 | archive / plans / researchは履歴または作業証跡 | exact anchors + live-doc rg |
 
 ## Negative Paths
 
@@ -81,7 +82,7 @@ Cleanup自体はruntime stateを持たない。lifecycleは「既存UI-11a挙動
 
 - wrapper 3件を個別に戻すX1〜X3で、each-file absence assertionが個別redになるか
 - dependency 2件をmanifestへ個別に戻すX4/X5、lock rootだけへ戻すX6/X7で各面が個別redになるか
-- 採用表、主要component例block、§2.7肯定文を個別に戻すX8〜X10で各source-doc assertionがredになるか
+- 採用表、主要component例block、§2.7肯定文、Architecture第7段階stack行を個別に戻すX8〜X11で各source-doc assertionがredになるか
 - active Zod/radix-uiをroot dependencyから個別に誤削除するG1a/G1bで、各presence assertionがredになるか
 - `UI-11a` tokenを除いたG2でtraceability T4がredになるか
 - 既存UI testだけでは孤立module再導入をkillできないため、structural oracleを代替せず併用しているか
