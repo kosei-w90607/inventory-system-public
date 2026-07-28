@@ -15,6 +15,7 @@ Risk: R2（tricky、packetと同値）
 - C7: generic componentはdaily/monthlyのdomain型をimportせず、各consumer固有の `SortColumn` unionを型安全に受ける
 - C8: catalog / 56 / 57がcanonical path、props、consumer列集合で一致する
 - C9: P1-3 / P1-4のfile footprintへ触れず、順21全体を完了扱いしない
+- C10: active test commentがcanonical shared ownerを現在形で示し、inline三重定義を将来課題として残さない
 
 ## Failure Modes
 
@@ -27,6 +28,7 @@ Risk: R2（tricky、packetと同値）
 - F7: extraction時のimport cleanupでButton props/classまたはTableHead構造が変わる
 - F8: source docsがinline ownershipまたは異なるconsumer列集合を示す
 - F9: refactorがP1-3/P1-4、sort algorithm、route/searchへ拡張する
+- F10: live commentがinline三重定義または将来の別PRでの共通化を示し続ける
 
 ## Test Matrix
 
@@ -41,6 +43,7 @@ Risk: R2（tricky、packetと同値）
 | C7 | F6 | compile gate | `npm run typecheck`、3 consumerが各feature `SortColumn`を渡す | shared componentがdomain型へ依存、`any`化、callback variance破綻 | invalid daily-only column type importをshared propsへ固定してtypecheck red |
 | C8 | F8 | docs gate + review | catalog §③ / 56 §56.7 / 57 §57.7 exact canonical pathと列数 | source docsが分裂 | canonical pathまたは列数の1 anchorを旧記述へ戻してdocs/review red |
 | C9 | F9 | diff footprint | `git diff --name-only`がpacket Scope内だけ | P1-3/P1-4やroute/searchへ波及 | out-of-scope path出現でreview red |
+| C10 | F10 | live wording sweep | archive / researchを除く`SortableHeader` comment / docsをrepo-wide `rg` | canonical化前の状態を未完了の将来として残す | `MonthlySalesPage.test.tsx`の旧commentが残ればred |
 
 ## Characterization Baseline
 
@@ -117,6 +120,7 @@ query / retry / persistence lifecycleは非接触のため、header render + cli
 
 - 既存daily/monthly `SortColumn` unionとcallback signatureを変更しない
 - 既存3 container testを削除・skip・期待緩和せず、抽出前characterizationを維持する
+- `MonthlySalesPage.test.tsx`は冒頭commentだけをcanonical shared ownerの現在形へ同期し、test logic / assertion / importを変更しない
 - table列順、sort algorithm、URL search、表示文言、Button / TableHead DOMを変更しない
 - `src/lib/bindings.ts`、`src/routeTree.gen.ts`、`docs/function-design/90-traceability.md` はdiff 0
 
@@ -131,6 +135,7 @@ query / retry / persistence lifecycleは非接触のため、header render + cli
 - 3 consumerがshared componentを実importし、container testがconsumer経由でshared DOM / callbackを通る
 - shared component直importだけのtestでconsumer wiringを代替しない
 - G1でcanonical implementation 1件とlocal implementation 0件を確認する
+- archive / researchを除くlive wording sweepで、inline三重定義と将来の別PR表現が残らないことを確認する
 
 ## Mutation-style Adequacy Questions
 

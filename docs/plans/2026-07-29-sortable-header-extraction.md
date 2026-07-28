@@ -20,13 +20,14 @@ Narrative（append-only）:
 
 - 2026-07-29 kickoff -> spec-check -> design -> plan-draft: ownerがwave 3候補のうち順21を再分解し、P1-1 `SortableHeader` 抽出だけをlane 3として選定した（本lane介入1/3）。Coordinatorのread-only footprint auditにより、P1-1 / P1-3 / P1-4は別々のsource contract・file footprint・Riskを持つため、順21を単一correction unitとして扱わない。P1-3 record detail shell / `returnTo` とP1-4 request基盤helperは本laneの非scopeであり、順21完了扱いにしない。
 - 2026-07-29 plan-draft -> plan-gate: Packet / Matrix / `UI-TABLE-D1`を完成し、3 consumerの現行DOM / ARIA / callbackと3 lane footprint分離をCoordinatorが確認した。plan-first content commitで固定し、fresh Sonnet Plan Reviewへ進む。
+- 2026-07-29 formal Plan Review（Sonnet 5 fresh context、owner relay）: P1=0 / P2=1 / P3=0。P2-1は`MonthlySalesPage.test.tsx`のlive commentがinline三重定義と将来の別PRを記したままで、P1-1完了後に陳腐化するScope漏れ。production/test logicは変えず、同fileのcomment-only同期とlive wording sweepをScope / Matrixへ追加してplan-gate closure reviewへ戻す。
 
 ## Owner Effort Budget
 
 - 介入回数上限: 3
 - 実働時間上限: 30分
 - relay往復上限: 2
-- 現況: 介入1/3（wave 3 / lane 3 / 順21a選定）、relay 0/2
+- 現況: 介入1/3（wave 3 / lane 3 / 順21a選定）、relay 1/2
 
 ## Risk
 
@@ -87,6 +88,8 @@ production footprintは次の新規1file + 既存3tableだけとする。test / 
   - `src/features/monthly-sales/components/DepartmentTable.test.tsx`
   - `src/features/monthly-sales/components/ProductRankingTable.test.tsx`
   - container import経由でclick payload、active/inactive `aria-sort`、indicator、right alignmentを固定する。shared component直import専用testは新設しない
+- update comment only: `src/features/monthly-sales/MonthlySalesPage.test.tsx`
+  - inline三重定義と将来の別PRを述べる冒頭commentを、canonical shared ownerを現在形で参照する記述へ同期する。test logic / assertion / importは変更しない
 - source design updates:
   - `docs/design-system/02-component-catalog.md` §③ table: sortable header canonical / props / accessibility variant
   - `docs/function-design/56-ui-daily-sales.md` §56.7: 日次5列がcanonical componentを使うこと
@@ -95,7 +98,7 @@ production footprintは次の新規1file + 既存3tableだけとする。test / 
 
 ## Non-scope
 
-- `src/features/daily-sales/` と `src/features/monthly-sales/` の上記3 production file・3 test file以外
+- `src/features/daily-sales/` と `src/features/monthly-sales/` の上記3 production file・3 test file、および`MonthlySalesPage.test.tsx`のcomment-only同期以外
 - `src/components/sales/TabsHeader.tsx` とそのtest
 - `src/components/ui/{table,button}.tsx`
 - sales sort helper、page/hooks/types、route files、`src/routeTree.gen.ts`
@@ -108,6 +111,7 @@ production footprintは次の新規1file + 既存3tableだけとする。test / 
 
 - `rg -n '^(interface SortableHeaderProps|function SortableHeader)' src/features/daily-sales/components/ProductTable.tsx src/features/monthly-sales/components/DepartmentTable.tsx src/features/monthly-sales/components/ProductRankingTable.tsx` がhit 0
 - `rg -n 'SortableHeader' src/components/sales/SortableHeader.tsx` と3 consumerのimport/useを目視し、implementation定義がcanonical file 1箇所だけ
+- archive / researchを除くlive treeで、inline三重定義や将来の別PRでの共通化を示す`SortableHeader` wordingが0件
 - `npm test -- src/features/daily-sales/components/ProductTable.test.tsx src/features/monthly-sales/components/DepartmentTable.test.tsx src/features/monthly-sales/components/ProductRankingTable.test.tsx` PASS
 - 既存testで日次5列 / 月次部門3列 / 月次商品4列のclick payload、active/inactive `aria-sort`、`▲` / `▼`、右寄せheaderを観測可能なassertionで固定
 - frontend gateは `npm run typecheck` → `npm run lint` → `npm run format:check` → `npm test` → `npm run build` の順に逐次実行し、route generationを共有するcommandを並列実行しない。全command PASS
@@ -219,6 +223,7 @@ tricky R2のため記載する。
 
 - shared propsが `<T extends string>` で、daily/monthlyのdomain `SortColumn`をunion拡張せず保持すること
 - 3 consumer全てがcanonical importへ移り、local implementationが残らないこと
+- active code / test / docsの`SortableHeader` wordingがcanonical化後の現在形と一致し、過去のinline三重定義を未完了の将来として残さないこと
 - `aria-sort`を`TableHead`に置き、active asc/descとinactive noneが抽出前と同じこと
 - indicatorが装飾として `aria-hidden="true"` のまま、visible `▲` / `▼` が同じこと
 - right alignment、Button `type/variant/size/class`、callback payloadが不変なこと
