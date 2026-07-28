@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: implementing
+- Phase: local-verified
 - Risk: R3
 - Execution Mode: dual-vendor-no-fable
 - Plan Commit: dc4aa1b
@@ -32,13 +32,24 @@ Narrative（append-only）:
 Rebase Map: 970e42eef875d2eba608c35b14bf3a165f5a000e -> 3618cb0cce615f3c878d44642a918c7683deef50
 - 2026-07-29 Amendment実装再開: 承認された狭いScopeどおり、51 §7.1/§7.4とSCREEN_DESIGNのUI-01b generated command statusだけを現在形へ同期した。wire実装、UI、DB、command登録、bindingsは変更していない。
 - 2026-07-29 Amendment実装closure: archive / plans / researchを除くlive source wording sweepは旧未来形0件。X8として51の`updateProduct`を`generated 未対応`へ戻すと同guardがredになり、復元後greenを再確認した。影響familyはRust serde 2件、frontend 3 file / 20件、typecheck / lint / format、plan consistencyがgreen。
+- 2026-07-29 owner conditional train authorization（介入2/3・3/3）: ownerはFormal Final Review P1/P2=0を条件にReady遷移を介入2/3、同一HEADのlocal / hosted / PR三点一致とmerge CLEANを条件にmergeを介入3/3として承認した。追加owner判断は不要だが、各preconditionとper-lane merge gateは省略しない。
+- 2026-07-29 implementing -> local-verified -> independent-review（state-only compression）: content candidate `5f42343e0cbf7efd52014e32acd5d310215114f2`でexact-HEAD L1 fullがCLEAN / PASSとなり、Draft PR #36 bodyへ証跡を記録した。Formal Sonnet Final Reviewerへ同content candidateのread-only reviewをrelayし、wave 3 merge train最後のlaneとしてindependent-reviewへ進む。
+- 2026-07-29 formal Final Review（Sonnet 5 fresh context、owner relay）: Verdict Changes required、P1=0 / P2=1 / P3=0。wire / generated binding / frontend patch contractは適合したが、Contract Coverage Ledgerが主張するUI-01b live wording sweepは一度きりの手動mutationに留まり、repositoryに残る自動回帰guardが存在しなかった。P2-1をacceptし、既存frontend contract testへの狭い追加だけに限定してWriterを再開する。relay 3/3。
+- 2026-07-29 independent-review -> implementing（state-backtrack）: Formal Final Review P2-1 closureのため実装へ戻る。51 §7.1/§7.4とSCREEN_DESIGNのUI-01b 4 commandだけを対象に、旧未来形 / generated未対応wordingを検知するdurable testを追加し、旧文言注入RED・復元GREENを確認する。wire / UI / DB / command登録と他lane契約は変更しない。
+- 2026-07-29 P2-1実装closure: 既存`product-update-patch-contract.test.ts`が51 §7.1〜§7.4とSCREEN_DESIGNの商品登録・修正画面sectionを直接読み、4 commandすべての現在statusと旧未来形 / `generated 未対応`不在を自動検証するようにした。51の`updateProduct`を`generated 未対応`へ注入してtargeted testがred、復元後greenを確認し、手動grepだけだったX8をdurable regression guardへ昇格した。
+- 2026-07-29 implementing -> local-verified: content candidate `9bcf940e4432c7602242be2da26dbf64a93cf6b7`でexact-HEAD L1 fullがCLEAN / PASS。Rust 753 tests、frontend 112 files / 781 tests、generated bindings diff 0、traceability ERROR 0 / WARN 0、build green。既知npm audit 9件はwarn-only。P2-1 closure-only reviewに必要なrelay 4/4は未承認のため、ownerの今回限り上限拡張をHuman Gateとして待つ。
+- 2026-07-29 owner relay budget exception: ownerがP2-1 closure-only reviewのためrelay上限を3回から4回へ今回限り拡張した。追加1回は同じFinal Reviewerによる既存P2-1の解消確認だけに使い、新規Broad Audit・P3探索・任意の証跡追加には使わない。
+- 2026-07-29 local-verified -> independent-review: Reviewed Content HEADを`9bcf940e4432c7602242be2da26dbf64a93cf6b7`へ固定し、Sonnet 5 / xHighへP2-1 closure-only reviewをrelayする。P1/P2=0なら既承認の条件付きReady / hosted final / merge gateへ復帰する。
+- 2026-07-29 formal Final Review P2-1 closure（同Final Reviewer、Sonnet 5 / xHigh、owner relay）: 元のP2-1はcontent面で解消済み。Closure Verdictはincomplete、P1=0 / P2=1 / P3=1。新規P2はCoordinatorが再実装後のforward stateを2つのstate-only commitへ分割し、STATECAP post-implementation上限を超えたこと。P3は51 §7.1のD3旧未来形をbare command名で復元するとline filterから漏れてfalse-greenになること。relay 4/4。
+- 2026-07-29 closure adjudication: P2 / P3ともaccept。D3を含む対象section全体へnegative stale-wording oracleを適用し、bare commandの旧未来形注入でred、復元後greenを確認した。STATECAPは追加commitで逃げず、最初のFinal Review遷移以降のDraft branch履歴をcompression ruleどおり1つのcontent commitへ訂正し、review後の正規state-only枠を温存する。
+- 2026-07-29 owner history correction / relay exception: ownerがDraft PR #36 branchだけを対象とする履歴圧縮と`--force-with-lease`、および再closure用relay上限5を承認した。旧`48afc21`〜`a555f4b`の5 commitは、P2/P3修正と監査Narrativeを保持した単一content commitへ圧縮する。追加relayは同Final ReviewerによるSTATECAP / D3 closure確認だけに使う。
 
 ## Owner Effort Budget
 
 - 介入回数上限: 3
 - 実働時間上限: 30分
-- relay往復上限: 3（既定2から今回限り拡張。Plan Review / gated Amendment Review / Final Review）
-- 現況: 介入1/3、relay 2/3
+- relay往復上限: 5（既定2から段階的に今回限り拡張。Plan Review / gated Amendment Review / Final Review / P2-1 closure Review / STATECAP・D3 closure Review）
+- 現況: 介入3/3（wave選定、条件付きReady承認、条件付きmerge承認）、relay 4/5（次の1往復をSTATECAP・D3 closure-only Reviewに限定）
 
 ## Risk
 
@@ -157,7 +168,7 @@ Coordinatorがexact baseline `818352f`の隔離worktreeで`ProductUpdateRequest`
 | UI-01b-D5 changed-only/read-only不送信 | builder | exact payload tests | L3なし |
 | BIZ-01 §4.4 update副作用不変 | existing BIZ path | existing product tests | DB/schema変更なし |
 | CMD-01 error/response不変 | generated command call | existing page/command regression | cmd source非変更 |
-| UI-01b generated command status | 51 §7.1/§7.4 + `SCREEN_DESIGN.md` UI-01b | live wording sweep + bindings presence | command登録・生成自体は不変 |
+| UI-01b generated command status | 51 §7.1/§7.4 + `SCREEN_DESIGN.md` UI-01b | `product-update-patch-contract.test.ts`のsection限定live wording sweep + bindings presence | command登録・生成自体は不変 |
 
 ## Test Plan
 
@@ -211,10 +222,12 @@ synthetic product/JSONだけを使う。実店舗DB、価格/原価data、log、
 - frontend builderはgenerated `ProductUpdateRequest_Deserialize`を直接返し、手書き`Partial`と保存時castを除去した。changed-field-only payloadとsupplier / makerのclear/valueを既存・専用testで固定した。
 - gated Amendment 1に従い、51 §7.1/§7.4とSCREEN_DESIGNのUI-01b command statusを現行generated bindingへ同期した。command登録、UI表示、DB、BIZ更新挙動は不変。
 - Amendment実装後の影響family検証とX8 mutationを完了し、旧未来形のlive source hitは0件。
+- Formal Final Review P2-1 closureとして、同じ2 source sectionと4 commandを直接読むdurable frontend contract testを追加した。旧`generated 未対応`注入でred、復元後greenとなり、将来のwording driftをL1 frontend gateで検知できる。
+- Closure Review P3に対し、negative stale-wording oracleを各command lineだけでなく対象section全体へ拡張した。51 §7.1 D3のbare command旧未来形も自動検知する。
 
 ## Review Response
 
-- Findings Freeze: formal Final Reviewのinitial broad audit完了時に発効予定
+- Findings Freeze: 2026-07-29 formal Final Reviewのinitial broad audit完了。P2-1 closure reviewは同findingの解消確認だけに限定し、新規Broad Auditを行わない
 - Plan Review: Approve（P1=0 / P2=0 / P3=1）
 - Gated Amendment 1: Approve（P1=0 / P2=0 / P3=0、Writer再開可）
-- Final Review: pending
+- Final Review: Closure incomplete（元P2-1 content closure済み、新規P2=1 / P3=1をaccept・実装訂正済み。再closure pending）
