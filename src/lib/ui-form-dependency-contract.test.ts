@@ -22,6 +22,8 @@ const EXPECTED_UI_FORM_DECISION =
   "- 複数fieldの相関、数値範囲、設定値などschema検証が有効な箇所では Zod 4 を併用する。schemaは利用するfeature配下に置き、CMD DTOとの概念整合を保つ。\n" +
   "- React Hook Form と shadcn/ui `Form` wrapper は現行repoでは採用しない。DropdownMenu / RadioGroup wrapperもproduction consumerがないため標準部品として残さない。\n" +
   "- 複雑な動的反復fieldや再レンダ問題が実測された場合だけ、対象画面のDesign Phaseでフォームlibrary導入を再評価する。将来候補を先にdependency/wrapperとして常設しない。";
+const EXPECTED_ARCHITECTURE_STACK =
+  "  技術スタック導入（Tailwind CSS 4 + shadcn/ui + TanStack + Zustand + feature-local controlled state + Zod）";
 
 interface PackageManifest {
   dependencies?: Record<string, string>;
@@ -77,5 +79,11 @@ describe("UI-11a UI-FORM-D1 dependency contract", () => {
     expect(source).toContain(EXPECTED_ADOPTION_ROW);
     expect(source).toContain(EXPECTED_COMPONENT_EXAMPLES);
     expect(source).toContain(EXPECTED_UI_FORM_DECISION);
+  });
+
+  it("keeps the Architecture stack synchronized with UI-FORM-D1", () => {
+    const source = readFileSync(join(REPO_ROOT, "docs/ARCHITECTURE.md"), "utf8");
+
+    expect(source).toContain(EXPECTED_ARCHITECTURE_STACK);
   });
 });

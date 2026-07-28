@@ -227,7 +227,7 @@ REQ-403（POS 部門別売上照合）は UI-13 / REQ-904 の在庫整合性と�
   IO-06（画像管理）
 
 第7段階: UI基盤構築（Phase 1）
-  技術スタック導入（Tailwind CSS 4 + shadcn/ui + TanStack + Zustand + RHF/Zod）
+  技術スタック導入（Tailwind CSS 4 + shadcn/ui + TanStack + Zustand + feature-local controlled state + Zod）
   UI-12（共通レイアウト）→ ルーティング → invokeラッパ + TanStack Query基盤
   横断UI要素テンプレート（Toast/Dialog/空状態/エラー状態）
   （v0.7.0-ui-foundation タグ）
