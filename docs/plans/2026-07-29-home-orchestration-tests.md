@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: implementing
+- Phase: ready-hosted-final
 - Risk: R2
 - Execution Mode: dual-vendor-no-fable
 - Plan Commit: dc4aa1b
@@ -11,10 +11,10 @@
 - Writer: Codex（plan-approved後の別session / worktree、lane 1 branchへpin）
 - Plan Reviewer: Sonnet 5 fresh context（owner relay、read-only、実装非関与）
 - Final Reviewer: Sonnet 5 fresh context（Plan Reviewerとは別fresh context、owner relay、read-only）
-- Reviewed Content HEAD: pending
+- Reviewed Content HEAD: 6fb3e6738dfc327556ec200d44e03708c9a5ec41
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
-- Human Gate: wave batch Ready承認、lane merge承認（lane選定は介入1/3で完了）
+- Human Gate: none
 
 Narrative（append-only）:
 
@@ -22,13 +22,19 @@ Narrative（append-only）:
 - 2026-07-29 plan-draft -> plan-gate: Packet / Matrix / `UI-00-D11`を完成し、3 lane footprint分離、Workflow State 13 field、Prettier、plan consistencyをCoordinatorが確認した。plan-first content commitで固定し、fresh Sonnet Plan Reviewへ進む。
 - 2026-07-29 formal Plan Review（Sonnet 5 fresh context、owner relay）: Verdict Approve、P1=0 / P2=0 / P3=1。P3のHomePage Router harness明確化は、既存`MonthlySalesPage.test.tsx`の前例どおりrouter依存子component 4件をnull mockするWriter handoffとしてacceptし、Plan contract変更と再reviewは不要と裁定した。`53-ui-home.md`の既存pending route記述は順18の別driftとして本laneからdefer。relay 1/2。
 - 2026-07-29 plan-gate -> plan-approved -> implementing（state-only compression）: 独立Plan ReviewerがP1/P2=0を報告し、plan-first `dc4aa1b`は全実装commitより前に存在する。`Plan Commit`を同SHAへ固定し、本state-only commit後にlane 1 Writer実装を許可する。
+- 2026-07-29 lane 3 merge後のtrain rebase: 最新main `214b289`へconflict-free rebaseし、実装commitを`c906305 -> 74140e2`、`b671b8a -> b0f0cbc`へ再配置した。rebase前後のwhole-diff patch-idは`518fcc2c772075933bd095acc563cf94c26a7180`で一致。plan-first `dc4aa1b`はmain上の同一commitとして祖先に残りreplayされていないため、Plan Commit fieldを維持しRebase Mapは不要。
+- 2026-07-29 Codex review-only preflight: P1=0。test実装のScope、production seam、oracle独立性は適合。candidate P2のうちRebase Map要求は上記の同一plan-first SHAを根拠にrejectし、旧full-skip記述の陳腐化だけをacceptして本commitで解消する。P3のFindings Freeze phase注記も同時に同期する。
+- 2026-07-29 implementing -> local-verified -> independent-review（state-only compression）: content candidate `6fb3e6738dfc327556ec200d44e03708c9a5ec41`でexact-HEAD L1 fullがCLEAN / PASSとなり、Draft PR #35 bodyへ証跡を記録した。Formal Sonnet Final Reviewerへ同content candidateのread-only reviewをrelayし、merge train先頭としてindependent-reviewへ進む。
+- 2026-07-29 owner conditional train authorization（介入2/3・3/3）: ownerはFormal Final Review P1/P2=0を条件にReady遷移を介入2/3、同一HEADのlocal / hosted / PR三点一致とmerge CLEANを条件にmergeを介入3/3として承認した。追加のowner判断は不要だが、各preconditionとper-lane merge gateは省略しない。
+- 2026-07-29 formal Final Review（Sonnet 5 fresh context、owner relay）: content candidate `6fb3e6738dfc327556ec200d44e03708c9a5ec41`をread-only監査し、Verdict Approve、P1=0 / P2=0 / P3=0。production変更0、既存test非接触、query / strict境界 / visible rollover / cleanup / warning / 独立toast oracle、L1 evidence、plan-first ancestryを独立確認した。relay 2/2。
+- 2026-07-29 independent-review -> human-confirm -> ready-hosted-final（state-only compression）: Formal Final Review P1/P2=0を根拠に`Reviewed Content HEAD`を固定し、既記録のowner条件付きReady承認を適用した。本state-only commitのexact HEADでL1 fullを再実行し、PR body刷新後にReady化・hosted finalを起動する。同一HEAD三点一致とmerge CLEANを確認できた場合だけ、承認済みmergeを実行する。
 
 ## Owner Effort Budget
 
 - 介入回数上限: 3
 - 実働時間上限: 30分
 - relay往復上限: 2
-- 現況: 介入1/3（wave 3 / lane 1 / 順10選定）、relay 1/2
+- 現況: 介入3/3（wave 3 / lane選定、条件付きReady承認、条件付きmerge承認）、relay 2/2
 
 ## Risk
 
@@ -212,9 +218,11 @@ DB、実CSV、店舗データ、backup、log、receipt、secretへ非接触。sy
 
 ## Implementation Results
 
-（実装時に追記）
+- production TypeScriptを変更せず、`useHomeSummary`、`useYesterdayDate`、`HomePage`の3 test fileを追加した。command boundaryだけをmockし、4 queryの引数/key/独立性、derived境界、visible日付またぎ、warningと2 toastを実hook経由で固定した。
+- targeted test、frontend `typecheck` / `lint` / `format:check` / full test / `build`、traceability、full docs / plan consistencyがPASSした。`90-traceability.md`差分は0。
+- production、既存test、route、bindings、operator-visible UIへの変更は0。lane 3 merge後のmainへrebaseしたことでDS1前提は充足し、exact-HEAD L1 fullをFinal Review前に実行する。
 
 ## Review Response
 
-- Findings Freeze: not in effect（plan-draft）
+- Findings Freeze: not in effect（implementing）
 - tricky R2のためfresh Sonnet Final Reviewを行い、P3-onlyでは再engagementしない。
