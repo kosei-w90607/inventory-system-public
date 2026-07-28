@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: implementing
+- Phase: human-confirm
 - Risk: R2
 - Execution Mode: dual-vendor-no-fable
 - Plan Commit: dc4aa1b
@@ -11,10 +11,10 @@
 - Writer: Codex（plan-approved後の別session / worktree、lane 3 branchへpin）
 - Plan Reviewer: Sonnet 5 fresh context（owner relay、read-only、実装非関与）
 - Final Reviewer: Sonnet 5 fresh context（Plan Reviewerとは別fresh context、owner relay、read-only）
-- Reviewed Content HEAD: pending
+- Reviewed Content HEAD: 8c9e95bbe7dd4937536fba2889bcc0d00462d941
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
-- Human Gate: wave batch Ready承認、lane merge承認（lane選定は介入1/3で完了）
+- Human Gate: lane 3のReady / merge train先頭merge承認（lane選定は介入1/3で完了）
 
 Narrative（append-only）:
 
@@ -23,6 +23,10 @@ Narrative（append-only）:
 - 2026-07-29 formal Plan Review（Sonnet 5 fresh context、owner relay）: P1=0 / P2=1 / P3=0。P2-1は`MonthlySalesPage.test.tsx`のlive commentがinline三重定義と将来の別PRを記したままで、P1-1完了後に陳腐化するScope漏れ。production/test logicは変えず、同fileのcomment-only同期とlive wording sweepをScope / Matrixへ追加してplan-gate closure reviewへ戻す。
 - 2026-07-29 P2-1 closure review（同Plan Reviewer、owner relay）: exact correction `b45a023`のPacket / Matrixだけをread-only確認し、P1=0 / P2=0 / P3=0、closure confirmed。Scope / Non-scope / AC / Review Focus / Matrix C10はcomment-only同期を一意に定め、production・test logic・他lane契約は不変。relay 2/2。
 - 2026-07-29 plan-gate -> plan-approved -> implementing（state-only compression）: 独立Plan ReviewerがP1/P2=0を報告し、plan-first `dc4aa1b`とplan-gate correction `b45a023`は全実装commitより前に存在する。`Plan Commit`を`dc4aa1b`へ固定し、本state-only commit後にlane 3 Writer実装を許可する。
+- 2026-07-29 implementing -> local-verified: reviewed content candidate `8c9e95bbe7dd4937536fba2889bcc0d00462d941`でexact-HEAD L1 fullがCLEAN / PASSとなり、PR bodyへ証跡を記録した。WriterとCoordinatorはMatrix X1〜X5 / G1を独立再実測し、review-only findingのButton `variant` / `size` oracle不足を同content candidateでclosureした。
+- 2026-07-29 local-verified -> independent-review: Draft PR #34のreviewed content candidate `8c9e95bbe7dd4937536fba2889bcc0d00462d941`を、実装非関与のSonnet 5 fresh contextへFormal Final Reviewとしてrelayした。
+- 2026-07-29 formal Final Review（Sonnet 5 fresh context、owner relay）: reviewed content candidateに対してP1=0 / P2=0 / P3=1、Approve。P3はlane branch切出し後にmainへ積まれたworktree registry同期によるbase driftで、WriterのScope違反ではない。Coordinatorはreviewed content commitをrewriteせず保持したまま`origin/main`をmergeし、実装内容不変・reviewed content ancestry維持・Plans registry同期を確認した。
+- 2026-07-29 independent-review -> human-confirm（state-only materialization）: Formal Final ReviewのP1/P2=0とP3 base同期closureを根拠に、`Reviewed Content HEAD`をreviewed content candidateへ設定した。次のHuman Gateはlane 3をmerge train先頭としてReady / mergeへ進めるowner承認。
 
 ## Owner Effort Budget
 
