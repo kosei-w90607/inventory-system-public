@@ -22,6 +22,8 @@ Narrative（append-only）:
 - 2026-07-29 plan-draft -> plan-gate: Packet / Matrix / `UI-00-D11`を完成し、3 lane footprint分離、Workflow State 13 field、Prettier、plan consistencyをCoordinatorが確認した。plan-first content commitで固定し、fresh Sonnet Plan Reviewへ進む。
 - 2026-07-29 formal Plan Review（Sonnet 5 fresh context、owner relay）: Verdict Approve、P1=0 / P2=0 / P3=1。P3のHomePage Router harness明確化は、既存`MonthlySalesPage.test.tsx`の前例どおりrouter依存子component 4件をnull mockするWriter handoffとしてacceptし、Plan contract変更と再reviewは不要と裁定した。`53-ui-home.md`の既存pending route記述は順18の別driftとして本laneからdefer。relay 1/2。
 - 2026-07-29 plan-gate -> plan-approved -> implementing（state-only compression）: 独立Plan ReviewerがP1/P2=0を報告し、plan-first `dc4aa1b`は全実装commitより前に存在する。`Plan Commit`を同SHAへ固定し、本state-only commit後にlane 1 Writer実装を許可する。
+- 2026-07-29 lane 3 merge後のtrain rebase: 最新main `214b289`へconflict-free rebaseし、実装commitを`c906305 -> 74140e2`、`b671b8a -> b0f0cbc`へ再配置した。rebase前後のwhole-diff patch-idは`518fcc2c772075933bd095acc563cf94c26a7180`で一致。plan-first `dc4aa1b`はmain上の同一commitとして祖先に残りreplayされていないため、Plan Commit fieldを維持しRebase Mapは不要。
+- 2026-07-29 Codex review-only preflight: P1=0。test実装のScope、production seam、oracle独立性は適合。candidate P2のうちRebase Map要求は上記の同一plan-first SHAを根拠にrejectし、旧full-skip記述の陳腐化だけをacceptして本commitで解消する。P3のFindings Freeze phase注記も同時に同期する。
 
 ## Owner Effort Budget
 
@@ -213,10 +215,10 @@ DB、実CSV、店舗データ、backup、log、receipt、secretへ非接触。sy
 ## Implementation Results
 
 - production TypeScriptを変更せず、`useHomeSummary`、`useYesterdayDate`、`HomePage`の3 test fileを追加した。command boundaryだけをmockし、4 queryの引数/key/独立性、derived境界、visible日付またぎ、warningと2 toastを実hook経由で固定した。
-- targeted test、frontend `typecheck` / `lint` / `format:check` / full test / `build`、traceability、plan consistencyがPASSした。`90-traceability.md`差分は0。
-- production、既存test、route、bindings、operator-visible UIへの変更は0。Wave 3 lane 3の未実装`SortableHeader.tsx`を参照するDS1のため、Writerは指示どおりchanged/full local CIとfull docs checkを実行せず、plan target checkまでをlane内証跡とした。
+- targeted test、frontend `typecheck` / `lint` / `format:check` / full test / `build`、traceability、full docs / plan consistencyがPASSした。`90-traceability.md`差分は0。
+- production、既存test、route、bindings、operator-visible UIへの変更は0。lane 3 merge後のmainへrebaseしたことでDS1前提は充足し、exact-HEAD L1 fullをFinal Review前に実行する。
 
 ## Review Response
 
-- Findings Freeze: not in effect（plan-draft）
+- Findings Freeze: not in effect（implementing）
 - tricky R2のためfresh Sonnet Final Reviewを行い、P3-onlyでは再engagementしない。
