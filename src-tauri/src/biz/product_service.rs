@@ -1631,7 +1631,7 @@ mod tests {
     }
 
     #[test]
-    fn test_update_product_req102_deserialize_nullable_clear_fields() {
+    fn test_product_update_request_clearable_fields_omitted_null_value_req102() {
         // REQ-102 / PRODUCT-PATCH-D1: clear可能2 fieldは omitted=no update、null=clear、value=set。
         let req: ProductUpdateRequest = serde_json::from_str("{}").unwrap();
         assert_eq!(req.supplier_id, None);
