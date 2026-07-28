@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: human-confirm
+- Phase: ready-hosted-final
 - Risk: R2
 - Execution Mode: dual-vendor-no-fable
 - Plan Commit: dc4aa1b
@@ -14,7 +14,7 @@
 - Reviewed Content HEAD: 8c9e95bbe7dd4937536fba2889bcc0d00462d941
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
-- Human Gate: lane 3のReady / merge train先頭merge承認（lane選定は介入1/3で完了）
+- Human Gate: none
 
 Narrative（append-only）:
 
@@ -27,13 +27,15 @@ Narrative（append-only）:
 - 2026-07-29 local-verified -> independent-review: Draft PR #34のreviewed content candidate `8c9e95bbe7dd4937536fba2889bcc0d00462d941`を、実装非関与のSonnet 5 fresh contextへFormal Final Reviewとしてrelayした。
 - 2026-07-29 formal Final Review（Sonnet 5 fresh context、owner relay）: reviewed content candidateに対してP1=0 / P2=0 / P3=1、Approve。P3はlane branch切出し後にmainへ積まれたworktree registry同期によるbase driftで、WriterのScope違反ではない。Coordinatorはreviewed content commitをrewriteせず保持したまま`origin/main`をmergeし、実装内容不変・reviewed content ancestry維持・Plans registry同期を確認した。
 - 2026-07-29 independent-review -> human-confirm（state-only materialization）: Formal Final ReviewのP1/P2=0とP3 base同期closureを根拠に、`Reviewed Content HEAD`をreviewed content candidateへ設定した。次のHuman Gateはlane 3をmerge train先頭としてReady / mergeへ進めるowner承認。
+- 2026-07-29 owner Human Gate（介入2/3）: ownerがlane 3をmerge train先頭としてReady化し、exact-HEAD hosted CI green確認後にsquash mergeまで進めることを承認した。これにより本laneのReady / merge承認項目は解消した。
+- 2026-07-29 human-confirm -> ready-hosted-final（state-only materialization）: owner承認を根拠にDraftのままReady遷移を記録する。本state-only commitのexact HEADでL1 fullを再実行し、PR bodyを刷新した後にReady化・hosted final・mergeへ進む。
 
 ## Owner Effort Budget
 
 - 介入回数上限: 3
 - 実働時間上限: 30分
 - relay往復上限: 2
-- 現況: 介入1/3（wave 3 / lane 3 / 順21a選定）、relay 2/2
+- 現況: 介入2/3（wave選定、lane 3 Ready / merge承認）、relay 2/2
 
 ## Risk
 
