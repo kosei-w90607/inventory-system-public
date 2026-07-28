@@ -26,13 +26,14 @@ Narrative（append-only）:
 - 2026-07-28 Draft PR #32後のCodex review-only preflight: P1=0 / P2=1 / P3=1、Verdict Request changes。P2は `docs/ARCHITECTURE.md` 第7段階の `RHF/Zod` が `UI-FORM-D1` と矛盾し、既存contract testもこのactive source-doc driftを検出しないこと。Coordinatorがrepo-wide検索でlive hit 1件を再現してacceptした。P3はPR bodyの閾値test path誤記で、実在pathの13 test greenを再測定後にbodyだけ訂正済み。P2はScope拡張を伴うため実装を停止し、gated Amendment 1としてArchitecture同期、contract assertion、X11を追加してformal amendment reviewへ戻す。
 - 2026-07-28 gated Amendment 1 SHA記録: `Amendments` fieldをcontent commit `2511a5e`へ設定した。元のpreflight bulletはappend-only証跡として変更しない。
 - 2026-07-28 formal Amendment Review（Sonnet 5独立fresh context、owner relay）: 技術内容とX11は妥当、P1=0 / P2=1 / P3=1。P2はSHA記録commit `a3708e7` が既存Narrative bulletへSHAを後書きし、append-only契約に反したこと。Coordinatorがacceptし、既存bulletを`2511a5e`時点へ復元して本記録を新規bulletとして追加する。P3は本reviewでrelay 2/2到達。Writer再開はworkflow記録P2のclosure後。
+- 2026-07-28 owner budget exception: 品質保証を優先し、P2是正commit `1ee41ed` のformal closure確認に限ってrelay上限を2回から3回へ拡張することをownerが明示承認した。scope・Ready・mergeの承認ではなく、同じSonnet review contextでのread-only closure 1往復だけを許可する。
 
 ## Owner Effort Budget
 
 - 介入回数上限: 3
 - 実働時間上限: 30分
-- relay往復上限: 2
-- 現況: 介入1/3（wave 2 / lane選定）、relay 2/2（formal Amendment Reviewで上限到達）
+- relay往復上限: 3（既定2から今回限り拡張。理由: formal Amendment Review P2のworkflow記録closureを独立Reviewerで完了するため）
+- 現況: 介入1/3（wave 2 / lane選定）、relay 2/3（owner承認済みclosure 1往復を残す）
 
 ## Risk
 
