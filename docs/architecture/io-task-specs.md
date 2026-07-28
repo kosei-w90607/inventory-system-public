@@ -246,7 +246,7 @@
   - summary_lines[]: line_key, label, amount?, quantity?, count?, sort_order
   - payment_lines[]: payment_key, label, amount?, count?, sort_order
   - department_lines[]: raw_department_name, normalized_department_name?, amount, quantity?, count?, sort_order
-  - parse_errors[]: source_file?, line_no?, error_type, error_message
+  - parse_errors[]: source_file?, line_no?, error_type, error_message（BIZ-08の開発者向けdiagnostic logで消費し、利用者向けwire/operation logへraw detailを出さない）
 
 **【処理構造】**
 
@@ -260,6 +260,8 @@
    - Z005 → department_lines
 6. 3 source で report_date が一致することを parse result に含める。一致しない場合は parse_errors にする
 7. 生バイトから個別hashとbundle_hash素材を作る。bundle_hashの確定はBIZ-08で安定順に束ねて行う
+
+summary/payment/departmentのsourceは格納先から一意に決まるため行ごとには重複保持しない。入力filenameはsource file metadataに保持し、parse errorごとには複製しない（IO-07-D1）。
 
 **【制御構造】**
 - ステートレス。DBを呼ばない

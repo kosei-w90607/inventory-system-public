@@ -224,7 +224,7 @@ struct ImportResult {
 3. キャッシュミス（不存在/追い出し/再起動） → CmdError { kind: "import_error", message: "プレビューが見つかりません。再度ファイルを選択してください" }
    - 有効期限切れ（created_at.elapsed() > 30分） → cache.remove → CmdError { kind: "import_error", message: "プレビューの有効期限が切れました（30分）。再度ファイルを選択してください" }
 4. state.db.lock() でDB接続を取得
-5. CommitRequest { preview_token, overwrite_confirmed, cached_data } を構築
+5. CommitRequest { overwrite_confirmed, cached_data } を構築（preview_tokenの検証・cache対応確認はCMD層で完了し、BIZ requestへ重複保持しない。BIZ-03-D1）
 6. biz::csv_import_service::commit_csv_import(&mut conn, req) を呼ぶ（BIZ実行中はcache lockなし）
 7. Ok → state.preview_cache.lock() → キャッシュからtoken削除 → ImportResult を返す
 8. Err(BizError) → CmdError に変換して返す（キャッシュは保持、再試行可能）

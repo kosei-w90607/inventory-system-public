@@ -78,8 +78,6 @@ enum DuplicateStatus {
 
 - line_no: usize（Z004の行番号。1始まり）
 - product_code: String（紐付いた商品コード）
-- jan_code: String（正規化後のJAN）
-- name: String（Z004上の商品名）
 - quantity: i32（売上帳票視点の値。正=販売、負=返品）
 - amount: i32
 - pos_stock_sync: bool（紐付いた商品の pos_stock_sync フラグ）
@@ -96,9 +94,13 @@ enum DuplicateStatus {
 
 #### CommitRequest構造体
 
-- preview_token: String（parse_and_validate が返した token）
 - overwrite_confirmed: bool（上書き確認済みフラグ）
 - cached_data: CachedPreview（CMD層がキャッシュから復元したデータ。matched_rows, error_rows, preview_data を含む）
+
+**BIZ-03-D1（commit最小内部契約）**:
+
+- `MatchedRow` はcommitが在庫・売上・監査行の生成に使う `line_no` / `product_code` / `quantity` / `amount` / `pos_stock_sync` だけを保持する。表示専用のJAN・商品名を30分cacheへ複製しない。
+- `CommitRequest` はBIZが判断に使う `overwrite_confirmed` と、CMDがtokenで復元済みの `cached_data` だけを受け取る。tokenのUUID検証・cache対応確認・TTL・成功時削除はCMD-10の責務であり、BIZ requestへ再格納しない。
 
 #### ImportResult構造体
 
@@ -163,7 +165,7 @@ fn parse_and_validate(
       - ※ 全桁ゼロJAN（"0000000000000"）はIO-02 parse_data_lineで除外済み（Ok(None)返却）。BIZ-03では重複チェック不要
    b. 実データ行のマスタ照合: 各行について
       - product_repo::find_by_jan_code(conn, &normalized_jan) を呼び出し
-      - ヒット1件 → MatchedRow { line_no, product_code, jan_code: normalized_jan, name, quantity, amount, pos_stock_sync: product.pos_stock_sync }
+      - ヒット1件 → MatchedRow { line_no, product_code, quantity, amount, pos_stock_sync: product.pos_stock_sync }
       - ヒット0件 → ErrorRow { line_no, normalized_jan: Some(normalized_jan), name, raw_quantity: quantity.to_string(), raw_amount: amount.to_string(), error_type: "unmatched_product", error_message: "JAN {jan} に該当する商品がありません" }
       - ヒット複数件 → ORDER BY product_code ASC で先頭を採用。warnings に "JAN {jan} は複数商品に紐付いています（{code} を使用）" を追加
    c. parse_result.parse_errors を ErrorRow にマージ
@@ -306,7 +308,6 @@ fn commit_csv_import(
 **入力例**:
 ```
 req: CommitRequest {
-    preview_token: "550e8400-e29b-41d4-a716-446655440000",
     overwrite_confirmed: false,
     cached_data: CachedPreview { matched_rows: [...], error_rows: [...], preview_data: PreviewData { ... } },
 }

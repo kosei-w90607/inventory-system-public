@@ -25,7 +25,7 @@
 | データテーブル | TanStack Table | 8 | ヘッドレス、大量行に強い、shadcn/ui DataTable適合 | §2.4 |
 | データフェッチ | TanStack Query | 5 | CMD層invoke結果のキャッシュ・invalidate制御 | §2.5 |
 | 状態管理 | Zustand | 5 | 軽量、選択的レンダリング、業務アプリに十分 | §2.6 |
-| フォーム | React Hook Form + Zod | latest + 4 | 型安全、スキーマ駆動、再レンダ最小 | §2.7 |
+| フォーム | feature-local controlled state + Zod | React + 4 | 小さな業務フォームの状態を局所化し、必要な箇所だけschema検証 | §2.7 |
 | テスト（単体） | Vitest | latest | Vite整合、高速 | §2.7補, §6 |
 | テスト（A11y） | @axe-core/react | latest | WCAG 2.1 AA 監査 | §5 |
 | 通知 | Sonner | latest | shadcn/ui公式トースト、A11y済み | §6 |
@@ -115,8 +115,8 @@
 | Headless UI (Tailwind Labs) | シンプルだが Radix に比べて部品が少ない、shadcn/ui が事実上の後継 |
 | Radix UI 直接使用 | スタイル自作の工数が嵩む、shadcn/ui のレシピを自作することになる |
 
-**導入コンポーネント（Phase 1 当初）**:
-`Button` `Input` `Label` `Dialog` `AlertDialog` `DropdownMenu` `Select` `Checkbox` `RadioGroup` `Tabs` `Card` `Table`（TanStack Table ラップ）`Toast`（Sonner）`Form`（RHF ラップ）`Badge` `Skeleton` `Separator` `ScrollArea`
+**現行共通コンポーネント**:
+`Button` `Input` `Label` `Dialog` `AlertDialog` `Select` `Checkbox` `Tabs` `Card` `Table`（TanStack Table ラップ）`Toast`（Sonner）`Badge` `Skeleton` `Separator` `ScrollArea`
 
 **アイコン — lucide-react**:
 - shadcn/ui 公式採用で整合
@@ -291,30 +291,24 @@ spike branch: `spike/invoke-specta`。
 
 **trade-off**: CSV取込みの「Parse → Validate → Preview → Commit」フローは状態マシンに相当。Phase 2 着手時に「Zustand + switch-case」で足りるか XState 導入か再検討（§7 保留事項）。
 
-### 2.7 Forms — React Hook Form + Zod 4
+### 2.7 Forms — feature-local controlled state + Zod 4
+
+**UI-FORM-D1（現行採用境界）**:
+
+- 業務フォームは各feature内の `useState` と field error record で状態・表示を局所管理する。
+- 複数fieldの相関、数値範囲、設定値などschema検証が有効な箇所では Zod 4 を併用する。schemaは利用するfeature配下に置き、CMD DTOとの概念整合を保つ。
+- React Hook Form と shadcn/ui `Form` wrapper は現行repoでは採用しない。DropdownMenu / RadioGroup wrapperもproduction consumerがないため標準部品として残さない。
+- 複雑な動的反復fieldや再レンダ問題が実測された場合だけ、対象画面のDesign Phaseでフォームlibrary導入を再評価する。将来候補を先にdependency/wrapperとして常設しない。
 
 **選定理由**:
-- **React Hook Form**: Uncontrolled方式で再レンダ最小、パフォーマンスで controlled form 系を圧倒
-- **Zod 4**: TypeScript 型推論と双方向の `z.infer<typeof schema>`、スキーマ駆動で同一バリデーションを Rust 側 BIZ層と概念整合
-- **shadcn/ui Form**: 公式 `Form` コンポーネントが RHF+Zod 前提、エラー表示・ラベル紐付けまでレシピ化
 
-**比較した他候補**:
-| 候補 | 理由で見送り |
-|------|------------|
-| Formik | 再レンダ性能で RHF に劣る、メンテ停滞気味 |
-| TanStack Form | 注目株だが shadcn/ui エコシステムがまだ RHF 前提 |
-| Yup | Zod の方が TypeScript 型推論で優位 |
-| Valibot | 軽量だが Zod 4 で軽量化済み、エコシステム差で Zod |
-| 自作バリデーション | 商品登録・棚卸しカウント・売価変更で数十のバリデーションルール、自作は非現実的 |
+- 現行画面は小規模な入力単位が中心で、feature-local stateにより保存・失敗・resetの責務を画面ごとに明示できる。
+- Zod 4はTypeScript型推論とschema駆動検証を提供し、Rust側BIZ validationとの概念整合を取りやすい。
+- 未使用wrapperと専用dependencyを標準部品に見せないことで、未検証パターンの誤採用と保守対象の増加を防ぐ。
 
-**導入対象画面**:
-- UI-01b 商品登録・編集（REQ-101, 102）
-- UI-01c 一括インポート（REQ-104）のマッピング確認
-- UI-02 入庫記録（REQ-201）
-- UI-10 棚卸しカウント入力（REQ-205）
-- UI-11 設定（閾値・バックアップパス）
+**現行例**:
 
-**Zod スキーマ配置**: `src/schemas/` 配下にモジュール別（product.ts / inventory.ts / stocktake.ts）。CMD層の DTO と 1:1 対応させ、スキーマ変更時に型エラーで検知。
+- UI-11a 閾値設定は `src/features/threshold-settings/` 内の controlled state + field error record + Zod schemaを使う（[69-ui-threshold-settings.md](function-design/69-ui-threshold-settings.md)）。
 
 ### 2補. Testing — Vitest + React Testing Library + @axe-core/react
 

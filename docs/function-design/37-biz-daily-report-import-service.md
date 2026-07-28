@@ -160,6 +160,8 @@ fn parse_and_validate_daily_report(
 1. ファイルサイズ上限を検証する。
 2. IO-07 `parse_daily_report_bundle(files)` を呼ぶ。
 3. `parse_errors` がある場合は `BizError::ImportError` として返す。
+   - **BIZ-08-D1**: 各errorの `source_file` / `line_no` / `error_type` / `error_message` を開発者向けdiagnostic WARNへ構造化して記録する。
+   - 利用者向けerror messageと `operation_logs.summary` は汎用文言を維持し、raw parse detailをwireまたは `operation_logs.detail_json` へ載せない。
    - 返却前に `operation_logs.operation_type='daily_report_parse_failed'` を best-effort で記録する。
 4. `report_date` を検証する。
    - IO-07はCV17出力上の `YYYY/M/D` / `YYYY-MM-DD` を `YYYY-MM-DD` へ正規化する。BIZ-08では正規化後の日付がYYYY-MM-DD形式でない、暦日として不正、3 sourceで不一致ならエラー。
@@ -169,7 +171,7 @@ fn parse_and_validate_daily_report(
    - adapterが `gross_sales` と `net_sales` の両方を導出できない場合はcommit不可。
 7. Z005部門名を `departments.name` と照合する。
    - 一致した行は `department_id` を付与する。
-   - 一致しない行はwarningにし、`department_id=None` のままpreview可能にする。
+   - 一致しない行はwarningにし、`source_file=Z005`、`department_id=None` のままpreview可能にする。IO line側へ重複したsource fieldは要求しない（IO-07-D1）。
 8. 重複判定を行う。
    - `bundle_hash` が同じ `completed` importあり → AlreadyImported。
    - `report_date` が同じ別 `completed` importあり → OverwriteRequired。

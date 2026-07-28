@@ -31,7 +31,6 @@ struct ParsedDailyReportSourceFile {
 }
 
 struct DailyReportSummaryLine {
-    source_file: DailyReportSourceKind, // Z001
     line_key: String,
     label: String,
     amount: Option<i64>,
@@ -41,7 +40,6 @@ struct DailyReportSummaryLine {
 }
 
 struct DailyReportPaymentLine {
-    source_file: DailyReportSourceKind, // Z002
     payment_key: String,
     label: String,
     amount: Option<i64>,
@@ -50,7 +48,6 @@ struct DailyReportPaymentLine {
 }
 
 struct DailyReportDepartmentLine {
-    source_file: DailyReportSourceKind, // Z005
     raw_department_name: String,
     normalized_department_name: Option<String>,
     amount: i64,
@@ -61,7 +58,6 @@ struct DailyReportDepartmentLine {
 
 struct DailyReportParseError {
     source_file: Option<DailyReportSourceKind>,
-    filename: Option<String>,
     line_no: Option<i64>,
     error_type: String,
     error_message: String,
@@ -76,6 +72,12 @@ struct DailyReportParseResult {
     parse_errors: Vec<DailyReportParseError>,
 }
 ```
+
+**IO-07-D1（最小内部契約と診断境界）**:
+
+- summary / payment / department line のsourceは型と格納先からそれぞれ Z001 / Z002 / Z005 と一意に決まるため、各行へ `source_file` を重複保持しない。
+- `DailyReportParseError` は、productionで診断に使う `source_file` / `line_no` / `error_type` / `error_message` の4fieldだけを保持する。入力名は `ParsedDailyReportSourceFile.filename` でbundle監査用に保持し、parse errorごとには複製しない。
+- parse error詳細はBIZ-08が開発者向けdiagnostic logへ構造化して記録する。利用者向け `BizError` と業務監査用operation logにはraw詳細を載せない。
 
 ### 29.3 parse_daily_report_bundle
 
@@ -105,6 +107,7 @@ fn parse_daily_report_bundle(files: Vec<DailyReportSourceFile>) -> DailyReportPa
    - 3ファイルから抽出できる日付が一致すれば `report_date=Some(YYYY-MM-DD)`。
    - 不一致または抽出不可ならparse errorにし、`report_date=None` または最初の抽出値を返す場合でもBIZ-08でcommit不可にする。
 7. `DailyReportParseResult` を返す。
+   - `parse_errors` の各要素はBIZ-08の診断経路で消費される。詳細の利用者向けwire/operation logへの転送は禁止する。
 
 ### 29.4 source別正規化方針
 
