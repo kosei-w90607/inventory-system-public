@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: local-verified
+- Phase: independent-review
 - Risk: R3
 - Execution Mode: dual-vendor-no-fable
 - Plan Commit: dc4aa1b
@@ -11,7 +11,7 @@
 - Writer: Codex（plan-approved後の別session / worktree。Coordinatorと分離）
 - Plan Reviewer: Sonnet 5 fresh context（owner relay、read-only、実装非関与）
 - Final Reviewer: Sonnet 5 fresh context（Plan Reviewerとは別context、owner relay、read-only）
-- Reviewed Content HEAD: pending
+- Reviewed Content HEAD: 0bab5401bc77ea62420939484a6ce607d1aeb34b
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
 - Human Gate: wave batch Ready承認、lane merge承認（lane選定は介入1/3で完了）
@@ -43,6 +43,8 @@ Rebase Map: 970e42eef875d2eba608c35b14bf3a165f5a000e -> 3618cb0cce615f3c878d4464
 - 2026-07-29 formal Final Review P2-1 closure（同Final Reviewer、Sonnet 5 / xHigh、owner relay）: 元のP2-1はcontent面で解消済み。Closure Verdictはincomplete、P1=0 / P2=1 / P3=1。新規P2はCoordinatorが再実装後のforward stateを2つのstate-only commitへ分割し、STATECAP post-implementation上限を超えたこと。P3は51 §7.1のD3旧未来形をbare command名で復元するとline filterから漏れてfalse-greenになること。relay 4/4。
 - 2026-07-29 closure adjudication: P2 / P3ともaccept。D3を含む対象section全体へnegative stale-wording oracleを適用し、bare commandの旧未来形注入でred、復元後greenを確認した。STATECAPは追加commitで逃げず、最初のFinal Review遷移以降のDraft branch履歴をcompression ruleどおり1つのcontent commitへ訂正し、review後の正規state-only枠を温存する。
 - 2026-07-29 owner history correction / relay exception: ownerがDraft PR #36 branchだけを対象とする履歴圧縮と`--force-with-lease`、および再closure用relay上限5を承認した。旧`48afc21`〜`a555f4b`の5 commitは、P2/P3修正と監査Narrativeを保持した単一content commitへ圧縮する。追加relayは同Final ReviewerによるSTATECAP / D3 closure確認だけに使う。
+- 2026-07-29 history correction / local-verified: 旧5 commitを単一content commit `0bab5401bc77ea62420939484a6ce607d1aeb34b`へ圧縮し、Draft PR branchを`--force-with-lease`で更新した。STATECAP / PK5とexact-HEAD L1 fullはCLEAN / PASS。旧HEADはlocal backup refへ保存した。
+- 2026-07-29 local-verified -> independent-review: Reviewed Content HEADを`0bab5401bc77ea62420939484a6ce607d1aeb34b`へ固定し、Sonnet 5 / xHighへSTATECAP P2とD3 false-green P3だけのclosure-only Reviewをrelayする。
 
 ## Owner Effort Budget
 
