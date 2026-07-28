@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: implementing
+- Phase: human-confirm
 - Risk: R2
 - Execution Mode: dual-vendor-no-fable
 - Plan Commit: eeeae9e
@@ -11,7 +11,7 @@
 - Writer: Codex（plan-approved後の別session、`../inventory-worktree-lane1` とlane branchへpin）
 - Plan Reviewer: Sonnet 5 fresh context（owner relay、read-only、実装非関与）
 - Final Reviewer: Sonnet 5 fresh context（Plan Reviewerとは別context、read-only）
-- Reviewed Content HEAD: pending
+- Reviewed Content HEAD: e435640
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
 - Human Gate: Ready承認（wave batch可）/ merge。視認・L3なし（未参照module退役、画面挙動不変）
@@ -29,13 +29,16 @@ Narrative（append-only）:
 - 2026-07-28 owner budget exception: 品質保証を優先し、P2是正commit `1ee41ed` のformal closure確認に限ってrelay上限を2回から3回へ拡張することをownerが明示承認した。scope・Ready・mergeの承認ではなく、同じSonnet review contextでのread-only closure 1往復だけを許可する。
 - 2026-07-28 formal Amendment closure（同じSonnet review context、read-only）: P1/P2/P3=0、P2-1 closure confirmed、Amendment approved、Writer再開可。`1ee41ed`でpreflight bulletが`2511a5e`時点へbyte一致復元され、SHA/review記録は新規bullet、`56b6d72`はowner budget exceptionの新規bulletとBudget field/Registry同期だけでScope/AC/Matrixを変更していないことを実測確認。plan checkerとPK5/STATECAPもPASS。relay 3/3。
 - 2026-07-28 owner budget exception 2: Amendment実装後の締めとなるformal Final Reviewを実施するため、ownerがrelay上限を3回から4回へ今回限り拡張した。対象はexact content HEAD `e435640`に対するSonnet 5 fresh-context read-only Final Review 1往復だけで、追加実装・Ready・mergeの承認には広げない。
+- 2026-07-28 Amendment実装後のCodex review-only preflight / closure: exact content HEAD `757411c`へのpreflightはP1=0 / P2=2 / P3=0。retired dependencyのroot direct区分とsource-doc additive driftのfalse-openをCoordinatorが独立再現してacceptし、test-only是正 `e435640`へ反映した。同じreview contextのclosureはP1/P2/P3=0、new findingなし。L1 exact-HEAD evidenceとmutation evidenceのauthorityはPR bodyに置く。
+- 2026-07-28 formal Final Review（Sonnet 5独立fresh context、owner relay）: exact content HEAD `e435640`をread-only監査し、P1=0 / P2=0 / P3=1、Verdict Approve。P3は`Implementation Results`要約をarchive前に追記するmaintainability提案でblockerではないため、Post-Merge Closeoutへdeferする。relay 4/4。
+- 2026-07-28 implementing -> local-verified -> independent-review -> human-confirm（state-only compression）: exact content HEAD `e435640`のL1 full CLEAN evidenceはPR body、Codex closureとformal Final ReviewはいずれもP1/P2=0。`Reviewed Content HEAD`を`e435640`へ固定し、Ready / hosted final / mergeは未承認のままowner gateへ進む。
 
 ## Owner Effort Budget
 
 - 介入回数上限: 3
 - 実働時間上限: 30分
 - relay往復上限: 4（既定2から今回限り拡張。3回目はformal Amendment Review P2のworkflow記録closure、4回目はAmendment実装後のformal Final Reviewを完了するため）
-- 現況: 介入1/3（wave 2 / lane選定）、relay 3/4（次の1往復をexact content HEAD `e435640`のformal Final Reviewに限定）
+- 現況: 介入1/3（wave 2 / lane選定）、relay 4/4（formal Final Review完了、上限到達）
 
 ## Risk
 
