@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: independent-review
+- Phase: ready-hosted-final
 - Risk: R3
 - Execution Mode: dual-vendor-no-fable
 - Plan Commit: dc4aa1b
@@ -45,13 +45,15 @@ Rebase Map: 970e42eef875d2eba608c35b14bf3a165f5a000e -> 3618cb0cce615f3c878d4464
 - 2026-07-29 owner history correction / relay exception: ownerがDraft PR #36 branchだけを対象とする履歴圧縮と`--force-with-lease`、および再closure用relay上限5を承認した。旧`48afc21`〜`a555f4b`の5 commitは、P2/P3修正と監査Narrativeを保持した単一content commitへ圧縮する。追加relayは同Final ReviewerによるSTATECAP / D3 closure確認だけに使う。
 - 2026-07-29 history correction / local-verified: 旧5 commitを単一content commit `0bab5401bc77ea62420939484a6ce607d1aeb34b`へ圧縮し、Draft PR branchを`--force-with-lease`で更新した。STATECAP / PK5とexact-HEAD L1 fullはCLEAN / PASS。旧HEADはlocal backup refへ保存した。
 - 2026-07-29 local-verified -> independent-review: Reviewed Content HEADを`0bab5401bc77ea62420939484a6ce607d1aeb34b`へ固定し、Sonnet 5 / xHighへSTATECAP P2とD3 false-green P3だけのclosure-only Reviewをrelayする。
+- 2026-07-29 formal Final Review closure（同Final Reviewer、Sonnet 5 / xHigh、owner relay）: P2-2 / P3-1 closure confirmed、P1=0 / P2=0 / P3=0。圧縮後commit列、STATECAP green、section-wide oracle、targeted test、exact-HEAD L1、state-only deltaをread-onlyで独立確認した。relay 5/5。
+- 2026-07-29 independent-review -> human-confirm -> ready-hosted-final（state-only compression）: Formal Final Review closure P1/P2=0によりhuman-confirmへ進み、ownerの既承認済み条件付きReady判断を適用した。本state-only HEADでL1 fullを再取得し、Draft解除後のhosted final、live PR三点一致とmerge CLEANを確認してから既承認済みmerge判断を実行する。
 
 ## Owner Effort Budget
 
 - 介入回数上限: 3
 - 実働時間上限: 30分
 - relay往復上限: 5（既定2から段階的に今回限り拡張。Plan Review / gated Amendment Review / Final Review / P2-1 closure Review / STATECAP・D3 closure Review）
-- 現況: 介入3/3（wave選定、条件付きReady承認、条件付きmerge承認）、relay 4/5（次の1往復をSTATECAP・D3 closure-only Reviewに限定）
+- 現況: 介入3/3（wave選定、条件付きReady承認、条件付きmerge承認）、relay 5/5
 
 ## Risk
 
@@ -232,4 +234,4 @@ synthetic product/JSONだけを使う。実店舗DB、価格/原価data、log、
 - Findings Freeze: 2026-07-29 formal Final Reviewのinitial broad audit完了。P2-1 closure reviewは同findingの解消確認だけに限定し、新規Broad Auditを行わない
 - Plan Review: Approve（P1=0 / P2=0 / P3=1）
 - Gated Amendment 1: Approve（P1=0 / P2=0 / P3=0、Writer再開可）
-- Final Review: Closure incomplete（元P2-1 content closure済み、新規P2=1 / P3=1をaccept・実装訂正済み。再closure pending）
+- Final Review: Approve（P2-1 / P2-2 / P3-1 closure confirmed、P1=0 / P2=0 / P3=0）
