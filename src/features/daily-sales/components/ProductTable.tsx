@@ -5,8 +5,8 @@
 // 設計: docs/function-design/56-ui-daily-sales.md §56.7
 
 import { EmptyState } from "@/components/patterns/EmptyState";
+import { SortableHeader } from "@/components/sales/SortableHeader";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import {
   Table,
   TableBody,
@@ -154,47 +154,5 @@ function ItemRow({ item }: { item: DailySaleItem }) {
       </TableCell>
       <TableCell className="text-right">¥{item.amount.toLocaleString("ja-JP")}</TableCell>
     </TableRow>
-  );
-}
-
-interface SortableHeaderProps {
-  column: SortColumn;
-  label: string;
-  sortBy: SortColumn | null;
-  sortDir: SortDirection;
-  onClick: (column: SortColumn) => void;
-  align?: "left" | "right";
-}
-
-function SortableHeader({
-  column,
-  label,
-  sortBy,
-  sortDir,
-  onClick,
-  align = "left",
-}: SortableHeaderProps) {
-  const isActive = sortBy === column;
-  const indicator = isActive ? (sortDir === "asc" ? "▲" : "▼") : "";
-  const alignClass = align === "right" ? "text-right" : "";
-  const ariaSort: "ascending" | "descending" | "none" = isActive
-    ? sortDir === "asc"
-      ? "ascending"
-      : "descending"
-    : "none";
-  return (
-    <TableHead className={alignClass} aria-sort={ariaSort}>
-      <Button
-        type="button"
-        variant="ghost"
-        size="sm"
-        className="-mx-3 h-auto gap-1 px-3 py-0 font-medium hover:bg-transparent hover:text-foreground"
-        onClick={() => {
-          onClick(column);
-        }}
-      >
-        {label} <span aria-hidden="true">{indicator}</span>
-      </Button>
-    </TableHead>
   );
 }

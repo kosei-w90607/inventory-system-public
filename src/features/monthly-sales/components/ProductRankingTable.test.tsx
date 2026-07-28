@@ -93,4 +93,31 @@ describe("ProductRankingTable (REQ-502 sort 結線)", () => {
     expect(badgeEl).not.toBeUndefined();
     expect(badgeEl?.textContent).toContain("1 位");
   });
+
+  it("UI-09b: active indicator, ARIA, and numeric header alignment stay connected", () => {
+    const rows = [
+      makeMockProductRankingRow({ key: "A", label: "商品A", ranking: 1, amount: 1000 }),
+    ];
+    render(
+      <ProductRankingTable
+        rows={rows}
+        comparisonMap={new Map()}
+        sortBy="quantity"
+        sortDir="asc"
+        onSortChange={vi.fn()}
+      />,
+    );
+
+    const quantityButton = screen.getByRole("button", { name: "数量" });
+    const nameButton = screen.getByRole("button", { name: "商品名" });
+    const quantityHeader = quantityButton.closest("th");
+    const nameHeader = nameButton.closest("th");
+
+    expect(quantityHeader).toHaveAttribute("aria-sort", "ascending");
+    expect(nameHeader).toHaveAttribute("aria-sort", "none");
+    expect(quantityButton.querySelector('span[aria-hidden="true"]')).toHaveTextContent("▲");
+    expect(nameButton).not.toHaveTextContent(/[▲▼]/);
+    expect(quantityHeader).toHaveClass("text-right");
+    expect(nameHeader).not.toHaveClass("text-right");
+  });
 });

@@ -256,7 +256,10 @@ DB、店舗artifact、実CSV、secret、backup、filesystem書込み、network�
 
 ## Implementation Results
 
-（実装時に追記）
+- 既存3 container testへ、日次5列 / 月次部門3列 / 月次商品4列のclick payload、active/inactive `aria-sort`、`▲` / `▼` indicator、`aria-hidden`、right/default alignment、representative Button DOMのcharacterizationを追加し、抽出前後でgreenを維持した。
+- generic `SortableHeader<T extends string>`を`src/components/sales/SortableHeader.tsx`へ抽出し、3 consumerのlocal interface/functionをcanonical importへ置換した。shared componentはfeature固有型をimportせず、既存DOM / class / callbackを維持する。
+- `MonthlySalesPage.test.tsx`は冒頭commentだけをcanonical shared ownerの現在形へ同期し、test logic / assertion / importは変更していない。
+- operator-visibleな色・文言・状態・列・sort挙動の変更はなく、Windows native固有の観測対象も増えないためL3は不要と判断した。
 
 ## Review Response
 

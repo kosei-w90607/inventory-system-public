@@ -2,9 +2,8 @@
 //
 // REQ-502 P2-2: search.sortBy/sortDir URL state → useMonthlySalesReport 連動 +
 // handleSortChange (同列再 click desc toggle / 別列 asc) の Page level 結線テスト。
-// container component (MonthlySalesPage) import 経由で SortableHeader inline 三重定義を
-// 直 import せず、commit (別 PR) で `src/components/sales/SortableHeader.tsx` 共通化される
-// 際に import path 切替不要 (Plan rally Round 2 C-2 解消)。
+// container component (MonthlySalesPage) import 経由で、canonical owner
+// `src/components/sales/SortableHeader.tsx` の結線を確認する。
 // 設計: docs/plans/2026-05-19-pr-66-codex-r1-p2-fixes.md §2 commit 2
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
