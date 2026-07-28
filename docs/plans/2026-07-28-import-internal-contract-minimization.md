@@ -2,10 +2,10 @@
 
 ## Workflow State
 
-- Phase: plan-gate
+- Phase: implementing
 - Risk: R3
 - Execution Mode: dual-vendor-no-fable
-- Plan Commit: pending
+- Plan Commit: eeeae9e
 - Amendments: none
 - Coordinator: Codex（本thread。wave編成・packet起草・レビュー裁定・main/Registry/train管理）
 - Writer: Codex（plan-approved後の別session、`../inventory-worktree-lane2` とlane branchへpin）
@@ -23,6 +23,7 @@ Narrative（append-only）:
 - 2026-07-28 plan-draft -> plan-gate: 本packet、Matrix、source docs、Wave Registryをmain上のwave scaffoldingとして実装より先にcommitする。lane branch/worktreeはPlan Gate収束後にこのplan-first lineageから分岐する。
 - 2026-07-28 Codex independent preflight（正式Sonnet review前）: P1=0 / P2=4。全件をCoordinatorが再実測してacceptし、REQ正本path、CMD-07 owner、unknown source filenameの診断維持、Rust test関数名 `_req401`、`Some(line_no)` fixture変更許可を是正した。正式Plan Gateは未収束。
 - 2026-07-28 formal Plan Review（Sonnet 5独立fresh context、ownerがlane別terminalでrelay）: P1=0 / P2=0 / P3=1、Verdict Approve。P3の既存test強化箇所の明示をacceptし、unknown source filename / unmatched department Z005 assertionの追記許可を限定例外へ加えた。P3-only明確化のためre-review不要。relay 1/2。
+- 2026-07-28 plan-gate -> plan-approved -> implementing（state-only compression）: formal Plan ReviewerがP1/P2=0を報告し、plan-first `eeeae9e` は実装commitより前に存在する。preflight是正 `aff70e7` とreview P3明確化 `5ea661f` は上記Narrativeどおり。`Plan Commit`を`eeeae9e`へ固定し、本state-only commit後にWriter実装を許可する。
 
 ## Owner Effort Budget
 
