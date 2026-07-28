@@ -58,6 +58,7 @@ struct DailyReportDepartmentLine {
 
 struct DailyReportParseError {
     source_file: Option<DailyReportSourceKind>,
+    filename: Option<String>,
     line_no: Option<i64>,
     error_type: String,
     error_message: String,
@@ -76,7 +77,7 @@ struct DailyReportParseResult {
 **IO-07-D1（最小内部契約と診断境界）**:
 
 - summary / payment / department line のsourceは型と格納先からそれぞれ Z001 / Z002 / Z005 と一意に決まるため、各行へ `source_file` を重複保持しない。
-- `DailyReportParseError` は、productionで診断に使う `source_file` / `line_no` / `error_type` / `error_message` の4fieldだけを保持する。入力名は `ParsedDailyReportSourceFile.filename` でbundle監査用に保持し、parse errorごとには複製しない。
+- `DailyReportParseError` は、productionで診断に使う `source_file` / `filename` / `line_no` / `error_type` / `error_message` を保持する。特にsource判定前に失敗するunknown fileは `ParsedDailyReportSourceFile` に入らないため、error側のfilenameを診断専用provenanceとして維持する。
 - parse error詳細はBIZ-08が開発者向けdiagnostic logへ構造化して記録する。利用者向け `BizError` と業務監査用operation logにはraw詳細を載せない。
 
 ### 29.3 parse_daily_report_bundle

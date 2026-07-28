@@ -9,8 +9,8 @@ Risk: R3
 - C1: `MatchedRow` はcommitに必要な5fieldだけ
 - C2: `CommitRequest` は`overwrite_confirmed` + `cached_data`だけ、token lifecycleはCMD内で不変
 - C3: 日報lineは格納先から自明なsourceを重複保持しない
-- C4: parse errorはsource/line/type/messageの4fieldを保持し、filenameを複製しない
-- C5: parse error 4fieldはproduction BIZ diagnostic WARNへ到達
+- C4: parse errorはsource/filename/line/type/messageの5fieldを保持する
+- C5: parse error 5fieldはproduction BIZ diagnostic WARNへ到達
 - C6: BizError/operation logはgeneric、detail_json null、import row 0
 - C7: unmatched department warningはsource Z005を維持
 - C8: REQ-401 traceabilityとgenerator lane境界
@@ -29,13 +29,13 @@ Risk: R3
 
 | Contract | Failure Mode | Test Type | Test Name / anchor | Would fail if... | Mutation |
 |---|---|---|---|---|---|
-| C1/C2 | F1/F2 | static Rust integration | `import_internal_contract_test` | target structへjan/name/tokenが再導入 | X1: `MatchedRow.name`再導入、X2: `CommitRequest.preview_token`再導入でred |
+| C1/C2 | F1/F2 | static Rust integration | `test_import_internal_contract_req401_is_minimal` | target structへjan/name/tokenが再導入 | X1a: `MatchedRow.jan_code`、X1b: `MatchedRow.name`、X2: `CommitRequest.preview_token`再導入で個別red |
 | C1/C2 | F2 | regression | existing CSV commit/rollback/CMD tests | commit totals/stock/rollback/token TTL lifecycleが変化 | existing suites red |
-| C3/C4 | F3 | static + unit | internal contract + daily parser inline tests | line source/error filename再導入、または4field削除 | X3: error_type field削除でcompile/test red |
-| C5 | F5 | integration | `test_daily_report_req401_parse_error_logs_parse_failed` + `test_tracing::capture` | WARN自体またはsource/line/type/messageのいずれかが欠落 | X4: emission削除、X5: line/type field省略でred |
-| C6 | F4 | integration + SQL | 同testのBizError exact generic、operation summary/detail/import count assertions | raw detail混入、detail non-null、partial import | X6: detail_jsonへerrorを入れてred |
+| C3/C4 | F3 | static + unit | internal contract + daily parser inline tests | line source再導入、またはparse error 5fieldのいずれかを削除 | X3a〜X3c: 各line typeへsource再導入、X3d: filename削除で個別red |
+| C5 | F5 | integration | `test_daily_report_req401_parse_error_logs_parse_failed` + `test_tracing::capture` | WARN自体またはsource/filename/line/type/messageのいずれかが欠落 | X4: emission削除、X5a〜X5e: 各field省略で個別red |
+| C6 | F4 | integration + SQL | 同testのBizError exact generic、operation summary/detail/import count assertions | raw detail混入、detail non-null、partial import | X6a: detail_jsonへerror、X6b: BizErrorへraw detailを入れて個別red |
 | C7 | F6 | integration | unmatched department warning existing/strengthened test | `source_file` がNone/非Z005 | X7: constantをNoneへ変更してred |
-| C8 | F7 | generator/docs | traceability generation + docs check | REQ-401 test mapping未反映、90以外のgenerated drift | X8: new testのREQ token除去後generator/check red |
+| C8 | F7 | generator/docs | traceability generation + docs check | REQ-401 test mapping未反映、90以外のgenerated drift | X8: new test関数名の `_req401` を除去後generator/check red |
 
 ## State Lifecycle Matrix
 
@@ -59,6 +59,7 @@ Risk: R3
 - missing input: missing Z002/Z005でsource/type/messageを診断
 - invalid input: line-level invalid formatでline/type/messageを診断
 - duplicate/ambiguous source: parser tests維持
+- unknown source: source判定前でもfilename/type/messageを診断
 - unknown reference: unmatched department warning Z005
 - dependency missing: not applicable
 - permission/write failure: operation log best-effort既存契約
@@ -67,7 +68,7 @@ Risk: R3
 ## Boundary Checks
 
 - threshold: preview TTL 30分不変
-- null/default: optional source/lineはdiagnostic上`None`を構造化
+- null/default: optional source/filename/lineはdiagnostic上`None`を構造化
 - empty/non-empty: parse_errors emptyはpreview、non-emptyはcommit不可
 - min/max: line/amount/quantity既存tests
 - status/policy enum: duplicate/import status不変
@@ -81,14 +82,14 @@ Risk: R3
 
 - old/new schema/input: file format・DB schema不変
 - output order: preview/commit output不変
-- optional field: source/line diagnostic option、warning source Z005
+- optional field: source/filename/line diagnostic option、warning source Z005
 
 ## Data Safety Checks
 
 - source-derived data: synthetic stringsだけでassert
 - generated outputs: 90 only
 - secrets/local-only: 0
-- raw detail: wire/operation detailへ非露出
+- raw detail / filename: wire/operation detailへ非露出、local diagnosticだけ
 
 ## Main Wiring / Integration Checks
 
@@ -101,10 +102,12 @@ Risk: R3
 
 - diagnostic emission全削除と各field省略を別mutationでkillできるか
 - raw detailをBizErrorまたは`detail_json`へ混入したときexact/generic assertionがredか
-- optional source/lineがすべてNoneのfixtureだけで済ませず、line_noがSomeのsynthetic invalid rowを最低1case含むか
+- optional source/lineがすべてNoneのfixtureだけで済ませず、既存parse-error testをsynthetic malformed rowへ変更してline_noがSomeのcaseを含むか
+- unknown sourceのfilenameを省略するmutationで診断assertがredになるか
 - target struct block限定oracleで、別型の`name`/`preview_token`を誤検出しないか
 - testがproduction error structから期待値を導出せず、synthetic source/line/type/messageを独立転記するか
 - Z005 warningの非空期待があり、Noneへmutateしてredになるか
+- static test関数名の `_req401` を除いたX8でgenerator mapping/checkがredになるか
 
 ## Residual Test Gaps
 

@@ -100,7 +100,7 @@ enum DuplicateStatus {
 **BIZ-03-D1（commit最小内部契約）**:
 
 - `MatchedRow` はcommitが在庫・売上・監査行の生成に使う `line_no` / `product_code` / `quantity` / `amount` / `pos_stock_sync` だけを保持する。表示専用のJAN・商品名を30分cacheへ複製しない。
-- `CommitRequest` はBIZが判断に使う `overwrite_confirmed` と、CMDがtokenで復元済みの `cached_data` だけを受け取る。tokenのUUID検証・cache対応確認・TTL・成功時削除はCMD-10の責務であり、BIZ requestへ再格納しない。
+- `CommitRequest` はBIZが判断に使う `overwrite_confirmed` と、CMDがtokenで復元済みの `cached_data` だけを受け取る。tokenのUUID検証・cache対応確認・TTL・成功時削除はCMD-07の責務であり、BIZ requestへ再格納しない。
 
 #### ImportResult構造体
 

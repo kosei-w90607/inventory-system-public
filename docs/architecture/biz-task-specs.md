@@ -288,7 +288,7 @@
 1. IO-07（POS日報bundleパーサー）を呼び出す
 2. parse_errors がある場合は commit 不可として中断し、`daily_report_imports` は作らない
 3. parse失敗は operation_logs に `daily_report_parse_failed` として汎用文言で記録する
-4. parse errorのsource/line/type/messageは開発者向けdiagnostic WARNへ構造化して記録し、利用者向けerrorとoperation logのraw detailには含めない（BIZ-08-D1）
+4. parse errorのsource/filename/line/type/messageは開発者向けdiagnostic WARNへ構造化して記録し、利用者向けerrorとoperation logのraw detailには含めない（BIZ-08-D1）
 
 **Stage 2: Validate**
 1. Z001/Z002/Z005 の report_date が一致することを確認する

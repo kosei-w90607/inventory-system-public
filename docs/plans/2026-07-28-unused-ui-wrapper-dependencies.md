@@ -20,6 +20,7 @@ Narrative（append-only）:
 
 - 2026-07-28 kickoff -> spec-check -> design -> plan-draft: ownerがwave 2と順19+順20を選定（本lane介入1/3）。Coordinatorがproduction import graph、manifest/lockfile、UI-11a実装、69設計、UI_TECH_STACKの矛盾を再確認し、削除方針を `UI-FORM-D1` としてsource docへ昇格した。
 - 2026-07-28 plan-draft -> plan-gate: 本packet、Matrix、source doc、Wave Registryをmain上のwave scaffoldingとして実装より先にcommitする。lane branch/worktreeはPlan Gate収束後にこのplan-first lineageから分岐する。
+- 2026-07-28 Codex independent preflight（正式Sonnet review前）: P1=0 / P2=3 / P3=1。全件をCoordinatorが再実測してacceptし、FE test `UI-11a` token + traceability T4 check、manifest/lock/source-doc各面の独立mutation、component一覧の非網羅性明示、version表記を是正した。正式Plan Gateは未収束。
 
 ## Owner Effort Budget
 
@@ -65,7 +66,7 @@ Goal Invariant: productionで使われていない `DropdownMenu` / `RadioGroup`
 - delete: `src/components/ui/form.tsx`
 - delete: `src/components/ui/radio-group.tsx`
 - update: `package.json` / `package-lock.json`（直接dependency 2件だけを退役）
-- add: `src/lib/ui-form-dependency-contract.test.ts`（孤立wrapper/dependency/採用正本の再導入防止）
+- add: `src/lib/ui-form-dependency-contract.test.ts`（`UI-11a` token付き。孤立wrapper/dependency/採用正本の再導入防止）
 - source design: `docs/UI_TECH_STACK.md` `UI-FORM-D1`
 - regression: UI-11a threshold tests + frontend full gate
 - packet / Matrix（state更新はCoordinatorのみ）
@@ -80,11 +81,12 @@ Goal Invariant: productionで使われていない `DropdownMenu` / `RadioGroup`
 
 ## Acceptance Criteria
 
-- `npm test -- src/lib/ui-form-dependency-contract.test.ts` green: wrapper 3file不在、manifest/lockの直接dependency 2件不在、`UI-FORM-D1` anchor存在
+- `npm test -- src/lib/ui-form-dependency-contract.test.ts` green: wrapper 3file不在、manifest/lock rootの直接dependency 2件不在、`UI-FORM-D1` anchor存在
 - `npm test -- src/features/threshold-settings/ThresholdSettingsPage.test.tsx` green
+- `cd src-tauri && cargo run --bin generate_traceability -- --check` PASS（新規testの `UI-11a` tokenによりFE未参照baseline 22を維持）
 - `npm run typecheck && npm run lint && npm run format:check && npm test && npm run build` PASS
 - `bash scripts/doc-consistency-check.sh` PASS、`bash scripts/local-ci.sh full` CLEAN
-- Matrix X1〜X6をcommit済みclean treeで注入→red→復元→greenし、Coordinatorが独立再実測する
+- Matrix X1〜X10をcommit済みclean treeで注入→red→復元→greenし、Coordinatorが独立再実測する
 
 ## Design Sources
 
@@ -106,7 +108,7 @@ Goal Invariant: productionで使われていない `DropdownMenu` / `RadioGroup`
 
 ## Registration / Generation Obligations
 
-該当なし。新規command / route / operator画面 / function-design doc / REQ coverage追加なし。Vitestは新規testを自動収集する。bindings / routes / traceability再生成不要。
+新規testはVitestが自動収集する。test内に `UI-11a` tokenを置き、`cargo run --bin generate_traceability -- --check` でWF-TRACE-04のFE未参照baseline 22が増えないことを確認する。新規REQ coverageではないため90の再生成は不要。新規command / route / operator画面 / function-design doc、bindings / routes生成は該当なし。
 
 ## Design Intent Trace
 
@@ -157,12 +159,13 @@ R2だがmutation oracleを明確にするため記載する。
 | UI-FORM-D1-C Zod/radix-ui維持 | manifests + existing source | contract test + typecheck | active componentsはnon-scope |
 | UI-11a挙動不変 | threshold feature | existing ThresholdSettingsPage tests | L3なし |
 | source doc同期 | UI_TECH_STACK | anchor assertion + docs check | — |
+| WF-TRACE-04 FE test baseline | new contract test | `generate_traceability -- --check` | 90再生成なし |
 
 ## Test Plan
 
 - Matrix: [test-matrices/2026-07-28-unused-ui-wrapper-dependencies.md](test-matrices/2026-07-28-unused-ui-wrapper-dependencies.md)
 - targeted: structural contract test、ThresholdSettingsPage test
-- negative: wrapper/dependency/RHF採用文の各再導入
+- negative: wrapper、manifest/lock root dependency、採用表、component例、§2.7旧肯定文の各独立再導入
 - compatibility: Zod/radix-uiが残りfrontend build成功
 - data safety: 永続データ非接触
 - main wiring: production import graph 0をrepo-wide sweep

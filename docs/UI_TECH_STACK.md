@@ -25,7 +25,7 @@
 | データテーブル | TanStack Table | 8 | ヘッドレス、大量行に強い、shadcn/ui DataTable適合 | §2.4 |
 | データフェッチ | TanStack Query | 5 | CMD層invoke結果のキャッシュ・invalidate制御 | §2.5 |
 | 状態管理 | Zustand | 5 | 軽量、選択的レンダリング、業務アプリに十分 | §2.6 |
-| フォーム | feature-local controlled state + Zod | React + 4 | 小さな業務フォームの状態を局所化し、必要な箇所だけschema検証 | §2.7 |
+| フォーム | feature-local controlled state + Zod | 19 + 4 | 小さな業務フォームの状態を局所化し、必要な箇所だけschema検証 | §2.7 |
 | テスト（単体） | Vitest | latest | Vite整合、高速 | §2.7補, §6 |
 | テスト（A11y） | @axe-core/react | latest | WCAG 2.1 AA 監査 | §5 |
 | 通知 | Sonner | latest | shadcn/ui公式トースト、A11y済み | §6 |
@@ -115,7 +115,7 @@
 | Headless UI (Tailwind Labs) | シンプルだが Radix に比べて部品が少ない、shadcn/ui が事実上の後継 |
 | Radix UI 直接使用 | スタイル自作の工数が嵩む、shadcn/ui のレシピを自作することになる |
 
-**現行共通コンポーネント**:
+**主要な共通コンポーネント例**（実体正本 = `src/components/ui/`）:
 `Button` `Input` `Label` `Dialog` `AlertDialog` `Select` `Checkbox` `Tabs` `Card` `Table`（TanStack Table ラップ）`Toast`（Sonner）`Badge` `Skeleton` `Separator` `ScrollArea`
 
 **アイコン — lucide-react**:

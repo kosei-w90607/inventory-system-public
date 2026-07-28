@@ -19,8 +19,9 @@
 Narrative（append-only）:
 
 - 2026-07-28 kickoff -> spec-check -> design -> plan-draft: ownerがwave 2と順19+順20を選定（本lane介入1/3）。CoordinatorがCSV cache/commit consumer、日報parser/BIZ consumer、IO/BIZ architecture、D-053 error boundaryを再確認した。
-- 2026-07-28 design decision: P6-4の二択をhybridで閉じた。格納先から自明なline `source_file` と未使用error `filename` は削除し、正本にあるparse error 4fieldはdiagnostic WARNへ接続する。利用者向けerrorとoperation logは汎用のまま（IO-07-D1 / BIZ-08-D1）。
+- 2026-07-28 design decision: P6-4の二択をhybridで閉じた。格納先から自明なline `source_file` は削除する一方、source判定前に失敗するunknown fileの識別に必要なerror `filename` を含むparse error 5fieldはdiagnostic WARNへ接続する。利用者向けerrorとoperation logは汎用のまま（IO-07-D1 / BIZ-08-D1）。
 - 2026-07-28 plan-draft -> plan-gate: 本packet、Matrix、source docs、Wave Registryをmain上のwave scaffoldingとして実装より先にcommitする。lane branch/worktreeはPlan Gate収束後にこのplan-first lineageから分岐する。
+- 2026-07-28 Codex independent preflight（正式Sonnet review前）: P1=0 / P2=4。全件をCoordinatorが再実測してacceptし、REQ正本path、CMD-07 owner、unknown source filenameの診断維持、Rust test関数名 `_req401`、`Some(line_no)` fixture変更許可を是正した。正式Plan Gateは未収束。
 
 ## Owner Effort Budget
 
@@ -39,14 +40,14 @@ Rollbackはlane implementation commitのrevert。DB migrationなし、保存済�
 
 ## Goal
 
-Goal Invariant: import内部型はproduction consumerが実際に必要なfieldだけを保持し、日報parse errorの残存4fieldは開発者向け診断へ到達する。一方、利用者向けerror、operation log、CSV commit/rollback、token/TTL/wire、日報preview/commitの業務挙動は変えない。
+Goal Invariant: import内部型はproduction consumerが実際に必要なfieldだけを保持し、日報parse errorの5fieldは開発者向け診断へ到達する。一方、利用者向けerror、operation log、CSV commit/rollback、token/TTL/wire、日報preview/commitの業務挙動は変えない。
 
 ### 最小完了条件
 
 - `MatchedRow` から未使用 `jan_code` / `name`、`CommitRequest` から未使用 `preview_token` を削除
-- 日報summary/payment/department lineから重複 `source_file`、parse errorから未使用 `filename` を削除
+- 日報summary/payment/department lineから重複 `source_file` を削除し、parse errorの5fieldはdiagnostic consumerへ接続
 - 未対応部門warningはline fieldに依存せず `source_file=Z005` を維持
-- parse errorの `source_file` / `line_no` / `error_type` / `error_message` がdiagnostic WARNへ構造化出力される
+- parse errorの `source_file` / `filename` / `line_no` / `error_type` / `error_message` がdiagnostic WARNへ構造化出力される
 - `BizError` と `daily_report_parse_failed` operation logは汎用文言、`detail_json IS NULL`、import row 0を維持
 - REQ-401 test追加/変更に伴うtraceability再生成を本laneだけが行う
 
@@ -67,14 +68,14 @@ Goal Invariant: import内部型はproduction consumerが実際に必要なfield�
 
 - CSV BIZ: `src-tauri/src/biz/csv_import_service/{mod.rs,parse.rs}`、commit/rollback testの`CommitRequest` literal機械更新
 - CSV CMD: `src-tauri/src/cmd/csv_import_cmd.rs`（BIZ request最小化。CMD token lifecycleは不変）
-- Daily IO: `src-tauri/src/io/daily_report_parser.rs`（line source/error filename縮小とinline test更新）
+- Daily IO: `src-tauri/src/io/daily_report_parser.rs`（line source縮小、parse error 5field維持とinline test更新）
 - Daily BIZ: `src-tauri/src/biz/daily_report_import_service/{parse.rs,tests.rs}`（structured WARN、generic boundary、Z005 warning）
 - add: `src-tauri/tests/import_internal_contract_test.rs`（source contractの再膨張防止、REQ-401）
 - source docs: 29 / 32 / 37 / 41、architecture IO/BIZ task specs（IO-07-D1、BIZ-03-D1、BIZ-08-D1）
 - generated: `docs/function-design/90-traceability.md`（generator lane専有）
 - packet / Matrix（state更新はCoordinatorのみ）
 
-既存test変更の限定例外: `CommitRequest` field削除に必要なstruct literalの機械更新、parser field削除に必要なassert更新、`test_daily_report_req401_parse_error_logs_parse_failed` の診断/漏えい防止assert強化だけを許可する。test削除、skip、期待緩和は禁止。
+既存test変更の限定例外: `CommitRequest` field削除に必要なstruct literalの機械更新、parser line field削除に必要なassert更新、`test_daily_report_req401_parse_error_logs_parse_failed` の入力をsynthetic malformed rowへ変えて `Some(line_no)` を作るfixture変更と診断/漏えい防止assert強化だけを許可する。test削除、skip、期待緩和は禁止。
 
 ## Non-scope
 
@@ -83,11 +84,11 @@ Goal Invariant: import内部型はproduction consumerが実際に必要なfield�
 - bindings/routes
 - CSV parser input/output format、ErrorRow/PreviewData wire
 - `Plans.md` とlane 1 files（Coordinator管理/別lane）
--実POS・日報fixture、DB、diagnostic/operation log実出力のcommit
+- 実POS・日報fixture、DB、diagnostic/operation log実出力のcommit
 
 ## Acceptance Criteria
 
-- `cargo test test_daily_report_req401_parse_error_logs_parse_failed -- --nocapture` green: synthetic failureでdiagnostic 4field、generic BizError、operation type/summary、`detail_json IS NULL`、import 0をassert
+- `cargo test test_daily_report_req401_parse_error_logs_parse_failed -- --nocapture` green: synthetic malformed rowでdiagnostic 5field（`Some(line_no)`を含む）、generic BizError、operation type/summary、`detail_json IS NULL`、import 0をassert
 - 未対応部門warning testで `source_file=Some(Z005)` green
 - `cargo test --test import_internal_contract_test` green: removed fieldsのsource-doc/production再導入を検出
 - CSV commit/rollback既存tests green、token lifecycle command tests green
@@ -98,7 +99,7 @@ Goal Invariant: import内部型はproduction consumerが実際に必要なfield�
 
 ## Design Sources
 
-- Requirements / spec: `docs/requirements.md` REQ-401、`docs/spec.md` REQ-401
+- Requirements / spec: `docs/spec/requirements.md` REQ-401、`docs/spec/requirements-coverage.md` REQ-401（単一形式前提はsuperseded、現行2-trackのリンク先を正とする）
 - Architecture: `docs/architecture/io-task-specs.md` IO-07、`docs/architecture/biz-task-specs.md` BIZ-03/BIZ-08、`docs/ARCHITECTURE.md` operation/diagnostic boundary
 - Function / command / DTO: 29 IO-07、32 BIZ-03、37 BIZ-08、41 CMD POS
 - DB: operation log schema不変、daily report/csv import tables不変
@@ -117,7 +118,7 @@ Goal Invariant: import内部型はproduction consumerが実際に必要なfield�
 
 ## Registration / Generation Obligations
 
-- 新規 Rust integration testにREQ-401 tokenを付与し、`cargo run --bin generate_traceability` で `docs/function-design/90-traceability.md` を再生成する。
+- 新規 Rust integration testの関数名を `test_import_internal_contract_req401_is_minimal` のように `_req401_` 付きとし、`cargo run --bin generate_traceability` で `docs/function-design/90-traceability.md` を再生成する（コメントだけのREQ-401はRust test coverageへ計上されない）。
 - 本laneをwave 2唯一のgenerator laneとし、lane 1は生成物に触れない。
 - 新規command / route / screen / function-design docなし。bindings / routes再生成不要。
 
@@ -126,7 +127,7 @@ Goal Invariant: import内部型はproduction consumerが実際に必要なfield�
 | Spec / requirement ID | Source design doc section | Decision ID | Why / rejected alternatives | Implementation target | Test target |
 |---|---|---|---|---|---|
 | REQ-401 / P6-3 | 32 §15.2/§15.4、41 §17.5 | BIZ-03-D1 | BIZが読まないdisplay/token fieldをcache/requestに複製しない | CSV mod/parse/CMD | internal contract test + existing commit tests |
-| REQ-401 / P6-4 | 29 §29.2/§29.3 | IO-07-D1 | 全詳細削除は診断価値を失い、全保持はdead metadataを温存。hybrid採用 | daily parser | parser + contract tests |
+| REQ-401 / P6-4 | 29 §29.2/§29.3 | IO-07-D1 | 全詳細削除は診断価値を失う。line側の重複sourceだけを削り、unknown識別を含むerror 5fieldは診断へ接続するhybrid採用 | daily parser | parser + contract tests |
 | REQ-401 / D-053 | 37 §37.3 | BIZ-08-D1 | rawをwire/operation logへ出さずdiagnosticだけで消費 | daily BIZ parse | strengthened parse failure test |
 
 ## Design Intent Audit
@@ -171,7 +172,7 @@ Goal Invariant: import内部型はproduction consumerが実際に必要なfield�
 | BIZ-03-D1-A MatchedRow最小5field | csv mod/parse | internal contract test + compile | UI display non-scope |
 | BIZ-03-D1-B CommitRequest 2field | csv mod/CMD | internal contract + CMD/commit tests | wire token不変 |
 | IO-07-D1-A line source重複なし | daily parser/BIZ | internal contract + parser/BIZ tests | format不変 |
-| IO-07-D1-B parse error 4field | daily parser | internal contract + parser tests | filenameはsource metadata側 |
+| IO-07-D1-B parse error 5field | daily parser | internal contract + parser tests | filenameはdiagnostic専用 |
 | BIZ-08-D1-A structured diagnostic | daily BIZ parse | strengthened REQ-401 test | L3なし |
 | BIZ-08-D1-B generic wire/operation | daily BIZ parse | error/SQL assertions | raw detail露出禁止 |
 | BIZ-08-D1-C unmatched dept Z005 | daily BIZ parse | warning regression | operator wording不変 |

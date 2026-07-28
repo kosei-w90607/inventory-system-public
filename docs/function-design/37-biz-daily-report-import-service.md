@@ -160,7 +160,7 @@ fn parse_and_validate_daily_report(
 1. ファイルサイズ上限を検証する。
 2. IO-07 `parse_daily_report_bundle(files)` を呼ぶ。
 3. `parse_errors` がある場合は `BizError::ImportError` として返す。
-   - **BIZ-08-D1**: 各errorの `source_file` / `line_no` / `error_type` / `error_message` を開発者向けdiagnostic WARNへ構造化して記録する。
+   - **BIZ-08-D1**: 各errorの `source_file` / `filename` / `line_no` / `error_type` / `error_message` を開発者向けdiagnostic WARNへ構造化して記録する。filenameはunknown sourceを含む入力識別用で、diagnostic専用とする。
    - 利用者向けerror messageと `operation_logs.summary` は汎用文言を維持し、raw parse detailをwireまたは `operation_logs.detail_json` へ載せない。
    - 返却前に `operation_logs.operation_type='daily_report_parse_failed'` を best-effort で記録する。
 4. `report_date` を検証する。
