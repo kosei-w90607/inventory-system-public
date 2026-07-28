@@ -27,13 +27,18 @@ Narrative（append-only）:
 - 2026-07-29 Codex review-only preflight: P1=0 / P2=1 / P3=2。wire実装、serde三状態、generated型、builder/page、Scope内codeは適合。P2はtouched source `51-ui-product-form.md` §7.4が4 commandをgenerated未対応の未来形で記し、同節の現行`PRODUCT-PATCH-D1`とbindingsに矛盾すること。repo-wide drift sweepで`SCREEN_DESIGN.md`にも同じ未来形を確認したため、両live source docsの現況同期をgated Amendment 1として追加し、Writerを停止してformal Amendment Reviewへ戻す。
 - 2026-07-29 owner relay budget exception: 上記gated Amendment Reviewと、その後のFormal Final Reviewを独立に完了するため、ownerがrelay上限を2回から3回へ今回限り拡張した。追加1回はsource-doc wording同期のAmendment Reviewだけに使い、実装Scopeや証跡収集の任意拡張には使わない。
 - 2026-07-29 gated Amendment 1 SHA記録: `Amendments` fieldをcontent commit `970e42e`へ設定した。技術Scopeは51 / SCREEN_DESIGNのUI-01b generated command status現在形同期とlive wording sweepだけで、wire実装・UI・DB・他lane契約は変更しない。
+- 2026-07-29 formal Amendment Review（同Plan Reviewer、owner relay）: exact Amendment content `970e42e`とSHA記録commitをread-only確認し、P1=0 / P2=0 / P3=0、Amendment approved、Writer再開可。51 §7.1/§7.4とSCREEN_DESIGNの4 command status、live wording sweep、Scope / Non-scope / AC / Matrix C7・F6・X8の接続を独立確認した。relay 2/3。
+- 2026-07-29 lane 1 merge後のtrain rebase: 最新main `9ea0625`へconflict-free rebaseした。plan-first `dc4aa1b`はmain上の同一commitとして祖先に残り、gated Amendment 1は`Rebase Map: 970e42eef875d2eba608c35b14bf3a165f5a000e -> 3618cb0cce615f3c878d44642a918c7683deef50`（patch-id `b61853a5c8714d58994506e283f8f17f0fda06a1`一致）として再配置した。rebase前後のwhole-diff patch-idは`4f766c638b6c69399d0ea75aaa77fec61f6243ff`で一致。`Plan Commit` / `Amendments`の原SHA列は維持する。
+Rebase Map: 970e42eef875d2eba608c35b14bf3a165f5a000e -> 3618cb0cce615f3c878d44642a918c7683deef50
+- 2026-07-29 Amendment実装再開: 承認された狭いScopeどおり、51 §7.1/§7.4とSCREEN_DESIGNのUI-01b generated command statusだけを現在形へ同期した。wire実装、UI、DB、command登録、bindingsは変更していない。
+- 2026-07-29 Amendment実装closure: archive / plans / researchを除くlive source wording sweepは旧未来形0件。X8として51の`updateProduct`を`generated 未対応`へ戻すと同guardがredになり、復元後greenを再確認した。影響familyはRust serde 2件、frontend 3 file / 20件、typecheck / lint / format、plan consistencyがgreen。
 
 ## Owner Effort Budget
 
 - 介入回数上限: 3
 - 実働時間上限: 30分
 - relay往復上限: 3（既定2から今回限り拡張。Plan Review / gated Amendment Review / Final Review）
-- 現況: 介入1/3、relay 1/3
+- 現況: 介入1/3、relay 2/3
 
 ## Risk
 
@@ -200,9 +205,16 @@ Contract ID: REQ-102 / PRODUCT-PATCH-D1
 
 synthetic product/JSONだけを使う。実店舗DB、価格/原価data、log、backup、secretをcommitしない。migration/永続data変換なし。
 
+## Implementation Results
+
+- `ProductUpdateRequest`のstruct-level serde defaultからgenerated deserialize型の全9propertyをoptional化し、通常fieldとclear可能fieldのomitted / null / value意味論をRust testで固定した。
+- frontend builderはgenerated `ProductUpdateRequest_Deserialize`を直接返し、手書き`Partial`と保存時castを除去した。changed-field-only payloadとsupplier / makerのclear/valueを既存・専用testで固定した。
+- gated Amendment 1に従い、51 §7.1/§7.4とSCREEN_DESIGNのUI-01b command statusを現行generated bindingへ同期した。command登録、UI表示、DB、BIZ更新挙動は不変。
+- Amendment実装後の影響family検証とX8 mutationを完了し、旧未来形のlive source hitは0件。
+
 ## Review Response
 
 - Findings Freeze: formal Final Reviewのinitial broad audit完了時に発効予定
 - Plan Review: Approve（P1=0 / P2=0 / P3=1）
-- Gated Amendment 1: formal review pending
+- Gated Amendment 1: Approve（P1=0 / P2=0 / P3=0、Writer再開可）
 - Final Review: pending

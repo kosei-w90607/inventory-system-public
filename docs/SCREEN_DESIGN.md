@@ -286,7 +286,7 @@
 - **対応仕様**: REQ-101（商品登録）, REQ-102（商品修正）
 - **レイアウト判断**:
   - route は `/products/new`（新規）と `/products/$code/edit`（修正）を分ける。新規 / 修正を query param だけで切り替えない
-  - UI は generated `commands.*` のみを使う。実装 PR では `createProduct` / `updateProduct` / `toggleDiscontinue` / `listSuppliers` を tauri-specta binding に追加する
+  - UI は tauri-specta で生成済みの `commands.createProduct` / `commands.updateProduct` / `commands.toggleDiscontinue` / `commands.listSuppliers` を使う
   - create mode の商品コードは「JANコードあり」と「JANなし独自コード自動発番」に分ける。JAN blank + 選択部門に `code_prefix` がない場合は保存前に止める
   - edit mode では `product_code` / `jan_code` / `stock_quantity` / `stock_unit` を読取専用にする。`stock_unit` 変更は在庫履歴・閾値・POS 連動への影響が大きいため別 Design Phase
   - 取引先候補は取引先マスタ全件を取得する。inline 新規取引先作成は初回 UI-01b 実装では扱わない
