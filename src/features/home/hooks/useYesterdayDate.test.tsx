@@ -18,10 +18,15 @@ afterEach(() => {
 describe("useYesterdayDate UI-00 visibility lifecycle", () => {
   it("updates only after a visible day rollover and removes its listener on unmount", () => {
     const visibility = vi.spyOn(document, "visibilityState", "get").mockReturnValue("visible");
+    const addListener = vi.spyOn(document, "addEventListener");
     const removeListener = vi.spyOn(document, "removeEventListener");
     const { result, unmount } = renderHook(() => useYesterdayDate());
+    const registeredHandler = addListener.mock.calls.find(
+      ([type]) => type === "visibilitychange",
+    )?.[1];
 
     expect(result.current).toBe("2026-07-28");
+    expect(registeredHandler).toEqual(expect.any(Function));
 
     vi.setSystemTime(new Date(2026, 6, 30, 0, 5));
     visibility.mockReturnValue("hidden");
@@ -37,6 +42,9 @@ describe("useYesterdayDate UI-00 visibility lifecycle", () => {
     expect(result.current).toBe("2026-07-29");
 
     unmount();
-    expect(removeListener).toHaveBeenCalledWith("visibilitychange", expect.any(Function));
+    const removedHandler = removeListener.mock.calls.find(
+      ([type]) => type === "visibilitychange",
+    )?.[1];
+    expect(removedHandler).toBe(registeredHandler);
   });
 });

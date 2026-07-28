@@ -212,8 +212,8 @@ DB、実CSV、店舗データ、backup、log、receipt、secretへ非接触。sy
 
 ## Implementation Results
 
-- production TypeScriptを変更せず、`useHomeSummary`（6件）、`useYesterdayDate`（1件）、`HomePage`（3件）の3 test fileを追加した。command boundaryだけをmockし、4 queryの引数/key/独立性、derived境界、visible日付またぎ、warningと2 toastを実hook経由で固定した。
-- targeted 3file、frontend `typecheck` / `lint` / `format:check` / 111 files・772 tests / `build`、traceability ERROR 0・WARN 0、plan consistencyがPASSした。`90-traceability.md`差分は0。
+- production TypeScriptを変更せず、`useHomeSummary`、`useYesterdayDate`、`HomePage`の3 test fileを追加した。command boundaryだけをmockし、4 queryの引数/key/独立性、derived境界、visible日付またぎ、warningと2 toastを実hook経由で固定した。
+- targeted test、frontend `typecheck` / `lint` / `format:check` / full test / `build`、traceability、plan consistencyがPASSした。`90-traceability.md`差分は0。
 - production、既存test、route、bindings、operator-visible UIへの変更は0。Wave 3 lane 3の未実装`SortableHeader.tsx`を参照するDS1のため、Writerは指示どおりchanged/full local CIとfull docs checkを実行せず、plan target checkまでをlane内証跡とした。
 
 ## Review Response
