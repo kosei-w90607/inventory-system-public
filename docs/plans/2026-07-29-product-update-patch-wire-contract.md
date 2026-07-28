@@ -2,16 +2,16 @@
 
 ## Workflow State
 
-- Phase: implementing
+- Phase: ready-hosted-final
 - Risk: R3
 - Execution Mode: dual-vendor-no-fable
 - Plan Commit: dc4aa1b
-- Amendments: none
+- Amendments: 970e42e
 - Coordinator: Codex（本thread。wave編成・packet起草・レビュー裁定・main/Registry/train管理）
 - Writer: Codex（plan-approved後の別session / worktree。Coordinatorと分離）
 - Plan Reviewer: Sonnet 5 fresh context（owner relay、read-only、実装非関与）
 - Final Reviewer: Sonnet 5 fresh context（Plan Reviewerとは別context、owner relay、read-only）
-- Reviewed Content HEAD: pending
+- Reviewed Content HEAD: 0bab5401bc77ea62420939484a6ce607d1aeb34b
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
 - Human Gate: wave batch Ready承認、lane merge承認（lane選定は介入1/3で完了）
@@ -23,13 +23,37 @@ Narrative（append-only）:
 - 2026-07-29 plan-draft -> plan-gate: exact baselineの隔離worktreeでstruct-level serde defaultを暫定適用し、generated deserialize / serialize shapeをend-to-end probeした。Packet / Matrix / source docsと3 lane footprint分離をCoordinatorが確認し、plan-first content commitで固定してfresh Sonnet Plan Reviewへ進む。
 - 2026-07-29 formal Plan Review（Sonnet 5 fresh context、owner relay）: Verdict Approve、P1=0 / P2=0 / P3=1。Reviewerがexact plan-firstの隔離worktreeでContract Probeを独立再現し、Rust 1行とbindings 14行の期待shapeを確認した。P3の`UI_TECH_STACK.md`節番号誤引用は実装契約へ影響しないfollow-upとして記録し、P3-onlyのPlan変更・再reviewは行わない。relay 1/2。
 - 2026-07-29 plan-gate -> plan-approved -> implementing（state-only compression）: 独立Plan ReviewerがP1/P2=0を報告し、plan-first `dc4aa1b`は全実装commitより前に存在する。`Plan Commit`を同SHAへ固定し、本state-only commit後にlane 2 Writer実装を許可する。
+- 2026-07-29 lane 3 merge後のtrain rebase: 最新main `214b289`へconflict-free rebaseし、実装commitを`f436c35 -> e762b23`、`6cdb8c7 -> f7a9a5a`へ再配置した。rebase前後のwhole-diff patch-idは`47497efc30e0ea6a5297ca75dcf71694ae90475f`で一致。plan-first `dc4aa1b`はmain上の同一commitとして祖先に残りreplayされていないため、Plan Commit fieldを維持しRebase Mapは不要。
+- 2026-07-29 Codex review-only preflight: P1=0 / P2=1 / P3=2。wire実装、serde三状態、generated型、builder/page、Scope内codeは適合。P2はtouched source `51-ui-product-form.md` §7.4が4 commandをgenerated未対応の未来形で記し、同節の現行`PRODUCT-PATCH-D1`とbindingsに矛盾すること。repo-wide drift sweepで`SCREEN_DESIGN.md`にも同じ未来形を確認したため、両live source docsの現況同期をgated Amendment 1として追加し、Writerを停止してformal Amendment Reviewへ戻す。
+- 2026-07-29 owner relay budget exception: 上記gated Amendment Reviewと、その後のFormal Final Reviewを独立に完了するため、ownerがrelay上限を2回から3回へ今回限り拡張した。追加1回はsource-doc wording同期のAmendment Reviewだけに使い、実装Scopeや証跡収集の任意拡張には使わない。
+- 2026-07-29 gated Amendment 1 SHA記録: `Amendments` fieldをcontent commit `970e42e`へ設定した。技術Scopeは51 / SCREEN_DESIGNのUI-01b generated command status現在形同期とlive wording sweepだけで、wire実装・UI・DB・他lane契約は変更しない。
+- 2026-07-29 formal Amendment Review（同Plan Reviewer、owner relay）: exact Amendment content `970e42e`とSHA記録commitをread-only確認し、P1=0 / P2=0 / P3=0、Amendment approved、Writer再開可。51 §7.1/§7.4とSCREEN_DESIGNの4 command status、live wording sweep、Scope / Non-scope / AC / Matrix C7・F6・X8の接続を独立確認した。relay 2/3。
+- 2026-07-29 lane 1 merge後のtrain rebase: 最新main `9ea0625`へconflict-free rebaseした。plan-first `dc4aa1b`はmain上の同一commitとして祖先に残り、gated Amendment 1は`Rebase Map: 970e42eef875d2eba608c35b14bf3a165f5a000e -> 3618cb0cce615f3c878d44642a918c7683deef50`（patch-id `b61853a5c8714d58994506e283f8f17f0fda06a1`一致）として再配置した。rebase前後のwhole-diff patch-idは`4f766c638b6c69399d0ea75aaa77fec61f6243ff`で一致。`Plan Commit` / `Amendments`の原SHA列は維持する。
+Rebase Map: 970e42eef875d2eba608c35b14bf3a165f5a000e -> 3618cb0cce615f3c878d44642a918c7683deef50
+- 2026-07-29 Amendment実装再開: 承認された狭いScopeどおり、51 §7.1/§7.4とSCREEN_DESIGNのUI-01b generated command statusだけを現在形へ同期した。wire実装、UI、DB、command登録、bindingsは変更していない。
+- 2026-07-29 Amendment実装closure: archive / plans / researchを除くlive source wording sweepは旧未来形0件。X8として51の`updateProduct`を`generated 未対応`へ戻すと同guardがredになり、復元後greenを再確認した。影響familyはRust serde 2件、frontend 3 file / 20件、typecheck / lint / format、plan consistencyがgreen。
+- 2026-07-29 owner conditional train authorization（介入2/3・3/3）: ownerはFormal Final Review P1/P2=0を条件にReady遷移を介入2/3、同一HEADのlocal / hosted / PR三点一致とmerge CLEANを条件にmergeを介入3/3として承認した。追加owner判断は不要だが、各preconditionとper-lane merge gateは省略しない。
+- 2026-07-29 implementing -> local-verified -> independent-review（state-only compression）: content candidate `5f42343e0cbf7efd52014e32acd5d310215114f2`でexact-HEAD L1 fullがCLEAN / PASSとなり、Draft PR #36 bodyへ証跡を記録した。Formal Sonnet Final Reviewerへ同content candidateのread-only reviewをrelayし、wave 3 merge train最後のlaneとしてindependent-reviewへ進む。
+- 2026-07-29 formal Final Review（Sonnet 5 fresh context、owner relay）: Verdict Changes required、P1=0 / P2=1 / P3=0。wire / generated binding / frontend patch contractは適合したが、Contract Coverage Ledgerが主張するUI-01b live wording sweepは一度きりの手動mutationに留まり、repositoryに残る自動回帰guardが存在しなかった。P2-1をacceptし、既存frontend contract testへの狭い追加だけに限定してWriterを再開する。relay 3/3。
+- 2026-07-29 independent-review -> implementing（state-backtrack）: Formal Final Review P2-1 closureのため実装へ戻る。51 §7.1/§7.4とSCREEN_DESIGNのUI-01b 4 commandだけを対象に、旧未来形 / generated未対応wordingを検知するdurable testを追加し、旧文言注入RED・復元GREENを確認する。wire / UI / DB / command登録と他lane契約は変更しない。
+- 2026-07-29 P2-1実装closure: 既存`product-update-patch-contract.test.ts`が51 §7.1〜§7.4とSCREEN_DESIGNの商品登録・修正画面sectionを直接読み、4 commandすべての現在statusと旧未来形 / `generated 未対応`不在を自動検証するようにした。51の`updateProduct`を`generated 未対応`へ注入してtargeted testがred、復元後greenを確認し、手動grepだけだったX8をdurable regression guardへ昇格した。
+- 2026-07-29 implementing -> local-verified: content candidate `9bcf940e4432c7602242be2da26dbf64a93cf6b7`でexact-HEAD L1 fullがCLEAN / PASS。Rust 753 tests、frontend 112 files / 781 tests、generated bindings diff 0、traceability ERROR 0 / WARN 0、build green。既知npm audit 9件はwarn-only。P2-1 closure-only reviewに必要なrelay 4/4は未承認のため、ownerの今回限り上限拡張をHuman Gateとして待つ。
+- 2026-07-29 owner relay budget exception: ownerがP2-1 closure-only reviewのためrelay上限を3回から4回へ今回限り拡張した。追加1回は同じFinal Reviewerによる既存P2-1の解消確認だけに使い、新規Broad Audit・P3探索・任意の証跡追加には使わない。
+- 2026-07-29 local-verified -> independent-review: Reviewed Content HEADを`9bcf940e4432c7602242be2da26dbf64a93cf6b7`へ固定し、Sonnet 5 / xHighへP2-1 closure-only reviewをrelayする。P1/P2=0なら既承認の条件付きReady / hosted final / merge gateへ復帰する。
+- 2026-07-29 formal Final Review P2-1 closure（同Final Reviewer、Sonnet 5 / xHigh、owner relay）: 元のP2-1はcontent面で解消済み。Closure Verdictはincomplete、P1=0 / P2=1 / P3=1。新規P2はCoordinatorが再実装後のforward stateを2つのstate-only commitへ分割し、STATECAP post-implementation上限を超えたこと。P3は51 §7.1のD3旧未来形をbare command名で復元するとline filterから漏れてfalse-greenになること。relay 4/4。
+- 2026-07-29 closure adjudication: P2 / P3ともaccept。D3を含む対象section全体へnegative stale-wording oracleを適用し、bare commandの旧未来形注入でred、復元後greenを確認した。STATECAPは追加commitで逃げず、最初のFinal Review遷移以降のDraft branch履歴をcompression ruleどおり1つのcontent commitへ訂正し、review後の正規state-only枠を温存する。
+- 2026-07-29 owner history correction / relay exception: ownerがDraft PR #36 branchだけを対象とする履歴圧縮と`--force-with-lease`、および再closure用relay上限5を承認した。旧`48afc21`〜`a555f4b`の5 commitは、P2/P3修正と監査Narrativeを保持した単一content commitへ圧縮する。追加relayは同Final ReviewerによるSTATECAP / D3 closure確認だけに使う。
+- 2026-07-29 history correction / local-verified: 旧5 commitを単一content commit `0bab5401bc77ea62420939484a6ce607d1aeb34b`へ圧縮し、Draft PR branchを`--force-with-lease`で更新した。STATECAP / PK5とexact-HEAD L1 fullはCLEAN / PASS。旧HEADはlocal backup refへ保存した。
+- 2026-07-29 local-verified -> independent-review: Reviewed Content HEADを`0bab5401bc77ea62420939484a6ce607d1aeb34b`へ固定し、Sonnet 5 / xHighへSTATECAP P2とD3 false-green P3だけのclosure-only Reviewをrelayする。
+- 2026-07-29 formal Final Review closure（同Final Reviewer、Sonnet 5 / xHigh、owner relay）: P2-2 / P3-1 closure confirmed、P1=0 / P2=0 / P3=0。圧縮後commit列、STATECAP green、section-wide oracle、targeted test、exact-HEAD L1、state-only deltaをread-onlyで独立確認した。relay 5/5。
+- 2026-07-29 independent-review -> human-confirm -> ready-hosted-final（state-only compression）: Formal Final Review closure P1/P2=0によりhuman-confirmへ進み、ownerの既承認済み条件付きReady判断を適用した。本state-only HEADでL1 fullを再取得し、Draft解除後のhosted final、live PR三点一致とmerge CLEANを確認してから既承認済みmerge判断を実行する。
 
 ## Owner Effort Budget
 
 - 介入回数上限: 3
 - 実働時間上限: 30分
-- relay往復上限: 2（Plan Review / Final Review）
-- 現況: 介入1/3、relay 1/2
+- relay往復上限: 5（既定2から段階的に今回限り拡張。Plan Review / gated Amendment Review / Final Review / P2-1 closure Review / STATECAP・D3 closure Review）
+- 現況: 介入3/3（wave選定、条件付きReady承認、条件付きmerge承認）、relay 5/5
 
 ## Risk
 
@@ -67,6 +91,7 @@ Goal Invariant: Rust serdeの実際のpatch意味論とgenerated TypeScript comm
 ## Scope
 
 - source docs: `docs/function-design/{30-biz-product-service,40-cmd-product,51-ui-product-form}.md`
+- source wording sync: `docs/SCREEN_DESIGN.md`（UI-01b generated command statusの現在形同期だけ）
 - Rust DTO/test: `src-tauri/src/biz/product_service.rs`
 - generated: `src/lib/bindings.ts`（wave 3唯一のgenerated artifact lane）
 - frontend: `src/features/products/lib/product-form-request.ts`、`src/features/products/ProductFormPage.tsx`
@@ -80,6 +105,7 @@ Goal Invariant: Rust serdeの実際のpatch意味論とgenerated TypeScript comm
 - `src-tauri/src/cmd/product_cmd.rs`、BIZ update本体、repository/DB/schema/migration
 - command名/引数名/response/`CmdError`
 - create product、route、query invalidation、UI layout/style/L3
+- `docs/SCREEN_DESIGN.md`は上記generated command statusのwording同期以外
 - binding generator、Cargo/npm dependency/lockfile
 - `docs/function-design/90-traceability.md`（既存UI-01b tokenを使い再生成不要）
 - 順14と`Plans.md`
@@ -93,13 +119,14 @@ Goal Invariant: Rust serdeの実際のpatch意味論とgenerated TypeScript comm
 - `cd src-tauri && cargo run --bin generate_bindings` 後のgenerated diffが `src/lib/bindings.ts`だけ
 - Rust format/clippy/test、frontend typecheck/lint/format/test/buildをPASS。frontend gateとbindings生成は逐次実行
 - `cargo run --bin generate_traceability -- --check`、`bash scripts/doc-consistency-check.sh --target plan`、`bash scripts/local-ci.sh full` PASS
+- archive / researchを除くlive source docsで、UI-01bの`createProduct` / `updateProduct` / `toggleDiscontinue` / `listSuppliers`をgenerated未対応または将来追加と記すwordingが0件
 - Matrix baseline mutation全量をtargeted `cargo test` / `npm test` / `npm run typecheck`でCoordinatorが独立再実測し、各red、復元後green、survivor 0
 
 ## Design Sources
 
 - Requirements: `docs/spec/requirements.md` REQ-102、`docs/spec/requirements-coverage.md` REQ-102
 - BIZ/CMD/UI: 30 §4.4、40 §5.4 update、51 §7.1/§7.4/§7.5/§7.8（`PRODUCT-PATCH-D1`）
-- Generated SSOT: `docs/UI_TECH_STACK.md` §2.3
+- Generated SSOT: `docs/UI_TECH_STACK.md` §2.5
 - Audit: `docs/research/audit-2026-07/findings/p4-type-contracts.md` P4b-1、adjudication裁定注記2
 
 ## Required Design Artifacts
@@ -145,6 +172,7 @@ Coordinatorがexact baseline `818352f`の隔離worktreeで`ProductUpdateRequest`
 | UI-01b-D5 changed-only/read-only不送信 | builder | exact payload tests | L3なし |
 | BIZ-01 §4.4 update副作用不変 | existing BIZ path | existing product tests | DB/schema変更なし |
 | CMD-01 error/response不変 | generated command call | existing page/command regression | cmd source非変更 |
+| UI-01b generated command status | 51 §7.1/§7.4 + `SCREEN_DESIGN.md` UI-01b | `product-update-patch-contract.test.ts`のsection限定live wording sweep + bindings presence | command登録・生成自体は不変 |
 
 ## Test Plan
 
@@ -169,6 +197,7 @@ Coordinatorがexact baseline `818352f`の隔離worktreeで`ProductUpdateRequest`
 - ordinary / clearableのnull意味をtestが混同していないか
 - frontend test期待値がproduction builderから導出されていないか
 - live `Partial`/castをrepo-wide sweepしたか
+- UI-01bのgenerated command statusが51とSCREEN_DESIGNで現在形にそろい、旧未来形がlive treeに残らないか
 - bindingsを使うfrontend commandを並列生成/検証して偽陽性を作っていないか
 - Evidence Stop Condition: `exact-HEAD L1 + baseline全量mutation + P1/P2 closure`が揃った後は、runtime failure、Scope変更、または未closureのP1/P2がない限り追加の全量証跡収集を開始しない。証跡はGoal Invariantの判定手段であり、独立した成果として扱わない。
 
@@ -191,8 +220,18 @@ Contract ID: REQ-102 / PRODUCT-PATCH-D1
 
 synthetic product/JSONだけを使う。実店舗DB、価格/原価data、log、backup、secretをcommitしない。migration/永続data変換なし。
 
+## Implementation Results
+
+- `ProductUpdateRequest`のstruct-level serde defaultからgenerated deserialize型の全9propertyをoptional化し、通常fieldとclear可能fieldのomitted / null / value意味論をRust testで固定した。
+- frontend builderはgenerated `ProductUpdateRequest_Deserialize`を直接返し、手書き`Partial`と保存時castを除去した。changed-field-only payloadとsupplier / makerのclear/valueを既存・専用testで固定した。
+- gated Amendment 1に従い、51 §7.1/§7.4とSCREEN_DESIGNのUI-01b command statusを現行generated bindingへ同期した。command登録、UI表示、DB、BIZ更新挙動は不変。
+- Amendment実装後の影響family検証とX8 mutationを完了し、旧未来形のlive source hitは0件。
+- Formal Final Review P2-1 closureとして、同じ2 source sectionと4 commandを直接読むdurable frontend contract testを追加した。旧`generated 未対応`注入でred、復元後greenとなり、将来のwording driftをL1 frontend gateで検知できる。
+- Closure Review P3に対し、negative stale-wording oracleを各command lineだけでなく対象section全体へ拡張した。51 §7.1 D3のbare command旧未来形も自動検知する。
+
 ## Review Response
 
-- Findings Freeze: formal Final Reviewのinitial broad audit完了時に発効予定
-- Plan Review: pending
-- Final Review: pending
+- Findings Freeze: 2026-07-29 formal Final Reviewのinitial broad audit完了。P2-1 closure reviewは同findingの解消確認だけに限定し、新規Broad Auditを行わない
+- Plan Review: Approve（P1=0 / P2=0 / P3=1）
+- Gated Amendment 1: Approve（P1=0 / P2=0 / P3=0、Writer再開可）
+- Final Review: Approve（P2-1 / P2-2 / P3-1 closure confirmed、P1=0 / P2=0 / P3=0）

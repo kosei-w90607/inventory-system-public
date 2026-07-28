@@ -12,6 +12,7 @@ Risk: R3
 - C4: builder/pageはgenerated型へ直接接続し、`Partial`/castで迂回しない
 - C5: changed-only payloadとread-only不送信を維持
 - C6: command/BIZ/DB/UIの既存挙動は不変
+- C7: 51 / SCREEN_DESIGNのUI-01b command statusは現行generated bindingsと一致
 
 ## Failure Modes
 
@@ -20,6 +21,7 @@ Risk: R3
 - F3: unchanged fieldをnullで送って省略意味を隠す
 - F4: `Partial`/cast再導入でgenerated driftがtypecheckを通る
 - F5: DTO metadata変更がupdate副作用やcommand shapeへ波及する
+- F6: live source docsがgenerated commandを未対応・将来追加と誤記し続ける
 
 ## Test Matrix
 
@@ -31,6 +33,7 @@ Risk: R3
 | C4 | F4 | type/source contract | builder return type / forbidden live patterns | Partial aliasまたはsave castが戻る | X6: Partial alias再導入、X7: cast再導入 |
 | C5 | F3 | frontend exact payload | existing + strengthened `buildUpdateProductRequest` | read-only送信、unchanged送信、clear/value混同 | X2/X4、existing regression |
 | C6 | F5 | regression/full | product BIZ tests、ProductFormPage tests、full gate | command/error/update副作用/UIが変わる | existing suite |
+| C7 | F6 | source contract / wording sweep | 51 §7.1/§7.4 + SCREEN_DESIGN UI-01b + bindings presence | 4 commandの一部が未対応・将来形へ戻る | X8: `updateProduct`をgenerated未対応へ復元 |
 
 ## State Lifecycle Matrix
 
@@ -48,6 +51,7 @@ Risk: R3
 | `ProductUpdateRequest` consumer | Rust DTO/CMD、bindings、builder/page/tests | DTO metadata、builder/page | BIZ update body/CMD sourceは挙動不変 | rg + diff |
 | nested nullable patch | supplier/makerの2field | 両field | 他Optionはclear不可 | serde table |
 | generated command input | product commands/bindings | updateProductだけ | 順14 CmdError enum | typecheck + binding diff |
+| UI-01b generated status wording | 51 §7.1/§7.4、SCREEN_DESIGN、bindings | 2 source docsを現況へ同期 | archive/researchの履歴は変更しない | live wording sweep |
 
 ## Negative Paths
 
@@ -86,6 +90,7 @@ Risk: R3
 - builder戻り値がcastなしで`commands.updateProduct`へ到達
 - Rust metadataからgeneratorを通してbindingsへ到達
 - command signature/responseとBIZ呼出しは既存pathで回帰
+- 51 / SCREEN_DESIGNの4 command statusとbindingsの実在を突合し、旧未来形のlive hitが0
 
 ## Mutation-style Adequacy Questions
 
@@ -94,6 +99,7 @@ Risk: R3
 - unchanged通常fieldをnull送信、clear fieldをomit送信する各mutationをexact payloadが個別にkillするか
 - `Partial<ProductUpdateRequest_Deserialize>`またはsave castを個別再導入してguardがredになるか
 - source-doc期待値をproduction type/builderから導出せず、9fieldと三状態を独立列挙しているか
+- 51またはSCREEN_DESIGNの`updateProduct`をgenerated未対応へ戻すX8でlive wording sweepがredになるか
 - baseline全量mutation後のoracle-only修正は変更familyの代表mutationだけを再測定し、未変更familyの全量再実行を始めないか
 
 ## Residual Test Gaps

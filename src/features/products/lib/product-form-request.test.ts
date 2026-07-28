@@ -74,6 +74,15 @@ describe("buildCreateProductRequest (UI-01b-D4/D6)", () => {
 });
 
 describe("buildUpdateProductRequest (UI-01b-D5)", () => {
+  it("UI-01b PRODUCT-PATCH-D1 omits every unchanged field", () => {
+    const original = makeMockProductWithRelations({
+      supplier_id: 3,
+      maker_code: "A-1",
+    });
+
+    expect(buildUpdateProductRequest(productToFormValues(original), original).request).toEqual({});
+  });
+
   it("sends only supported changed fields and never sends read-only fields", () => {
     const original = makeMockProductWithRelations({
       product_code: "P-001",
@@ -104,6 +113,48 @@ describe("buildUpdateProductRequest (UI-01b-D5)", () => {
     expect(result.request).not.toHaveProperty("jan_code");
     expect(result.request).not.toHaveProperty("stock_quantity");
     expect(result.request).not.toHaveProperty("stock_unit");
+  });
+
+  it("UI-01b PRODUCT-PATCH-D1 sends ordinary and clearable values without unrelated fields", () => {
+    const original = makeMockProductWithRelations({
+      name: "変更前",
+      department_id: 1,
+      supplier_id: null,
+      selling_price: 500,
+      cost_price: 300,
+      tax_rate: "10",
+      maker_code: null,
+      pos_stock_sync: true,
+      plu_target: false,
+    });
+
+    const result = buildUpdateProductRequest(
+      {
+        ...productToFormValues(original),
+        name: "変更後",
+        departmentId: 4,
+        supplierId: 9,
+        sellingPrice: "1200",
+        costPrice: "700",
+        taxRate: "8",
+        makerCode: "M-9",
+        posStockSync: false,
+        pluTarget: true,
+      },
+      original,
+    );
+
+    expect(result.request).toEqual({
+      name: "変更後",
+      department_id: 4,
+      supplier_id: 9,
+      selling_price: 1200,
+      cost_price: 700,
+      tax_rate: "8",
+      maker_code: "M-9",
+      pos_stock_sync: false,
+      plu_target: true,
+    });
   });
 
   it("REQ-402 sends PLU target only when changed", () => {

@@ -42,6 +42,7 @@ pub struct ProductCreateResult {
 
 /// 商品更新リクエスト（FUNC-4.4）
 #[derive(Debug, Default, serde::Deserialize, specta::Type)]
+#[serde(default)]
 pub struct ProductUpdateRequest {
     pub name: Option<String>,
     pub department_id: Option<i64>,
@@ -1577,8 +1578,65 @@ mod tests {
     }
 
     #[test]
-    fn test_update_product_req102_deserialize_nullable_clear_fields() {
-        // UI-01b-D5: CMD JSON の null は Option<Option<T>> の Some(None) として clear 意図を保持する。
+    fn test_product_update_request_ordinary_fields_omitted_null_value() {
+        // REQ-102 / PRODUCT-PATCH-D1: 通常7 fieldは omitted/null=no update、value=set。
+        let req: ProductUpdateRequest = serde_json::from_str("{}").unwrap();
+        assert_eq!(req.name, None);
+        assert_eq!(req.department_id, None);
+        assert_eq!(req.selling_price, None);
+        assert_eq!(req.cost_price, None);
+        assert_eq!(req.tax_rate, None);
+        assert_eq!(req.pos_stock_sync, None);
+        assert_eq!(req.plu_target, None);
+
+        let req: ProductUpdateRequest = serde_json::from_str(
+            r#"{
+                "name":null,
+                "department_id":null,
+                "selling_price":null,
+                "cost_price":null,
+                "tax_rate":null,
+                "pos_stock_sync":null,
+                "plu_target":null
+            }"#,
+        )
+        .unwrap();
+        assert_eq!(req.name, None);
+        assert_eq!(req.department_id, None);
+        assert_eq!(req.selling_price, None);
+        assert_eq!(req.cost_price, None);
+        assert_eq!(req.tax_rate, None);
+        assert_eq!(req.pos_stock_sync, None);
+        assert_eq!(req.plu_target, None);
+
+        let req: ProductUpdateRequest = serde_json::from_str(
+            r#"{
+                "name":"更新名",
+                "department_id":4,
+                "selling_price":1200,
+                "cost_price":700,
+                "tax_rate":"8",
+                "pos_stock_sync":false,
+                "plu_target":true
+            }"#,
+        )
+        .unwrap();
+        assert_eq!(req.name, Some("更新名".to_string()));
+        assert_eq!(req.department_id, Some(4));
+        assert_eq!(req.selling_price, Some(1200));
+        assert_eq!(req.cost_price, Some(700));
+        assert_eq!(req.tax_rate, Some("8".to_string()));
+        assert_eq!(req.pos_stock_sync, Some(false));
+        assert_eq!(req.plu_target, Some(true));
+    }
+
+    #[test]
+    fn test_product_update_request_clearable_fields_omitted_null_value_req102() {
+        // REQ-102 / PRODUCT-PATCH-D1: clear可能2 fieldは omitted=no update、null=clear、value=set。
+        let req: ProductUpdateRequest = serde_json::from_str("{}").unwrap();
+        assert_eq!(req.supplier_id, None);
+        assert_eq!(req.maker_code, None);
+
         let req: ProductUpdateRequest =
             serde_json::from_str(r#"{"supplier_id":null,"maker_code":null}"#).unwrap();
         assert_eq!(req.supplier_id, Some(None));
@@ -1588,10 +1646,6 @@ mod tests {
             serde_json::from_str(r#"{"supplier_id":3,"maker_code":"A-1"}"#).unwrap();
         assert_eq!(req.supplier_id, Some(Some(3)));
         assert_eq!(req.maker_code, Some(Some("A-1".to_string())));
-
-        let req: ProductUpdateRequest = serde_json::from_str("{}").unwrap();
-        assert_eq!(req.supplier_id, None);
-        assert_eq!(req.maker_code, None);
     }
 
     #[test]

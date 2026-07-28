@@ -14,7 +14,7 @@
 |---|---|---|---|
 | REQ-101 / UI-01b | UI-01b-D1 | route は `/products/new` と `/products/$code/edit` に分ける。file route は `src/routes/products/new.tsx` と `src/routes/products/$code.edit.tsx`。 | create / edit の状態差が大きいため path で mode を明示する。query param だけで mode を切り替える案は、直接 URL 共有時に意図が読み取りにくいため不採用。 |
 | REQ-101 / REQ-102 | UI-01b-D2 | 保存成功後は商品一覧へ戻る。`returnTo` search param は `/products` 一覧 route とその search params だけ許可し、それ以外は `/products` に戻す。 | UI-01a の検索条件 URL state を保って戻れるようにする。一方でフォーム route、import route、外部 URL、他画面 route への遷移は不要で、保存後の循環や誤遷移を生むため許可しない。 |
-| CMD-01 / UI-01b | UI-01b-D3 | UI は generated `commands.*` だけを使う。実装 PR では `createProduct` / `updateProduct` / `toggleDiscontinue` / `listSuppliers` を tauri-specta に追加し、`src/lib/bindings.ts` を更新する。 | `typedInvoke` fallback は Phase 2 closeout で退役済み。UI-01b だけ ad hoc invoke に戻す案は contract drift のため不採用。 |
+| CMD-01 / UI-01b | UI-01b-D3 | UI は tauri-specta で生成済みの `commands.createProduct` / `commands.updateProduct` / `commands.toggleDiscontinue` / `commands.listSuppliers` を使う。generated binding の正本は `src/lib/bindings.ts` とする。 | `typedInvoke` fallback は Phase 2 closeout で退役済み。UI-01b だけ ad hoc invoke に戻す案は contract drift のため不採用。 |
 | REQ-101 | UI-01b-D4 | create mode の商品コード入力は「JANコードあり」と「JANなし独自コード自動発番」に分ける。JAN blank + 選択部門に `code_prefix` がある場合だけサーバー発番を使い、`code_prefix` がない部門では保存前 validation で止める。 | 現行 `ProductCreateRequest` は任意 `product_code` 手入力を受けない。UI が手入力欄を出しても backend に送れないため不採用。JANなし商品は独自コード発番対象部門を選ぶ。 |
 | REQ-102 / SP-102-04 | UI-01b-D5 | edit mode では `product_code` と `jan_code` を読取専用、`stock_quantity` と `stock_unit` も初回 UI-01b 実装では読取専用にする。 | `product_code` 変更不可は DB 設計と仕様で確定済み。`ProductUpdateRequest` は `stock_unit` / `stock_quantity` を更新しない。単位変更は在庫履歴・閾値・POS 連動への影響が大きいため別 Design Phase。 |
 | REQ-101 / pos_stock_sync | UI-01b-D6 | create mode で `stock_unit='cm'` にした場合は `pos_stock_sync=false` を提案し、利用者は toggle で true に戻せる。BIZ は UI から受け取った値を尊重する。 | `stock_unit='cm'` だけで POS 在庫同期を決める案は、DB_DESIGN の `pos_stock_sync` 明示フラグ方針に反する。 |
@@ -80,16 +80,16 @@ src/
 
 ## 7.4 Command / DTO Contract
 
-UI-01b 実装 PR では以下を generated binding に出す。
+UI-01b は以下の generated binding を使用する。
 
 | Command | Existing backend | UI-01b usage |
 |---|---|---|
 | `commands.getProduct(productCode)` | generated 済み | edit 初期表示 |
 | `commands.listDepartments()` | generated 済み | 必須部門候補 |
-| `commands.listSuppliers()` | IO は既存、BIZ/CMD/generation は実装 PR で追加 | 任意取引先候補 |
-| `commands.createProduct(req)` | Tauri command は既存、generated 未対応 | create 保存 |
-| `commands.updateProduct(productCode, req)` | Tauri command は既存、generated 未対応 | edit 保存 |
-| `commands.toggleDiscontinue(productCode)` | Tauri command は既存、generated 未対応 | edit 廃番 / 復帰 |
+| `commands.listSuppliers()` | generated 済み | 任意取引先候補 |
+| `commands.createProduct(req)` | generated 済み | create 保存 |
+| `commands.updateProduct(productCode, req)` | generated 済み | edit 保存 |
+| `commands.toggleDiscontinue(productCode)` | generated 済み | edit 廃番 / 復帰 |
 
 `ProductCreateRequest` / `ProductCreateResult` / `ProductUpdateRequest` / `ProductUpdateResult` / `Supplier` は `specta::Type` を付与し、`src/lib/bindings.ts` に生成して commit する。
 
@@ -194,3 +194,4 @@ Error recovery:
 | 2026-07-03 | D-028 Design Phase | §7.5 Create 4b と Edit editable fields に `plu_target`（レジにバーコード登録する）を追加。JAN 13桁数字判定からの初期値提案 + 変更可、off→on で PLU未反映扱い。実装は後続 R3 PR。 |
 | 2026-06-12 | PR #95 lost update 修正 | `ProductFormProps.onValuesChange` を `(values: ProductFormValues) => void` から `React.Dispatch<React.SetStateAction<ProductFormValues>>` に変更。`update()` を functional update（`onValuesChange((prev) => ({ ...prev, [key]: value }))`）に変更し、同一 tick の連続 state 更新（単位変更 + POS 同期提案）による lost update を解消。 |
 | 2026-06-25 | UI-02 L3 feedback | 説明書作成時に、商品登録は商品マスタ作成、入庫記録は通常仕入の在庫加算であることを明記する注意を追加。 |
+| 2026-07-29 | PRODUCT-PATCH-D1 follow-up | §7.1 / §7.4 の UI-01b command statusを現行generated bindingに同期。 |

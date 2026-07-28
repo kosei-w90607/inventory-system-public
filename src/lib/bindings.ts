@@ -1097,15 +1097,15 @@ export type ProductUpdateRequest = ProductUpdateRequest_Serialize | ProductUpdat
 
 // 商品更新リクエスト（FUNC-4.4）
 export type ProductUpdateRequest_Deserialize = {
-	name: string | null,
-	department_id: number | null,
+	name?: string | null,
+	department_id?: number | null,
 	supplier_id?: number | null,
-	selling_price: number | null,
-	cost_price: number | null,
-	tax_rate: string | null,
+	selling_price?: number | null,
+	cost_price?: number | null,
+	tax_rate?: string | null,
 	maker_code?: string | null,
-	pos_stock_sync: boolean | null,
-	plu_target: boolean | null,
+	pos_stock_sync?: boolean | null,
+	plu_target?: boolean | null,
 };
 
 // 商品更新リクエスト（FUNC-4.4）
