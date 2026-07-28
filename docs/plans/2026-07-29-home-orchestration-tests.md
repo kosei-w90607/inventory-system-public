@@ -2,10 +2,10 @@
 
 ## Workflow State
 
-- Phase: plan-gate
+- Phase: implementing
 - Risk: R2
 - Execution Mode: dual-vendor-no-fable
-- Plan Commit: pending
+- Plan Commit: dc4aa1b
 - Amendments: none
 - Coordinator: Codex（本thread。wave編成・packet起草・レビュー裁定・Registry/train管理）
 - Writer: Codex（plan-approved後の別session / worktree、lane 1 branchへpin）
@@ -21,6 +21,7 @@ Narrative（append-only）:
 - 2026-07-29 kickoff -> spec-check -> design -> plan-draft: ownerが初の3 lane waveと順10をlane 1に選定（本lane介入1/3）。productionと53設計は一致するが、実hook / QueryClientを通るorchestration testがなくP8b-2が未閉鎖と再確認した。production behaviorと画面表示は変えず、3 test fileと53のtest contractだけを追加する。
 - 2026-07-29 plan-draft -> plan-gate: Packet / Matrix / `UI-00-D11`を完成し、3 lane footprint分離、Workflow State 13 field、Prettier、plan consistencyをCoordinatorが確認した。plan-first content commitで固定し、fresh Sonnet Plan Reviewへ進む。
 - 2026-07-29 formal Plan Review（Sonnet 5 fresh context、owner relay）: Verdict Approve、P1=0 / P2=0 / P3=1。P3のHomePage Router harness明確化は、既存`MonthlySalesPage.test.tsx`の前例どおりrouter依存子component 4件をnull mockするWriter handoffとしてacceptし、Plan contract変更と再reviewは不要と裁定した。`53-ui-home.md`の既存pending route記述は順18の別driftとして本laneからdefer。relay 1/2。
+- 2026-07-29 plan-gate -> plan-approved -> implementing（state-only compression）: 独立Plan ReviewerがP1/P2=0を報告し、plan-first `dc4aa1b`は全実装commitより前に存在する。`Plan Commit`を同SHAへ固定し、本state-only commit後にlane 1 Writer実装を許可する。
 
 ## Owner Effort Budget
 

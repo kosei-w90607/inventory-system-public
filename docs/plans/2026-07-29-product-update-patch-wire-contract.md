@@ -2,10 +2,10 @@
 
 ## Workflow State
 
-- Phase: plan-gate
+- Phase: implementing
 - Risk: R3
 - Execution Mode: dual-vendor-no-fable
-- Plan Commit: pending
+- Plan Commit: dc4aa1b
 - Amendments: none
 - Coordinator: Codex（本thread。wave編成・packet起草・レビュー裁定・main/Registry/train管理）
 - Writer: Codex（plan-approved後の別session / worktree。Coordinatorと分離）
@@ -14,7 +14,7 @@
 - Reviewed Content HEAD: pending
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
-- Human Gate: none（owner介入1/3をwave 3 lane選定で使用。Plan Review未完了のため実装禁止）
+- Human Gate: wave batch Ready承認、lane merge承認（lane選定は介入1/3で完了）
 
 Narrative（append-only）:
 
@@ -22,6 +22,7 @@ Narrative（append-only）:
 - 2026-07-29 Design Phase: `PRODUCT-PATCH-D1`を30 / 40 / 51へ昇格。通常fieldはomitted/null=no update・value=set、clear可能なsupplier/makerはomitted=no update・null=clear・value=setに確定した。本PacketとMatrixはPlan Review前のdraftであり、production実装は未着手。
 - 2026-07-29 plan-draft -> plan-gate: exact baselineの隔離worktreeでstruct-level serde defaultを暫定適用し、generated deserialize / serialize shapeをend-to-end probeした。Packet / Matrix / source docsと3 lane footprint分離をCoordinatorが確認し、plan-first content commitで固定してfresh Sonnet Plan Reviewへ進む。
 - 2026-07-29 formal Plan Review（Sonnet 5 fresh context、owner relay）: Verdict Approve、P1=0 / P2=0 / P3=1。Reviewerがexact plan-firstの隔離worktreeでContract Probeを独立再現し、Rust 1行とbindings 14行の期待shapeを確認した。P3の`UI_TECH_STACK.md`節番号誤引用は実装契約へ影響しないfollow-upとして記録し、P3-onlyのPlan変更・再reviewは行わない。relay 1/2。
+- 2026-07-29 plan-gate -> plan-approved -> implementing（state-only compression）: 独立Plan ReviewerがP1/P2=0を報告し、plan-first `dc4aa1b`は全実装commitより前に存在する。`Plan Commit`を同SHAへ固定し、本state-only commit後にlane 2 Writer実装を許可する。
 
 ## Owner Effort Budget
 

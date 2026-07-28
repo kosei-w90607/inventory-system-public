@@ -2,10 +2,10 @@
 
 ## Workflow State
 
-- Phase: plan-gate
+- Phase: implementing
 - Risk: R2
 - Execution Mode: dual-vendor-no-fable
-- Plan Commit: pending
+- Plan Commit: dc4aa1b
 - Amendments: none
 - Coordinator: Codex（本thread。wave編成・packet起草・レビュー裁定・main/Registry/train管理）
 - Writer: Codex（plan-approved後の別session / worktree、lane 3 branchへpin）
@@ -22,6 +22,7 @@ Narrative（append-only）:
 - 2026-07-29 plan-draft -> plan-gate: Packet / Matrix / `UI-TABLE-D1`を完成し、3 consumerの現行DOM / ARIA / callbackと3 lane footprint分離をCoordinatorが確認した。plan-first content commitで固定し、fresh Sonnet Plan Reviewへ進む。
 - 2026-07-29 formal Plan Review（Sonnet 5 fresh context、owner relay）: P1=0 / P2=1 / P3=0。P2-1は`MonthlySalesPage.test.tsx`のlive commentがinline三重定義と将来の別PRを記したままで、P1-1完了後に陳腐化するScope漏れ。production/test logicは変えず、同fileのcomment-only同期とlive wording sweepをScope / Matrixへ追加してplan-gate closure reviewへ戻す。
 - 2026-07-29 P2-1 closure review（同Plan Reviewer、owner relay）: exact correction `b45a023`のPacket / Matrixだけをread-only確認し、P1=0 / P2=0 / P3=0、closure confirmed。Scope / Non-scope / AC / Review Focus / Matrix C10はcomment-only同期を一意に定め、production・test logic・他lane契約は不変。relay 2/2。
+- 2026-07-29 plan-gate -> plan-approved -> implementing（state-only compression）: 独立Plan ReviewerがP1/P2=0を報告し、plan-first `dc4aa1b`とplan-gate correction `b45a023`は全実装commitより前に存在する。`Plan Commit`を`dc4aa1b`へ固定し、本state-only commit後にlane 3 Writer実装を許可する。
 
 ## Owner Effort Budget
 
