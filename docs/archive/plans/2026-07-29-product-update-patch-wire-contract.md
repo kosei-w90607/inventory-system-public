@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: ready-hosted-final
+- Phase: archive
 - Risk: R3
 - Execution Mode: dual-vendor-no-fable
 - Plan Commit: dc4aa1b
@@ -14,7 +14,7 @@
 - Reviewed Content HEAD: 0bab5401bc77ea62420939484a6ce607d1aeb34b
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
-- Human Gate: wave batch Ready承認、lane merge承認（lane選定は介入1/3で完了）
+- Human Gate: none
 
 Narrative（append-only）:
 
@@ -47,6 +47,8 @@ Rebase Map: 970e42eef875d2eba608c35b14bf3a165f5a000e -> 3618cb0cce615f3c878d4464
 - 2026-07-29 local-verified -> independent-review: Reviewed Content HEADを`0bab5401bc77ea62420939484a6ce607d1aeb34b`へ固定し、Sonnet 5 / xHighへSTATECAP P2とD3 false-green P3だけのclosure-only Reviewをrelayする。
 - 2026-07-29 formal Final Review closure（同Final Reviewer、Sonnet 5 / xHigh、owner relay）: P2-2 / P3-1 closure confirmed、P1=0 / P2=0 / P3=0。圧縮後commit列、STATECAP green、section-wide oracle、targeted test、exact-HEAD L1、state-only deltaをread-onlyで独立確認した。relay 5/5。
 - 2026-07-29 independent-review -> human-confirm -> ready-hosted-final（state-only compression）: Formal Final Review closure P1/P2=0によりhuman-confirmへ進み、ownerの既承認済み条件付きReady判断を適用した。本state-only HEADでL1 fullを再取得し、Draft解除後のhosted final、live PR三点一致とmerge CLEANを確認してから既承認済みmerge判断を実行する。
+- 2026-07-29 ready-hosted-final -> merge: state HEAD `eb2807b3f4bc4c6ad23f4e715b82dd8f5530abad`でlocal full evidence・live PR HEAD・required hosted run `30399291537`のheadShaが一致し、required checksはsuccess、merge stateはCLEAN。ownerの条件付き介入3/3承認に基づきPR #36をsquash merge `775c07b`として取り込んだ。
+- 2026-07-29 merge -> archive: 本PacketとMatrixをarchiveへ移動し、Plans / PROJECT_HANDOFFをwave 3全lane完了へ同期した。3 lane運用の実測とreview relay / STATECAPの教訓はwave 3 WERへ集約する。
 
 ## Owner Effort Budget
 
