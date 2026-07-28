@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: ready-hosted-final
+- Phase: archive
 - Risk: R2
 - Execution Mode: dual-vendor-no-fable
 - Plan Commit: eeeae9e
@@ -14,7 +14,7 @@
 - Reviewed Content HEAD: e435640
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
-- Human Gate: merge承認済み。exact-head local / hosted三点一致とmerge clean確認待ち。視認・L3なし（未参照module退役、画面挙動不変）
+- Human Gate: none
 
 Narrative（append-only）:
 
@@ -34,6 +34,8 @@ Narrative（append-only）:
 - 2026-07-28 implementing -> local-verified -> independent-review -> human-confirm（state-only compression）: exact content HEAD `e435640`のL1 full CLEAN evidenceはPR body、Codex closureとformal Final ReviewはいずれもP1/P2=0。`Reviewed Content HEAD`を`e435640`へ固定し、Ready / hosted final / mergeは未承認のままowner gateへ進む。
 - 2026-07-28 wave batch Ready / merge承認: ownerが両laneのReadyをbatch承認後、PR #33 mergeに続いて未マージのPR #32をmergeしてよいと明示承認した。本laneはReadyを介入2/3、mergeを介入3/3として計上する。operator-facing UI / runtime behaviorは不変のため視認・Windows native L3は追加しない。
 - 2026-07-28 train rebase / human-confirm -> ready-hosted-final: PR #33 closeout済みmain `f9d4e81`へconflict-free rebaseし、content commitを `ba1d95e -> fcad728`、`757411c -> e008ca5`、`e435640 -> 8bfb32b` と再配置した。各commit patch-id、range-diff、lane whole-diff patch-idはすべて同値。plan-first `eeeae9e` とgated Amendment `2511a5e` はmain祖先のまま不変でreplayされていないためRebase Mapは不要、field値も維持する。本state-only commit後のexact HEADでL1 full、PR body、Ready hosted finalを揃え、三点一致・merge cleanなら承認済みmerge gateを実行する。
+- 2026-07-28 ready-hosted-final -> merge: state HEAD `d8e7fac`でlocal full evidence・live PR HEAD・required hosted runのheadShaが一致し、required jobsはsuccess、merge stateはCLEAN。ownerの介入3/3承認に基づきPR #32をsquash merge `2cb3380`として取り込んだ。
+- 2026-07-28 merge -> archive: 本packetとMatrixをarchiveへ移動し、Plans / PROJECT_HANDOFF / wave 2 WERを両lane完了へ同期する。
 
 ## Owner Effort Budget
 
@@ -214,8 +216,11 @@ DB、店舗artifact、実CSV、secret、backupへ非接触。npm lockfileは既�
 
 ## Implementation Results
 
-（plan-approved後にWriterが追記）
+- consumer 0のUI wrapper 3fileとRHF専用direct dependency 2件を退役し、現役の`zod` / `radix-ui` / threshold production codeを維持した。
+- `UI-FORM-D1`とArchitecture第7段階をfeature-local controlled state + Zodへ同期し、wrapper / dependency / source-docの再導入を静的contract testで防御した。
+- route、画面表示・操作、wire、DB、bindingsは変更していない。実装・mutation・exact-HEAD / hosted証拠の正本はPR #32 bodyとする。
 
 ## Review Response
 
-- Findings Freeze: 未発効
+- Findings Freeze: 2026-07-28 formal Final Reviewのinitial broad audit完了で発効
+- Formal Final Review P3 disposition: `Implementation Results`要約を本closeoutで補完し、archive前に解消した。
