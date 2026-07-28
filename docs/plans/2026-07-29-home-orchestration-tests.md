@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: implementing
+- Phase: independent-review
 - Risk: R2
 - Execution Mode: dual-vendor-no-fable
 - Plan Commit: dc4aa1b
@@ -14,7 +14,7 @@
 - Reviewed Content HEAD: pending
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
-- Human Gate: wave batch Ready承認、lane merge承認（lane選定は介入1/3で完了）
+- Human Gate: none
 
 Narrative（append-only）:
 
@@ -24,13 +24,15 @@ Narrative（append-only）:
 - 2026-07-29 plan-gate -> plan-approved -> implementing（state-only compression）: 独立Plan ReviewerがP1/P2=0を報告し、plan-first `dc4aa1b`は全実装commitより前に存在する。`Plan Commit`を同SHAへ固定し、本state-only commit後にlane 1 Writer実装を許可する。
 - 2026-07-29 lane 3 merge後のtrain rebase: 最新main `214b289`へconflict-free rebaseし、実装commitを`c906305 -> 74140e2`、`b671b8a -> b0f0cbc`へ再配置した。rebase前後のwhole-diff patch-idは`518fcc2c772075933bd095acc563cf94c26a7180`で一致。plan-first `dc4aa1b`はmain上の同一commitとして祖先に残りreplayされていないため、Plan Commit fieldを維持しRebase Mapは不要。
 - 2026-07-29 Codex review-only preflight: P1=0。test実装のScope、production seam、oracle独立性は適合。candidate P2のうちRebase Map要求は上記の同一plan-first SHAを根拠にrejectし、旧full-skip記述の陳腐化だけをacceptして本commitで解消する。P3のFindings Freeze phase注記も同時に同期する。
+- 2026-07-29 implementing -> local-verified -> independent-review（state-only compression）: content candidate `6fb3e6738dfc327556ec200d44e03708c9a5ec41`でexact-HEAD L1 fullがCLEAN / PASSとなり、Draft PR #35 bodyへ証跡を記録した。Formal Sonnet Final Reviewerへ同content candidateのread-only reviewをrelayし、merge train先頭としてindependent-reviewへ進む。
+- 2026-07-29 owner conditional train authorization（介入2/3・3/3）: ownerはFormal Final Review P1/P2=0を条件にReady遷移を介入2/3、同一HEADのlocal / hosted / PR三点一致とmerge CLEANを条件にmergeを介入3/3として承認した。追加のowner判断は不要だが、各preconditionとper-lane merge gateは省略しない。
 
 ## Owner Effort Budget
 
 - 介入回数上限: 3
 - 実働時間上限: 30分
 - relay往復上限: 2
-- 現況: 介入1/3（wave 3 / lane 1 / 順10選定）、relay 1/2
+- 現況: 介入3/3（wave 3 / lane選定、条件付きReady承認、条件付きmerge承認）、relay 1/2
 
 ## Risk
 
