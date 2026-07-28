@@ -6,7 +6,7 @@
 - Risk: R3
 - Execution Mode: dual-vendor-no-fable
 - Plan Commit: dc4aa1b
-- Amendments: none
+- Amendments: 970e42e
 - Coordinator: Codex（本thread。wave編成・packet起草・レビュー裁定・main/Registry/train管理）
 - Writer: Codex（plan-approved後の別session / worktree。Coordinatorと分離）
 - Plan Reviewer: Sonnet 5 fresh context（owner relay、read-only、実装非関与）
@@ -26,6 +26,7 @@ Narrative（append-only）:
 - 2026-07-29 lane 3 merge後のtrain rebase: 最新main `214b289`へconflict-free rebaseし、実装commitを`f436c35 -> e762b23`、`6cdb8c7 -> f7a9a5a`へ再配置した。rebase前後のwhole-diff patch-idは`47497efc30e0ea6a5297ca75dcf71694ae90475f`で一致。plan-first `dc4aa1b`はmain上の同一commitとして祖先に残りreplayされていないため、Plan Commit fieldを維持しRebase Mapは不要。
 - 2026-07-29 Codex review-only preflight: P1=0 / P2=1 / P3=2。wire実装、serde三状態、generated型、builder/page、Scope内codeは適合。P2はtouched source `51-ui-product-form.md` §7.4が4 commandをgenerated未対応の未来形で記し、同節の現行`PRODUCT-PATCH-D1`とbindingsに矛盾すること。repo-wide drift sweepで`SCREEN_DESIGN.md`にも同じ未来形を確認したため、両live source docsの現況同期をgated Amendment 1として追加し、Writerを停止してformal Amendment Reviewへ戻す。
 - 2026-07-29 owner relay budget exception: 上記gated Amendment Reviewと、その後のFormal Final Reviewを独立に完了するため、ownerがrelay上限を2回から3回へ今回限り拡張した。追加1回はsource-doc wording同期のAmendment Reviewだけに使い、実装Scopeや証跡収集の任意拡張には使わない。
+- 2026-07-29 gated Amendment 1 SHA記録: `Amendments` fieldをcontent commit `970e42e`へ設定した。技術Scopeは51 / SCREEN_DESIGNのUI-01b generated command status現在形同期とlive wording sweepだけで、wire実装・UI・DB・他lane契約は変更しない。
 
 ## Owner Effort Budget
 
