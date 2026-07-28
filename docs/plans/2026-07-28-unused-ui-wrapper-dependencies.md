@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: human-confirm
+- Phase: ready-hosted-final
 - Risk: R2
 - Execution Mode: dual-vendor-no-fable
 - Plan Commit: eeeae9e
@@ -14,7 +14,7 @@
 - Reviewed Content HEAD: e435640
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
-- Human Gate: Ready承認（wave batch可）/ merge。視認・L3なし（未参照module退役、画面挙動不変）
+- Human Gate: merge承認済み。exact-head local / hosted三点一致とmerge clean確認待ち。視認・L3なし（未参照module退役、画面挙動不変）
 
 Narrative（append-only）:
 
@@ -32,13 +32,15 @@ Narrative（append-only）:
 - 2026-07-28 Amendment実装後のCodex review-only preflight / closure: exact content HEAD `757411c`へのpreflightはP1=0 / P2=2 / P3=0。retired dependencyのroot direct区分とsource-doc additive driftのfalse-openをCoordinatorが独立再現してacceptし、test-only是正 `e435640`へ反映した。同じreview contextのclosureはP1/P2/P3=0、new findingなし。L1 exact-HEAD evidenceとmutation evidenceのauthorityはPR bodyに置く。
 - 2026-07-28 formal Final Review（Sonnet 5独立fresh context、owner relay）: exact content HEAD `e435640`をread-only監査し、P1=0 / P2=0 / P3=1、Verdict Approve。P3は`Implementation Results`要約をarchive前に追記するmaintainability提案でblockerではないため、Post-Merge Closeoutへdeferする。relay 4/4。
 - 2026-07-28 implementing -> local-verified -> independent-review -> human-confirm（state-only compression）: exact content HEAD `e435640`のL1 full CLEAN evidenceはPR body、Codex closureとformal Final ReviewはいずれもP1/P2=0。`Reviewed Content HEAD`を`e435640`へ固定し、Ready / hosted final / mergeは未承認のままowner gateへ進む。
+- 2026-07-28 wave batch Ready / merge承認: ownerが両laneのReadyをbatch承認後、PR #33 mergeに続いて未マージのPR #32をmergeしてよいと明示承認した。本laneはReadyを介入2/3、mergeを介入3/3として計上する。operator-facing UI / runtime behaviorは不変のため視認・Windows native L3は追加しない。
+- 2026-07-28 train rebase / human-confirm -> ready-hosted-final: PR #33 closeout済みmain `f9d4e81`へconflict-free rebaseし、content commitを `ba1d95e -> fcad728`、`757411c -> e008ca5`、`e435640 -> 8bfb32b` と再配置した。各commit patch-id、range-diff、lane whole-diff patch-idはすべて同値。plan-first `eeeae9e` とgated Amendment `2511a5e` はmain祖先のまま不変でreplayされていないためRebase Mapは不要、field値も維持する。本state-only commit後のexact HEADでL1 full、PR body、Ready hosted finalを揃え、三点一致・merge cleanなら承認済みmerge gateを実行する。
 
 ## Owner Effort Budget
 
 - 介入回数上限: 3
 - 実働時間上限: 30分
 - relay往復上限: 4（既定2から今回限り拡張。3回目はformal Amendment Review P2のworkflow記録closure、4回目はAmendment実装後のformal Final Reviewを完了するため）
-- 現況: 介入1/3（wave 2 / lane選定）、relay 4/4（formal Final Review完了、上限到達）
+- 現況: 介入3/3（wave 2 / lane選定、wave batch Ready承認、merge承認）、relay 4/4（formal Final Review完了、上限到達）
 
 ## Risk
 
