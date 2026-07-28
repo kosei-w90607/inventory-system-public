@@ -109,8 +109,6 @@ pub fn parse_and_validate(
                 matched_rows.push(MatchedRow {
                     line_no: row.line_no,
                     product_code: products[0].product_code.clone(),
-                    jan_code: row.normalized_jan.clone(),
-                    name: row.name.clone(),
                     quantity: row.quantity,
                     amount: row.amount,
                     pos_stock_sync: products[0].pos_stock_sync,
@@ -125,8 +123,6 @@ pub fn parse_and_validate(
                 matched_rows.push(MatchedRow {
                     line_no: row.line_no,
                     product_code: products[0].product_code.clone(),
-                    jan_code: row.normalized_jan.clone(),
-                    name: row.name.clone(),
                     quantity: row.quantity,
                     amount: row.amount,
                     pos_stock_sync: products[0].pos_stock_sync,

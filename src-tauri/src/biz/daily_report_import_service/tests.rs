@@ -125,20 +125,49 @@ fn test_daily_report_req401_parse_preview_happy_path() {
 
 #[test]
 fn test_daily_report_req401_parse_error_logs_parse_failed() {
-    // REQ-401 / BIZ-08: IO parse errorはImportErrorにし、daily_report_parse_failedを記録する
+    // REQ-401 / BIZ-08-D1: IO parse detailはdiagnostic専用、operator境界は汎用に保つ
     let (_dir, conn) = setup_test_db();
-    let result = parse_and_validate_daily_report(&conn, vec![z001("2026-03-21")]);
+    let malformed_z001 = z001_with_lines("2026-03-21", &[("101", "総売", "not-a-number", "12000")]);
+    let (result, diagnostic) = crate::test_tracing::capture(|| {
+        parse_and_validate_daily_report(
+            &conn,
+            vec![malformed_z001, z002("2026-03-21"), z005("2026-03-21")],
+        )
+    });
 
-    assert!(matches!(result, Err(BizError::ImportError(_))));
+    match result {
+        Err(BizError::ImportError(message)) => {
+            assert_eq!(message, "日報ファイルの解析に失敗しました");
+        }
+        other => panic!("expected generic import error, got {other:?}"),
+    }
+    assert!(
+        diagnostic.contains("source_file=Some(Z001)"),
+        "{diagnostic}"
+    );
+    assert!(diagnostic.contains("filename=None"), "{diagnostic}");
+    assert!(diagnostic.contains("line_no=Some(9)"), "{diagnostic}");
+    assert!(
+        diagnostic.contains("error_type=invalid_number"),
+        "{diagnostic}"
+    );
+    assert!(
+        diagnostic.contains("error_message=Z001の個数/件数列を変換できません"),
+        "{diagnostic}"
+    );
     assert_eq!(count_rows(&conn, "daily_report_imports"), 0);
-    let count: i64 = conn
+    let (operation_type, summary, detail_json): (String, String, Option<String>) = conn
         .query_row(
-            "SELECT COUNT(*) FROM operation_logs WHERE operation_type = 'daily_report_parse_failed'",
+            "SELECT operation_type, summary, detail_json
+             FROM operation_logs
+             WHERE operation_type = 'daily_report_parse_failed'",
             [],
-            |row| row.get(0),
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
         )
         .unwrap();
-    assert_eq!(count, 1);
+    assert_eq!(operation_type, "daily_report_parse_failed");
+    assert_eq!(summary, "日報ファイルの解析に失敗しました");
+    assert_eq!(detail_json, None);
 }
 
 #[test]
@@ -229,7 +258,8 @@ fn test_daily_report_req401_unmatched_department_warns_but_previews() {
         .preview_data
         .warnings
         .iter()
-        .any(|w| w.code == "unmatched_department"));
+        .any(|w| w.code == "unmatched_department"
+            && w.source_file == Some(DailyReportSourceKind::Z005)));
     assert!(result
         .preview_data
         .department_summary

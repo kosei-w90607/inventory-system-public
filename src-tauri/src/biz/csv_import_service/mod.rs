@@ -116,10 +116,6 @@ pub struct MatchedRow {
     pub line_no: usize,
     /// 紐付いた商品コード
     pub product_code: String,
-    /// 正規化後のJAN
-    pub jan_code: String,
-    /// Z004上の商品名
-    pub name: String,
     /// 売上帳票視点の値。正=販売、負=返品
     pub quantity: i32,
     pub amount: i32,
@@ -145,8 +141,6 @@ pub struct ErrorRow {
 /// commit_csv_import のリクエスト（CMD層が組み立て）
 #[derive(Debug)]
 pub struct CommitRequest {
-    /// parse_and_validate が返した token
-    pub preview_token: String,
     /// 上書き確認済みフラグ
     pub overwrite_confirmed: bool,
     /// CMD層がキャッシュから復元したデータ

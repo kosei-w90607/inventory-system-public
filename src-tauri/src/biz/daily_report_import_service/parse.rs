@@ -11,7 +11,7 @@ use crate::db::product_repo;
 use crate::db::sales_repo;
 use crate::db::system_repo::{self, NewOperationLog};
 use crate::db::DbConnection;
-use crate::io::daily_report_parser::{self, DailyReportSourceFile};
+use crate::io::daily_report_parser::{self, DailyReportSourceFile, DailyReportSourceKind};
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 use std::time::Instant;
@@ -38,6 +38,7 @@ pub fn parse_and_validate_daily_report(
         .collect();
     let parse_result = daily_report_parser::parse_daily_report_bundle(source_files);
     if !parse_result.parse_errors.is_empty() {
+        log_parse_diagnostics(&parse_result.parse_errors);
         log_parse_failure(conn, "日報ファイルの解析に失敗しました");
         return Err(BizError::ImportError(
             "日報ファイルの解析に失敗しました".to_string(),
@@ -95,7 +96,7 @@ pub fn parse_and_validate_daily_report(
                 warnings.push(DailyReportWarning {
                     code: "unmatched_department".to_string(),
                     message: format!("部門マスタに一致しません: {}", line.raw_department_name),
-                    source_file: Some(line.source_file),
+                    source_file: Some(DailyReportSourceKind::Z005),
                     line_no: None,
                 });
             }
@@ -223,5 +224,18 @@ fn log_parse_failure(conn: &DbConnection, message: &str) {
     };
     if let Err(e) = system_repo::insert_operation_log(conn, &log) {
         tracing::warn!(error = %e, "操作ログ記録に失敗");
+    }
+}
+
+fn log_parse_diagnostics(errors: &[daily_report_parser::DailyReportParseError]) {
+    for error in errors {
+        tracing::warn!(
+            source_file = ?error.source_file,
+            filename = ?error.filename,
+            line_no = ?error.line_no,
+            error_type = %error.error_type,
+            error_message = %error.error_message,
+            "日報ファイルparse error"
+        );
     }
 }

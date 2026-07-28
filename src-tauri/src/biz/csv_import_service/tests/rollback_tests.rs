@@ -26,7 +26,6 @@ fn commit_import(
     commit::commit_csv_import(
         conn,
         CommitRequest {
-            preview_token: "token".to_string(),
             overwrite_confirmed: false,
             cached_data: cached,
         },
