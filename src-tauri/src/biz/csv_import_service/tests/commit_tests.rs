@@ -31,13 +31,11 @@ fn test_commit_req401_normal_flow() {
         ],
     );
     let pv = parse_and_build_cache(&conn, bytes, "Z004_260321");
-    let token = pv.preview_token.clone();
     let cached = build_cached(pv);
 
     let result = commit::commit_csv_import(
         &mut conn,
         CommitRequest {
-            preview_token: token,
             overwrite_confirmed: false,
             cached_data: cached,
         },
@@ -73,7 +71,6 @@ fn test_commit_req401_overwrite_flow() {
     let result1 = commit::commit_csv_import(
         &mut conn,
         CommitRequest {
-            preview_token: "token1".to_string(),
             overwrite_confirmed: false,
             cached_data: cached1,
         },
@@ -97,7 +94,6 @@ fn test_commit_req401_overwrite_flow() {
     let result2 = commit::commit_csv_import(
         &mut conn,
         CommitRequest {
-            preview_token: "token2".to_string(),
             overwrite_confirmed: true,
             cached_data: cached2,
         },
@@ -142,7 +138,6 @@ fn test_commit_req401_overwrite_not_confirmed() {
     let result = commit::commit_csv_import(
         &mut conn,
         CommitRequest {
-            preview_token: "token".to_string(),
             overwrite_confirmed: false,
             cached_data: cached,
         },
@@ -182,7 +177,6 @@ fn test_commit_req401_toctou_check() {
     let result = commit::commit_csv_import(
         &mut conn,
         CommitRequest {
-            preview_token: "token".to_string(),
             overwrite_confirmed: false,
             cached_data: cached,
         },
@@ -206,7 +200,6 @@ fn test_commit_req401_pos_stock_sync_false() {
     let result = commit::commit_csv_import(
         &mut conn,
         CommitRequest {
-            preview_token: "token".to_string(),
             overwrite_confirmed: false,
             cached_data: cached,
         },
@@ -239,7 +232,6 @@ fn test_commit_req401_negative_stock_warning() {
     let result = commit::commit_csv_import(
         &mut conn,
         CommitRequest {
-            preview_token: "token".to_string(),
             overwrite_confirmed: false,
             cached_data: cached,
         },
@@ -274,7 +266,6 @@ fn test_commit_req401_partial_with_errors() {
     let result = commit::commit_csv_import(
         &mut conn,
         CommitRequest {
-            preview_token: "token".to_string(),
             overwrite_confirmed: false,
             cached_data: cached,
         },
@@ -298,7 +289,6 @@ fn test_commit_req401_sign_flip_inv1() {
     commit::commit_csv_import(
         &mut conn,
         CommitRequest {
-            preview_token: "token".to_string(),
             overwrite_confirmed: false,
             cached_data: cached,
         },
@@ -345,7 +335,6 @@ fn test_commit_req401_settlement_date_toctou() {
     let result = commit::commit_csv_import(
         &mut conn,
         CommitRequest {
-            preview_token: "token".to_string(),
             overwrite_confirmed: false,
             cached_data: cached,
         },
@@ -374,7 +363,6 @@ fn test_commit_req401_overwrite_confirmed_without_duplicate() {
     let result = commit::commit_csv_import(
         &mut conn,
         CommitRequest {
-            preview_token: "token".to_string(),
             overwrite_confirmed: true, // NoDuplicate なのに true
             cached_data: cached,
         },

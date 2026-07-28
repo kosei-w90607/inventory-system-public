@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: human-confirm
+- Phase: ready-hosted-final
 - Risk: R3
 - Execution Mode: dual-vendor-no-fable
 - Plan Commit: eeeae9e
@@ -14,7 +14,7 @@
 - Reviewed Content HEAD: 0c717b3
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
-- Human Gate: Ready承認（wave batch可）/ merge。視認・L3なし（internal Rust contractと診断境界、operator UI不変）
+- Human Gate: merge pending。wave batch Ready承認済み、視認・L3なし（internal Rust contractと診断境界、operator UI不変）
 
 Narrative（append-only）:
 
@@ -29,13 +29,15 @@ Narrative（append-only）:
 - 2026-07-28 formal Final Review（Sonnet 5独立fresh context、Plan Reviewerとは別context）: P1=0 / P2=0 / P3=1、Verdict Approve。P3は正常Z002/Z005を同梱するfixture意図の説明comment追加だけで、挙動・oracle・data safetyに影響しないためcontent変更なしと裁定。Findings Freeze発効、relay 2/2。
 - 2026-07-28 Coordinator mutation独立再実測: exact content treeの一時detached worktreeでMatrixの全mutationを個別注入し、各target oracleのred、毎回の復元、最終targeted greenとclean treeを確認。survivorなし。
 - 2026-07-28 implementing -> local-verified -> independent-review -> human-confirm（state-only compression）: content candidate `0c717b3`のexact-HEAD L1 evidence、Codex preflight、formal Final Review P1/P2=0、Coordinator mutation独立再実測が揃ったため、本state-only commitで隣接遷移を実体化する。残るHuman Gateはwave batch Ready承認とmerge。
+- 2026-07-28 owner wave batch Ready承認: ownerが両laneのReadyを明示承認し、merge trainをPR #33 -> PR #32に確定した。本laneは介入2/3。internal Rust contractと診断境界だけの変更でoperator UI不変のため、視認・Windows native L3は追加しない。merge承認は未解決のまま維持する。
+- 2026-07-28 train-head rebase / human-confirm -> ready-hosted-final: PR #33をDraftのまま最新`origin/main`へconflict-free rebaseし、audited contentの単一commit patch-id同値、range-diff同値、lane whole-diff同値を確認した。`Plan Commit = eeeae9e`は既にmain祖先でfield値を維持し、`Amendments = none`も不変。owner Ready承認が先行しているため、本state-only commitで遷移を実体化する。次はこの結果HEADのexact L1、PR body全面更新、Ready化によるhosted finalで、mergeは行わない。
 
 ## Owner Effort Budget
 
 - 介入回数上限: 3
 - 実働時間上限: 30分
 - relay往復上限: 2
-- 現況: 介入1/3（wave 2 / lane選定）、relay 2/2（formal Final Reviewで上限到達）
+- 現況: 介入2/3（wave 2 / lane選定、wave batch Ready承認）、relay 2/2（formal Final Reviewで上限到達）
 
 ## Risk
 

@@ -29,7 +29,6 @@ pub struct ParsedDailyReportSourceFile {
 
 #[derive(Debug, Clone)]
 pub struct DailyReportSummaryLine {
-    pub source_file: DailyReportSourceKind,
     pub line_key: String,
     pub label: String,
     pub amount: Option<i64>,
@@ -40,7 +39,6 @@ pub struct DailyReportSummaryLine {
 
 #[derive(Debug, Clone)]
 pub struct DailyReportPaymentLine {
-    pub source_file: DailyReportSourceKind,
     pub payment_key: String,
     pub label: String,
     pub amount: Option<i64>,
@@ -50,7 +48,6 @@ pub struct DailyReportPaymentLine {
 
 #[derive(Debug, Clone)]
 pub struct DailyReportDepartmentLine {
-    pub source_file: DailyReportSourceKind,
     pub raw_department_name: String,
     pub normalized_department_name: Option<String>,
     pub amount: i64,
@@ -274,7 +271,6 @@ fn parse_z001(
             (None, first_value)
         };
         rows.push(DailyReportSummaryLine {
-            source_file: DailyReportSourceKind::Z001,
             line_key,
             label,
             amount,
@@ -421,7 +417,6 @@ fn parse_z002(
         };
         let sort_order = (index + 1) as i64;
         rows.push(DailyReportPaymentLine {
-            source_file: DailyReportSourceKind::Z002,
             payment_key: payment_key(code, &label, sort_order),
             label,
             amount,
@@ -470,7 +465,6 @@ fn parse_z005(
             }
         };
         rows.push(DailyReportDepartmentLine {
-            source_file: DailyReportSourceKind::Z005,
             normalized_department_name: Some(raw_department_name.clone()),
             raw_department_name,
             amount,
@@ -649,10 +643,6 @@ mod tests {
                 && file.file_hash == file.file_hash.to_lowercase()
                 && file.size_bytes > 0));
         assert_eq!(result.summary_lines.len(), 2);
-        assert_eq!(
-            result.summary_lines[0].source_file,
-            DailyReportSourceKind::Z001
-        );
         assert_eq!(result.summary_lines[0].line_key, "gross_sales");
         assert_eq!(result.summary_lines[0].amount, Some(12000));
         assert_eq!(result.summary_lines[0].quantity, Some(8));
@@ -662,18 +652,10 @@ mod tests {
         assert_eq!(result.summary_lines[1].quantity, None);
         assert_eq!(result.summary_lines[1].count, Some(7));
         assert_eq!(result.payment_lines.len(), 2);
-        assert_eq!(
-            result.payment_lines[0].source_file,
-            DailyReportSourceKind::Z002
-        );
         assert_eq!(result.payment_lines[0].payment_key, "cash");
         assert_eq!(result.payment_lines[0].count, Some(7));
         assert_eq!(result.payment_lines[0].amount, Some(11000));
         assert_eq!(result.department_lines.len(), 2);
-        assert_eq!(
-            result.department_lines[0].source_file,
-            DailyReportSourceKind::Z005
-        );
         assert_eq!(result.department_lines[0].raw_department_name, "その他小物");
         assert_eq!(result.department_lines[0].amount, 3000);
         assert_eq!(result.department_lines[0].quantity, Some(4));
@@ -712,7 +694,8 @@ mod tests {
         assert!(result
             .parse_errors
             .iter()
-            .any(|error| error.error_type == "unknown_source"));
+            .any(|error| error.error_type == "unknown_source"
+                && error.filename.as_deref() == Some("Z009_260321.CSV")));
     }
 
     #[test]

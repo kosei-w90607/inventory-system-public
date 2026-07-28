@@ -167,7 +167,6 @@ pub fn commit_csv_import(
         .map_err(|error| CmdError::internal("DB接続エラー", error))?;
 
     let req = CommitRequest {
-        preview_token: preview_token.clone(),
         overwrite_confirmed,
         cached_data,
     };
