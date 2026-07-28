@@ -22,13 +22,14 @@ Narrative（append-only）:
 - 2026-07-28 design decision: P6-4の二択をhybridで閉じた。格納先から自明なline `source_file` は削除する一方、source判定前に失敗するunknown fileの識別に必要なerror `filename` を含むparse error 5fieldはdiagnostic WARNへ接続する。利用者向けerrorとoperation logは汎用のまま（IO-07-D1 / BIZ-08-D1）。
 - 2026-07-28 plan-draft -> plan-gate: 本packet、Matrix、source docs、Wave Registryをmain上のwave scaffoldingとして実装より先にcommitする。lane branch/worktreeはPlan Gate収束後にこのplan-first lineageから分岐する。
 - 2026-07-28 Codex independent preflight（正式Sonnet review前）: P1=0 / P2=4。全件をCoordinatorが再実測してacceptし、REQ正本path、CMD-07 owner、unknown source filenameの診断維持、Rust test関数名 `_req401`、`Some(line_no)` fixture変更許可を是正した。正式Plan Gateは未収束。
+- 2026-07-28 formal Plan Review（Sonnet 5独立fresh context、ownerがlane別terminalでrelay）: P1=0 / P2=0 / P3=1、Verdict Approve。P3の既存test強化箇所の明示をacceptし、unknown source filename / unmatched department Z005 assertionの追記許可を限定例外へ加えた。P3-only明確化のためre-review不要。relay 1/2。
 
 ## Owner Effort Budget
 
 - 介入回数上限: 3
 - 実働時間上限: 30分
 - relay往復上限: 2
-- 現況: 介入1/3（wave 2 / lane選定）、relay 0/2
+- 現況: 介入1/3（wave 2 / lane選定）、relay 1/2
 
 ## Risk
 
@@ -75,7 +76,15 @@ Goal Invariant: import内部型はproduction consumerが実際に必要なfield�
 - generated: `docs/function-design/90-traceability.md`（generator lane専有）
 - packet / Matrix（state更新はCoordinatorのみ）
 
-既存test変更の限定例外: `CommitRequest` field削除に必要なstruct literalの機械更新、parser line field削除に必要なassert更新、`test_daily_report_req401_parse_error_logs_parse_failed` の入力をsynthetic malformed rowへ変えて `Some(line_no)` を作るfixture変更と診断/漏えい防止assert強化だけを許可する。test削除、skip、期待緩和は禁止。
+既存test変更の限定例外:
+
+- `CommitRequest` field削除に必要なstruct literalの機械更新
+- parser line field削除に必要な既存assert更新
+- `test_daily_report_req401_parse_error_logs_parse_failed` の入力をsynthetic malformed rowへ変えて `Some(line_no)` を作るfixture変更と診断/漏えい防止assert強化
+- `test_daily_report_req401_unmatched_department_warns_but_previews` へ `source_file=Some(Z005)` のassert追加
+- `test_parse_daily_report_req401_duplicate_and_unknown_source` へsynthetic filenameのassert追加
+
+test削除、skip、既存期待の緩和は禁止。
 
 ## Non-scope
 

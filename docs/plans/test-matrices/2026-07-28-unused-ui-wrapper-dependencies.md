@@ -27,7 +27,7 @@ Risk: R2
 |---|---|---|---|---|---|
 | C1 | F1 | static (vitest) | `ui-form-dependency-contract.test.ts` wrapper absence | 3fileのいずれかが存在 | X1/X2/X3: 各fileを最小stubで復元してred |
 | C2 | F2 | static (vitest) | 同testのmanifest/lock root direct dependency assertion | `@hookform/resolvers` または `react-hook-form` がroot direct dependencyとして復活 | X4/X5: 各dependencyをmanifestへ復元、X6/X7: lock rootへ各dependencyだけを復元して個別red |
-| C3 | F3 | static + build | 同testの`zod` / `radix-ui` presence、typecheck/build | active dependencyを巻き添え削除 | G1: `zod` expectationを満たせない変更でred |
+| C3 | F3 | static + build | 同testの`zod` / `radix-ui` presence、typecheck/build | active dependencyを巻き添え削除 | G1a: package.json rootから`zod`だけを削除、G1b: `radix-ui`だけを削除し、各presence assertionを個別red |
 | C4 | F4 | static + docs | 採用表row、主要component例block、`UI-FORM-D1`定義bulletを正本から導出しないexact anchorで個別検査 | source docの一面だけが旧採用へ戻る | X8: 採用表row、X9: component例blockへtarget wrapper、X10: §2.7旧RHF肯定文を個別復元してred |
 | C5 | F5 | regression | `ThresholdSettingsPage.test.tsx` | validation、save、field error behaviorが変化 | existing suite red |
 | C6 | — | generator check | `cargo run --bin generate_traceability -- --check` | new testにREQ/UI tokenがなくT4 baselineが22→23 | G2: `UI-11a` tokenを除去してT4 red |
@@ -82,7 +82,7 @@ Cleanup自体はruntime stateを持たない。lifecycleは「既存UI-11a挙動
 - wrapper 3件を個別に戻すX1〜X3で、each-file absence assertionが個別redになるか
 - dependency 2件をmanifestへ個別に戻すX4/X5、lock rootだけへ戻すX6/X7で各面が個別redになるか
 - 採用表、主要component例block、§2.7肯定文を個別に戻すX8〜X10で各source-doc assertionがredになるか
-- active Zod/radix-uiを誤削除したとき、presence assertionとbuildがredになるか
+- active Zod/radix-uiをroot dependencyから個別に誤削除するG1a/G1bで、各presence assertionがredになるか
 - `UI-11a` tokenを除いたG2でtraceability T4がredになるか
 - 既存UI testだけでは孤立module再導入をkillできないため、structural oracleを代替せず併用しているか
 

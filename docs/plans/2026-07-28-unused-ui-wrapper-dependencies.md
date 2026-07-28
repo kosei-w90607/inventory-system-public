@@ -21,13 +21,14 @@ Narrative（append-only）:
 - 2026-07-28 kickoff -> spec-check -> design -> plan-draft: ownerがwave 2と順19+順20を選定（本lane介入1/3）。Coordinatorがproduction import graph、manifest/lockfile、UI-11a実装、69設計、UI_TECH_STACKの矛盾を再確認し、削除方針を `UI-FORM-D1` としてsource docへ昇格した。
 - 2026-07-28 plan-draft -> plan-gate: 本packet、Matrix、source doc、Wave Registryをmain上のwave scaffoldingとして実装より先にcommitする。lane branch/worktreeはPlan Gate収束後にこのplan-first lineageから分岐する。
 - 2026-07-28 Codex independent preflight（正式Sonnet review前）: P1=0 / P2=3 / P3=1。全件をCoordinatorが再実測してacceptし、FE test `UI-11a` token + traceability T4 check、manifest/lock/source-doc各面の独立mutation、component一覧の非網羅性明示、version表記を是正した。正式Plan Gateは未収束。
+- 2026-07-28 formal Plan Review（Sonnet 5独立fresh context、ownerがlane別terminalでrelay）: P1=0 / P2=0 / P3=1、Verdict Approve。P3のG1注入形具体化をacceptし、MatrixへZod/radix-uiの個別root dependency削除を追記した。P3-only明確化のためre-review不要。relay 1/2。
 
 ## Owner Effort Budget
 
 - 介入回数上限: 3
 - 実働時間上限: 30分
 - relay往復上限: 2
-- 現況: 介入1/3（wave 2 / lane選定）、relay 0/2
+- 現況: 介入1/3（wave 2 / lane選定）、relay 1/2
 
 ## Risk
 
