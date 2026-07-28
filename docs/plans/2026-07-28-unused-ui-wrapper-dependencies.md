@@ -28,13 +28,14 @@ Narrative（append-only）:
 - 2026-07-28 formal Amendment Review（Sonnet 5独立fresh context、owner relay）: 技術内容とX11は妥当、P1=0 / P2=1 / P3=1。P2はSHA記録commit `a3708e7` が既存Narrative bulletへSHAを後書きし、append-only契約に反したこと。Coordinatorがacceptし、既存bulletを`2511a5e`時点へ復元して本記録を新規bulletとして追加する。P3は本reviewでrelay 2/2到達。Writer再開はworkflow記録P2のclosure後。
 - 2026-07-28 owner budget exception: 品質保証を優先し、P2是正commit `1ee41ed` のformal closure確認に限ってrelay上限を2回から3回へ拡張することをownerが明示承認した。scope・Ready・mergeの承認ではなく、同じSonnet review contextでのread-only closure 1往復だけを許可する。
 - 2026-07-28 formal Amendment closure（同じSonnet review context、read-only）: P1/P2/P3=0、P2-1 closure confirmed、Amendment approved、Writer再開可。`1ee41ed`でpreflight bulletが`2511a5e`時点へbyte一致復元され、SHA/review記録は新規bullet、`56b6d72`はowner budget exceptionの新規bulletとBudget field/Registry同期だけでScope/AC/Matrixを変更していないことを実測確認。plan checkerとPK5/STATECAPもPASS。relay 3/3。
+- 2026-07-28 owner budget exception 2: Amendment実装後の締めとなるformal Final Reviewを実施するため、ownerがrelay上限を3回から4回へ今回限り拡張した。対象はexact content HEAD `e435640`に対するSonnet 5 fresh-context read-only Final Review 1往復だけで、追加実装・Ready・mergeの承認には広げない。
 
 ## Owner Effort Budget
 
 - 介入回数上限: 3
 - 実働時間上限: 30分
-- relay往復上限: 3（既定2から今回限り拡張。理由: formal Amendment Review P2のworkflow記録closureを独立Reviewerで完了するため）
-- 現況: 介入1/3（wave 2 / lane選定）、relay 3/3（formal Amendment closureで上限到達）
+- relay往復上限: 4（既定2から今回限り拡張。3回目はformal Amendment Review P2のworkflow記録closure、4回目はAmendment実装後のformal Final Reviewを完了するため）
+- 現況: 介入1/3（wave 2 / lane選定）、relay 3/4（次の1往復をexact content HEAD `e435640`のformal Final Reviewに限定）
 
 ## Risk
 
