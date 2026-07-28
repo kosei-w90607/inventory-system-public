@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: ready-hosted-final
+- Phase: archive
 - Risk: R3
 - Execution Mode: dual-vendor-no-fable
 - Plan Commit: eeeae9e
@@ -14,7 +14,7 @@
 - Reviewed Content HEAD: 0c717b3
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
-- Human Gate: merge pending。wave batch Ready承認済み、視認・L3なし（internal Rust contractと診断境界、operator UI不変）
+- Human Gate: none
 
 Narrative（append-only）:
 
@@ -31,13 +31,15 @@ Narrative（append-only）:
 - 2026-07-28 implementing -> local-verified -> independent-review -> human-confirm（state-only compression）: content candidate `0c717b3`のexact-HEAD L1 evidence、Codex preflight、formal Final Review P1/P2=0、Coordinator mutation独立再実測が揃ったため、本state-only commitで隣接遷移を実体化する。残るHuman Gateはwave batch Ready承認とmerge。
 - 2026-07-28 owner wave batch Ready承認: ownerが両laneのReadyを明示承認し、merge trainをPR #33 -> PR #32に確定した。本laneは介入2/3。internal Rust contractと診断境界だけの変更でoperator UI不変のため、視認・Windows native L3は追加しない。merge承認は未解決のまま維持する。
 - 2026-07-28 train-head rebase / human-confirm -> ready-hosted-final: PR #33をDraftのまま最新`origin/main`へconflict-free rebaseし、audited contentの単一commit patch-id同値、range-diff同値、lane whole-diff同値を確認した。`Plan Commit = eeeae9e`は既にmain祖先でfield値を維持し、`Amendments = none`も不変。owner Ready承認が先行しているため、本state-only commitで遷移を実体化する。次はこの結果HEADのexact L1、PR body全面更新、Ready化によるhosted finalで、mergeは行わない。
+- 2026-07-28 ready-hosted-final -> merge: state HEAD `8c593a2`でlocal full evidence・live PR HEAD・required hosted run `30364406589`のheadShaが一致し、required jobsはsuccess。ownerが介入3/3としてmergeを明示承認し、PR #33をsquash merge `45f7fa8`として取り込んだ。
+- 2026-07-28 merge -> archive: 本packetとMatrixをarchiveへ移動し、Plans / PROJECT_HANDOFFをlane 2完了・lane 1 train先頭へ同期する。R3 Workflow Effectiveness Reviewはwave全体のsignal / costを比較するため、PR #32 closeout後のwave 2 WERへ統合する。
 
 ## Owner Effort Budget
 
 - 介入回数上限: 3
 - 実働時間上限: 30分
 - relay往復上限: 2
-- 現況: 介入2/3（wave 2 / lane選定、wave batch Ready承認）、relay 2/2（formal Final Reviewで上限到達）
+- 現況: 介入3/3（wave 2 / lane選定、wave batch Ready承認、merge承認）、relay 2/2（formal Final Reviewで上限到達）
 
 ## Risk
 
@@ -244,9 +246,9 @@ fixtureはsyntheticのみ。実店舗CSV、DB、operation/diagnostic log出力�
 
 ## Implementation Results
 
-（plan-approved後にWriterが追記）
-
-- 実装・検証・mutation・exact-HEAD証拠はDraft PR #33 bodyを正本とする。
+- import内部型からproduction consumerに不要なfieldを除去し、日報parse errorの5fieldをstructured diagnostic WARNへ接続した。
+- CMD preview token lifecycle、利用者向けBizError、operation log、wire / DB / operator UIは変更していない。
+- 実装・検証・mutation・exact-HEAD / hosted証拠の正本はPR #33 bodyとする。
 
 ## Review Response
 
