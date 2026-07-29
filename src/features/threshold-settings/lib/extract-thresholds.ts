@@ -57,16 +57,6 @@ export const THRESHOLD_FIELD_DESCRIPTORS = [
 
 export type ThresholdField = (typeof THRESHOLD_FIELD_DESCRIPTORS)[number]["field"];
 
-export const STOCK_LOW_THRESHOLD_KEY = THRESHOLD_FIELD_DESCRIPTORS[0].settingKey;
-export const STOCK_LOW_THRESHOLD_FABRIC_KEY = THRESHOLD_FIELD_DESCRIPTORS[1].settingKey;
-
-/** 保存の試行順（UI-11a-D2: 一般商品 → 生地 の固定順で dirty key のみ順次送信） */
-export const THRESHOLD_FIELD_ORDER = THRESHOLD_FIELD_DESCRIPTORS.map(({ field }) => field);
-
-export const THRESHOLD_SETTING_KEY_BY_FIELD = Object.fromEntries(
-  THRESHOLD_FIELD_DESCRIPTORS.map(({ field, settingKey }) => [field, settingKey]),
-) as Record<ThresholdField, string>;
-
 /** 部分失敗メッセージ・成功 toast で使う日本語フィールド名（§69.8 / §69.9） */
 export const THRESHOLD_FIELD_LABELS = Object.fromEntries(
   THRESHOLD_FIELD_DESCRIPTORS.map(({ field, label }) => [field, label]),

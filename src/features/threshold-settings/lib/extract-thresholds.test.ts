@@ -65,6 +65,10 @@ describe("extractThresholds (UI-11a-D1)", () => {
 
   it("schema, extraction, save hook, and page consume the descriptor owner", () => {
     const repoRoot = process.cwd();
+    const descriptorSource = readFileSync(
+      join(repoRoot, "src/features/threshold-settings/lib/extract-thresholds.ts"),
+      "utf8",
+    );
     const schemaSource = readFileSync(
       join(repoRoot, "src/features/threshold-settings/lib/threshold-form-schema.ts"),
       "utf8",
@@ -84,6 +88,14 @@ describe("extractThresholds (UI-11a-D1)", () => {
     expect(schemaSource).not.toContain("stockLowThreshold:");
     expect(saveSource).not.toContain("THRESHOLD_SETTING_KEY_BY_FIELD");
     expect(pageSource).not.toContain("THRESHOLD_FIELD_ORDER");
+    for (const retiredExport of [
+      "STOCK_LOW_THRESHOLD_KEY",
+      "STOCK_LOW_THRESHOLD_FABRIC_KEY",
+      "THRESHOLD_FIELD_ORDER",
+      "THRESHOLD_SETTING_KEY_BY_FIELD",
+    ]) {
+      expect(descriptorSource).not.toContain(`export const ${retiredExport}`);
+    }
   });
 });
 

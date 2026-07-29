@@ -1,7 +1,7 @@
 // src/features/threshold-settings/ThresholdSettingsPage.tsx
 //
 // UI-11a 閾値設定（在庫少の基準）画面本体。
-// 設計: docs/function-design/69-ui-threshold-settings.md（UI-11a-D1〜D7）
+// 設計: docs/function-design/69-ui-threshold-settings.md（UI-11a-D1〜D8）
 //
 // - この画面が所有する app_settings key は stock_low_threshold /
 //   stock_low_threshold_fabric の 2 件のみ（UI-11a-D1）。
