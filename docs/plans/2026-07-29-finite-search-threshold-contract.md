@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: human-confirm
+- Phase: ready-hosted-final
 - Risk: R3
 - Execution Mode: dual-vendor-no-fable
 - Plan Commit: d8129d9
@@ -31,6 +31,7 @@ Narrative（append-only）:
 - 2026-07-30 dependency attribution correction: closure時のstale `origin/main`はPR-wide changed gateのdiff windowを拡大した要因であり、起動後のRust design compliance failureはLane 2が所有した`76-ui-request-primitives.md`分類gapだった。Lane 2はPR #40 squash `4a07f7d`で統合され、最新`main=d5f8bda`には当該分類が存在する。Lane 1をこのmainへrebaseした後のL1 fullではdesign complianceを含む全gateがPASSしたため、Lane 1 regressionではなくLane 2 mergeで解消したbase dependencyとして帰属を確定する。
 - 2026-07-30 merge-train rebase evidence: 旧base `be63da7` / 旧tip `4ebd3fd`のlane 1固有4 commitを`main=d5f8bda`へ競合なくrebaseし、新tip `5bbd65f`を得た。旧新4組のstable patch-id、`git range-diff`、旧全体差分`be63da7..4ebd3fd`と新全体差分`d5f8bda..5bbd65f`のstable patch-idは全て一致した。Plan Commit `d8129d9`は既にmain祖先でAmendmentsはnoneのためformal Rebase Map対象はない。Final Reviewerが監査したcontent HEAD `0ec5180`は同内容のrebased commit `aa90b7c`へ対応し、closure reviewをcarry forwardする。
 - 2026-07-30 implementing -> local-verified -> independent-review -> human-confirm（state-only materialization）: rebased HEAD `5bbd65f`のL1 fullはCLEAN / PASS、Claude Opus 5 / Sonnet 5 closure reviewはP1/P2=0、上記rebase同値性も成立した。実際のreview対象`0ec5180a77c7b0e61a7c31620f7b7ee4dbad66ad`をReviewed Content HEADへ設定し、owner介入4/4の条件付きReady / merge委任を確定した。
+- 2026-07-30 human-confirm -> ready-hosted-final（state-only materialization）: ownerが事前に明示したReady / merge承認（介入4/4）を執行した。本commitをfinal candidate HEADとし、Draft PR #38のままexact-HEAD L1 fullとPR body更新を行う。その後Ready化でHosted CIを起動し、PR live HEAD・PR bodyのlocal full evidence SHA・successful hosted run headShaの三点一致を確認できた場合に限り、追加tracked commitなしでsquash mergeする。
 
 ## Owner Effort Budget
 
