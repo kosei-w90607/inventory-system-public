@@ -3,21 +3,57 @@
 // UI-01a-D1〜D4: URL search params と ProductSearchQuery の変換を一箇所に集約する。
 
 import type { ProductSearchQuery, SortKey, SortOrder } from "@/lib/bindings";
+import { z } from "zod";
 
-export type ProductDiscontinuedMode = "active" | "all" | "discontinued";
-export type ProductSortParam = "product_code" | "name" | "stock_quantity" | "selling_price";
-export type ProductSortDirParam = "asc" | "desc";
-export type ProductPerPage = 50 | 100 | 200;
+export const PRODUCT_DISCONTINUED_OPTIONS = [
+  { value: "active", label: "表示中", payload: false },
+  { value: "all", label: "すべて", payload: null },
+  { value: "discontinued", label: "廃番のみ", payload: true },
+] as const;
+export const PRODUCT_SORT_OPTIONS = [
+  { value: "product_code", label: "商品コード", payload: "ProductCode" },
+  { value: "name", label: "商品名", payload: "Name" },
+  { value: "stock_quantity", label: "在庫数", payload: "StockQuantity" },
+  { value: "selling_price", label: "売価", payload: "SellingPrice" },
+] as const satisfies readonly { value: string; label: string; payload: SortKey }[];
+export const PRODUCT_SORT_DIRECTION_OPTIONS = [
+  { value: "asc", label: "昇順", payload: "Asc" },
+  { value: "desc", label: "降順", payload: "Desc" },
+] as const satisfies readonly { value: string; label: string; payload: SortOrder }[];
+export const PRODUCT_PER_PAGE_OPTIONS = [50, 100, 200] as const;
 
-export interface ProductListSearch {
-  q?: string;
-  dept?: number;
-  discontinued?: ProductDiscontinuedMode;
-  sort?: ProductSortParam;
-  dir?: ProductSortDirParam;
-  page?: number;
-  perPage?: ProductPerPage;
+export type ProductDiscontinuedMode = (typeof PRODUCT_DISCONTINUED_OPTIONS)[number]["value"];
+export type ProductSortParam = (typeof PRODUCT_SORT_OPTIONS)[number]["value"];
+export type ProductSortDirParam = (typeof PRODUCT_SORT_DIRECTION_OPTIONS)[number]["value"];
+export type ProductPerPage = (typeof PRODUCT_PER_PAGE_OPTIONS)[number];
+
+function descriptorValues<
+  const T extends readonly [{ readonly value: string }, ...{ readonly value: string }[]],
+>(descriptors: T): { [K in keyof T]: T[K]["value"] } {
+  return descriptors.map(({ value }) => value) as { [K in keyof T]: T[K]["value"] };
 }
+
+const PRODUCT_DISCONTINUED_VALUES = descriptorValues(PRODUCT_DISCONTINUED_OPTIONS);
+const PRODUCT_SORT_VALUES = descriptorValues(PRODUCT_SORT_OPTIONS);
+const PRODUCT_SORT_DIRECTION_VALUES = descriptorValues(PRODUCT_SORT_DIRECTION_OPTIONS);
+
+export const productListSearchSchema = z.object({
+  q: z.string().max(100).optional().catch(undefined),
+  dept: z.coerce.number().int().positive().optional().catch(undefined),
+  discontinued: z.enum(PRODUCT_DISCONTINUED_VALUES).optional().catch(undefined),
+  sort: z.enum(PRODUCT_SORT_VALUES).optional().catch(undefined),
+  dir: z.enum(PRODUCT_SORT_DIRECTION_VALUES).optional().catch(undefined),
+  page: z.coerce.number().int().positive().optional().catch(undefined),
+  perPage: z.coerce
+    .number()
+    .refine((value): value is ProductPerPage =>
+      PRODUCT_PER_PAGE_OPTIONS.includes(value as ProductPerPage),
+    )
+    .optional()
+    .catch(undefined),
+});
+
+export type ProductListSearch = z.output<typeof productListSearchSchema>;
 
 export interface ProductListSearchInput {
   q?: unknown;
@@ -43,19 +79,16 @@ export interface NormalizedProductListSearch {
   perPage: ProductPerPage;
 }
 
-export const PRODUCT_PER_PAGE_OPTIONS = [50, 100, 200] as const;
+const sortKeyMap = Object.fromEntries(
+  PRODUCT_SORT_OPTIONS.map(({ value, payload }) => [value, payload]),
+) as Record<ProductSortParam, SortKey>;
 
-const sortKeyMap: Record<ProductSortParam, SortKey> = {
-  product_code: "ProductCode",
-  name: "Name",
-  stock_quantity: "StockQuantity",
-  selling_price: "SellingPrice",
-};
-
-const sortOrderMap: Record<ProductSortDirParam, SortOrder> = {
-  asc: "Asc",
-  desc: "Desc",
-};
+const sortOrderMap = Object.fromEntries(
+  PRODUCT_SORT_DIRECTION_OPTIONS.map(({ value, payload }) => [value, payload]),
+) as Record<ProductSortDirParam, SortOrder>;
+const discontinuedMap = Object.fromEntries(
+  PRODUCT_DISCONTINUED_OPTIONS.map(({ value, payload }) => [value, payload]),
+) as Record<ProductDiscontinuedMode, boolean | null>;
 
 function normalizeString(value: unknown): string | undefined {
   if (typeof value !== "string") return undefined;
@@ -90,17 +123,9 @@ export function normalizeProductListSearch(
   return {
     q: normalizeString(input.q),
     dept: normalizeDepartment(input.dept),
-    discontinued: normalizeEnum(
-      input.discontinued,
-      ["active", "all", "discontinued"] as const,
-      "active",
-    ),
-    sort: normalizeEnum(
-      input.sort,
-      ["product_code", "name", "stock_quantity", "selling_price"] as const,
-      "product_code",
-    ),
-    dir: normalizeEnum(input.dir, ["asc", "desc"] as const, "asc"),
+    discontinued: normalizeEnum(input.discontinued, PRODUCT_DISCONTINUED_VALUES, "active"),
+    sort: normalizeEnum(input.sort, PRODUCT_SORT_VALUES, "product_code"),
+    dir: normalizeEnum(input.dir, PRODUCT_SORT_DIRECTION_VALUES, "asc"),
     page: normalizePositiveInt(input.page, 1),
     perPage: normalizePerPage(input.perPage),
   };
@@ -108,11 +133,6 @@ export function normalizeProductListSearch(
 
 export function buildProductSearchQuery(search: ProductListSearchInput): ProductSearchQuery {
   const normalized = normalizeProductListSearch(search);
-  const discontinuedMap: Record<ProductDiscontinuedMode, boolean | null> = {
-    active: false,
-    all: null,
-    discontinued: true,
-  };
 
   return {
     keyword: normalized.q ?? null,

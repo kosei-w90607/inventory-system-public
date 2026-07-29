@@ -2,11 +2,17 @@
 //
 // T11: extractThresholds の抽出 / 欠落 key（UI-11a-D1、69 §69.11）
 
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import type { AppSetting } from "@/lib/bindings";
 
-import { extractThresholds, isReadableThresholdValue } from "./extract-thresholds";
+import {
+  THRESHOLD_FIELD_DESCRIPTORS,
+  extractThresholds,
+  isReadableThresholdValue,
+} from "./extract-thresholds";
 
 function setting(key: string, value: string): AppSetting {
   return { key, value, updated_at: "2026-07-06T00:00:00" };
@@ -42,6 +48,42 @@ describe("extractThresholds (UI-11a-D1)", () => {
       stockLowThreshold: "",
       stockLowThresholdFabric: "",
     });
+  });
+
+  it("extracts every descriptor key into its field in save order", () => {
+    const settings = THRESHOLD_FIELD_DESCRIPTORS.map((descriptor, index) =>
+      setting(descriptor.settingKey, String(index + 10)),
+    );
+
+    expect(Object.entries(extractThresholds(settings))).toEqual(
+      THRESHOLD_FIELD_DESCRIPTORS.map((descriptor, index) => [
+        descriptor.field,
+        String(index + 10),
+      ]),
+    );
+  });
+
+  it("schema, extraction, save hook, and page consume the descriptor owner", () => {
+    const repoRoot = process.cwd();
+    const schemaSource = readFileSync(
+      join(repoRoot, "src/features/threshold-settings/lib/threshold-form-schema.ts"),
+      "utf8",
+    );
+    const saveSource = readFileSync(
+      join(repoRoot, "src/features/threshold-settings/hooks/useSaveThresholds.ts"),
+      "utf8",
+    );
+    const pageSource = readFileSync(
+      join(repoRoot, "src/features/threshold-settings/ThresholdSettingsPage.tsx"),
+      "utf8",
+    );
+
+    for (const downstreamSource of [schemaSource, saveSource, pageSource]) {
+      expect(downstreamSource).toContain("THRESHOLD_FIELD_DESCRIPTORS");
+    }
+    expect(schemaSource).not.toContain("stockLowThreshold:");
+    expect(saveSource).not.toContain("THRESHOLD_SETTING_KEY_BY_FIELD");
+    expect(pageSource).not.toContain("THRESHOLD_FIELD_ORDER");
   });
 });
 

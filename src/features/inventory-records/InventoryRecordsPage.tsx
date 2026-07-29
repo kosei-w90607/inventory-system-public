@@ -25,6 +25,8 @@ import { commands } from "@/lib/bindings";
 import { unwrapResult } from "@/lib/invoke";
 import { queryKeys } from "@/lib/query-keys";
 import {
+  INVENTORY_RECORD_STATUS_OPTIONS,
+  INVENTORY_RECORD_TYPE_OPTIONS,
   formatDateTime,
   formatRecordStatus,
   formatRecordType,
@@ -133,17 +135,17 @@ export function InventoryRecordsPage({ search, onSearchChange }: InventoryRecord
               className="h-9 w-40 rounded-md border border-input bg-background px-3 text-sm"
               value={normalized.recordType}
               onChange={(event) => {
-                updateSearch(
-                  { recordType: event.currentTarget.value as InventoryRecordsSearch["recordType"] },
-                  true,
-                );
+                const recordType = INVENTORY_RECORD_TYPE_OPTIONS.find(
+                  ({ value }) => value === event.currentTarget.value,
+                )?.value;
+                if (recordType !== undefined) updateSearch({ recordType }, true);
               }}
             >
-              <option value="all">すべて</option>
-              <option value="receiving_record">入庫</option>
-              <option value="return_record">返品・交換</option>
-              <option value="manual_sale">手動販売出庫</option>
-              <option value="disposal_record">廃棄・破損</option>
+              {INVENTORY_RECORD_TYPE_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
             </select>
           </div>
           <div className="grid gap-1">
@@ -250,14 +252,17 @@ export function InventoryRecordsPage({ search, onSearchChange }: InventoryRecord
               className="h-9 w-32 rounded-md border border-input bg-background px-3 text-sm"
               value={normalized.status}
               onChange={(event) => {
-                updateSearch(
-                  { status: event.currentTarget.value as InventoryRecordsSearch["status"] },
-                  true,
-                );
+                const status = INVENTORY_RECORD_STATUS_OPTIONS.find(
+                  ({ value }) => value === event.currentTarget.value,
+                )?.value;
+                if (status !== undefined) updateSearch({ status }, true);
               }}
             >
-              <option value="all">すべて</option>
-              <option value="active">有効</option>
+              {INVENTORY_RECORD_STATUS_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
             </select>
           </div>
         </div>

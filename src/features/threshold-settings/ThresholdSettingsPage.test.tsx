@@ -12,6 +12,7 @@ import { commands } from "@/lib/bindings";
 import { d052InvalidationOracle, expectExactInvalidations } from "@/test/invalidation-oracle";
 
 import { ThresholdSettingsPage } from "./ThresholdSettingsPage";
+import { THRESHOLD_FIELD_DESCRIPTORS } from "./lib/extract-thresholds";
 
 vi.mock("sonner", () => ({
   toast: { success: vi.fn(), error: vi.fn() },
@@ -301,5 +302,20 @@ describe("ThresholdSettingsPage (UI-11a / QR系 / D-4)", () => {
     expect(
       screen.getByText("在庫がこの長さ以下になったら在庫少（初期値: 500cm = 5m）"),
     ).toBeInTheDocument();
+  });
+
+  it("renders every threshold descriptor in save order", async () => {
+    await renderReady();
+
+    expect(
+      screen
+        .getAllByRole("textbox")
+        .map((input) => input.getAttribute("aria-labelledby") ?? input.id),
+    ).toEqual(THRESHOLD_FIELD_DESCRIPTORS.map(({ inputId }) => inputId));
+    for (const descriptor of THRESHOLD_FIELD_DESCRIPTORS) {
+      expect(screen.getByLabelText(descriptor.requiredLabel)).toHaveValue(
+        defaultSettings().data.find(({ key }) => key === descriptor.settingKey)?.value,
+      );
+    }
   });
 });

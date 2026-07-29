@@ -15,7 +15,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import type { ComparisonInfo, DeptCompositionRow, SortColumn, SortDirection } from "../types";
+import {
+  monthlySortDescriptorsForMode,
+  type ComparisonInfo,
+  type DeptCompositionRow,
+  type SortColumn,
+  type SortDirection,
+} from "../types";
 import { ComparisonCell } from "./comparison-cell";
 
 export interface DepartmentTableProps {
@@ -43,35 +49,36 @@ export function DepartmentTable({
     );
   }
 
+  const sortDescriptors = monthlySortDescriptorsForMode("by_department");
+
   return (
     <div className="rounded-md border">
       <Table>
         <TableHeader>
           <TableRow>
-            <SortableHeader
-              column="name"
-              label="部門"
-              sortBy={sortBy}
-              sortDir={sortDir}
-              onClick={onSortChange}
-            />
-            <SortableHeader
-              column="amount"
-              label="売上"
-              sortBy={sortBy}
-              sortDir={sortDir}
-              onClick={onSortChange}
-              align="right"
-            />
+            {sortDescriptors.slice(0, 2).map((descriptor) => (
+              <SortableHeader
+                key={descriptor.value}
+                column={descriptor.value}
+                label={descriptor.label}
+                sortBy={sortBy}
+                sortDir={sortDir}
+                onClick={onSortChange}
+                align={descriptor.align}
+              />
+            ))}
             <TableHead>構成比</TableHead>
-            <SortableHeader
-              column="prev_month_diff"
-              label="前月比"
-              sortBy={sortBy}
-              sortDir={sortDir}
-              onClick={onSortChange}
-              align="right"
-            />
+            {sortDescriptors.slice(2).map((descriptor) => (
+              <SortableHeader
+                key={descriptor.value}
+                column={descriptor.value}
+                label={descriptor.label}
+                sortBy={sortBy}
+                sortDir={sortDir}
+                onClick={onSortChange}
+                align={descriptor.align}
+              />
+            ))}
           </TableRow>
         </TableHeader>
         <TableBody>

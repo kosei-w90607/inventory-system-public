@@ -31,14 +31,9 @@ import { ProductRankingTable } from "./components/ProductRankingTable";
 import { SummaryCardsBar } from "./components/SummaryCardsBar";
 import { useMonthlySalesReport } from "./hooks/useMonthlySalesReport";
 import { formatYearMonth } from "./lib/format-month-label";
-import type { SortColumn, SortDirection } from "./types";
+import type { MonthlySalesSearch, SortColumn, SortDirection } from "./types";
 
-export interface MonthlySalesSearch {
-  month?: string;
-  mode?: SalesMode;
-  sortBy?: SortColumn;
-  sortDir?: SortDirection;
-}
+export type { MonthlySalesSearch } from "./types";
 
 export interface MonthlySalesPageProps {
   search: MonthlySalesSearch;

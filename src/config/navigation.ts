@@ -23,6 +23,7 @@ import {
   Wrench,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import { LOW_STOCK_FILTER } from "@/features/stock-inquiry/types";
 
 /// UI-12 共通レイアウトのナビゲーション定義。
 /// 設計: docs/function-design/52-ui-shared-layout.md §52.3 / §52.4
@@ -85,7 +86,7 @@ export const navigation: readonly NavArea[] = [
         label: "在庫照会",
         title: "在庫照会",
         to: "/stock",
-        activeMatch: { searchKey: "status", isNot: "low_stock" },
+        activeMatch: { searchKey: "status", isNot: LOW_STOCK_FILTER },
         icon: Search,
         status: "active",
       },
@@ -188,8 +189,8 @@ export const navigation: readonly NavArea[] = [
         label: "在庫少一覧",
         title: "在庫少一覧",
         to: "/stock",
-        search: { status: "low_stock" },
-        activeMatch: { searchKey: "status", is: "low_stock" },
+        search: { status: LOW_STOCK_FILTER },
+        activeMatch: { searchKey: "status", is: LOW_STOCK_FILTER },
         icon: AlertTriangle,
         status: "active",
       },

@@ -8,18 +8,12 @@
 
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { SELECTION_TONE_CHIP_ON } from "@/components/ui/selection-tone";
-import type { ListChipFilter } from "../types";
+import { STOCK_FILTER_DESCRIPTORS, type ListChipFilter } from "../types";
 
 export interface StatusChipsProps {
   value: ListChipFilter;
   onChange: (next: ListChipFilter) => void;
 }
-
-const CHIPS: { value: ListChipFilter; label: string }[] = [
-  { value: "all", label: "すべて" },
-  { value: "stockout", label: "在庫切れ" },
-  { value: "low_stock", label: "在庫少" },
-];
 
 export function StatusChips({ value, onChange }: StatusChipsProps) {
   return (
@@ -29,13 +23,14 @@ export function StatusChips({ value, onChange }: StatusChipsProps) {
       value={value}
       onValueChange={(next) => {
         // deselect（空文字）は無視し、常に 1 つ選択を維持
-        if (next === "all" || next === "stockout" || next === "low_stock") {
-          onChange(next);
+        const filter = STOCK_FILTER_DESCRIPTORS.find(({ value }) => value === next)?.value;
+        if (filter !== undefined) {
+          onChange(filter);
         }
       }}
       aria-label="在庫状態フィルタ"
     >
-      {CHIPS.map((chip) => (
+      {STOCK_FILTER_DESCRIPTORS.map((chip) => (
         <ToggleGroupItem
           key={chip.value}
           value={chip.value}

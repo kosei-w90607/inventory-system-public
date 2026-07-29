@@ -13,7 +13,7 @@ import { PageHeader } from "@/components/patterns/PageHeader";
 import { ProductPagination } from "@/features/products/components/ProductPagination";
 import { formatStockDisplay } from "@/features/stock-inquiry/lib/format-stock-display";
 import type { StockMovementsSearch } from "./types";
-import { movementTypeOptions, normalizeStockMovementsSearch } from "./types";
+import { MOVEMENT_TYPE_OPTIONS, normalizeStockMovementsSearch } from "./types";
 import { useStockMovements } from "./hooks/useStockMovements";
 import { MovementTable } from "./components/MovementTable";
 
@@ -146,7 +146,7 @@ export function StockMovementsPage({
               );
             }}
           >
-            {movementTypeOptions.map((option) => (
+            {MOVEMENT_TYPE_OPTIONS.map((option) => (
               <option key={option.value} value={option.value}>
                 {option.label}
               </option>

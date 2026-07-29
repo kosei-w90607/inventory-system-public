@@ -6,6 +6,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { STOCK_FILTER_DESCRIPTORS } from "../types";
 import { StatusChips } from "./StatusChips";
 
 describe("StatusChips (REQ-302 状態フィルタ)", () => {
@@ -34,5 +35,13 @@ describe("StatusChips (REQ-302 状態フィルタ)", () => {
     await user.click(screen.getByLabelText("在庫切れ"));
 
     expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it("renders every stock filter descriptor in owner order", () => {
+    render(<StatusChips value="all" onChange={vi.fn()} />);
+
+    expect(screen.getAllByRole("radio").map((chip) => chip.getAttribute("aria-label"))).toEqual(
+      STOCK_FILTER_DESCRIPTORS.map(({ label }) => label),
+    );
   });
 });

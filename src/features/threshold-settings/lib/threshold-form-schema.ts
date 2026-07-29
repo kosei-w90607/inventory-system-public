@@ -5,42 +5,23 @@
 
 import { z } from "zod";
 
-import type { ThresholdField } from "./extract-thresholds";
+import {
+  THRESHOLD_ERROR_MESSAGES,
+  THRESHOLD_FIELD_DESCRIPTORS,
+  type ThresholdField,
+} from "./extract-thresholds";
 
-export const THRESHOLD_ERROR_MESSAGES = {
-  required: "入力してください",
-  integer: "1以上の整数を入力してください",
-  max: "99999以下で入力してください",
-} as const;
+export { THRESHOLD_ERROR_MESSAGES };
 
-const thresholdFieldSchema = z.string().superRefine((value, ctx) => {
-  const trimmed = value.trim();
-  if (trimmed === "") {
-    ctx.addIssue({ code: "custom", message: THRESHOLD_ERROR_MESSAGES.required });
-    return;
-  }
-  if (!/^\d+$/.test(trimmed)) {
-    ctx.addIssue({ code: "custom", message: THRESHOLD_ERROR_MESSAGES.integer });
-    return;
-  }
-  const numeric = Number(trimmed);
-  if (numeric < 1) {
-    ctx.addIssue({ code: "custom", message: THRESHOLD_ERROR_MESSAGES.integer });
-    return;
-  }
-  if (numeric > 99999) {
-    ctx.addIssue({ code: "custom", message: THRESHOLD_ERROR_MESSAGES.max });
-  }
-});
+const thresholdSettingsShape = Object.fromEntries(
+  THRESHOLD_FIELD_DESCRIPTORS.map(({ field, schema }) => [field, schema]),
+) as Record<ThresholdField, (typeof THRESHOLD_FIELD_DESCRIPTORS)[number]["schema"]>;
 
-export const thresholdSettingsSchema = z.object({
-  stockLowThreshold: thresholdFieldSchema,
-  stockLowThresholdFabric: thresholdFieldSchema,
-});
+export const thresholdSettingsSchema = z.object(thresholdSettingsShape);
 
 export type ThresholdFormValues = z.infer<typeof thresholdSettingsSchema>;
 
 /** zod issue.path[0] から ThresholdField へ絞り込む（本 schema の 2 key 以外は現れない） */
 export function isThresholdField(value: unknown): value is ThresholdField {
-  return value === "stockLowThreshold" || value === "stockLowThresholdFabric";
+  return THRESHOLD_FIELD_DESCRIPTORS.some(({ field }) => field === value);
 }

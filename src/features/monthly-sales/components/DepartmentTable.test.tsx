@@ -11,7 +11,7 @@ import { render, screen, fireEvent } from "@testing-library/react";
 
 import { DepartmentTable } from "./DepartmentTable";
 import { makeMockDeptCompositionRow } from "../lib/test-fixtures";
-import type { SortColumn } from "../types";
+import { monthlySortDescriptorsForMode, type SortColumn } from "../types";
 
 const sampleRows = [
   makeMockDeptCompositionRow({ key: "1", label: "毛糸", amount: 5000, ratio: 0.5 }),
@@ -55,14 +55,15 @@ describe("DepartmentTable (REQ-502 sort 結線)", () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: /部門/ }));
-    fireEvent.click(screen.getByRole("button", { name: /売上/ }));
-    fireEvent.click(screen.getByRole("button", { name: /前月比/ }));
+    const descriptors = monthlySortDescriptorsForMode("by_department");
+    for (const { label } of descriptors) {
+      fireEvent.click(screen.getByRole("button", { name: label }));
+    }
 
-    expect(onSortChange).toHaveBeenCalledTimes(3);
-    expect(onSortChange).toHaveBeenNthCalledWith(1, "name");
-    expect(onSortChange).toHaveBeenNthCalledWith(2, "amount");
-    expect(onSortChange).toHaveBeenNthCalledWith(3, "prev_month_diff");
+    expect(onSortChange).toHaveBeenCalledTimes(descriptors.length);
+    descriptors.forEach(({ value }, index) => {
+      expect(onSortChange).toHaveBeenNthCalledWith(index + 1, value);
+    });
     // 構成比列はソート対象外 = button ではなく plain TableHead
     expect(screen.queryByRole("button", { name: /構成比/ })).toBeNull();
   });

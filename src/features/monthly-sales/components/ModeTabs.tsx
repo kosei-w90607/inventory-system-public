@@ -4,12 +4,10 @@
 // 設計: docs/function-design/57-ui-monthly-sales.md §57.7
 
 import { SegmentedControl, type SegmentedControlOption } from "@/components/ui/segmented-control";
-import type { SalesViewMode } from "../types";
+import { MONTHLY_MODE_DESCRIPTORS, type SalesViewMode } from "../types";
 
-const modeOptions = [
-  { value: "by_product", label: "商品別ランキング" },
-  { value: "by_department", label: "部門別構成比" },
-] satisfies readonly SegmentedControlOption<SalesViewMode>[];
+const modeOptions =
+  MONTHLY_MODE_DESCRIPTORS satisfies readonly SegmentedControlOption<SalesViewMode>[];
 
 export interface ModeTabsProps {
   mode: SalesViewMode;

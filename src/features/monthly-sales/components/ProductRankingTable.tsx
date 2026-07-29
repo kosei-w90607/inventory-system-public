@@ -16,7 +16,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import type { ComparisonInfo, ProductRankingRow, SortColumn, SortDirection } from "../types";
+import {
+  monthlySortDescriptorsForMode,
+  type ComparisonInfo,
+  type ProductRankingRow,
+  type SortColumn,
+  type SortDirection,
+} from "../types";
 import { ComparisonCell } from "./comparison-cell";
 
 export interface ProductRankingTableProps {
@@ -50,37 +56,17 @@ export function ProductRankingTable({
         <TableHeader>
           <TableRow>
             <TableHead className="w-16">順位</TableHead>
-            <SortableHeader
-              column="name"
-              label="商品名"
-              sortBy={sortBy}
-              sortDir={sortDir}
-              onClick={onSortChange}
-            />
-            <SortableHeader
-              column="quantity"
-              label="数量"
-              sortBy={sortBy}
-              sortDir={sortDir}
-              onClick={onSortChange}
-              align="right"
-            />
-            <SortableHeader
-              column="amount"
-              label="金額"
-              sortBy={sortBy}
-              sortDir={sortDir}
-              onClick={onSortChange}
-              align="right"
-            />
-            <SortableHeader
-              column="prev_month_diff"
-              label="前月比"
-              sortBy={sortBy}
-              sortDir={sortDir}
-              onClick={onSortChange}
-              align="right"
-            />
+            {monthlySortDescriptorsForMode("by_product").map((descriptor) => (
+              <SortableHeader
+                key={descriptor.value}
+                column={descriptor.value}
+                label={descriptor.label}
+                sortBy={sortBy}
+                sortDir={sortDir}
+                onClick={onSortChange}
+                align={descriptor.align}
+              />
+            ))}
           </TableRow>
         </TableHeader>
         <TableBody>

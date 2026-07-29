@@ -8,7 +8,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { makeMockItem } from "../lib/test-fixtures";
-import type { GroupedSection } from "../types";
+import { DAILY_SORT_DESCRIPTORS, type GroupedSection } from "../types";
 import { ProductTable } from "./ProductTable";
 
 describe("ProductTable (REQ-501 商品コード readability)", () => {
@@ -70,21 +70,13 @@ describe("ProductTable (REQ-501 商品コード readability)", () => {
       />,
     );
 
-    const sortableHeaders = [
-      ["商品コード", "product_code"],
-      ["商品名", "name"],
-      ["数量", "quantity"],
-      ["単価", "unit_price"],
-      ["金額", "amount"],
-    ] as const;
-
-    for (const [label] of sortableHeaders) {
+    for (const { label } of DAILY_SORT_DESCRIPTORS) {
       fireEvent.click(screen.getByRole("button", { name: label }));
     }
 
-    expect(onSortChange).toHaveBeenCalledTimes(5);
-    sortableHeaders.forEach(([, column], index) => {
-      expect(onSortChange).toHaveBeenNthCalledWith(index + 1, column);
+    expect(onSortChange).toHaveBeenCalledTimes(DAILY_SORT_DESCRIPTORS.length);
+    DAILY_SORT_DESCRIPTORS.forEach(({ value }, index) => {
+      expect(onSortChange).toHaveBeenNthCalledWith(index + 1, value);
     });
 
     const productCodeButton = screen.getByRole("button", { name: "商品コード" });
