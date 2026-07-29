@@ -20,6 +20,7 @@ Narrative（append-only）:
 
 - 2026-07-29 kickoff -> spec-check -> design -> plan-draft: ownerがwave 4 lane 1として順16を選定（介入1/3）。P4-2/P4-3に既存`low_stock` SSOT backlogを統合し、UI-STATE-D2 / UI-11a-D8をsource docsへ追加した。URL値・fallback・画面・閾値保存挙動は不変。Plan Gate前でありproduction実装は禁止。
 - 2026-07-29 plan-draft -> plan-gate: Packet / Matrix / source-doc decisions、3 lane footprint、lane 2だけのgenerated artifact専有、既存test拡張によるtraceability差分0をCoordinatorが確認した。plan-first content commitへ固定し、fresh Codex Plan Reviewへ進む。
+- 2026-07-29 Plan Review round 1: P1=1 / P2=2。実選択肢owner 3箇所のfootprint欠落、schema/wiring/duplicate-ownerとdescriptor mutationのoracle不足、商品検索のREQ誤参照を確認した。Plan Gateは未通過のまま、全 exercising siteと既存test内のportable source guardをScope / Ledger / Matrixへ追加して再レビューする。
 
 ## Owner Effort Budget
 
@@ -60,13 +61,13 @@ Goal Invariant: URL searchの有限値をfeature-local schema/tupleからroute�
 
 ## Scope
 
-- product: `src/features/products/search.ts`, `src/routes/products/index.tsx`
+- product: `src/features/products/search.ts`, `src/features/products/ProductListPage.tsx`, `src/routes/products/index.tsx`
 - movement: `src/features/stock-movements/types.ts`, `src/routes/stock/$code.movements.tsx`
-- records: `src/features/inventory-records/types.ts`, `src/routes/inventory/records.tsx`
+- records: `src/features/inventory-records/types.ts`, `src/features/inventory-records/InventoryRecordsPage.tsx`, `src/routes/inventory/records.tsx`
 - daily/monthly adjacent closure: `src/features/{daily-sales,monthly-sales}/types.ts`, their Page files and route files
-- stock: `src/features/stock-inquiry/types.ts`, `src/routes/stock/index.tsx`, `src/config/navigation.ts`
+- stock: `src/features/stock-inquiry/types.ts`, `src/features/stock-inquiry/components/StatusChips.tsx`, `src/routes/stock/index.tsx`, `src/config/navigation.ts`
 - threshold: `extract-thresholds.ts`, `threshold-form-schema.ts`, `useSaveThresholds.ts`, `ThresholdSettingsPage.tsx`
-- existing tests only: product search、movement / records / daily / monthly Page、navigation、SidebarLink、threshold Page / extract
+- existing tests only: `products/search.test.ts`（all schema variants + route/owner source guard）、`ProductListPage.test.tsx`、movement / records / daily / monthly Page tests、`StatusChips.test.tsx`、navigation、SidebarLink、threshold Page / extract tests
 - source docs: `UI_TECH_STACK.md`, `52-ui-shared-layout.md`, `58-ui-stock-inquiry.md`, `69-ui-threshold-settings.md`
 - 本Packet / Matrix。`Plans.md`とWorkflow StateはCoordinatorのみが更新する
 
@@ -74,16 +75,17 @@ Goal Invariant: URL searchの有限値をfeature-local schema/tupleからroute�
 
 - 新規production/test file、route追加、`src/routeTree.gen.ts`
 - `src/lib/bindings.ts`, `docs/function-design/90-traceability.md`
-- SidebarLink / StatusChips DOM、query hooks、command payload contract
+- SidebarLink / StatusChipsのDOM・visual変更、query hooks、command payload contract
 - source docs 50/56/57/65/66の既存URL値・表示契約変更
 - dependencies / lockfiles
 
 ## Acceptance Criteria
 
 - 各routeはfeature exportのZod schemaをimportし、有限値のlocal `z.enum([...])`を持たない
-- product sort/discontinued/dir/perPage、movement type、records recordType/status、daily/monthly finite値の全variantとinvalid fallbackを`npm test`で観測
+- product sort/discontinued/dir/perPage、movement type、records recordType/status、daily/monthly finite値、stock statusの全variantとinvalid fallbackを`src/features/products/search.test.ts`内のschema tableで観測
+- `products/search.test.ts`内のsource ownership guardが、全6 routeのfeature schema import / `validateSearch` wiringと、route・Page・StatusChipsへのlocal union / enum / value array再導入を検出する
 - navigationの`search.status` / `activeMatch.is/isNot`は`LOW_STOCK_FILTER`を共有し、追加search付きでも排他active testがPASS
-- threshold descriptor 2件からschema/extract/order/key/label/save entryが導出され、`ThresholdSettingsPage.test.tsx`のvalidation 4系統、dirty-only、固定順、部分失敗testがPASS
+- threshold descriptor 2件からschema/extract/order/key/label/save entryが導出され、`ThresholdSettingsPage.test.tsx` / `extract-thresholds.test.ts`のdescriptor全件反復caseとsource ownership guardがfield追加・手書きfield-set再導入を検出する。既存validation 4系統、dirty-only、固定順、部分失敗testもPASS
 - `npm run typecheck && npm run lint && npm run format:check && npm test && npm run build` PASS
 - `cd src-tauri && cargo run --bin generate_traceability -- --check` PASSかつ`90-traceability.md`差分0
 - `bash scripts/doc-consistency-check.sh --target plan docs/plans/2026-07-29-finite-search-threshold-contract.md` PASS
@@ -91,7 +93,7 @@ Goal Invariant: URL searchの有限値をfeature-local schema/tupleからroute�
 
 ## Design Sources
 
-- Requirements / spec: `docs/spec/requirements.md` REQ-101/206/301/302/303/501/502/905
+- Requirements / spec: `docs/spec/requirements.md` REQ-103/206/301/302/303/501/502/905
 - Architecture: `docs/UI_TECH_STACK.md` UI-STATE-D2 / UI-FORM-D1
 - Function / UI: `50-ui-product-list.md` §50.4、`56-ui-daily-sales.md`、`57-ui-monthly-sales.md`、`58-ui-stock-inquiry.md` §58.4、`65-inventory-record-traceability.md`、`66-ui-stock-movements.md` §66.3、`69-ui-threshold-settings.md` UI-11a-D1/D2/D3/D8
 - Decision: D-047 / UI-12-D1
@@ -116,7 +118,7 @@ Goal Invariant: URL searchの有限値をfeature-local schema/tupleからroute�
 
 | Spec / requirement ID | Source section | Decision ID | Implementation target | Test target |
 |---|---|---|---|---|
-| UI-01a | 50 §50.4 | UI-STATE-D2 | product search/schema | `search.test.ts` |
+| REQ-103 / UI-01a | 50 §50.4 | UI-STATE-D2 | product search/schema/options | `search.test.ts` + `ProductListPage.test.tsx` |
 | REQ-303 | 66 §66.3 | UI-06c-D2 / UI-STATE-D2 | movement types/schema | existing movement test |
 | REQ-206 | 65 §65.8.1 | UI-STATE-D2 | records types/schema | existing records test |
 | REQ-301/302 | 52 UI-12-D1 / 58 §58.4 | D-047 | stock types/route/navigation | navigation / Sidebar tests |
@@ -148,19 +150,19 @@ not applicable — 外部機器、実データ、CSV、operator workflow変更�
 
 | Design contract | Implementation target | Automated test | L3 or non-scope |
 |---|---|---|---|
-| UI-STATE-D2 product finite/default mapping | product search + route | existing product search test | L3なし |
-| UI-06c-D2 movement search | movement types + route | existing movement Page test | L3なし |
-| REQ-206 records search / returnTo preservation | records types + route | existing records Page test | L3なし |
+| UI-STATE-D2 product finite/default/options mapping | product search + Page + route | `search.test.ts` + `ProductListPage.test.tsx` | L3なし |
+| UI-06c-D2 movement search | movement types + route | `search.test.ts` schema/wiring table + movement Page test | L3なし |
+| REQ-206 records search / returnTo preservation | records types + Page + route | `search.test.ts` schema/wiring table + records Page test | L3なし |
 | daily/monthly finite search | sales types + routes + Pages | existing sales Page tests | L3なし |
-| D-047 / UI-12-D1 `low_stock`排他active | stock types + route + navigation | navigation + SidebarLink tests | L3なし |
-| UI-11a-D1/D2/D3/D8 | threshold descriptor/schema/save | Page + extract tests | L3再実施なし |
+| D-047 / UI-12-D1 `low_stock`排他active | stock types + route + StatusChips + navigation | `search.test.ts` schema/wiring table + StatusChips / navigation / SidebarLink tests | L3なし |
+| UI-11a-D1/D2/D3/D8 | threshold descriptor/schema/save | descriptor-driven Page + extract cases + source ownership guard | L3再実施なし |
 | generated lane分離 | diff / traceability check | generated diff 0 | non-scope |
 
 ## Test Plan
 
 Test Design Matrix: `docs/plans/test-matrices/2026-07-29-finite-search-threshold-contract.md`
 
-- targeted: existing search / Page / navigation / threshold tests
+- targeted: existing `products/search.test.ts` schema/wiring/ownership table + Page / StatusChips / navigation / threshold tests
 - compatibility: URL key/value/default/fallback、query payload、DOM/wording不変
 - mutation: tuple/descriptor variant、`LOW_STOCK_FILTER`、schema local literal再導入
 - full: frontend、traceability、docs、L1
@@ -183,7 +185,7 @@ Test Design Matrix: `docs/plans/test-matrices/2026-07-29-finite-search-threshold
 ## Review Response
 
 - Findings Freeze: pending。formal Final Reviewのinitial broad audit完了時に発効する
-- Plan Review: pending
+- Plan Review: round 1 REQUEST CHANGES（P1=1 / P2=2 / P3=0）。corrected planをfresh contextで再レビュー待ち
 - Final Review: pending
 
 ## Spec Contract

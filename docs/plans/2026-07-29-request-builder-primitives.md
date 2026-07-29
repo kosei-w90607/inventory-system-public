@@ -18,8 +18,9 @@
 
 Narrative（append-only）:
 
-- 2026-07-29 kickoff -> spec-check -> plan-draft: ownerがwave 4 lane 2として順21 P1-4を選定（介入1/3）。4 request builderの同一primitiveだけを共通化し、payload、validation、key lifecycle、画面は不変。61〜64の既存source docsは十分で、production実装はPlan Gate前につき禁止。
+- 2026-07-29 kickoff -> spec-check -> plan-draft: ownerがwave 4 lane 2として順21 P1-4を選定（介入1/3）。4 request builderの同一primitiveだけを共通化し、payload、validation、key lifecycle、画面は不変。production実装はPlan Gate前につき禁止。
 - 2026-07-29 plan-draft -> plan-gate: Packet / Matrix、4 consumer境界、REQ-201〜204 traceability再生成義務、generated artifact専有をCoordinatorが確認した。plan-first content commitへ固定し、fresh Codex Plan Reviewへ進む。
+- 2026-07-29 Plan Review round 1: P1=1 / P2=3。監査source誤参照、shared owner/APIのdurable source欠落、wrapper prefix/export/min oracle不足、UTC環境で生存するdate mutationを確認した。`76-ui-request-primitives.md`へ契約を昇格し、consumer直接testとtimezone非依存oracleへ補強して再レビューする。
 
 ## Owner Effort Budget
 
@@ -67,13 +68,14 @@ Goal Invariant: 入庫・手動販売・廃棄・返品交換のrequest builder�
 - feature固有`create*IdempotencyKey` wrapperと既存`getLocalDateString` import surfaceは維持する
 - add `src/lib/request-helpers.test.ts`（behavior + four-consumer ownership guard）
 - run existing request/Page regression tests without weakening
+- source docs: add `docs/function-design/76-ui-request-primitives.md` and register it in `docs/FUNCTION_DESIGN.md`
 - regenerate `docs/function-design/90-traceability.md`
 - 本Packet / Matrix。`Plans.md`とWorkflow StateはCoordinatorのみ
 
 ## Non-scope
 
 - 4 Page production files、feature `types.ts`、generated bindings、route tree
-- source docs 61〜64の契約変更（Design Readiness引用のみ）
+- source docs 61〜64の業務契約変更（Design Readiness引用のみ）
 - row-utils、threshold parser、formatter、dependency / lockfile
 - 順21 P1-3、順16
 
@@ -82,6 +84,9 @@ Goal Invariant: 入庫・手動販売・廃棄・返品交換のrequest builder�
 - UUID pathは`${prefix}-${uuid}`、fallbackは`${prefix}-${Date.now()}-${Math.random().toString(36).slice(2)}`と同値
 - local dateはlocal calendar getterで`YYYY-MM-DD`、UTC getterを使わない
 - integer parserはtrim後ASCII digits、safe integer、inclusive `>= min`
+- 4 wrapperはexact prefix（receiving / manual-sale / disposal / return）と各feature moduleの`getLocalDateString` named exportを維持する
+- consumer-level casesが各builderのquantity min 1とreceiving/manual-sale/disposalの金額 min 0を直接観測する
+- local date caseはlocal/UTC getterが異なるstubを使い、host timezoneに依存せずUTC getter mutationを落とす
 - four request filesで`randomUUID` / calendar getter / `Number.isSafeInteger`のlocal implementationが0
 - new helper testと4 existing request/Page family testsがPASS
 - `cargo run --bin generate_traceability`後、`cargo run --bin generate_traceability -- --check` PASS
@@ -91,8 +96,8 @@ Goal Invariant: 入庫・手動販売・廃棄・返品交換のrequest builder�
 ## Design Sources
 
 - Requirements: REQ-201/202/203/204
-- Function/UI: `61-ui-receiving.md`、`62-ui-manual-sale.md`、`63-ui-return-exchange.md`、`64-ui-disposal.md`
-- Audit: `docs/research/audit-2026-07/report.md` 順21 P1-4、`findings/p1-reuse-boundaries.md`
+- Function/UI: `76-ui-request-primitives.md` UI-REQUEST-D1、`61-ui-receiving.md`、`62-ui-manual-sale.md`、`63-ui-return-exchange.md`、`64-ui-disposal.md`
+- Audit: `docs/research/audit-2026-07/report.md` 順21 P1-4、`docs/research/audit-2026-07/findings/p1-component-reuse.md` P1-4
 - Architecture / DB / wire: unchanged
 
 ## Required Design Artifacts
@@ -100,12 +105,12 @@ Goal Invariant: 入庫・手動販売・廃棄・返品交換のrequest builder�
 | Area | Artifact | Status |
 |---|---|---|
 | 4 workflow validation / key lifecycle | function docs 61〜64 | existing sufficient |
-| shared primitive ownership | 本planのimplementation boundary | refactor-only、durable behavior decisionなし |
+| shared primitive ownership / API / wrapper compatibility | function doc 76 UI-REQUEST-D1 | added in corrected plan-first |
 | wire / DB / screen | existing docs | unchanged |
 
 ## Registration / Generation Obligations
 
-- 新規FE testにREQ-201/202/203/204を付与する
+- 新規FE testにREQ-201/202/203/204を各1 occurrenceだけ付与する
 - `cargo run --bin generate_traceability`で`90-traceability.md`を再生成する
 - bindings / route treeは再生成対象外で、diff 0を確認する
 
@@ -121,7 +126,7 @@ Goal Invariant: 入庫・手動販売・廃棄・返品交換のrequest builder�
 ## Design Intent Audit
 
 - 4 source docsがinteger境界、今日、1保存試行単位keyを既に規定
-- helper path/APIは内部実装判断で、source contract変更なし
+- 76がshared owner/API、exact prefix、named export、consumer min、portable date oracleを規定
 - generated artifactは本laneが専有し、lane 1/3は90を触らない
 - P1-3と他helper一般化はdefer
 
@@ -131,8 +136,8 @@ not applicable — external format、実機、operator workflow、data lifecycle
 
 ## Design Readiness
 
-- Existing design docs are sufficient because: 61〜64が維持対象の業務挙動を定義済み
-- Source docs updated in this PR: none
+- Existing design docs are sufficient because: 61〜64が維持対象の業務挙動を定義し、76が共有ownerと互換境界を固定
+- Source docs updated in this PR: `76-ui-request-primitives.md`新設、`FUNCTION_DESIGN.md`登録
 - Design gaps intentionally deferred: 他primitive一般化、P1-3
 - wire / persistence / wording / recovery: unchanged
 
@@ -144,7 +149,7 @@ not applicable — external format、実機、operator workflow、data lifecycle
 
 Test Design Matrix: `docs/plans/test-matrices/2026-07-29-request-builder-primitives.md`
 
-- targeted: new helper test + four existing families
+- targeted: new helper test（primitive + 4 wrapper exact prefix/export + consumer min + ownership）+ four existing families
 - compatibility: exact payload/error/signature/key lifecycle
 - mutation: UUID/fallback/date/integer branchとconsumer ownership
 - full: frontend、traceability generation/check、docs、L1
@@ -160,6 +165,8 @@ Test Design Matrix: `docs/plans/test-matrices/2026-07-29-request-builder-primiti
 ## Review Focus
 
 - shared helperが現行edge behaviorを変えていないか
+- exact 4 prefix / named export / min 0・1がconsumer側で直接固定されているか
+- local/UTC getterが異なるstubでUTC mutationをportableにkillするか
 - feature固有ruleやPage lifecycleへscope creepしていないか
 - static ownership guardが4 targetだけを正確に検査するか
 - 90が本wave唯一のgenerated artifactか
@@ -176,8 +183,8 @@ Contract ID: SPEC-UI-REQUEST-PRIMITIVES
 
 | Spec ID | Plan Step | Test | Review Focus | Evidence |
 |---|---|---|---|---|
-| REQ-201..204 | helper extraction | request-helpers.test.ts | exact primitive behavior | targeted |
-| SPEC-UI-REQUEST-PRIMITIVES | 4 consumer wiring | static ownership guard | local body 0 | targeted + rg |
+| REQ-201..204 | helper extraction | request-helpers.test.ts（各REQ token 1 occurrence） | exact primitive behavior | targeted |
+| SPEC-UI-REQUEST-PRIMITIVES | 4 consumer wiring | exact prefix/export/min cases + static ownership guard | wrapper引数とlocal body 0 | targeted + rg |
 | D-055 | traceability generation | generate/check | generated lane専有 | git diff |
 
 ## Data Safety

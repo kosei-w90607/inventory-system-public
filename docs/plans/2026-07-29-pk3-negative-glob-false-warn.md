@@ -20,6 +20,7 @@ Narrative（append-only）:
 
 - 2026-07-29 kickoff -> spec-check -> plan-draft: ownerが既存backlogのPK3偽WARNをwave 4 lane 3に選定（介入1/3）。`test_token_exists()`の壊れたnegative glob除去とdeterministic fixtureだけを扱い、PK3の探索root、regex、WARN、exit、PK4/merge判定は不変。production実装はPlan Gate前につき禁止。
 - 2026-07-29 plan-draft -> plan-gate: Packet / Matrix、2 content file、version非依存fixture、workflow hosted requirementをCoordinatorが確認した。plan-first content commitへ固定し、fresh Codex Plan Reviewへ進む。
+- 2026-07-29 Plan Review round 1: P1=0 / P2=1。単一引用表記だけの静的guardでは`-g`や引用符違いの同義mutationが生存するため、helperのshell argvをtoken化して全negated-glob表記を拒否するportable guardとsyntax-equivalent mutation tableへ補強した。Plan Gateは未通過のまま再レビューする。
 
 ## Owner Effort Budget
 
@@ -59,7 +60,7 @@ Goal Invariant: R3/R4 Trace Matrixに記載した実在test tokenを`tests` / `s
 ## Scope
 
 - `scripts/doc-consistency-check.sh`: `test_token_exists()`のnegative glob 3個削除だけ
-- `scripts/tests/doc-consistency-plan-packet.test.sh`: static helper guard、3 root valid canary、ignored-only missing WARN / exit 0 fixture
+- `scripts/tests/doc-consistency-plan-packet.test.sh`: helper bodyのshell argvをtoken化して`--glob PATTERN` / `--glob=PATTERN` / `-g PATTERN` / `-gPATTERN`のうち先頭`!` patternを引用符非依存で拒否するguard、3 root valid canary、fixture自身が`.gitignore`を生成するignored-only missing WARN / exit 0 fixture
 - 本Packet / Matrix。`Plans.md`とWorkflow StateはCoordinatorのみ
 
 ## Non-scope
@@ -71,11 +72,11 @@ Goal Invariant: R3/R4 Trace Matrixに記載した実在test tokenを`tests` / `s
 
 ## Acceptance Criteria
 
-- helper内のnegative `--glob '!…'`が0
+- helper内のrg argvに、long/short・separate/equals/attached・single/double/unquotedを問わず先頭`!`のglob patternが0
 - `tests` / `src` / `src-tauri`の固有tokenを記載したsynthetic R3 packetが各tokenのmissing WARNを出さずexit 0
 - gitignored `target` / `node_modules` / `dist`だけにあるtokenはexact missing WARNを出しexit 0
 - existing `scripts/tests/doc-consistency-plan-packet.test.sh`全体PASS
-- negative glob再導入、root削除、regex破壊、`--no-ignore`、WARN抑止、exit 1 mutationが対応fixtureをredにする
+- `--glob '!…'` / `--glob="!…"` / `--glob=!…` / `-g '!…'` / `-g!…`の同義negative glob再導入、root削除、regex破壊、`--no-ignore`、WARN抑止、exit 1 mutationが対応fixtureをredにする
 - `bash scripts/doc-consistency-check.sh --target plan docs/plans/2026-07-29-pk3-negative-glob-false-warn.md` PASS
 - `bash scripts/local-ci.sh full` CLEAN、hosted final required
 
