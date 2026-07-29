@@ -2,19 +2,19 @@
 
 ## Workflow State
 
-- Phase: human-confirm
+- Phase: independent-review
 - Risk: R2
-- Execution Mode: codex-only
+- Execution Mode: dual-vendor-no-fable
 - Plan Commit: d8129d9
 - Amendments: none
 - Coordinator: Codex（本thread。wave編成・packet起草・裁定・Registry/train管理）
 - Writer: Codex（plan-approved後の専用worktree / terminal W4-L2）
 - Plan Reviewer: Codex fresh context（read-only、Writer非関与）
-- Final Reviewer: Codex fresh context（Plan Reviewerとは別context、read-only）
-- Reviewed Content HEAD: 3141481558fc3fe090416e2c7135a226a38192eb
+- Final Reviewer: Claude Sonnet 5 fresh context（Codex reviewはpreflight扱い、read-only）
+- Reviewed Content HEAD: pending
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
-- Human Gate: wave train先頭をlane 2へ変更し、lane 2をReady / mergeするowner承認
+- Human Gate: Sonnet 5 Final Review P1/P2=0、wave train先頭をlane 2へ変更しlane 2をReady / mergeするowner承認
 
 Narrative（append-only）:
 
@@ -27,6 +27,8 @@ Narrative（append-only）:
 - 2026-07-29 local-verified -> independent-review: 一次Final Reviewは旧candidate `3de592c`の登録漏れをP2として捕捉し、是正後のexact candidateをWriter非関与の別fresh contextへclosure reviewとして発注した。
 - 2026-07-29 formal Final Review closure（Codex fresh context、reviewed content `3141481558fc3fe090416e2c7135a226a38192eb`）: P1=0 / P2=0 / P3=0、Approve。3 primitive、4 consumer互換、portable date oracle、consumer min、REQ token各1 occurrence、90専有、bindings / route tree差分0とL1 CLEANをread-only確認した。
 - 2026-07-29 independent-review -> human-confirm（state-only materialization）: `Reviewed Content HEAD`をclosure済みcandidateへ設定した。新設76がwave共通base上でdesign compliance / 90生成へ影響することが判明し、lane 1/3はlane 2 merge前のL1 fullをCLEANにできない。次のHuman Gateはmerge train先頭をlane 2へ変更し、lane 2のReady / mergeを先行するowner承認。
+- 2026-07-29 owner review-route correction: ownerがSonnet 5 review未実施を検出し、Codex closureだけでは外部review gateを満たさないと明示した。Draft PR #37はReady停止を維持し、Codex reviewはpreflight evidenceへ格下げする。
+- 2026-07-29 human-confirm -> independent-review（state-backtrack）: Execution ModeをClaude slot利用可能な`dual-vendor-no-fable`へ、Final ReviewerをSonnet 5 fresh contextへ訂正し、`Reviewed Content HEAD`をpendingへ戻した。Sonnet 5のP1/P2=0 closure前はhuman-confirmへ再進行しない。
 
 ## Owner Effort Budget
 
