@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: implementing
+- Phase: human-confirm
 - Risk: R2
 - Execution Mode: codex-only
 - Plan Commit: d8129d9
@@ -11,10 +11,10 @@
 - Writer: Codex（plan-approved後の専用worktree / terminal W4-L2）
 - Plan Reviewer: Codex fresh context（read-only、Writer非関与）
 - Final Reviewer: Codex fresh context（Plan Reviewerとは別context、read-only）
-- Reviewed Content HEAD: pending
+- Reviewed Content HEAD: 3141481558fc3fe090416e2c7135a226a38192eb
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
-- Human Gate: pending Ready / merge
+- Human Gate: wave train先頭をlane 2へ変更し、lane 2をReady / mergeするowner承認
 
 Narrative（append-only）:
 
@@ -23,6 +23,10 @@ Narrative（append-only）:
 - 2026-07-29 Plan Review round 1: P1=1 / P2=3。監査source誤参照、shared owner/APIのdurable source欠落、wrapper prefix/export/min oracle不足、UTC環境で生存するdate mutationを確認した。`76-ui-request-primitives.md`へ契約を昇格し、consumer直接testとtimezone非依存oracleへ補強して再レビューする。
 - 2026-07-29 formal Plan Review closure（Codex fresh context、lane 2 reviewed content `128407c`）: APPROVE、P1=0 / P2=0 / P3=0。76のdurable owner/API、4 exact prefix / named export / consumer min、timezone非依存date oracle、REQ token各1 occurrence、lane 2だけの90専有をread-only再確認した。後続`f929472`はlane 1/3 Packet / Matrixだけの変更でlane 2 reviewed content不変。
 - 2026-07-29 plan-gate -> plan-approved -> implementing（state-only compression）: 独立Plan Review closureでP1/P2=0となり、plan-first `d8129d9`とplan-gate corrections `7abfedf` / `128407c`は全実装commitより前に存在する。`Plan Commit`を`d8129d9`へ固定し、本state-only commit後にlane 2 Writer実装を許可する。
+- 2026-07-29 implementing -> local-verified: content candidate `3141481558fc3fe090416e2c7135a226a38192eb`でexact-HEAD L1 fullがCLEAN / PASS、merge evidence validとなった。一次candidateで検出したUI専用設計書76のdesign compliance登録漏れは、既存UI設計書と同じ`SKIP_DOCS`登録へ是正し、design compliance / traceability WARN 0 / frontend / Rust / docsを全再実行した。
+- 2026-07-29 local-verified -> independent-review: 一次Final Reviewは旧candidate `3de592c`の登録漏れをP2として捕捉し、是正後のexact candidateをWriter非関与の別fresh contextへclosure reviewとして発注した。
+- 2026-07-29 formal Final Review closure（Codex fresh context、reviewed content `3141481558fc3fe090416e2c7135a226a38192eb`）: P1=0 / P2=0 / P3=0、Approve。3 primitive、4 consumer互換、portable date oracle、consumer min、REQ token各1 occurrence、90専有、bindings / route tree差分0とL1 CLEANをread-only確認した。
+- 2026-07-29 independent-review -> human-confirm（state-only materialization）: `Reviewed Content HEAD`をclosure済みcandidateへ設定した。新設76がwave共通base上でdesign compliance / 90生成へ影響することが判明し、lane 1/3はlane 2 merge前のL1 fullをCLEANにできない。次のHuman Gateはmerge train先頭をlane 2へ変更し、lane 2のReady / mergeを先行するowner承認。
 
 ## Owner Effort Budget
 
