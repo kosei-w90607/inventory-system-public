@@ -4,13 +4,13 @@
 
 - Phase: implementing
 - Risk: R3
-- Execution Mode: codex-only
+- Execution Mode: dual-vendor-no-fable
 - Plan Commit: d8129d9
 - Amendments: none
 - Coordinator: Codex（本thread。wave編成・packet起草・裁定・Registry/train管理）
 - Writer: Codex（plan-approved後の専用worktree / terminal W4-L1）
 - Plan Reviewer: Codex fresh context（read-only、Writer非関与）
-- Final Reviewer: Codex fresh context（Plan Reviewerとは別context、read-only）
+- Final Reviewer: Claude fresh context（read-only。Codex reviewはpreflightのみ）
 - Reviewed Content HEAD: pending
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
@@ -24,6 +24,8 @@ Narrative（append-only）:
 - 2026-07-29 Plan Review round 2: P1=1 / P2=0。daily/monthlyの実選択肢ownerであるModeTabsと3 sortable tableがPage-only scopeから漏れ、tuple variant追加時の完全性を保証できないと確認した。feature descriptor、mode別subset、4 component / testをScope / Ledger / Matrixへ追加して再レビューする。
 - 2026-07-29 formal Plan Review closure（Codex fresh context、HEAD `f929472`）: APPROVE、P1=0 / P2=0 / P3=0。product / records / StatusChips、daily ProductTable、monthly ModeTabs / ProductRankingTable / DepartmentTable、threshold descriptor、REQ-103/501/502、D-055とgenerated差分0をread-only再確認し、実装を左右する未解決判断なし。
 - 2026-07-29 plan-gate -> plan-approved -> implementing（state-only compression）: 独立Plan Review closureでP1/P2=0となり、plan-first `d8129d9`とplan-gate corrections `7abfedf` / `128407c` / `f929472`は全実装commitより前に存在する。`Plan Commit`を`d8129d9`へ固定し、本state-only commit後にlane 1 Writer実装を許可する。
+- 2026-07-29 independent-review preflight: Codex reviewはformal Final Reviewer席を満たさないpreflightとして扱い、owner relayのClaude fresh contextがP1=1（production descriptor自身から期待値を導出するtest oracle）/ P3=1（inventory-record formatterの`slice(1)` sentinel順序依存）を報告した。両findingをacceptしPhaseは`implementing`のまま、Final ReviewerをClaude fresh contextへ明示した。owner介入は増やさず1/3を維持する。
+- 2026-07-29 finding correction: finite descriptorのvariant / order / label / payload / align期待をtest-only固定値へ独立転記し、product / records / movement / daily / monthly / stock / thresholdのcomponent oracleもproduction descriptor非依存へ変更した。`formatRecordStatus` / `formatRecordType`は全optionを位置非依存で検索しつつ`all` sentinelを値で除外する形へ直し、sentinel並替testを旧実装でRED後にGREEN化した。隔離copyでdaily `amount`削除、product `all`削除、未設計variant追加、label driftを注入し、全系列がREDになることを実証した。fresh Claude closure reviewは全local gate完了後に行う。
 
 ## Owner Effort Budget
 

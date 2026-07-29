@@ -51,16 +51,48 @@ describe("extractThresholds (UI-11a-D1)", () => {
   });
 
   it("extracts every descriptor key into its field in save order", () => {
-    const settings = THRESHOLD_FIELD_DESCRIPTORS.map((descriptor, index) =>
-      setting(descriptor.settingKey, String(index + 10)),
-    );
+    const settings = [
+      setting("stock_low_threshold", "10"),
+      setting("stock_low_threshold_fabric", "11"),
+    ];
 
-    expect(Object.entries(extractThresholds(settings))).toEqual(
-      THRESHOLD_FIELD_DESCRIPTORS.map((descriptor, index) => [
-        descriptor.field,
-        String(index + 10),
-      ]),
-    );
+    expect(Object.entries(extractThresholds(settings))).toEqual([
+      ["stockLowThreshold", "10"],
+      ["stockLowThresholdFabric", "11"],
+    ]);
+  });
+
+  it("UI-11a-D8: descriptor metadata matches the independently transcribed contract", () => {
+    expect(
+      THRESHOLD_FIELD_DESCRIPTORS.map((descriptor) => ({
+        field: descriptor.field,
+        settingKey: descriptor.settingKey,
+        label: descriptor.label,
+        requiredLabel: descriptor.requiredLabel,
+        inputId: descriptor.inputId,
+        unit: descriptor.unit,
+        description: descriptor.description,
+      })),
+    ).toEqual([
+      {
+        field: "stockLowThreshold",
+        settingKey: "stock_low_threshold",
+        label: "一般商品の基準",
+        requiredLabel: "一般商品の基準（必須）",
+        inputId: "stock-low-threshold",
+        unit: "個",
+        description: "在庫がこの個数以下になったら在庫少（初期値: 3個）",
+      },
+      {
+        field: "stockLowThresholdFabric",
+        settingKey: "stock_low_threshold_fabric",
+        label: "生地の基準",
+        requiredLabel: "生地の基準（必須）",
+        inputId: "stock-low-threshold-fabric",
+        unit: "cm",
+        description: "在庫がこの長さ以下になったら在庫少（初期値: 500cm = 5m）",
+      },
+    ]);
   });
 
   it("schema, extraction, save hook, and page consume the descriptor owner", () => {

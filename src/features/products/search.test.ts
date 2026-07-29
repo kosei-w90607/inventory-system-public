@@ -20,6 +20,8 @@ import { MOVEMENT_TYPE_OPTIONS, stockMovementsSearchSchema } from "../stock-move
 import {
   INVENTORY_RECORD_STATUS_OPTIONS,
   INVENTORY_RECORD_TYPE_OPTIONS,
+  formatRecordStatus,
+  formatRecordType,
   inventoryRecordsSearchSchema,
 } from "../inventory-records/types";
 import {
@@ -124,84 +126,180 @@ describe("product list search mapping (UI-01a)", () => {
 });
 
 describe("feature-owned finite search schemas", () => {
+  it("UI-STATE-D2: product descriptors match the independently transcribed contract", () => {
+    expect(PRODUCT_DISCONTINUED_OPTIONS).toEqual([
+      { value: "active", label: "表示中", payload: false },
+      { value: "all", label: "すべて", payload: null },
+      { value: "discontinued", label: "廃番のみ", payload: true },
+    ]);
+    expect(PRODUCT_SORT_OPTIONS).toEqual([
+      { value: "product_code", label: "商品コード", payload: "ProductCode" },
+      { value: "name", label: "商品名", payload: "Name" },
+      { value: "stock_quantity", label: "在庫数", payload: "StockQuantity" },
+      { value: "selling_price", label: "売価", payload: "SellingPrice" },
+    ]);
+    expect(PRODUCT_SORT_DIRECTION_OPTIONS).toEqual([
+      { value: "asc", label: "昇順", payload: "Asc" },
+      { value: "desc", label: "降順", payload: "Desc" },
+    ]);
+    expect(PRODUCT_PER_PAGE_OPTIONS).toEqual([50, 100, 200]);
+  });
+
+  it("UI-STATE-D2: adjacent finite descriptors match the fixed URL and UI contract", () => {
+    expect(MOVEMENT_TYPE_OPTIONS).toEqual([
+      { value: "all", label: "すべて" },
+      { value: "receiving", label: "入庫" },
+      { value: "return", label: "返品・交換" },
+      { value: "sale_auto", label: "POS売上" },
+      { value: "sale_manual", label: "手動販売" },
+      { value: "disposal", label: "廃棄・破損" },
+      { value: "stocktake", label: "棚卸し" },
+    ]);
+    expect(INVENTORY_RECORD_TYPE_OPTIONS).toEqual([
+      { value: "all", label: "すべて" },
+      { value: "receiving_record", label: "入庫" },
+      { value: "return_record", label: "返品・交換" },
+      { value: "manual_sale", label: "手動販売出庫" },
+      { value: "disposal_record", label: "廃棄・破損" },
+    ]);
+    expect(INVENTORY_RECORD_STATUS_OPTIONS).toEqual([
+      { value: "all", label: "すべて" },
+      { value: "active", label: "有効" },
+    ]);
+    expect(DAILY_SORT_DESCRIPTORS).toEqual([
+      { value: "product_code", label: "商品コード", align: "left" },
+      { value: "name", label: "商品名", align: "left" },
+      { value: "quantity", label: "数量", align: "right" },
+      { value: "unit_price", label: "単価", align: "right" },
+      { value: "amount", label: "金額", align: "right" },
+    ]);
+    expect(DAILY_SORT_DIRECTION_OPTIONS).toEqual([
+      { value: "asc", label: "昇順" },
+      { value: "desc", label: "降順" },
+    ]);
+    expect(MONTHLY_MODE_DESCRIPTORS).toEqual([
+      { value: "by_product", label: "商品別ランキング" },
+      { value: "by_department", label: "部門別構成比" },
+    ]);
+    expect(MONTHLY_SORT_DESCRIPTORS).toEqual([
+      {
+        value: "name",
+        productLabel: "商品名",
+        departmentLabel: "部門",
+        align: "left",
+        modes: ["by_product", "by_department"],
+      },
+      {
+        value: "quantity",
+        productLabel: "数量",
+        departmentLabel: null,
+        align: "right",
+        modes: ["by_product"],
+      },
+      {
+        value: "amount",
+        productLabel: "金額",
+        departmentLabel: "売上",
+        align: "right",
+        modes: ["by_product", "by_department"],
+      },
+      {
+        value: "prev_month_diff",
+        productLabel: "前月比",
+        departmentLabel: "前月比",
+        align: "right",
+        modes: ["by_product", "by_department"],
+      },
+    ]);
+    expect(MONTHLY_SORT_DIRECTION_OPTIONS).toEqual([
+      { value: "asc", label: "昇順" },
+      { value: "desc", label: "降順" },
+    ]);
+    expect(STOCK_FILTER_DESCRIPTORS).toEqual([
+      { value: "all", label: "すべて" },
+      { value: "stockout", label: "在庫切れ" },
+      { value: "low_stock", label: "在庫少" },
+    ]);
+  });
+
   it.each([
     {
       name: "product discontinued",
       schema: productListSearchSchema,
       key: "discontinued",
-      values: PRODUCT_DISCONTINUED_OPTIONS.map(({ value }) => value),
+      values: ["active", "all", "discontinued"],
     },
     {
       name: "product sort",
       schema: productListSearchSchema,
       key: "sort",
-      values: PRODUCT_SORT_OPTIONS.map(({ value }) => value),
+      values: ["product_code", "name", "stock_quantity", "selling_price"],
     },
     {
       name: "product direction",
       schema: productListSearchSchema,
       key: "dir",
-      values: PRODUCT_SORT_DIRECTION_OPTIONS.map(({ value }) => value),
+      values: ["asc", "desc"],
     },
     {
       name: "product page size",
       schema: productListSearchSchema,
       key: "perPage",
-      values: [...PRODUCT_PER_PAGE_OPTIONS],
+      values: [50, 100, 200],
     },
     {
       name: "movement type",
       schema: stockMovementsSearchSchema,
       key: "type",
-      values: MOVEMENT_TYPE_OPTIONS.map(({ value }) => value),
+      values: ["all", "receiving", "return", "sale_auto", "sale_manual", "disposal", "stocktake"],
     },
     {
       name: "record type",
       schema: inventoryRecordsSearchSchema,
       key: "recordType",
-      values: INVENTORY_RECORD_TYPE_OPTIONS.map(({ value }) => value),
+      values: ["all", "receiving_record", "return_record", "manual_sale", "disposal_record"],
     },
     {
       name: "record status",
       schema: inventoryRecordsSearchSchema,
       key: "status",
-      values: INVENTORY_RECORD_STATUS_OPTIONS.map(({ value }) => value),
+      values: ["all", "active"],
     },
     {
       name: "daily sort",
       schema: dailySalesSearchSchema,
       key: "sortBy",
-      values: DAILY_SORT_DESCRIPTORS.map(({ value }) => value),
+      values: ["product_code", "name", "quantity", "unit_price", "amount"],
     },
     {
       name: "daily direction",
       schema: dailySalesSearchSchema,
       key: "sortDir",
-      values: DAILY_SORT_DIRECTION_OPTIONS.map(({ value }) => value),
+      values: ["asc", "desc"],
     },
     {
       name: "monthly mode",
       schema: monthlySalesSearchSchema,
       key: "mode",
-      values: MONTHLY_MODE_DESCRIPTORS.map(({ value }) => value),
+      values: ["by_product", "by_department"],
     },
     {
       name: "monthly sort",
       schema: monthlySalesSearchSchema,
       key: "sortBy",
-      values: MONTHLY_SORT_DESCRIPTORS.map(({ value }) => value),
+      values: ["name", "quantity", "amount", "prev_month_diff"],
     },
     {
       name: "monthly direction",
       schema: monthlySalesSearchSchema,
       key: "sortDir",
-      values: MONTHLY_SORT_DIRECTION_OPTIONS.map(({ value }) => value),
+      values: ["asc", "desc"],
     },
     {
       name: "stock status",
       schema: stockInquirySearchSchema,
       key: "status",
-      values: STOCK_FILTER_DESCRIPTORS.map(({ value }) => value),
+      values: ["all", "stockout", "low_stock"],
     },
   ])(
     "$name accepts every owner variant and catches an invalid value",
@@ -212,6 +310,33 @@ describe("feature-owned finite search schemas", () => {
       expect(schema.parse({ [key]: "__invalid__" })).toMatchObject({ [key]: undefined });
     },
   );
+
+  it("inventory record formatters do not depend on the all sentinel being first", () => {
+    const typeOptions = INVENTORY_RECORD_TYPE_OPTIONS as unknown as {
+      value: string;
+      label: string;
+    }[];
+    const statusOptions = INVENTORY_RECORD_STATUS_OPTIONS as unknown as {
+      value: string;
+      label: string;
+    }[];
+    const [typeSentinel] = typeOptions.splice(0, 1);
+    const [statusSentinel] = statusOptions.splice(0, 1);
+    typeOptions.push(typeSentinel);
+    statusOptions.push(statusSentinel);
+
+    try {
+      expect(formatRecordType("receiving_record")).toBe("入庫");
+      expect(formatRecordStatus("active")).toBe("有効");
+      expect(formatRecordType("all")).toBe("all");
+      expect(formatRecordStatus("all")).toBe("all");
+    } finally {
+      typeOptions.pop();
+      statusOptions.pop();
+      typeOptions.unshift(typeSentinel);
+      statusOptions.unshift(statusSentinel);
+    }
+  });
 });
 
 describe("finite search source ownership", () => {

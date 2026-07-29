@@ -11,7 +11,14 @@ import { render, screen, fireEvent } from "@testing-library/react";
 
 import { ProductRankingTable } from "./ProductRankingTable";
 import { makeMockProductRankingRow } from "../lib/test-fixtures";
-import { monthlySortDescriptorsForMode, type SortColumn } from "../types";
+import type { SortColumn } from "../types";
+
+const EXPECTED_PRODUCT_SORT_HEADERS = [
+  { value: "name", label: "商品名" },
+  { value: "quantity", label: "数量" },
+  { value: "amount", label: "金額" },
+  { value: "prev_month_diff", label: "前月比" },
+] as const;
 
 // B0 characterization: 空結果の EmptyState DOM 固定（意図的差分③）
 // bare div → EmptyState 標準 UI に置換。title(h3) + description の 2 要素に分割される。
@@ -54,13 +61,12 @@ describe("ProductRankingTable (REQ-502 sort 結線)", () => {
       />,
     );
 
-    const descriptors = monthlySortDescriptorsForMode("by_product");
-    for (const { label } of descriptors) {
+    for (const { label } of EXPECTED_PRODUCT_SORT_HEADERS) {
       fireEvent.click(screen.getByRole("button", { name: label }));
     }
 
-    expect(onSortChange).toHaveBeenCalledTimes(descriptors.length);
-    descriptors.forEach(({ value }, index) => {
+    expect(onSortChange).toHaveBeenCalledTimes(EXPECTED_PRODUCT_SORT_HEADERS.length);
+    EXPECTED_PRODUCT_SORT_HEADERS.forEach(({ value }, index) => {
       expect(onSortChange).toHaveBeenNthCalledWith(index + 1, value);
     });
     // 順位列はソート対象外 = button ではない

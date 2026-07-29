@@ -67,10 +67,28 @@ describe("InventoryRecordsPage (REQ-206)", () => {
     renderWithClient(<InventoryRecordsPage search={{}} onSearchChange={vi.fn()} />);
 
     const recordType = await screen.findByLabelText("記録種別");
-    expect(recordType).toHaveTextContent("入庫");
-    expect(recordType).toHaveTextContent("返品・交換");
-    expect(recordType).toHaveTextContent("手動販売出庫");
-    expect(recordType).toHaveTextContent("廃棄・破損");
+    expect(
+      Array.from(recordType.querySelectorAll("option"), (option) => ({
+        value: option.value,
+        label: option.textContent,
+      })),
+    ).toEqual([
+      { value: "all", label: "すべて" },
+      { value: "receiving_record", label: "入庫" },
+      { value: "return_record", label: "返品・交換" },
+      { value: "manual_sale", label: "手動販売出庫" },
+      { value: "disposal_record", label: "廃棄・破損" },
+    ]);
+    const status = screen.getByLabelText("状態");
+    expect(
+      Array.from(status.querySelectorAll("option"), (option) => ({
+        value: option.value,
+        label: option.textContent,
+      })),
+    ).toEqual([
+      { value: "all", label: "すべて" },
+      { value: "active", label: "有効" },
+    ]);
   });
 
   it("REQ-206: search stateからlistInventoryRecords queryを作り廃棄詳細へリンクする", async () => {

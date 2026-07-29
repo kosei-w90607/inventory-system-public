@@ -7,7 +7,6 @@ import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
-import { MONTHLY_MODE_DESCRIPTORS } from "../types";
 import { ModeTabs } from "./ModeTabs";
 
 describe("ModeTabs (REQ-502 月次売上 mode 切替)", () => {
@@ -49,8 +48,9 @@ describe("ModeTabs (REQ-502 月次売上 mode 切替)", () => {
   it("renders every mode descriptor in owner order", () => {
     render(<ModeTabs mode="by_product" onChange={vi.fn()} />);
 
-    expect(screen.getAllByRole("button").map((button) => button.textContent)).toEqual(
-      MONTHLY_MODE_DESCRIPTORS.map(({ label }) => label),
-    );
+    expect(screen.getAllByRole("button").map((button) => button.textContent)).toEqual([
+      "商品別ランキング",
+      "部門別構成比",
+    ]);
   });
 });

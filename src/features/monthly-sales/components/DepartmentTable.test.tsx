@@ -11,7 +11,13 @@ import { render, screen, fireEvent } from "@testing-library/react";
 
 import { DepartmentTable } from "./DepartmentTable";
 import { makeMockDeptCompositionRow } from "../lib/test-fixtures";
-import { monthlySortDescriptorsForMode, type SortColumn } from "../types";
+import type { SortColumn } from "../types";
+
+const EXPECTED_DEPARTMENT_SORT_HEADERS = [
+  { value: "name", label: "部門" },
+  { value: "amount", label: "売上" },
+  { value: "prev_month_diff", label: "前月比" },
+] as const;
 
 const sampleRows = [
   makeMockDeptCompositionRow({ key: "1", label: "毛糸", amount: 5000, ratio: 0.5 }),
@@ -55,13 +61,12 @@ describe("DepartmentTable (REQ-502 sort 結線)", () => {
       />,
     );
 
-    const descriptors = monthlySortDescriptorsForMode("by_department");
-    for (const { label } of descriptors) {
+    for (const { label } of EXPECTED_DEPARTMENT_SORT_HEADERS) {
       fireEvent.click(screen.getByRole("button", { name: label }));
     }
 
-    expect(onSortChange).toHaveBeenCalledTimes(descriptors.length);
-    descriptors.forEach(({ value }, index) => {
+    expect(onSortChange).toHaveBeenCalledTimes(EXPECTED_DEPARTMENT_SORT_HEADERS.length);
+    EXPECTED_DEPARTMENT_SORT_HEADERS.forEach(({ value }, index) => {
       expect(onSortChange).toHaveBeenNthCalledWith(index + 1, value);
     });
     // 構成比列はソート対象外 = button ではなく plain TableHead

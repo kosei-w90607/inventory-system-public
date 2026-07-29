@@ -12,7 +12,6 @@ import { commands } from "@/lib/bindings";
 import { d052InvalidationOracle, expectExactInvalidations } from "@/test/invalidation-oracle";
 
 import { ThresholdSettingsPage } from "./ThresholdSettingsPage";
-import { THRESHOLD_FIELD_DESCRIPTORS } from "./lib/extract-thresholds";
 
 vi.mock("sonner", () => ({
   toast: { success: vi.fn(), error: vi.fn() },
@@ -311,11 +310,8 @@ describe("ThresholdSettingsPage (UI-11a / QR系 / D-4)", () => {
       screen
         .getAllByRole("textbox")
         .map((input) => input.getAttribute("aria-labelledby") ?? input.id),
-    ).toEqual(THRESHOLD_FIELD_DESCRIPTORS.map(({ inputId }) => inputId));
-    for (const descriptor of THRESHOLD_FIELD_DESCRIPTORS) {
-      expect(screen.getByLabelText(descriptor.requiredLabel)).toHaveValue(
-        defaultSettings().data.find(({ key }) => key === descriptor.settingKey)?.value,
-      );
-    }
+    ).toEqual(["stock-low-threshold", "stock-low-threshold-fabric"]);
+    expect(screen.getByLabelText("一般商品の基準（必須）")).toHaveValue("3");
+    expect(screen.getByLabelText("生地の基準（必須）")).toHaveValue("500");
   });
 });

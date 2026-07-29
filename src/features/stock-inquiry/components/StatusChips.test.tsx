@@ -6,7 +6,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { STOCK_FILTER_DESCRIPTORS } from "../types";
 import { StatusChips } from "./StatusChips";
 
 describe("StatusChips (REQ-302 状態フィルタ)", () => {
@@ -40,8 +39,10 @@ describe("StatusChips (REQ-302 状態フィルタ)", () => {
   it("renders every stock filter descriptor in owner order", () => {
     render(<StatusChips value="all" onChange={vi.fn()} />);
 
-    expect(screen.getAllByRole("radio").map((chip) => chip.getAttribute("aria-label"))).toEqual(
-      STOCK_FILTER_DESCRIPTORS.map(({ label }) => label),
-    );
+    expect(screen.getAllByRole("radio").map((chip) => chip.getAttribute("aria-label"))).toEqual([
+      "すべて",
+      "在庫切れ",
+      "在庫少",
+    ]);
   });
 });

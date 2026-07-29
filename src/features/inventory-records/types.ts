@@ -81,8 +81,8 @@ export function normalizeInventoryRecordsSearch(
 }
 
 export function formatRecordStatus(status: string): string {
-  const searchStatus = INVENTORY_RECORD_STATUS_OPTIONS.slice(1).find(
-    ({ value }) => value === status,
+  const searchStatus = INVENTORY_RECORD_STATUS_OPTIONS.find(
+    ({ value }) => value !== "all" && value === status,
   );
   if (searchStatus !== undefined) return searchStatus.label;
   if (status === "canceled") return "取消済み";
@@ -92,8 +92,8 @@ export function formatRecordStatus(status: string): string {
 
 export function formatRecordType(recordType: string): string {
   return (
-    INVENTORY_RECORD_TYPE_OPTIONS.slice(1).find(({ value }) => value === recordType)?.label ??
-    recordType
+    INVENTORY_RECORD_TYPE_OPTIONS.find(({ value }) => value !== "all" && value === recordType)
+      ?.label ?? recordType
   );
 }
 
