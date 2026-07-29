@@ -23,7 +23,7 @@ Risk: R2
 
 | Contract | Failure Mode | Test Type | Test Name | Would fail if... |
 |---|---|---|---|---|
-| C1 helper shape | syntax-equivalent negative glob returns | static/tokenized argv | helper-scoped all-negated-glob guard | `--glob PATTERN` / `--glob=PATTERN` / `-g PATTERN` / `-gPATTERN`のpatternが引用符を問わず`!`で始まる |
+| C1 helper shape | syntax-equivalent negative glob returns | CLI fixture / PATH rg shim argv capture | helper-scoped all-negated-glob guard | `tests src src-tauri`呼出しの`--glob PATTERN` / `--glob=PATTERN` / `-g PATTERN` / `-gPATTERN` patternがsource上の引用符を問わず`!`で始まる |
 | C2 three roots | root/regex drift | CLI fixture | valid token canaries | any real token is missed |
 | C3 ignore behavior | ignored subtree searched | CLI fixture | ignored-only missing token | `--no-ignore` or equivalent is added |
 | C4 WARN exit | severity drift | CLI fixture | missing WARN exit0 | WARN branch exits nonzero |
@@ -68,7 +68,7 @@ not applicable — checker reads a synthetic tree once and holds no runtime/pers
 
 ## Mutation-style Adequacy Questions
 
-- `--glob '!x'` / `--glob="!x"` / `--glob=!x` / `-g '!x'` / `-g!x`を各々再導入: static argv guard red
+- copied checkerへ`--glob '!x'` / `--glob="!x"` / `--glob=!x` / `-g '!x'` / `-g!x`を各々再導入: rg shimのruntime argv guard red
 - remove each root or break regex: valid canary red
 - add `--no-ignore`: ignored-only case red
 - suppress WARN / exit 1: exact WARN or exit assertion red
