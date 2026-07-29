@@ -2,10 +2,10 @@
 
 ## Workflow State
 
-- Phase: plan-gate
+- Phase: implementing
 - Risk: R2
 - Execution Mode: codex-only
-- Plan Commit: pending
+- Plan Commit: d8129d9
 - Amendments: none
 - Coordinator: Codex（本thread。wave編成・packet起草・裁定・Registry/train管理）
 - Writer: Codex（plan-approved後の専用worktree / terminal W4-L2）
@@ -22,6 +22,7 @@ Narrative（append-only）:
 - 2026-07-29 plan-draft -> plan-gate: Packet / Matrix、4 consumer境界、REQ-201〜204 traceability再生成義務、generated artifact専有をCoordinatorが確認した。plan-first content commitへ固定し、fresh Codex Plan Reviewへ進む。
 - 2026-07-29 Plan Review round 1: P1=1 / P2=3。監査source誤参照、shared owner/APIのdurable source欠落、wrapper prefix/export/min oracle不足、UTC環境で生存するdate mutationを確認した。`76-ui-request-primitives.md`へ契約を昇格し、consumer直接testとtimezone非依存oracleへ補強して再レビューする。
 - 2026-07-29 formal Plan Review closure（Codex fresh context、lane 2 reviewed content `128407c`）: APPROVE、P1=0 / P2=0 / P3=0。76のdurable owner/API、4 exact prefix / named export / consumer min、timezone非依存date oracle、REQ token各1 occurrence、lane 2だけの90専有をread-only再確認した。後続`f929472`はlane 1/3 Packet / Matrixだけの変更でlane 2 reviewed content不変。
+- 2026-07-29 plan-gate -> plan-approved -> implementing（state-only compression）: 独立Plan Review closureでP1/P2=0となり、plan-first `d8129d9`とplan-gate corrections `7abfedf` / `128407c`は全実装commitより前に存在する。`Plan Commit`を`d8129d9`へ固定し、本state-only commit後にlane 2 Writer実装を許可する。
 
 ## Owner Effort Budget
 

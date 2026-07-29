@@ -2,10 +2,10 @@
 
 ## Workflow State
 
-- Phase: plan-gate
+- Phase: implementing
 - Risk: R3
 - Execution Mode: codex-only
-- Plan Commit: pending
+- Plan Commit: d8129d9
 - Amendments: none
 - Coordinator: Codex（本thread。wave編成・packet起草・裁定・Registry/train管理）
 - Writer: Codex（plan-approved後の専用worktree / terminal W4-L1）
@@ -23,6 +23,7 @@ Narrative（append-only）:
 - 2026-07-29 Plan Review round 1: P1=1 / P2=2。実選択肢owner 3箇所のfootprint欠落、schema/wiring/duplicate-ownerとdescriptor mutationのoracle不足、商品検索のREQ誤参照を確認した。Plan Gateは未通過のまま、全 exercising siteと既存test内のportable source guardをScope / Ledger / Matrixへ追加して再レビューする。
 - 2026-07-29 Plan Review round 2: P1=1 / P2=0。daily/monthlyの実選択肢ownerであるModeTabsと3 sortable tableがPage-only scopeから漏れ、tuple variant追加時の完全性を保証できないと確認した。feature descriptor、mode別subset、4 component / testをScope / Ledger / Matrixへ追加して再レビューする。
 - 2026-07-29 formal Plan Review closure（Codex fresh context、HEAD `f929472`）: APPROVE、P1=0 / P2=0 / P3=0。product / records / StatusChips、daily ProductTable、monthly ModeTabs / ProductRankingTable / DepartmentTable、threshold descriptor、REQ-103/501/502、D-055とgenerated差分0をread-only再確認し、実装を左右する未解決判断なし。
+- 2026-07-29 plan-gate -> plan-approved -> implementing（state-only compression）: 独立Plan Review closureでP1/P2=0となり、plan-first `d8129d9`とplan-gate corrections `7abfedf` / `128407c` / `f929472`は全実装commitより前に存在する。`Plan Commit`を`d8129d9`へ固定し、本state-only commit後にlane 1 Writer実装を許可する。
 
 ## Owner Effort Budget
 

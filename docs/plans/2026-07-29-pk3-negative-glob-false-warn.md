@@ -2,10 +2,10 @@
 
 ## Workflow State
 
-- Phase: plan-gate
+- Phase: implementing
 - Risk: R2
 - Execution Mode: codex-only
-- Plan Commit: pending
+- Plan Commit: d8129d9
 - Amendments: none
 - Coordinator: Codex（本thread。wave編成・packet起草・裁定・Registry/train管理）
 - Writer: Codex（plan-approved後の専用worktree / terminal W4-L3）
@@ -23,6 +23,7 @@ Narrative（append-only）:
 - 2026-07-29 Plan Review round 1: P1=0 / P2=1。単一引用表記だけの静的guardでは`-g`や引用符違いの同義mutationが生存するため、PATH上のrg shimでhelper実行時argvを捕捉して全negated-glob表記を拒否するportable guardとsyntax-equivalent mutation tableへ補強した。Plan Gateは未通過のまま再レビューする。
 - 2026-07-29 Plan Review round 2: P1=0 / P2=1 / P3=1。ripgrepが受理する`-qg PATTERN` / `-qgPATTERN` short-option clusterがargv parserから漏れ、Trace Matrixも旧static表記だった。value-taking `g`を含むshort cluster全体へparserとmutationを拡張し、runtime argv oracleへ記述を同期して再レビューする。
 - 2026-07-29 formal Plan Review closure（Codex fresh context、HEAD `f929472`）: APPROVE、P1=0 / P2=0 / P3=0。long optionと任意short cluster内のvalue-taking `g`、separate / attached、runtime argv Trace、ignored-only / real rg delegation / 3 roots / WARN exit / R2 / D-055をread-only再確認し、実装可能と判定した。
+- 2026-07-29 plan-gate -> plan-approved -> implementing（state-only compression）: 独立Plan Review closureでP1/P2=0となり、plan-first `d8129d9`とplan-gate corrections `7abfedf` / `128407c` / `f929472`は全実装commitより前に存在する。`Plan Commit`を`d8129d9`へ固定し、本state-only commit後にlane 3 Writer実装を許可する。
 
 ## Owner Effort Budget
 
