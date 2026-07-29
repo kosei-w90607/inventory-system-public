@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: independent-review
+- Phase: human-confirm
 - Risk: R2
 - Execution Mode: dual-vendor-no-fable
 - Plan Commit: d8129d9
@@ -10,11 +10,11 @@
 - Coordinator: Codex（本thread。wave編成・packet起草・裁定・Registry/train管理）
 - Writer: Codex（plan-approved後の専用worktree / terminal W4-L2）
 - Plan Reviewer: Codex fresh context（read-only、Writer非関与）
-- Final Reviewer: Claude Sonnet 5 fresh context（Codex reviewはpreflight扱い、read-only）
-- Reviewed Content HEAD: pending
+- Final Reviewer: Claude Opus 5 fresh context（ownerが難所lane reviewerとして指名、read-only）
+- Reviewed Content HEAD: 3141481558fc3fe090416e2c7135a226a38192eb
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
-- Human Gate: Sonnet 5 Final Review P1/P2=0、wave train先頭をlane 2へ変更しlane 2をReady / mergeするowner承認
+- Human Gate: wave train先頭をlane 2へ変更しlane 2をReady / mergeするowner承認
 
 Narrative（append-only）:
 
@@ -29,6 +29,9 @@ Narrative（append-only）:
 - 2026-07-29 independent-review -> human-confirm（state-only materialization）: `Reviewed Content HEAD`をclosure済みcandidateへ設定した。新設76がwave共通base上でdesign compliance / 90生成へ影響することが判明し、lane 1/3はlane 2 merge前のL1 fullをCLEANにできない。次のHuman Gateはmerge train先頭をlane 2へ変更し、lane 2のReady / mergeを先行するowner承認。
 - 2026-07-29 owner review-route correction: ownerがSonnet 5 review未実施を検出し、Codex closureだけでは外部review gateを満たさないと明示した。Draft PR #37はReady停止を維持し、Codex reviewはpreflight evidenceへ格下げする。
 - 2026-07-29 human-confirm -> independent-review（state-backtrack）: Execution ModeをClaude slot利用可能な`dual-vendor-no-fable`へ、Final ReviewerをSonnet 5 fresh contextへ訂正し、`Reviewed Content HEAD`をpendingへ戻した。Sonnet 5のP1/P2=0 closure前はhuman-confirmへ再進行しない。
+- 2026-07-29 owner Final Reviewer designation: ownerはlane 2を難所と判断し、Claude側の高自律review-only slotであるOpus 5 fresh contextを本laneのFinal Reviewerへ指名した。Sonnet 5未実施を理由とした停止条件は、この明示的な代替担当指定によりOpus 5のFormal Final Reviewへ置換する。
+- 2026-07-29 formal Final Review（Claude Opus 5 fresh context、reviewed content `3141481558fc3fe090416e2c7135a226a38192eb`）: lane 2 contentはAPPROVE、P1=0 / P2=0 / P3=1。3 primitiveと4 consumer互換、portable oracle、REQ token、90専有、state/backtrack hunkをread-only監査した。P3はPR bodyがplan-gate先行追加済みの設計書76 / FUNCTION_DESIGN登録までlane実装として記した誤帰属で、bodyを「76のdesign compliance UI除外登録」へ是正した。baseの76登録時点でdesign compliance / 90が一時redとなるlane外P2相当は、lane 2 contentが閉じる既知train依存としてacceptした。
+- 2026-07-29 independent-review -> human-confirm（state-only materialization）: owner指定のOpus 5 Final Review P1/P2=0とPR body P3是正を根拠に、`Reviewed Content HEAD`をcontent candidateへ再設定した。次のHuman Gateはlane 2をmerge train先頭としてReady / hosted final / mergeへ進めるowner承認。
 
 ## Owner Effort Budget
 
