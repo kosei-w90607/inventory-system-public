@@ -26,6 +26,7 @@ Narrative（append-only）:
 - 2026-07-29 plan-gate -> plan-approved -> implementing（state-only compression）: 独立Plan Review closureでP1/P2=0となり、plan-first `d8129d9`とplan-gate corrections `7abfedf` / `128407c` / `f929472`は全実装commitより前に存在する。`Plan Commit`を`d8129d9`へ固定し、本state-only commit後にlane 1 Writer実装を許可する。
 - 2026-07-29 independent-review preflight: Codex reviewはformal Final Reviewer席を満たさないpreflightとして扱い、owner relayのClaude fresh contextがP1=1（production descriptor自身から期待値を導出するtest oracle）/ P3=1（inventory-record formatterの`slice(1)` sentinel順序依存）を報告した。両findingをacceptしPhaseは`implementing`のまま、Final ReviewerをClaude fresh contextへ明示した。owner介入は増やさず1/3を維持する。
 - 2026-07-29 finding correction: finite descriptorのvariant / order / label / payload / align期待をtest-only固定値へ独立転記し、product / records / movement / daily / monthly / stock / thresholdのcomponent oracleもproduction descriptor非依存へ変更した。`formatRecordStatus` / `formatRecordType`は全optionを位置非依存で検索しつつ`all` sentinelを値で除外する形へ直し、sentinel並替testを旧実装でRED後にGREEN化した。隔離copyでdaily `amount`削除、product `all`削除、未設計variant追加、label driftを注入し、全系列がREDになることを実証した。fresh Claude closure reviewは全local gate完了後に行う。
+- 2026-07-29 correction closure review（reviewed content `0ec5180a77c7b0e61a7c31620f7b7ee4dbad66ad`）: Claude Opus 5 / Sonnet 5の相互非開示fresh context 2 passがともにAPPROVE、P1=0 / P2=0 / P3=0。自己参照oracleとsentinel順序依存をCLOSEDとし、variant削除・追加・順序・label・payload / threshold metadata drift、旧`slice(1)`復元を隔離mutationで独立再実証した。これはLane 2未統合下の是正closure evidenceであり、設計書76起因でL1 full CLEANをまだ作れないためPhaseは`implementing`、`Reviewed Content HEAD`は`pending`を維持する。Lane 2統合後のconflict-free rebase、exact-HEAD L1 full CLEAN、formal Final Reviewを経て、同一state-only commitで`local-verified -> independent-review -> human-confirm`とReviewed Content HEADをmaterializeする。
 
 ## Owner Effort Budget
 
@@ -195,9 +196,9 @@ Test Design Matrix: `docs/plans/test-matrices/2026-07-29-finite-search-threshold
 
 ## Review Response
 
-- Findings Freeze: pending。formal Final Reviewのinitial broad audit完了時に発効する
+- Findings Freeze: pending。Lane 2統合後のexact-HEAD L1とformal Final Review完了時に発効する
 - Plan Review: round 1 REQUEST CHANGES（P1=1 / P2=2 / P3=0）、round 2 REQUEST CHANGES（P1=1 / P2=0 / P3=0）、closure APPROVE（P1=0 / P2=0 / P3=0）
-- Final Review: pending
+- Final Review: correction closureはClaude Opus 5 / Sonnet 5の2 passともAPPROVE（P1=0 / P2=0 / P3=0、reviewed content `0ec5180a77c7b0e61a7c31620f7b7ee4dbad66ad`）。Lane 2統合後のexact-HEAD formal Final Reviewはpending
 
 ## Spec Contract
 
