@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: ready-hosted-final
+- Phase: archive
 - Risk: R2
 - Execution Mode: dual-vendor-no-fable
 - Plan Commit: d8129d9
@@ -36,6 +36,7 @@ Narrative（append-only）:
 - 2026-07-30 merge-train rebase evidence: 旧base `be63da7` / 旧tip `8a5275f`の5 commitを`main=7af62e8`へ競合なくrebaseし、新tip `f3a4c72`を得た。旧新5組のstable patch-id、`git range-diff`、旧全体差分`be63da7..8a5275f`と新全体差分`7af62e8..f3a4c72`のpatch-idが全て一致した。Plan Commit `d8129d9`は既にmain祖先でAmendmentsはnoneのためformal Rebase Map対象はない。Final Reviewerが実際に監査したcontent HEAD `b4137ea`は同内容のrebased commit `b6c3824`へ対応し、D-055のconflict-free content-equivalent rebaseとしてclosure reviewをcarry forwardする。
 - 2026-07-30 implementing -> local-verified -> independent-review -> human-confirm: rebased content HEAD `f3a4c72`でL1 fullがCLEAN PASSし、tree clean・same-HEAD・merge evidence validを確認した。Claude Opus 5 / Sonnet 5 closure reviewのP1/P2=0と上記同値性証明をFinal Review evidenceとして確定し、実際のreview対象 `b4137ead85597b6e12ec0969d92518e03da154a2`をReviewed Content HEADへ設定した。残るHuman GateはownerのReady / merge判断と、その後のexact-HEAD L1・Hosted CIである。
 - 2026-07-30 human-confirm -> ready-hosted-final: ownerが「Readyしていいしマージしていい」と明示し、介入3/3としてReady / mergeを承認した。本state-only commitをfinal candidate HEADとし、PRをDraftのままexact-HEAD L1 fullとPR body更新を行う。その後Ready化でHosted CIを起動し、PR HEAD・PR bodyのlocal full evidence SHA・successful hosted run headShaの三点一致を確認できた場合に限り、追加tracked commitなしでsquash mergeする。
+- 2026-07-30 ready-hosted-final -> merge -> archive: final PR HEADのL1 fullはCLEAN PASS、Hosted CIは同一headShaでSUCCESSとなり、PR live HEADとの三点一致とMERGEABLE / CLEANを確認した。PR #39をsquash merge `b5e1c5e`として統合し、remote branchを削除した。Packet / Matrixをarchiveし、wave 4 merge trainの次をlane 1へ進める。workflow effectivenessは全3 lane closeout後のwave 4 WERで集約し、次のdogfood targetはlane 1の実R3 packetに対するPK3 false-WARN非再発確認とする。
 
 ## Owner Effort Budget
 
@@ -145,7 +146,7 @@ not applicable — 外部premiseを実装判断に使わず、deterministic loca
 
 ## Test Plan
 
-Test Design Matrix: `docs/plans/test-matrices/2026-07-29-pk3-negative-glob-false-warn.md`
+Test Design Matrix: `docs/archive/plans/test-matrices/2026-07-29-pk3-negative-glob-false-warn.md`
 
 - targeted: doc-consistency plan packet fixture suite
 - negative: ignored-only token / missing WARN / exit 0
