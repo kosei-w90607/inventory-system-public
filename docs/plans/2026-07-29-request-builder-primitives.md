@@ -21,6 +21,7 @@ Narrative（append-only）:
 - 2026-07-29 kickoff -> spec-check -> plan-draft: ownerがwave 4 lane 2として順21 P1-4を選定（介入1/3）。4 request builderの同一primitiveだけを共通化し、payload、validation、key lifecycle、画面は不変。production実装はPlan Gate前につき禁止。
 - 2026-07-29 plan-draft -> plan-gate: Packet / Matrix、4 consumer境界、REQ-201〜204 traceability再生成義務、generated artifact専有をCoordinatorが確認した。plan-first content commitへ固定し、fresh Codex Plan Reviewへ進む。
 - 2026-07-29 Plan Review round 1: P1=1 / P2=3。監査source誤参照、shared owner/APIのdurable source欠落、wrapper prefix/export/min oracle不足、UTC環境で生存するdate mutationを確認した。`76-ui-request-primitives.md`へ契約を昇格し、consumer直接testとtimezone非依存oracleへ補強して再レビューする。
+- 2026-07-29 formal Plan Review closure（Codex fresh context、lane 2 reviewed content `128407c`）: APPROVE、P1=0 / P2=0 / P3=0。76のdurable owner/API、4 exact prefix / named export / consumer min、timezone非依存date oracle、REQ token各1 occurrence、lane 2だけの90専有をread-only再確認した。後続`f929472`はlane 1/3 Packet / Matrixだけの変更でlane 2 reviewed content不変。
 
 ## Owner Effort Budget
 

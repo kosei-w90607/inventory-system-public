@@ -22,6 +22,7 @@ Narrative（append-only）:
 - 2026-07-29 plan-draft -> plan-gate: Packet / Matrix / source-doc decisions、3 lane footprint、lane 2だけのgenerated artifact専有、既存test拡張によるtraceability差分0をCoordinatorが確認した。plan-first content commitへ固定し、fresh Codex Plan Reviewへ進む。
 - 2026-07-29 Plan Review round 1: P1=1 / P2=2。実選択肢owner 3箇所のfootprint欠落、schema/wiring/duplicate-ownerとdescriptor mutationのoracle不足、商品検索のREQ誤参照を確認した。Plan Gateは未通過のまま、全 exercising siteと既存test内のportable source guardをScope / Ledger / Matrixへ追加して再レビューする。
 - 2026-07-29 Plan Review round 2: P1=1 / P2=0。daily/monthlyの実選択肢ownerであるModeTabsと3 sortable tableがPage-only scopeから漏れ、tuple variant追加時の完全性を保証できないと確認した。feature descriptor、mode別subset、4 component / testをScope / Ledger / Matrixへ追加して再レビューする。
+- 2026-07-29 formal Plan Review closure（Codex fresh context、HEAD `f929472`）: APPROVE、P1=0 / P2=0 / P3=0。product / records / StatusChips、daily ProductTable、monthly ModeTabs / ProductRankingTable / DepartmentTable、threshold descriptor、REQ-103/501/502、D-055とgenerated差分0をread-only再確認し、実装を左右する未解決判断なし。
 
 ## Owner Effort Budget
 
@@ -192,7 +193,7 @@ Test Design Matrix: `docs/plans/test-matrices/2026-07-29-finite-search-threshold
 ## Review Response
 
 - Findings Freeze: pending。formal Final Reviewのinitial broad audit完了時に発効する
-- Plan Review: round 1 REQUEST CHANGES（P1=1 / P2=2 / P3=0）、round 2 REQUEST CHANGES（P1=1 / P2=0 / P3=0）。corrected planをfresh contextで再レビュー待ち
+- Plan Review: round 1 REQUEST CHANGES（P1=1 / P2=2 / P3=0）、round 2 REQUEST CHANGES（P1=1 / P2=0 / P3=0）、closure APPROVE（P1=0 / P2=0 / P3=0）
 - Final Review: pending
 
 ## Spec Contract
