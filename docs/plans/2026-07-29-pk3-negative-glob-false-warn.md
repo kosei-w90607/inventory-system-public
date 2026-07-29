@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: human-confirm
+- Phase: ready-hosted-final
 - Risk: R2
 - Execution Mode: dual-vendor-no-fable
 - Plan Commit: d8129d9
@@ -14,7 +14,7 @@
 - Reviewed Content HEAD: b4137ead85597b6e12ec0969d92518e03da154a2
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
-- Human Gate: pending Ready / merge
+- Human Gate: resolved Ready / merge（owner介入3/3）
 
 Narrative（append-only）:
 
@@ -35,13 +35,14 @@ Narrative（append-only）:
 - 2026-07-30 P3 dependency attribution correction: 前項の旧L1 failure記述を現在の実証により補正する。stale `origin/main`は当時のdiff windowを拡大して無関係gateを起動した要因であり、起動後のRust design compliance failureはLane 2が所有した設計書76分類gapというbase dependencyだった。Lane 2はPR #40 squash `4a07f7d`で統合され、closeout後の`main=7af62e8`には当該分類が存在する。Lane 3をこのmainへrebaseした後のL1 fullではdesign complianceを含む全gateがPASSしたため、Lane 3 regressionではなくLane 2 mergeで解消した依存だったとの帰属を確定する。
 - 2026-07-30 merge-train rebase evidence: 旧base `be63da7` / 旧tip `8a5275f`の5 commitを`main=7af62e8`へ競合なくrebaseし、新tip `f3a4c72`を得た。旧新5組のstable patch-id、`git range-diff`、旧全体差分`be63da7..8a5275f`と新全体差分`7af62e8..f3a4c72`のpatch-idが全て一致した。Plan Commit `d8129d9`は既にmain祖先でAmendmentsはnoneのためformal Rebase Map対象はない。Final Reviewerが実際に監査したcontent HEAD `b4137ea`は同内容のrebased commit `b6c3824`へ対応し、D-055のconflict-free content-equivalent rebaseとしてclosure reviewをcarry forwardする。
 - 2026-07-30 implementing -> local-verified -> independent-review -> human-confirm: rebased content HEAD `f3a4c72`でL1 fullがCLEAN PASSし、tree clean・same-HEAD・merge evidence validを確認した。Claude Opus 5 / Sonnet 5 closure reviewのP1/P2=0と上記同値性証明をFinal Review evidenceとして確定し、実際のreview対象 `b4137ead85597b6e12ec0969d92518e03da154a2`をReviewed Content HEADへ設定した。残るHuman GateはownerのReady / merge判断と、その後のexact-HEAD L1・Hosted CIである。
+- 2026-07-30 human-confirm -> ready-hosted-final: ownerが「Readyしていいしマージしていい」と明示し、介入3/3としてReady / mergeを承認した。本state-only commitをfinal candidate HEADとし、PRをDraftのままexact-HEAD L1 fullとPR body更新を行う。その後Ready化でHosted CIを起動し、PR HEAD・PR bodyのlocal full evidence SHA・successful hosted run headShaの三点一致を確認できた場合に限り、追加tracked commitなしでsquash mergeする。
 
 ## Owner Effort Budget
 
 - 介入回数上限: 3
 - 実働時間上限: 30分
 - relay往復上限: 2
-- 現況: 介入2/3（介入1 = wave 4起票、介入2 = review-route correction）、relay 0/2
+- 現況: 介入3/3（介入1 = wave 4起票、介入2 = review-route correction、介入3 = Ready / merge承認）、relay 0/2
 
 ## Risk
 
