@@ -21,6 +21,7 @@ Narrative（append-only）:
 - 2026-07-29 kickoff -> spec-check -> design -> plan-draft: ownerがwave 4 lane 1として順16を選定（介入1/3）。P4-2/P4-3に既存`low_stock` SSOT backlogを統合し、UI-STATE-D2 / UI-11a-D8をsource docsへ追加した。URL値・fallback・画面・閾値保存挙動は不変。Plan Gate前でありproduction実装は禁止。
 - 2026-07-29 plan-draft -> plan-gate: Packet / Matrix / source-doc decisions、3 lane footprint、lane 2だけのgenerated artifact専有、既存test拡張によるtraceability差分0をCoordinatorが確認した。plan-first content commitへ固定し、fresh Codex Plan Reviewへ進む。
 - 2026-07-29 Plan Review round 1: P1=1 / P2=2。実選択肢owner 3箇所のfootprint欠落、schema/wiring/duplicate-ownerとdescriptor mutationのoracle不足、商品検索のREQ誤参照を確認した。Plan Gateは未通過のまま、全 exercising siteと既存test内のportable source guardをScope / Ledger / Matrixへ追加して再レビューする。
+- 2026-07-29 Plan Review round 2: P1=1 / P2=0。daily/monthlyの実選択肢ownerであるModeTabsと3 sortable tableがPage-only scopeから漏れ、tuple variant追加時の完全性を保証できないと確認した。feature descriptor、mode別subset、4 component / testをScope / Ledger / Matrixへ追加して再レビューする。
 
 ## Owner Effort Budget
 
@@ -64,10 +65,11 @@ Goal Invariant: URL searchの有限値をfeature-local schema/tupleからroute�
 - product: `src/features/products/search.ts`, `src/features/products/ProductListPage.tsx`, `src/routes/products/index.tsx`
 - movement: `src/features/stock-movements/types.ts`, `src/routes/stock/$code.movements.tsx`
 - records: `src/features/inventory-records/types.ts`, `src/features/inventory-records/InventoryRecordsPage.tsx`, `src/routes/inventory/records.tsx`
-- daily/monthly adjacent closure: `src/features/{daily-sales,monthly-sales}/types.ts`, their Page files and route files
+- daily adjacent closure: `src/features/daily-sales/types.ts`, `DailySalesPage.tsx`, `components/ProductTable.tsx`, route file
+- monthly adjacent closure: `src/features/monthly-sales/types.ts`, `MonthlySalesPage.tsx`, `components/{ModeTabs,ProductRankingTable,DepartmentTable}.tsx`, route file
 - stock: `src/features/stock-inquiry/types.ts`, `src/features/stock-inquiry/components/StatusChips.tsx`, `src/routes/stock/index.tsx`, `src/config/navigation.ts`
 - threshold: `extract-thresholds.ts`, `threshold-form-schema.ts`, `useSaveThresholds.ts`, `ThresholdSettingsPage.tsx`
-- existing tests only: `products/search.test.ts`（all schema variants + route/owner source guard）、`ProductListPage.test.tsx`、movement / records / daily / monthly Page tests、`StatusChips.test.tsx`、navigation、SidebarLink、threshold Page / extract tests
+- existing tests only: `products/search.test.ts`（all schema variants + route/owner source guard）、`ProductListPage.test.tsx`、movement / records Page tests、daily `ProductTable.test.tsx` + Page test、monthly `ModeTabs.test.tsx` / `ProductRankingTable.test.tsx` / `DepartmentTable.test.tsx` + Page test、`StatusChips.test.tsx`、navigation、SidebarLink、threshold Page / extract tests
 - source docs: `UI_TECH_STACK.md`, `52-ui-shared-layout.md`, `58-ui-stock-inquiry.md`, `69-ui-threshold-settings.md`
 - 本Packet / Matrix。`Plans.md`とWorkflow StateはCoordinatorのみが更新する
 
@@ -83,7 +85,9 @@ Goal Invariant: URL searchの有限値をfeature-local schema/tupleからroute�
 
 - 各routeはfeature exportのZod schemaをimportし、有限値のlocal `z.enum([...])`を持たない
 - product sort/discontinued/dir/perPage、movement type、records recordType/status、daily/monthly finite値、stock statusの全variantとinvalid fallbackを`src/features/products/search.test.ts`内のschema tableで観測
-- `products/search.test.ts`内のsource ownership guardが、全6 routeのfeature schema import / `validateSearch` wiringと、route・Page・StatusChipsへのlocal union / enum / value array再導入を検出する
+- dailyは全sort descriptor、monthlyはmode descriptor・全sort descriptor・by_product/by_departmentのmode別subsetを各`types.ts`が所有し、ProductTable / ModeTabs / ProductRankingTable / DepartmentTableはそこからheader / optionを導出する
+- `products/search.test.ts`内のsource ownership guardが、全6 routeのfeature schema import / `validateSearch` wiringと、route・Page・ModeTabs・3 sortable table・StatusChipsへのlocal union / enum / value array再導入を検出する
+- `ProductTable.test.tsx` / `ModeTabs.test.tsx` / `ProductRankingTable.test.tsx` / `DepartmentTable.test.tsx`がdescriptor全件とmode別subsetの表示順・label・click payloadを反復し、tuple variant追加/削除またはcomponent option欠落を検出する
 - navigationの`search.status` / `activeMatch.is/isNot`は`LOW_STOCK_FILTER`を共有し、追加search付きでも排他active testがPASS
 - threshold descriptor 2件からschema/extract/order/key/label/save entryが導出され、`ThresholdSettingsPage.test.tsx` / `extract-thresholds.test.ts`のdescriptor全件反復caseとsource ownership guardがfield追加・手書きfield-set再導入を検出する。既存validation 4系統、dirty-only、固定順、部分失敗testもPASS
 - `npm run typecheck && npm run lint && npm run format:check && npm test && npm run build` PASS
@@ -119,6 +123,8 @@ Goal Invariant: URL searchの有限値をfeature-local schema/tupleからroute�
 | Spec / requirement ID | Source section | Decision ID | Implementation target | Test target |
 |---|---|---|---|---|
 | REQ-103 / UI-01a | 50 §50.4 | UI-STATE-D2 | product search/schema/options | `search.test.ts` + `ProductListPage.test.tsx` |
+| REQ-501 / UI-09a | 56 URL state / table | UI-STATE-D2 | daily schema + sort descriptor + ProductTable | `search.test.ts` + `ProductTable.test.tsx` + Daily Page test |
+| REQ-502 / UI-09b | 57 URL state / mode / table | UI-STATE-D2 | monthly schema + mode/sort descriptors + 3 components | `search.test.ts` + ModeTabs / ProductRankingTable / DepartmentTable tests |
 | REQ-303 | 66 §66.3 | UI-06c-D2 / UI-STATE-D2 | movement types/schema | existing movement test |
 | REQ-206 | 65 §65.8.1 | UI-STATE-D2 | records types/schema | existing records test |
 | REQ-301/302 | 52 UI-12-D1 / 58 §58.4 | D-047 | stock types/route/navigation | navigation / Sidebar tests |
@@ -153,7 +159,8 @@ not applicable — 外部機器、実データ、CSV、operator workflow変更�
 | UI-STATE-D2 product finite/default/options mapping | product search + Page + route | `search.test.ts` + `ProductListPage.test.tsx` | L3なし |
 | UI-06c-D2 movement search | movement types + route | `search.test.ts` schema/wiring table + movement Page test | L3なし |
 | REQ-206 records search / returnTo preservation | records types + Page + route | `search.test.ts` schema/wiring table + records Page test | L3なし |
-| daily/monthly finite search | sales types + routes + Pages | existing sales Page tests | L3なし |
+| daily finite search/options | daily types + route + Page + ProductTable | schema/wiring table + ProductTable / Page tests | L3なし |
+| monthly finite search/options | monthly types + route + Page + ModeTabs / ProductRankingTable / DepartmentTable | schema/wiring table + 4 component/Page tests | L3なし |
 | D-047 / UI-12-D1 `low_stock`排他active | stock types + route + StatusChips + navigation | `search.test.ts` schema/wiring table + StatusChips / navigation / SidebarLink tests | L3なし |
 | UI-11a-D1/D2/D3/D8 | threshold descriptor/schema/save | descriptor-driven Page + extract cases + source ownership guard | L3再実施なし |
 | generated lane分離 | diff / traceability check | generated diff 0 | non-scope |
@@ -162,7 +169,7 @@ not applicable — 外部機器、実データ、CSV、operator workflow変更�
 
 Test Design Matrix: `docs/plans/test-matrices/2026-07-29-finite-search-threshold-contract.md`
 
-- targeted: existing `products/search.test.ts` schema/wiring/ownership table + Page / StatusChips / navigation / threshold tests
+- targeted: existing `products/search.test.ts` schema/wiring/ownership table + Page / daily-monthly finite-choice components / StatusChips / navigation / threshold tests
 - compatibility: URL key/value/default/fallback、query payload、DOM/wording不変
 - mutation: tuple/descriptor variant、`LOW_STOCK_FILTER`、schema local literal再導入
 - full: frontend、traceability、docs、L1
@@ -185,7 +192,7 @@ Test Design Matrix: `docs/plans/test-matrices/2026-07-29-finite-search-threshold
 ## Review Response
 
 - Findings Freeze: pending。formal Final Reviewのinitial broad audit完了時に発効する
-- Plan Review: round 1 REQUEST CHANGES（P1=1 / P2=2 / P3=0）。corrected planをfresh contextで再レビュー待ち
+- Plan Review: round 1 REQUEST CHANGES（P1=1 / P2=2 / P3=0）、round 2 REQUEST CHANGES（P1=1 / P2=0 / P3=0）。corrected planをfresh contextで再レビュー待ち
 - Final Review: pending
 
 ## Spec Contract

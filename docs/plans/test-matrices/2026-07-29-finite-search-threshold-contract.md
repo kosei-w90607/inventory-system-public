@@ -25,7 +25,7 @@ Risk: R3
 | C1 product finite values | route/Page/local union drift | unit/schema + static | `products/search.test.ts`: product全variant/invalid + route/Page owner guard; `ProductListPage.test.tsx`: option render | allowed/invalid/default/map、route import、Page option ownerがずれる |
 | C2 movement search | type/label/schema drift | unit/schema + RTL | `products/search.test.ts`: movement全variant/invalid + route owner guard; `StockMovementsPage.test.tsx` | type variant/fallback/page reset、route importがずれる |
 | C3 records search | recordType/status/Page cast drift | unit/schema + static + RTL | `products/search.test.ts`: records全variant/invalid + route/Page owner guard; `InventoryRecordsPage.test.tsx` | parse/normalize/returnTo、option owner、castがずれる |
-| C4 daily/monthly | Page optionとschema drift | unit/schema + static + RTL | `products/search.test.ts`: daily/monthly全variant/invalid + route/Page owner guard; existing Daily/Monthly Page tests | finite sort/mode/date fallbackまたはoption ownerがずれる |
+| C4 daily/monthly | route/Page/component optionとschema drift | unit/schema + static + RTL | `products/search.test.ts`:全variant/invalid + route/Page/component owner guard; daily ProductTable、monthly ModeTabs/ProductRankingTable/DepartmentTable + Page tests | finite sort/mode/date fallback、全descriptor、mode別subset、header/option ownerがずれる |
 | C5 low_stock | route/StatusChips/navigation literal drift | unit/schema + static + RTL | `products/search.test.ts`: stock全variant/invalid + route/StatusChips owner guard; StatusChips/navigation/SidebarLink tests | deep-link/option/active predicateが片側変更される |
 | C6 threshold descriptor | schema/save/extract/render drift | unit/static + RTL | `extract-thresholds.test.ts`: descriptor全件 + owner guard; `ThresholdSettingsPage.test.tsx`: descriptor全件render/save | field追加、手書きkey set、key/order/labelの片側変更が生存する |
 | C7 generated ownership | 90生成差分 | CLI | generate_traceability check + diff | 新ID/fileを追加する |
@@ -42,7 +42,8 @@ Risk: R3
 
 | Pattern | Sites inspected | Ported sites | Exclusions | Evidence |
 |---|---|---|---|---|
-| route finite schema | all production routes、ProductListPage、InventoryRecordsPage、StatusChips | product/movement/records/daily/monthly/stockの全exercising site | scalar/date-only routes | schema table + helper-scoped source ownership guard |
+| route finite schema | all production routes、ProductListPage、InventoryRecordsPage、daily ProductTable、monthly ModeTabs/ProductRankingTable/DepartmentTable、StatusChips | product/movement/records/daily/monthly/stockの全exercising site | scalar/date-only routes | schema table + helper-scoped source ownership guard |
+| sales finite choices | daily sort descriptor、monthly mode/sort descriptorとmode別subset | ProductTable / ModeTabs / ProductRankingTable / DepartmentTable | 非sortable列 | descriptor全件/subset反復component tests |
 | threshold field set | descriptor/schema/extract/Page/save hook | all 5 | backend generic KVS | descriptor反復test + helper-scoped source ownership guard |
 
 ## Negative Paths
@@ -72,14 +73,16 @@ Risk: R3
 
 ## Main Wiring / Integration Checks
 
-- `products/search.test.ts`のsource guardでexported schemaがactual route `validateSearch`へ届き、route-local `z.enum` / unionとPage/StatusChipsの独立value arrayが0
+- `products/search.test.ts`のsource guardでexported schemaがactual route `validateSearch`へ届き、route-local `z.enum` / unionとPage / ModeTabs / 3 sortable table / StatusChipsの独立value arrayが0
+- daily/monthly componentはfeature descriptorをimportし、全件またはmode別subsetを表示してexact column / option payloadを返す
 - `LOW_STOCK_FILTER` reaches navigation config
 - descriptor reaches actual schema/extract/render/updateSetting entries
 
 ## Mutation-style Adequacy Questions
 
 - add/remove one tuple variant: schema全variant tableまたは対応Page option test turns red
-- restore a route-local `z.enum` / union、Page / StatusChipsの独立value array/cast: `products/search.test.ts` source ownership guard turns red
+- add/remove daily sort、monthly mode/sort variant、またはmode別subsetから1件削除: descriptor全件/subset component test red
+- restore a route-local `z.enum` / union、Page / ModeTabs / 3 sortable table / StatusChipsの独立value array/cast: `products/search.test.ts` source ownership guard turns red
 - change `LOW_STOCK_FILTER`: navigation/Sidebar test turns red
 - add descriptor field without schema/extract/render/save、または手書きthreshold key setを再導入: descriptor反復case / source ownership guard turns red
 
