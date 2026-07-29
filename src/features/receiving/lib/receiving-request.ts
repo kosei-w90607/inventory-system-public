@@ -1,5 +1,8 @@
 import type { ReceivingCreateRequest } from "@/lib/bindings";
+import { createPrefixedIdempotencyKey, parseRequiredSafeInteger } from "@/lib/request-helpers";
 import type { ReceivingFormErrors, ReceivingFormValues, ReceivingRow } from "../types";
+
+export { getLocalDateString } from "@/lib/request-helpers";
 
 export interface BuildReceivingRequestResult {
   request: ReceivingCreateRequest | null;
@@ -8,23 +11,7 @@ export interface BuildReceivingRequestResult {
 }
 
 export function createReceivingIdempotencyKey(): string {
-  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
-    return `receiving-${crypto.randomUUID()}`;
-  }
-  return `receiving-${String(Date.now())}-${Math.random().toString(36).slice(2)}`;
-}
-
-export function getLocalDateString(date = new Date()): string {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${String(year)}-${month}-${day}`;
-}
-
-function parseRequiredInteger(value: string, min: number): number | null {
-  if (!/^\d+$/.test(value.trim())) return null;
-  const parsed = Number(value);
-  return Number.isSafeInteger(parsed) && parsed >= min ? parsed : null;
+  return createPrefixedIdempotencyKey("receiving");
 }
 
 function normalizeRows(rows: ReceivingRow[]) {
@@ -61,8 +48,8 @@ export function buildReceivingRequest(
   }
 
   const items = values.rows.map((row, index) => {
-    const quantity = parseRequiredInteger(row.quantity, 1);
-    const costPrice = parseRequiredInteger(row.costPrice, 0);
+    const quantity = parseRequiredSafeInteger(row.quantity, 1);
+    const costPrice = parseRequiredSafeInteger(row.costPrice, 0);
     const messages = [];
     if (quantity === null) messages.push("数量は1以上の整数で入力してください");
     if (costPrice === null) messages.push("原価は0以上の整数で入力してください");

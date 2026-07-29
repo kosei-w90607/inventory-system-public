@@ -1,5 +1,8 @@
 import type { DisposalCreateRequest } from "@/lib/bindings";
+import { createPrefixedIdempotencyKey, parseRequiredSafeInteger } from "@/lib/request-helpers";
 import type { DisposalFormErrors, DisposalFormValues, DisposalRow, DisposalType } from "../types";
+
+export { getLocalDateString } from "@/lib/request-helpers";
 
 export interface BuildDisposalRequestResult {
   request: DisposalCreateRequest | null;
@@ -10,23 +13,7 @@ export interface BuildDisposalRequestResult {
 const DISPOSAL_TYPES: readonly DisposalType[] = ["disposal", "damage", "other"];
 
 export function createDisposalIdempotencyKey(): string {
-  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
-    return `disposal-${crypto.randomUUID()}`;
-  }
-  return `disposal-${String(Date.now())}-${Math.random().toString(36).slice(2)}`;
-}
-
-export function getLocalDateString(date = new Date()): string {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${String(year)}-${month}-${day}`;
-}
-
-function parseRequiredInteger(value: string, min: number): number | null {
-  if (!/^\d+$/.test(value.trim())) return null;
-  const parsed = Number(value);
-  return Number.isSafeInteger(parsed) && parsed >= min ? parsed : null;
+  return createPrefixedIdempotencyKey("disposal");
 }
 
 function normalizeRows(rows: DisposalRow[]) {
@@ -48,8 +35,8 @@ export function buildDisposalSignature(values: DisposalFormValues): string {
 
 export function calculateLossTotal(rows: DisposalRow[]): number {
   return rows.reduce((total, row) => {
-    const quantity = parseRequiredInteger(row.quantity, 1) ?? 0;
-    const costPrice = parseRequiredInteger(row.costPrice, 0) ?? 0;
+    const quantity = parseRequiredSafeInteger(row.quantity, 1) ?? 0;
+    const costPrice = parseRequiredSafeInteger(row.costPrice, 0) ?? 0;
     return total + quantity * costPrice;
   }, 0);
 }
@@ -70,8 +57,8 @@ export function buildDisposalRequest(
   }
 
   const items = values.rows.map((row) => {
-    const quantity = parseRequiredInteger(row.quantity, 1);
-    const costPrice = parseRequiredInteger(row.costPrice, 0);
+    const quantity = parseRequiredSafeInteger(row.quantity, 1);
+    const costPrice = parseRequiredSafeInteger(row.costPrice, 0);
     const reason = row.reason.trim();
     const messages = [];
     if (!DISPOSAL_TYPES.includes(row.disposalType)) {

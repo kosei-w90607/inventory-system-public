@@ -1,5 +1,8 @@
 import type { ManualSaleCreateRequest } from "@/lib/bindings";
+import { createPrefixedIdempotencyKey, parseRequiredSafeInteger } from "@/lib/request-helpers";
 import type { ManualSaleFormErrors, ManualSaleFormValues, ManualSaleRow } from "../types";
+
+export { getLocalDateString } from "@/lib/request-helpers";
 
 export interface BuildManualSaleRequestResult {
   request: ManualSaleCreateRequest | null;
@@ -8,23 +11,7 @@ export interface BuildManualSaleRequestResult {
 }
 
 export function createManualSaleIdempotencyKey(): string {
-  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
-    return `manual-sale-${crypto.randomUUID()}`;
-  }
-  return `manual-sale-${String(Date.now())}-${Math.random().toString(36).slice(2)}`;
-}
-
-export function getLocalDateString(date = new Date()): string {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${String(year)}-${month}-${day}`;
-}
-
-function parseRequiredInteger(value: string, min: number): number | null {
-  if (!/^\d+$/.test(value.trim())) return null;
-  const parsed = Number(value);
-  return Number.isSafeInteger(parsed) && parsed >= min ? parsed : null;
+  return createPrefixedIdempotencyKey("manual-sale");
 }
 
 function normalizeRows(rows: ManualSaleRow[]) {
@@ -62,8 +49,8 @@ export function buildManualSaleRequest(
   }
 
   const items = values.rows.map((row, index) => {
-    const quantity = parseRequiredInteger(row.quantity, 1);
-    const amount = parseRequiredInteger(row.amount, 0);
+    const quantity = parseRequiredSafeInteger(row.quantity, 1);
+    const amount = parseRequiredSafeInteger(row.amount, 0);
     const messages = [];
     if (quantity === null) messages.push("数量は1以上の整数で入力してください");
     if (amount === null) messages.push("販売金額は0以上の整数で入力してください");

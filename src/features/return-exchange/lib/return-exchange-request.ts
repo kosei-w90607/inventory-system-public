@@ -1,9 +1,12 @@
 import type { ReturnCreateRequest } from "@/lib/bindings";
+import { createPrefixedIdempotencyKey, parseRequiredSafeInteger } from "@/lib/request-helpers";
 import type {
   ReturnExchangeFormErrors,
   ReturnExchangeFormValues,
   ReturnExchangeRow,
 } from "../types";
+
+export { getLocalDateString } from "@/lib/request-helpers";
 
 export interface BuildReturnExchangeRequestResult {
   request: ReturnCreateRequest | null;
@@ -16,23 +19,7 @@ export interface ReceiptPathInput {
 }
 
 export function createReturnExchangeIdempotencyKey(): string {
-  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
-    return `return-${crypto.randomUUID()}`;
-  }
-  return `return-${String(Date.now())}-${Math.random().toString(36).slice(2)}`;
-}
-
-export function getLocalDateString(date = new Date()): string {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${String(year)}-${month}-${day}`;
-}
-
-function parseRequiredInteger(value: string, min: number): number | null {
-  if (!/^\d+$/.test(value.trim())) return null;
-  const parsed = Number(value);
-  return Number.isSafeInteger(parsed) && parsed >= min ? parsed : null;
+  return createPrefixedIdempotencyKey("return");
 }
 
 function rowKey(row: Pick<ReturnExchangeRow, "productCode" | "direction">): string {
@@ -84,7 +71,7 @@ export function buildReturnExchangeRequest(
   }
 
   const items = values.rows.map((row) => {
-    const quantity = parseRequiredInteger(row.quantity, 1);
+    const quantity = parseRequiredSafeInteger(row.quantity, 1);
     if (quantity === null) rowErrors[rowKey(row)] = "数量は1以上の整数で入力してください";
     return {
       product_code: row.productCode,
