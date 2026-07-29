@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: human-confirm
+- Phase: ready-hosted-final
 - Risk: R2
 - Execution Mode: dual-vendor-no-fable
 - Plan Commit: d8129d9
@@ -37,6 +37,7 @@ Narrative（append-only）:
 - 2026-07-30 closure P2 correction: ownerの条件付き委任範囲内の機械操作としてlocal `main` `be63da7`を`origin/main`へfast-forward pushした。remote refとlocal mainは一致し、compare APIでlane 2 branchがbaseに対し3 commit・10 fileだけ先行することを確認した。branch contentは不変で追加reviewを要しない。
 - 2026-07-30 Subagent Budget incident: R2のper-lane上限は0–1 concurrentであり、Wave合算上限4はこれを緩和しない。Opus / Sonnet 2体を同時発火した運用はD-034違反としてacceptした。各reviewのread-only性・fresh性・相互非開示と成果物は損なわれていないため、Opusをformal Final Reviewer、Sonnetをsupplementary evidenceとして採用し、追加reviewは行わない。
 - 2026-07-30 implementing -> local-verified -> independent-review -> human-confirm（state-only materialization）: exact HEAD `6a70668`のL1 fullはCLEAN / PASS、formal Opus reviewはP1/P2=0、supplementary Sonnet P2はbranch非変更のremote base同期でclosed。governance correction SHAを`Amendments`と`Reviewed Content HEAD`へ設定し、owner介入5/5の条件付きReady / merge委任が成立した。
+- 2026-07-30 human-confirm -> ready-hosted-final（state-only materialization）: owner recovery authorization Aの条件付き委任を執行した。本commitを含むexact HEADでL1 fullを再実行してPR bodyへ固定し、Draft解除後のHosted CI greenと同一headShaをmerge条件とする。
 
 ## Owner Effort Budget
 
