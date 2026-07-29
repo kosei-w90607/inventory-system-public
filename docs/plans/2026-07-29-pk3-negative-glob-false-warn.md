@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: implementing
+- Phase: human-confirm
 - Risk: R2
 - Execution Mode: dual-vendor-no-fable
 - Plan Commit: d8129d9
@@ -11,7 +11,7 @@
 - Writer: Codex（plan-approved後の専用worktree / terminal W4-L3）
 - Plan Reviewer: Codex fresh context（read-only、Writer非関与）
 - Final Reviewer: Claude fresh context（Plan Reviewerとは別context、read-only）
-- Reviewed Content HEAD: pending
+- Reviewed Content HEAD: b4137ead85597b6e12ec0969d92518e03da154a2
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
 - Human Gate: pending Ready / merge
@@ -31,13 +31,17 @@ Narrative（append-only）:
 - 2026-07-29 P3 evidence correction: `local-ci.sh changed`の実ログではdocs gate自体はPASSしている。一方、`origin/main=be93d63`がlocal `main=be63da7`より遅れたdiff windowをbaseに全gate分類が発火し、その結果起動したRust `design_compliance_test`が`76-ui-request-primitives.md`未登録で実際にFAILした。したがって発火原因はstale remote-tracking base、直接の失敗原因はLane 2が閉じる設計書76登録gapという二段であり、Lane 3起因ではないとの結論は維持する。
 - 2026-07-29 P3 owner-effort adjudication: review-route correctionは選択肢を伴う新しいHuman Gateではなく、現に利用可能なClaude slotとownerが既に指定したreview経路へ記録を合わせる是正であり、scope・merge train・Ready判断を変更していない。このdecision-point基準により介入は1/3据え置きとする。ambient `TMPDIR`祖先の空`.git`が将来のmutation再現感度を落とし得る点は現candidateのP1 closureを妨げないため、wave 4 WERのfollow-up候補へ分離する。
 - 2026-07-29 workflow disposition: 本reviewはLane 2未統合下の是正closure evidenceである。stale diff windowと設計書76依存によりL1 full CLEANをまだ作れないためPhaseは`implementing`、`Reviewed Content HEAD`は`pending`を維持する。Lane 2統合後のconflict-free rebase、exact-HEAD L1 full CLEAN、formal Final Reviewを経て、同一state-only commitで`local-verified -> independent-review -> human-confirm`とReviewed Content HEADをmaterializeする。
+- 2026-07-30 P3 owner-effort correction: 前項の1/3据え置き判断を訂正する。ownerがExecution ModeとFormal Final Reviewerを実態へ合わせるよう明示したreview-route correctionは、Human Gateの有無ではなくdecision point単位で数えるD-055上の独立介入である。wave 4起票を介入1、review-route correctionを介入2として実数化し、現況を2/3とする。今回のrebase・L1・state materializationは既承認merge trainの機械的遂行であり、新たなowner decision pointには数えない。
+- 2026-07-30 P3 dependency attribution correction: 前項の旧L1 failure記述を現在の実証により補正する。stale `origin/main`は当時のdiff windowを拡大して無関係gateを起動した要因であり、起動後のRust design compliance failureはLane 2が所有した設計書76分類gapというbase dependencyだった。Lane 2はPR #40 squash `4a07f7d`で統合され、closeout後の`main=7af62e8`には当該分類が存在する。Lane 3をこのmainへrebaseした後のL1 fullではdesign complianceを含む全gateがPASSしたため、Lane 3 regressionではなくLane 2 mergeで解消した依存だったとの帰属を確定する。
+- 2026-07-30 merge-train rebase evidence: 旧base `be63da7` / 旧tip `8a5275f`の5 commitを`main=7af62e8`へ競合なくrebaseし、新tip `f3a4c72`を得た。旧新5組のstable patch-id、`git range-diff`、旧全体差分`be63da7..8a5275f`と新全体差分`7af62e8..f3a4c72`のpatch-idが全て一致した。Plan Commit `d8129d9`は既にmain祖先でAmendmentsはnoneのためformal Rebase Map対象はない。Final Reviewerが実際に監査したcontent HEAD `b4137ea`は同内容のrebased commit `b6c3824`へ対応し、D-055のconflict-free content-equivalent rebaseとしてclosure reviewをcarry forwardする。
+- 2026-07-30 implementing -> local-verified -> independent-review -> human-confirm: rebased content HEAD `f3a4c72`でL1 fullがCLEAN PASSし、tree clean・same-HEAD・merge evidence validを確認した。Claude Opus 5 / Sonnet 5 closure reviewのP1/P2=0と上記同値性証明をFinal Review evidenceとして確定し、実際のreview対象 `b4137ead85597b6e12ec0969d92518e03da154a2`をReviewed Content HEADへ設定した。残るHuman GateはownerのReady / merge判断と、その後のexact-HEAD L1・Hosted CIである。
 
 ## Owner Effort Budget
 
 - 介入回数上限: 3
 - 実働時間上限: 30分
 - relay往復上限: 2
-- 現況: 介入1/3（wave 4起票）、relay 0/2
+- 現況: 介入2/3（介入1 = wave 4起票、介入2 = review-route correction）、relay 0/2
 
 ## Risk
 
@@ -160,10 +164,10 @@ not applicable — runtime wire / config / manifest不変。checker CLIのWARN/e
 
 ## Review Response
 
-- Findings Freeze: pending。Lane 2統合後のexact-HEAD L1とformal Final Review完了時に発効する
+- Findings Freeze: active。Claude closure reviewのP1/P2=0とconflict-free rebaseのcontent同値性を確定済み
 - Plan Review: round 1 REQUEST CHANGES（P1=0 / P2=1）、round 2 REQUEST CHANGES（P1=0 / P2=1 / P3=1）、closure APPROVE（P1=0 / P2=0 / P3=0）
-- Final Review: correction closureはClaude Opus 5 / Sonnet 5の2 passともAPPROVE（P1=0 / P2=0、reviewed content `b4137ead85597b6e12ec0969d92518e03da154a2`）。Lane 2統合後のexact-HEAD formal Final Reviewはpending
-- P3 disposition: stale `origin/main`によるgate発火と設計書76のRust design compliance failureを分離して訂正し、owner介入1/3のdecision-point基準を明記した。ambient `TMPDIR`のmutation再現感度はwave 4 WER follow-up候補
+- Final Review: correction closureはClaude Opus 5 / Sonnet 5の2 passともAPPROVE（P1=0 / P2=0、reviewed content `b4137ead85597b6e12ec0969d92518e03da154a2`）。Lane 2統合後のconflict-free rebaseは全commit / range / 全体差分の同値性を証明し、rebased content HEAD `f3a4c72`のL1 fullもPASSしたためreview evidenceをcarry forwardした
+- P3 disposition: stale `origin/main`は旧diff window拡大、設計書76分類gapはLane 2所有のbase dependencyとして帰属を確定し、Lane 2 merge後のL1 full PASSで解消を実証した。owner review-route correctionをD-055 decision pointとして介入2/3へ実数化した。ambient `TMPDIR`のmutation再現感度はwave 4 WER follow-up候補
 
 ## Spec Contract
 
