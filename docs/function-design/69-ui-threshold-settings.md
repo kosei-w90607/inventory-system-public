@@ -61,6 +61,12 @@
 - **決定**: §69.12 の 2 項目のみ。数値入力だけで日本語 IME に依存しないため、IME 制約は L3 必須の根拠にしない。それでも保存 → 在庫少判定への反映という operator 導線は実機で 1 回目視する。
 - **Why**: UI-11b の「native runtime でしか確認できない項目だけを L3 にする」方針の踏襲。この画面はファイル・DB 実体操作を伴わない。
 
+### UI-11a-D8: field descriptor を schema・抽出・保存の単一所有者にする
+
+- **決定**: UI-11a が所有する2 fieldは、field名・`app_settings` key・日本語label・保存順・validation schemaをfeature-localの単一descriptorから導出する。`ThresholdField`、初期値抽出、issue path guard、dirty field列挙、`update_setting` entryはdescriptor外へ同じfield集合を複製しない。
+- **Why**: schemaだけにfieldを追加して保存されない、または保存側だけにfieldを追加してform値が存在しない片側変更を、型検査とdescriptor testで止めるため。既存の2 key、一般商品→生地の順、1〜99999、dirty-only、部分失敗表示は変えない。
+- **Rejected**: Zod objectと保存用union/mapを別々に手書きしてtestだけで一致を監視する案（新field追加時の同期箇所が残る）。汎用settings editor化（UI-11a-D1に反する）。
+
 ## 69.4 Route / Components
 
 ```
@@ -195,3 +201,4 @@ RTL（text / role / value assertion、色 class のみの assert は不可）:
 |------|-----|------|
 | 2026-07-06 | - | UI-11a Design Phase 初版（UI-11a-D1〜D7） |
 | 2026-07-07 | - | 実装反映の drift 修正: 実配置は `features/threshold-settings/`（`features/settings/` は存在せず、UI-11b 実体は `backup-restore/`）、フォームは既存パターン（useState + zod safeParse、RHF 不使用）。保存は最初の失敗 key で停止し「保存済み」表示を事実に限定 |
+| 2026-07-29 | wave 4 plan-first | UI-11a-D8を追加。2 fieldのdescriptorをschema・抽出・保存の単一所有者とし、operator-visible挙動は不変 |

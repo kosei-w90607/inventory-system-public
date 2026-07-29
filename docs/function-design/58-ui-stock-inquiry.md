@@ -175,6 +175,7 @@ const searchSchema = z.object({
 });
 ```
 
+- `status` の有限集合と `LOW_STOCK_FILTER = "low_stock"` は `src/features/stock-inquiry/types.ts` を単一所有者とする。route schema、`ListChipFilter`、サイドバー deep-link の `search.status`、`activeMatch.is/isNot` は同じ tuple / 定数を参照し、`"low_stock"` を別々に複製しない（UI-STATE-D2）。
 - `q` undefined → `""` fallback（page 内）
 - `dept` undefined → `null` fallback（全部門）
 - `status` undefined → `"all"` fallback
@@ -548,3 +549,4 @@ function StockInquiryPage() {
 | 2026-06-08 | selection-tone follow-up | `StatusChips` active tone を shared selection-tone 定数参照に移し、Sidebar / TabsHeader と同じ stone selection 言語へ同期 |
 | 2026-06-27 | UI-06c | `StockDetailContent` の「在庫変動履歴」を disabled placeholder から `/stock/$code/movements` active link へ変更。UI-06c 画面本体と `listMovements` consumer contract は [66-ui-stock-movements.md](66-ui-stock-movements.md) に分離 |
 | 2026-07-16 | sidebar pending links follow-up | サイドバー「在庫少一覧」（UI-06b）の独立画面 `/stock/low` 予約を廃止し、本画面 `status=low_stock` フィルタへの deep-link に統合（D-047）。既存フィルタ contract（§58.4/§58.10）・useStockInquiry 実装は無変更 |
+| 2026-07-29 | wave 4 plan-first | UI-STATE-D2に従い、status tupleと`LOW_STOCK_FILTER`をfeature-local SSOTとしてroute / navigationへ供給する契約を追加。URL値・fallback・表示は不変 |

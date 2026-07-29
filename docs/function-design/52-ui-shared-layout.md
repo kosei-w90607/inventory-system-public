@@ -225,6 +225,7 @@ UI-12 内で唯一「処理 + エラーハンドリング + 書式規約」を�
   - **宣言**（`navigation.ts` 側）: ui-06b（在庫少一覧）は `activeMatch: { searchKey: "status", is: "low_stock" }`、ui-06a（在庫照会）は `activeMatch: { searchKey: "status", isNot: "low_stock" }` を宣言する。
   - **判定**（`SidebarLink.tsx` 側）: `activeMatch` を持つ項目のみ、`useRouterState` selector（§52.5 ウィンドウタイトル機構の pathname 取得と同じ selector パターン）で現在 pathname + search を読み、「`pathname === item.to` かつ predicate 成立」で active と判定する。predicate は `is` 指定時は `currentSearch[searchKey] === is`（等値）、`isNot` 指定時は `currentSearch[searchKey] !== isNot`（非等値。`currentSearch[searchKey]` が `undefined`（= URL に該当 key がない）の場合も `isNot` は成立扱い、`undefined !== "low_stock"` は真のため「在庫照会」は `status` 未指定時も active になる）。`activeMatch` を持たない残り 18 項目は既存 `<Link activeOptions={{ exact: true, includeSearch: false }}>` 経路を無変更で維持する。
   - **contract**: `SidebarLink` コンポーネント内に特定 route 文字列（`"/stock"` 等）をハードコードしない。比較対象の pathname は常に `item.to` から取得する。これにより将来同種の nav ペア（同一 `to` を search で書き分ける組）が増えても component 側の変更は不要になる。
+  - **有限値の所有**: `status=low_stock` は在庫照会 feature の URL search contract であり、`src/features/stock-inquiry/types.ts` の `LOW_STOCK_FILTER` を `navigation.ts` の `search.status` と `activeMatch.is/isNot` が共有する。layout 側に同じ literal の第2正本を置かない。
   - TanStack `<Link>` の `activeOptions.includeSearch` には依存しない — その意味論は search 完全一致要求（exact）であり、`/stock?status=low_stock&q=foo` のような追加 search key が付いた場合の挙動がバージョン依存で曖昧なため。
   - 理由・棄却代替案は decision-log D-047 参照
 

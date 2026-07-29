@@ -310,6 +310,12 @@ spike branch: `spike/invoke-specta`。
 
 - UI-11a 閾値設定は `src/features/threshold-settings/` 内の controlled state + field error record + Zod schemaを使う（[69-ui-threshold-settings.md](function-design/69-ui-threshold-settings.md)）。
 
+**UI-STATE-D2（有限 URL search 値の feature-local SSOT）**:
+
+- URL search の有限集合は、対象 feature の `types.ts` / `search.ts` が readonly tuple と Zod schema を所有する。route はその schema を import し、search 型・normalizer・選択肢は同じ tuple / schema から導出する。
+- route 内の `z.enum([...])`、feature の手書き union、normalizer の別配列へ同じ値集合を反復しない。route は URL 検証と page への接続だけを担当する。
+- 不正値を `.catch(undefined)` で吸収して既定値へ戻す既存挙動、URL key、既定値、page reset、F5 復元は変更しない。目的は片側変更を typecheck / schema test で止めることであり、新しい filter や operator 向け警告の追加ではない。
+
 ### 2補. Testing — Vitest + React Testing Library + @axe-core/react
 
 **Vitest（単体・統合）**:
