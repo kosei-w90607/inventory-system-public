@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: ready-hosted-final
+- Phase: archive
 - Risk: R2
 - Execution Mode: dual-vendor-no-fable
 - Plan Commit: d8129d9
@@ -38,6 +38,7 @@ Narrative（append-only）:
 - 2026-07-30 Subagent Budget incident: R2のper-lane上限は0–1 concurrentであり、Wave合算上限4はこれを緩和しない。Opus / Sonnet 2体を同時発火した運用はD-034違反としてacceptした。各reviewのread-only性・fresh性・相互非開示と成果物は損なわれていないため、Opusをformal Final Reviewer、Sonnetをsupplementary evidenceとして採用し、追加reviewは行わない。
 - 2026-07-30 implementing -> local-verified -> independent-review -> human-confirm（state-only materialization）: exact HEAD `6a70668`のL1 fullはCLEAN / PASS、formal Opus reviewはP1/P2=0、supplementary Sonnet P2はbranch非変更のremote base同期でclosed。governance correction SHAを`Amendments`と`Reviewed Content HEAD`へ設定し、owner介入5/5の条件付きReady / merge委任が成立した。
 - 2026-07-30 human-confirm -> ready-hosted-final（state-only materialization）: owner recovery authorization Aの条件付き委任を執行した。本commitを含むexact HEADでL1 fullを再実行してPR bodyへ固定し、Draft解除後のHosted CI greenと同一headShaをmerge条件とする。
+- 2026-07-30 hosted final -> merge -> archive: final PR HEAD `3c0af9d`でL1 full CLEAN / PASS、Hosted CI run `30473371950` attempt 2が同一headShaで全required job greenとなり、PR #40をsquash merge `4a07f7d`した。attempt 1のRust lint runnerはsystem dependency導入が15分停止したためcancelしたが、同一HEADのattempt 2ではfmt / clippyを含めてgreenとなりcode failureではないことを確認した。Packet / Matrixをarchiveし、wave 4 merge trainの次laneをlane 3へ進める。
 
 ## Owner Effort Budget
 
@@ -164,7 +165,7 @@ not applicable — external format、実機、operator workflow、data lifecycle
 
 ## Test Plan
 
-Test Design Matrix: `docs/plans/test-matrices/2026-07-29-request-builder-primitives.md`
+Test Design Matrix: `docs/archive/plans/test-matrices/2026-07-29-request-builder-primitives.md`
 
 - targeted: new helper test（primitive + 4 wrapper exact prefix/export + consumer min + ownership）+ four existing families
 - compatibility: exact payload/error/signature/key lifecycle
