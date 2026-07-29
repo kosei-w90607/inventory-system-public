@@ -1,7 +1,7 @@
 // src/features/threshold-settings/ThresholdSettingsPage.tsx
 //
 // UI-11a 閾値設定（在庫少の基準）画面本体。
-// 設計: docs/function-design/69-ui-threshold-settings.md（UI-11a-D1〜D7）
+// 設計: docs/function-design/69-ui-threshold-settings.md（UI-11a-D1〜D8）
 //
 // - この画面が所有する app_settings key は stock_low_threshold /
 //   stock_low_threshold_fabric の 2 件のみ（UI-11a-D1）。
@@ -28,7 +28,7 @@ import { invalidateByContract, invalidationContract } from "@/lib/invalidation-c
 
 import {
   THRESHOLD_FIELD_LABELS,
-  THRESHOLD_FIELD_ORDER,
+  THRESHOLD_FIELD_DESCRIPTORS,
   isReadableThresholdValue,
   type ThresholdField,
 } from "./lib/extract-thresholds";
@@ -40,10 +40,9 @@ const UNREADABLE_VALUE_MESSAGE = "現在の設定値が読み取れません。�
 
 type ThresholdFormState = Record<ThresholdField, string>;
 
-const EMPTY_VALUES: ThresholdFormState = {
-  stockLowThreshold: "",
-  stockLowThresholdFabric: "",
-};
+const EMPTY_VALUES = Object.fromEntries(
+  THRESHOLD_FIELD_DESCRIPTORS.map(({ field }) => [field, ""]),
+) as ThresholdFormState;
 
 function FieldError({ message }: { message: string | undefined }) {
   return message === undefined ? null : (
@@ -72,7 +71,7 @@ export function ThresholdSettingsPage() {
     const nextValues: ThresholdFormState = { ...settingsQuery.data };
     const nextErrors: Partial<Record<ThresholdField, string>> = {};
 
-    for (const field of THRESHOLD_FIELD_ORDER) {
+    for (const { field } of THRESHOLD_FIELD_DESCRIPTORS) {
       if (!isReadableThresholdValue(nextValues[field])) {
         nextValues[field] = "";
         nextErrors[field] = UNREADABLE_VALUE_MESSAGE;
@@ -85,7 +84,9 @@ export function ThresholdSettingsPage() {
     setHasHydrated(true);
   }, [settingsQuery.data, hasHydrated]);
 
-  const isDirty = THRESHOLD_FIELD_ORDER.some((field) => values[field] !== savedValues[field]);
+  const isDirty = THRESHOLD_FIELD_DESCRIPTORS.some(
+    ({ field }) => values[field] !== savedValues[field],
+  );
 
   function handleChange(field: ThresholdField, next: string) {
     setValues((prev) => ({ ...prev, [field]: next }));
@@ -113,13 +114,12 @@ export function ThresholdSettingsPage() {
     // BIZ 側 list_low_stock の parse::<i64>() は前後空白を受け付けないため、
     // 保存・dirty 判定・保存済み値・toast は検証と同じ trim 済み値に統一する
     // （Spec Contract: 整数 1〜99999 のみ保存可能）。
-    const submittedValues: ThresholdFormState = {
-      stockLowThreshold: values.stockLowThreshold.trim(),
-      stockLowThresholdFabric: values.stockLowThresholdFabric.trim(),
-    };
+    const submittedValues = Object.fromEntries(
+      THRESHOLD_FIELD_DESCRIPTORS.map(({ field }) => [field, values[field].trim()]),
+    ) as ThresholdFormState;
     setValues(submittedValues);
 
-    const dirtyFields = THRESHOLD_FIELD_ORDER.filter(
+    const dirtyFields = THRESHOLD_FIELD_DESCRIPTORS.map(({ field }) => field).filter(
       (field) => submittedValues[field] !== savedValues[field],
     );
     if (dirtyFields.length === 0) return;
@@ -224,45 +224,25 @@ export function ThresholdSettingsPage() {
               description="保存すると、ホームと在庫照会の在庫少の判定にすぐ反映されます"
             >
               <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-1">
-                  <Label htmlFor="stock-low-threshold">一般商品の基準（必須）</Label>
-                  <div className="flex items-center gap-2">
-                    <Input
-                      id="stock-low-threshold"
-                      className="max-w-32"
-                      inputMode="numeric"
-                      value={values.stockLowThreshold}
-                      onChange={(event) => {
-                        handleChange("stockLowThreshold", event.target.value);
-                      }}
-                    />
-                    <span className="text-sm text-muted-foreground">個</span>
+                {THRESHOLD_FIELD_DESCRIPTORS.map((descriptor) => (
+                  <div key={descriptor.field} className="space-y-1">
+                    <Label htmlFor={descriptor.inputId}>{descriptor.requiredLabel}</Label>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        id={descriptor.inputId}
+                        className="max-w-32"
+                        inputMode="numeric"
+                        value={values[descriptor.field]}
+                        onChange={(event) => {
+                          handleChange(descriptor.field, event.target.value);
+                        }}
+                      />
+                      <span className="text-sm text-muted-foreground">{descriptor.unit}</span>
+                    </div>
+                    <p className="text-sm text-muted-foreground">{descriptor.description}</p>
+                    <FieldError message={errors[descriptor.field]} />
                   </div>
-                  <p className="text-sm text-muted-foreground">
-                    在庫がこの個数以下になったら在庫少（初期値: 3個）
-                  </p>
-                  <FieldError message={errors.stockLowThreshold} />
-                </div>
-
-                <div className="space-y-1">
-                  <Label htmlFor="stock-low-threshold-fabric">生地の基準（必須）</Label>
-                  <div className="flex items-center gap-2">
-                    <Input
-                      id="stock-low-threshold-fabric"
-                      className="max-w-32"
-                      inputMode="numeric"
-                      value={values.stockLowThresholdFabric}
-                      onChange={(event) => {
-                        handleChange("stockLowThresholdFabric", event.target.value);
-                      }}
-                    />
-                    <span className="text-sm text-muted-foreground">cm</span>
-                  </div>
-                  <p className="text-sm text-muted-foreground">
-                    在庫がこの長さ以下になったら在庫少（初期値: 500cm = 5m）
-                  </p>
-                  <FieldError message={errors.stockLowThresholdFabric} />
-                </div>
+                ))}
               </div>
             </FormSection>
 

@@ -44,4 +44,13 @@ describe("ModeTabs (REQ-502 月次売上 mode 切替)", () => {
 
     expect(onChange).toHaveBeenCalledWith("by_department");
   });
+
+  it("renders every mode descriptor in owner order", () => {
+    render(<ModeTabs mode="by_product" onChange={vi.fn()} />);
+
+    expect(screen.getAllByRole("button").map((button) => button.textContent)).toEqual([
+      "商品別ランキング",
+      "部門別構成比",
+    ]);
+  });
 });

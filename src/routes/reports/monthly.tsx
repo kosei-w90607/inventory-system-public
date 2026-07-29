@@ -5,26 +5,14 @@
 // 設計: docs/function-design/57-ui-monthly-sales.md §57.4
 
 import { createFileRoute } from "@tanstack/react-router";
-import { z } from "zod";
 
 import { MonthlySalesPage } from "@/features/monthly-sales/MonthlySalesPage";
-import type { MonthlySalesSearch } from "@/features/monthly-sales/MonthlySalesPage";
+import { monthlySalesSearchSchema, type MonthlySalesSearch } from "@/features/monthly-sales/types";
 
-const searchSchema = z.object({
-  month: z
-    .string()
-    .regex(/^\d{4}-\d{2}$/)
-    .optional()
-    .catch(undefined),
-  mode: z.enum(["by_product", "by_department"]).optional().catch(undefined),
-  sortBy: z.enum(["name", "quantity", "amount", "prev_month_diff"]).optional().catch(undefined),
-  sortDir: z.enum(["asc", "desc"]).optional().catch(undefined),
-});
-
-export type SearchParams = z.output<typeof searchSchema>;
+export type SearchParams = MonthlySalesSearch;
 
 export const Route = createFileRoute("/reports/monthly")({
-  validateSearch: searchSchema,
+  validateSearch: monthlySalesSearchSchema,
   component: RouteComponent,
 });
 

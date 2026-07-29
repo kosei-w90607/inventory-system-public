@@ -3,24 +3,44 @@
 // UI-06c 商品別在庫変動履歴の URL search / 表示型。
 // 設計: docs/function-design/66-ui-stock-movements.md §66.3
 
-export const MOVEMENT_TYPES = [
-  "all",
-  "receiving",
-  "return",
-  "sale_auto",
-  "sale_manual",
-  "disposal",
-  "stocktake",
+import { z } from "zod";
+
+export const MOVEMENT_TYPE_OPTIONS = [
+  { value: "all", label: "すべて" },
+  { value: "receiving", label: "入庫" },
+  { value: "return", label: "返品・交換" },
+  { value: "sale_auto", label: "POS売上" },
+  { value: "sale_manual", label: "手動販売" },
+  { value: "disposal", label: "廃棄・破損" },
+  { value: "stocktake", label: "棚卸し" },
 ] as const;
 
-export type MovementTypeFilter = (typeof MOVEMENT_TYPES)[number];
-
-export interface StockMovementsSearch {
-  dateFrom?: string;
-  dateTo?: string;
-  type?: MovementTypeFilter;
-  page?: number;
+function descriptorValues<
+  const T extends readonly [{ readonly value: string }, ...{ readonly value: string }[]],
+>(descriptors: T): { [K in keyof T]: T[K]["value"] } {
+  return descriptors.map(({ value }) => value) as { [K in keyof T]: T[K]["value"] };
 }
+
+export const MOVEMENT_TYPES = descriptorValues(MOVEMENT_TYPE_OPTIONS);
+
+export type MovementTypeFilter = (typeof MOVEMENT_TYPE_OPTIONS)[number]["value"];
+
+export const stockMovementsSearchSchema = z.object({
+  dateFrom: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .optional()
+    .catch(undefined),
+  dateTo: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .optional()
+    .catch(undefined),
+  type: z.enum(MOVEMENT_TYPES).optional().catch(undefined),
+  page: z.coerce.number().int().positive().optional().catch(undefined),
+});
+
+export type StockMovementsSearch = z.output<typeof stockMovementsSearchSchema>;
 
 export interface NormalizedStockMovementsSearch {
   dateFrom?: string;
@@ -30,16 +50,6 @@ export interface NormalizedStockMovementsSearch {
 }
 
 export const MOVEMENTS_PER_PAGE = 20;
-
-export const movementTypeOptions: readonly { value: MovementTypeFilter; label: string }[] = [
-  { value: "all", label: "すべて" },
-  { value: "receiving", label: "入庫" },
-  { value: "return", label: "返品・交換" },
-  { value: "sale_auto", label: "POS売上" },
-  { value: "sale_manual", label: "手動販売" },
-  { value: "disposal", label: "廃棄・破損" },
-  { value: "stocktake", label: "棚卸し" },
-];
 
 export function normalizeStockMovementsSearch(
   search: StockMovementsSearch,

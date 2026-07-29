@@ -4,31 +4,15 @@
 // 設計: docs/function-design/66-ui-stock-movements.md §66.3
 
 import { createFileRoute } from "@tanstack/react-router";
-import { z } from "zod";
 
 import { StockMovementsPage } from "@/features/stock-movements/StockMovementsPage";
-import type { StockMovementsSearch } from "@/features/stock-movements/types";
-
-const searchSchema = z.object({
-  dateFrom: z
-    .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/)
-    .optional()
-    .catch(undefined),
-  dateTo: z
-    .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/)
-    .optional()
-    .catch(undefined),
-  type: z
-    .enum(["all", "receiving", "return", "sale_auto", "sale_manual", "disposal", "stocktake"])
-    .optional()
-    .catch(undefined),
-  page: z.coerce.number().int().positive().optional().catch(undefined),
-});
+import {
+  stockMovementsSearchSchema,
+  type StockMovementsSearch,
+} from "@/features/stock-movements/types";
 
 export const Route = createFileRoute("/stock/$code/movements")({
-  validateSearch: searchSchema,
+  validateSearch: stockMovementsSearchSchema,
   component: RouteComponent,
 });
 

@@ -5,28 +5,13 @@
 // 設計: docs/function-design/56-ui-daily-sales.md §56.4
 
 import { createFileRoute } from "@tanstack/react-router";
-import { z } from "zod";
 import { DailySalesPage } from "@/features/daily-sales/DailySalesPage";
-import type { DailySalesSearch } from "@/features/daily-sales/DailySalesPage";
+import { dailySalesSearchSchema, type DailySalesSearch } from "@/features/daily-sales/types";
 
-const searchSchema = z.object({
-  date: z
-    .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/)
-    .optional()
-    .catch(undefined),
-  dept: z.coerce.number().int().positive().optional().catch(undefined),
-  sortBy: z
-    .enum(["product_code", "name", "quantity", "unit_price", "amount"])
-    .optional()
-    .catch(undefined),
-  sortDir: z.enum(["asc", "desc"]).optional().catch(undefined),
-});
-
-export type SearchParams = z.output<typeof searchSchema>;
+export type SearchParams = DailySalesSearch;
 
 export const Route = createFileRoute("/reports/daily")({
-  validateSearch: searchSchema,
+  validateSearch: dailySalesSearchSchema,
   component: RouteComponent,
 });
 

@@ -25,37 +25,18 @@ import { ProductTable } from "./components/ProductTable";
 import { useProductList } from "./hooks/useProductList";
 import { buildProductListReturnTo } from "./lib/return-to";
 import {
+  PRODUCT_DISCONTINUED_OPTIONS,
   PRODUCT_PER_PAGE_OPTIONS,
+  PRODUCT_SORT_DIRECTION_OPTIONS,
+  PRODUCT_SORT_OPTIONS,
   updateProductListSearch,
-  type ProductDiscontinuedMode,
   type ProductListSearch,
-  type ProductPerPage,
-  type ProductSortDirParam,
-  type ProductSortParam,
 } from "./search";
 
 export interface ProductListPageProps {
   search: ProductListSearch;
   onSearchChange: (updater: (prev: ProductListSearch) => ProductListSearch) => void;
 }
-
-const discontinuedOptions: readonly { value: ProductDiscontinuedMode; label: string }[] = [
-  { value: "active", label: "表示中" },
-  { value: "all", label: "すべて" },
-  { value: "discontinued", label: "廃番のみ" },
-];
-
-const sortOptions: readonly { value: ProductSortParam; label: string }[] = [
-  { value: "product_code", label: "商品コード" },
-  { value: "name", label: "商品名" },
-  { value: "stock_quantity", label: "在庫数" },
-  { value: "selling_price", label: "売価" },
-];
-
-const sortDirOptions: readonly { value: ProductSortDirParam; label: string }[] = [
-  { value: "asc", label: "昇順" },
-  { value: "desc", label: "降順" },
-];
 
 export function ProductListPage({ search, onSearchChange }: ProductListPageProps) {
   const { productsQuery, departmentsQuery, departmentOptions, normalizedSearch } = useProductList({
@@ -108,7 +89,7 @@ export function ProductListPage({ search, onSearchChange }: ProductListPageProps
         <SegmentedControl
           ariaLabel="廃番表示"
           value={normalizedSearch.discontinued}
-          options={discontinuedOptions}
+          options={PRODUCT_DISCONTINUED_OPTIONS}
           onValueChange={(value) => {
             updateSearch({ discontinued: value });
           }}
@@ -123,14 +104,15 @@ export function ProductListPage({ search, onSearchChange }: ProductListPageProps
           <Select
             value={normalizedSearch.sort}
             onValueChange={(value) => {
-              updateSearch({ sort: value as ProductSortParam });
+              const sort = PRODUCT_SORT_OPTIONS.find((option) => option.value === value)?.value;
+              if (sort !== undefined) updateSearch({ sort });
             }}
           >
             <SelectTrigger id="product-sort" className="w-[10rem]">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {sortOptions.map((option) => (
+              {PRODUCT_SORT_OPTIONS.map((option) => (
                 <SelectItem key={option.value} value={option.value}>
                   {option.label}
                 </SelectItem>
@@ -141,7 +123,7 @@ export function ProductListPage({ search, onSearchChange }: ProductListPageProps
         <SegmentedControl
           ariaLabel="並び順"
           value={normalizedSearch.dir}
-          options={sortDirOptions}
+          options={PRODUCT_SORT_DIRECTION_OPTIONS}
           onValueChange={(value) => {
             updateSearch({ dir: value });
           }}
@@ -153,7 +135,8 @@ export function ProductListPage({ search, onSearchChange }: ProductListPageProps
           <Select
             value={String(normalizedSearch.perPage)}
             onValueChange={(value) => {
-              updateSearch({ perPage: Number(value) as ProductPerPage });
+              const perPage = PRODUCT_PER_PAGE_OPTIONS.find((option) => String(option) === value);
+              if (perPage !== undefined) updateSearch({ perPage });
             }}
           >
             <SelectTrigger id="product-per-page" className="w-[7rem]">

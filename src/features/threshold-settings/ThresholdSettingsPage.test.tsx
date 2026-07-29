@@ -302,4 +302,16 @@ describe("ThresholdSettingsPage (UI-11a / QR系 / D-4)", () => {
       screen.getByText("在庫がこの長さ以下になったら在庫少（初期値: 500cm = 5m）"),
     ).toBeInTheDocument();
   });
+
+  it("renders every threshold descriptor in save order", async () => {
+    await renderReady();
+
+    expect(
+      screen
+        .getAllByRole("textbox")
+        .map((input) => input.getAttribute("aria-labelledby") ?? input.id),
+    ).toEqual(["stock-low-threshold", "stock-low-threshold-fabric"]);
+    expect(screen.getByLabelText("一般商品の基準（必須）")).toHaveValue("3");
+    expect(screen.getByLabelText("生地の基準（必須）")).toHaveValue("500");
+  });
 });

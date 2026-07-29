@@ -1,30 +1,52 @@
-export type InventoryRecordType =
-  | "all"
-  | "receiving_record"
-  | "return_record"
-  | "manual_sale"
-  | "disposal_record";
-export type InventoryRecordStatus = "all" | "active";
+import { z } from "zod";
 
-export interface InventoryRecordsSearch {
-  recordType?: InventoryRecordType;
-  dateFrom?: string;
-  dateTo?: string;
-  q?: string;
-  recordId?: number;
-  departmentId?: number;
-  status?: InventoryRecordStatus;
-  page?: number;
+export const INVENTORY_RECORD_TYPE_OPTIONS = [
+  { value: "all", label: "すべて" },
+  { value: "receiving_record", label: "入庫" },
+  { value: "return_record", label: "返品・交換" },
+  { value: "manual_sale", label: "手動販売出庫" },
+  { value: "disposal_record", label: "廃棄・破損" },
+] as const;
+export const INVENTORY_RECORD_STATUS_OPTIONS = [
+  { value: "all", label: "すべて" },
+  { value: "active", label: "有効" },
+] as const;
+
+export type InventoryRecordType = (typeof INVENTORY_RECORD_TYPE_OPTIONS)[number]["value"];
+export type InventoryRecordStatus = (typeof INVENTORY_RECORD_STATUS_OPTIONS)[number]["value"];
+
+function descriptorValues<
+  const T extends readonly [{ readonly value: string }, ...{ readonly value: string }[]],
+>(descriptors: T): { [K in keyof T]: T[K]["value"] } {
+  return descriptors.map(({ value }) => value) as { [K in keyof T]: T[K]["value"] };
 }
 
-const validRecordTypes = new Set<InventoryRecordType>([
-  "all",
-  "receiving_record",
-  "return_record",
-  "manual_sale",
-  "disposal_record",
-]);
-const validStatuses = new Set<InventoryRecordStatus>(["all", "active"]);
+const INVENTORY_RECORD_TYPES = descriptorValues(INVENTORY_RECORD_TYPE_OPTIONS);
+const INVENTORY_RECORD_STATUSES = descriptorValues(INVENTORY_RECORD_STATUS_OPTIONS);
+
+export const inventoryRecordsSearchSchema = z.object({
+  recordType: z.enum(INVENTORY_RECORD_TYPES).optional().catch(undefined),
+  dateFrom: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .optional()
+    .catch(undefined),
+  dateTo: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .optional()
+    .catch(undefined),
+  q: z.string().max(100).optional().catch(undefined),
+  recordId: z.coerce.number().int().positive().optional().catch(undefined),
+  departmentId: z.coerce.number().int().positive().optional().catch(undefined),
+  status: z.enum(INVENTORY_RECORD_STATUSES).optional().catch(undefined),
+  page: z.coerce.number().int().positive().optional().catch(undefined),
+});
+
+export type InventoryRecordsSearch = z.output<typeof inventoryRecordsSearchSchema>;
+
+const validRecordTypes = new Set<InventoryRecordType>(INVENTORY_RECORD_TYPES);
+const validStatuses = new Set<InventoryRecordStatus>(INVENTORY_RECORD_STATUSES);
 
 export function normalizeInventoryRecordsSearch(
   search: InventoryRecordsSearch,
@@ -59,18 +81,20 @@ export function normalizeInventoryRecordsSearch(
 }
 
 export function formatRecordStatus(status: string): string {
-  if (status === "active") return "有効";
+  const searchStatus = INVENTORY_RECORD_STATUS_OPTIONS.find(
+    ({ value }) => value !== "all" && value === status,
+  );
+  if (searchStatus !== undefined) return searchStatus.label;
   if (status === "canceled") return "取消済み";
   if (status === "corrected") return "訂正済み";
   return status;
 }
 
 export function formatRecordType(recordType: string): string {
-  if (recordType === "receiving_record") return "入庫";
-  if (recordType === "return_record") return "返品・交換";
-  if (recordType === "manual_sale") return "手動販売出庫";
-  if (recordType === "disposal_record") return "廃棄・破損";
-  return recordType;
+  return (
+    INVENTORY_RECORD_TYPE_OPTIONS.find(({ value }) => value !== "all" && value === recordType)
+      ?.label ?? recordType
+  );
 }
 
 export function formatDateTime(value: string): string {

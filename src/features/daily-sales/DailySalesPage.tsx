@@ -28,14 +28,9 @@ import { useDailySalesReport } from "./hooks/useDailySalesReport";
 import { useExportDailySalesCsv } from "./hooks/useExportDailySalesCsv";
 import { useTodayDate } from "./lib/date-nav";
 import type { OfficialDailyReportSummary } from "@/lib/bindings";
-import type { SortColumn, SortDirection } from "./types";
+import type { DailySalesSearch, SortColumn, SortDirection } from "./types";
 
-export interface DailySalesSearch {
-  date?: string;
-  dept?: number;
-  sortBy?: SortColumn;
-  sortDir?: SortDirection;
-}
+export type { DailySalesSearch } from "./types";
 
 export interface DailySalesPageProps {
   search: DailySalesSearch;

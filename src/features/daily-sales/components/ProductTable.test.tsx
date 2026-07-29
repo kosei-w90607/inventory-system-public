@@ -11,6 +11,14 @@ import { makeMockItem } from "../lib/test-fixtures";
 import type { GroupedSection } from "../types";
 import { ProductTable } from "./ProductTable";
 
+const EXPECTED_SORT_HEADERS = [
+  { value: "product_code", label: "商品コード" },
+  { value: "name", label: "商品名" },
+  { value: "quantity", label: "数量" },
+  { value: "unit_price", label: "単価" },
+  { value: "amount", label: "金額" },
+] as const;
+
 describe("ProductTable (REQ-501 商品コード readability)", () => {
   it("REQ-501: product code cell uses readable table text size", () => {
     const item = makeMockItem({ product_code: "HZ-0047", name: "生成り布" });
@@ -70,21 +78,13 @@ describe("ProductTable (REQ-501 商品コード readability)", () => {
       />,
     );
 
-    const sortableHeaders = [
-      ["商品コード", "product_code"],
-      ["商品名", "name"],
-      ["数量", "quantity"],
-      ["単価", "unit_price"],
-      ["金額", "amount"],
-    ] as const;
-
-    for (const [label] of sortableHeaders) {
+    for (const { label } of EXPECTED_SORT_HEADERS) {
       fireEvent.click(screen.getByRole("button", { name: label }));
     }
 
-    expect(onSortChange).toHaveBeenCalledTimes(5);
-    sortableHeaders.forEach(([, column], index) => {
-      expect(onSortChange).toHaveBeenNthCalledWith(index + 1, column);
+    expect(onSortChange).toHaveBeenCalledTimes(EXPECTED_SORT_HEADERS.length);
+    EXPECTED_SORT_HEADERS.forEach(({ value }, index) => {
+      expect(onSortChange).toHaveBeenNthCalledWith(index + 1, value);
     });
 
     const productCodeButton = screen.getByRole("button", { name: "商品コード" });

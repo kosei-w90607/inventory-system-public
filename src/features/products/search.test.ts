@@ -2,13 +2,40 @@
 //
 // UI-01a-D1〜D4/D7: URL search params -> ProductSearchQuery mapping と page reset/preserve。
 
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import {
+  PRODUCT_DISCONTINUED_OPTIONS,
+  PRODUCT_PER_PAGE_OPTIONS,
+  PRODUCT_SORT_DIRECTION_OPTIONS,
+  PRODUCT_SORT_OPTIONS,
   buildProductSearchQuery,
   normalizeProductListSearch,
+  productListSearchSchema,
   updateProductListSearch,
 } from "./search";
+import { MOVEMENT_TYPE_OPTIONS, stockMovementsSearchSchema } from "../stock-movements/types";
+import {
+  INVENTORY_RECORD_STATUS_OPTIONS,
+  INVENTORY_RECORD_TYPE_OPTIONS,
+  formatRecordStatus,
+  formatRecordType,
+  inventoryRecordsSearchSchema,
+} from "../inventory-records/types";
+import {
+  DAILY_SORT_DESCRIPTORS,
+  DAILY_SORT_DIRECTION_OPTIONS,
+  dailySalesSearchSchema,
+} from "../daily-sales/types";
+import {
+  MONTHLY_MODE_DESCRIPTORS,
+  MONTHLY_SORT_DESCRIPTORS,
+  MONTHLY_SORT_DIRECTION_OPTIONS,
+  monthlySalesSearchSchema,
+} from "../monthly-sales/types";
+import { STOCK_FILTER_DESCRIPTORS, stockInquirySearchSchema } from "../stock-inquiry/types";
 
 describe("product list search mapping (UI-01a)", () => {
   it("UI-01a-D1/D3: defaults to active products payload", () => {
@@ -95,5 +122,287 @@ describe("product list search mapping (UI-01a)", () => {
       perPage: 200,
       page: 1,
     });
+  });
+});
+
+describe("feature-owned finite search schemas", () => {
+  it("UI-STATE-D2: product descriptors match the independently transcribed contract", () => {
+    expect(PRODUCT_DISCONTINUED_OPTIONS).toEqual([
+      { value: "active", label: "表示中", payload: false },
+      { value: "all", label: "すべて", payload: null },
+      { value: "discontinued", label: "廃番のみ", payload: true },
+    ]);
+    expect(PRODUCT_SORT_OPTIONS).toEqual([
+      { value: "product_code", label: "商品コード", payload: "ProductCode" },
+      { value: "name", label: "商品名", payload: "Name" },
+      { value: "stock_quantity", label: "在庫数", payload: "StockQuantity" },
+      { value: "selling_price", label: "売価", payload: "SellingPrice" },
+    ]);
+    expect(PRODUCT_SORT_DIRECTION_OPTIONS).toEqual([
+      { value: "asc", label: "昇順", payload: "Asc" },
+      { value: "desc", label: "降順", payload: "Desc" },
+    ]);
+    expect(PRODUCT_PER_PAGE_OPTIONS).toEqual([50, 100, 200]);
+  });
+
+  it("UI-STATE-D2: adjacent finite descriptors match the fixed URL and UI contract", () => {
+    expect(MOVEMENT_TYPE_OPTIONS).toEqual([
+      { value: "all", label: "すべて" },
+      { value: "receiving", label: "入庫" },
+      { value: "return", label: "返品・交換" },
+      { value: "sale_auto", label: "POS売上" },
+      { value: "sale_manual", label: "手動販売" },
+      { value: "disposal", label: "廃棄・破損" },
+      { value: "stocktake", label: "棚卸し" },
+    ]);
+    expect(INVENTORY_RECORD_TYPE_OPTIONS).toEqual([
+      { value: "all", label: "すべて" },
+      { value: "receiving_record", label: "入庫" },
+      { value: "return_record", label: "返品・交換" },
+      { value: "manual_sale", label: "手動販売出庫" },
+      { value: "disposal_record", label: "廃棄・破損" },
+    ]);
+    expect(INVENTORY_RECORD_STATUS_OPTIONS).toEqual([
+      { value: "all", label: "すべて" },
+      { value: "active", label: "有効" },
+    ]);
+    expect(DAILY_SORT_DESCRIPTORS).toEqual([
+      { value: "product_code", label: "商品コード", align: "left" },
+      { value: "name", label: "商品名", align: "left" },
+      { value: "quantity", label: "数量", align: "right" },
+      { value: "unit_price", label: "単価", align: "right" },
+      { value: "amount", label: "金額", align: "right" },
+    ]);
+    expect(DAILY_SORT_DIRECTION_OPTIONS).toEqual([
+      { value: "asc", label: "昇順" },
+      { value: "desc", label: "降順" },
+    ]);
+    expect(MONTHLY_MODE_DESCRIPTORS).toEqual([
+      { value: "by_product", label: "商品別ランキング" },
+      { value: "by_department", label: "部門別構成比" },
+    ]);
+    expect(MONTHLY_SORT_DESCRIPTORS).toEqual([
+      {
+        value: "name",
+        productLabel: "商品名",
+        departmentLabel: "部門",
+        align: "left",
+        modes: ["by_product", "by_department"],
+      },
+      {
+        value: "quantity",
+        productLabel: "数量",
+        departmentLabel: null,
+        align: "right",
+        modes: ["by_product"],
+      },
+      {
+        value: "amount",
+        productLabel: "金額",
+        departmentLabel: "売上",
+        align: "right",
+        modes: ["by_product", "by_department"],
+      },
+      {
+        value: "prev_month_diff",
+        productLabel: "前月比",
+        departmentLabel: "前月比",
+        align: "right",
+        modes: ["by_product", "by_department"],
+      },
+    ]);
+    expect(MONTHLY_SORT_DIRECTION_OPTIONS).toEqual([
+      { value: "asc", label: "昇順" },
+      { value: "desc", label: "降順" },
+    ]);
+    expect(STOCK_FILTER_DESCRIPTORS).toEqual([
+      { value: "all", label: "すべて" },
+      { value: "stockout", label: "在庫切れ" },
+      { value: "low_stock", label: "在庫少" },
+    ]);
+  });
+
+  it.each([
+    {
+      name: "product discontinued",
+      schema: productListSearchSchema,
+      key: "discontinued",
+      values: ["active", "all", "discontinued"],
+    },
+    {
+      name: "product sort",
+      schema: productListSearchSchema,
+      key: "sort",
+      values: ["product_code", "name", "stock_quantity", "selling_price"],
+    },
+    {
+      name: "product direction",
+      schema: productListSearchSchema,
+      key: "dir",
+      values: ["asc", "desc"],
+    },
+    {
+      name: "product page size",
+      schema: productListSearchSchema,
+      key: "perPage",
+      values: [50, 100, 200],
+    },
+    {
+      name: "movement type",
+      schema: stockMovementsSearchSchema,
+      key: "type",
+      values: ["all", "receiving", "return", "sale_auto", "sale_manual", "disposal", "stocktake"],
+    },
+    {
+      name: "record type",
+      schema: inventoryRecordsSearchSchema,
+      key: "recordType",
+      values: ["all", "receiving_record", "return_record", "manual_sale", "disposal_record"],
+    },
+    {
+      name: "record status",
+      schema: inventoryRecordsSearchSchema,
+      key: "status",
+      values: ["all", "active"],
+    },
+    {
+      name: "daily sort",
+      schema: dailySalesSearchSchema,
+      key: "sortBy",
+      values: ["product_code", "name", "quantity", "unit_price", "amount"],
+    },
+    {
+      name: "daily direction",
+      schema: dailySalesSearchSchema,
+      key: "sortDir",
+      values: ["asc", "desc"],
+    },
+    {
+      name: "monthly mode",
+      schema: monthlySalesSearchSchema,
+      key: "mode",
+      values: ["by_product", "by_department"],
+    },
+    {
+      name: "monthly sort",
+      schema: monthlySalesSearchSchema,
+      key: "sortBy",
+      values: ["name", "quantity", "amount", "prev_month_diff"],
+    },
+    {
+      name: "monthly direction",
+      schema: monthlySalesSearchSchema,
+      key: "sortDir",
+      values: ["asc", "desc"],
+    },
+    {
+      name: "stock status",
+      schema: stockInquirySearchSchema,
+      key: "status",
+      values: ["all", "stockout", "low_stock"],
+    },
+  ])(
+    "$name accepts every owner variant and catches an invalid value",
+    ({ schema, key, values }) => {
+      for (const value of values) {
+        expect(schema.parse({ [key]: value })).toMatchObject({ [key]: value });
+      }
+      expect(schema.parse({ [key]: "__invalid__" })).toMatchObject({ [key]: undefined });
+    },
+  );
+
+  it("inventory record formatters do not depend on the all sentinel being first", () => {
+    const typeOptions = INVENTORY_RECORD_TYPE_OPTIONS as unknown as {
+      value: string;
+      label: string;
+    }[];
+    const statusOptions = INVENTORY_RECORD_STATUS_OPTIONS as unknown as {
+      value: string;
+      label: string;
+    }[];
+    const [typeSentinel] = typeOptions.splice(0, 1);
+    const [statusSentinel] = statusOptions.splice(0, 1);
+    typeOptions.push(typeSentinel);
+    statusOptions.push(statusSentinel);
+
+    try {
+      expect(formatRecordType("receiving_record")).toBe("入庫");
+      expect(formatRecordStatus("active")).toBe("有効");
+      expect(formatRecordType("all")).toBe("all");
+      expect(formatRecordStatus("all")).toBe("all");
+    } finally {
+      typeOptions.pop();
+      statusOptions.pop();
+      typeOptions.unshift(typeSentinel);
+      statusOptions.unshift(statusSentinel);
+    }
+  });
+});
+
+describe("finite search source ownership", () => {
+  const repoRoot = process.cwd();
+  const source = (path: string) => readFileSync(join(repoRoot, path), "utf8");
+
+  it.each([
+    ["src/routes/products/index.tsx", "productListSearchSchema"],
+    ["src/routes/stock/$code.movements.tsx", "stockMovementsSearchSchema"],
+    ["src/routes/inventory/records.tsx", "inventoryRecordsSearchSchema"],
+    ["src/routes/reports/daily.tsx", "dailySalesSearchSchema"],
+    ["src/routes/reports/monthly.tsx", "monthlySalesSearchSchema"],
+    ["src/routes/stock/index.tsx", "stockInquirySearchSchema"],
+  ])("%s imports and wires its feature schema without a local enum", (path, schemaName) => {
+    const routeSource = source(path);
+    expect(routeSource).toMatch(
+      new RegExp(`import\\s*\\{[\\s\\S]*?${schemaName}[\\s\\S]*?\\}\\s*from`),
+    );
+    expect(routeSource).toContain(`validateSearch: ${schemaName}`);
+    expect(routeSource).not.toContain("z.enum(");
+  });
+
+  it.each([
+    [
+      "src/features/products/ProductListPage.tsx",
+      "PRODUCT_DISCONTINUED_OPTIONS",
+      "const discontinuedOptions",
+    ],
+    [
+      "src/features/stock-movements/StockMovementsPage.tsx",
+      "MOVEMENT_TYPE_OPTIONS",
+      "const movementTypeOptions",
+    ],
+    [
+      "src/features/inventory-records/InventoryRecordsPage.tsx",
+      "INVENTORY_RECORD_TYPE_OPTIONS",
+      '<option value="receiving_record"',
+    ],
+    [
+      "src/features/daily-sales/components/ProductTable.tsx",
+      "DAILY_SORT_DESCRIPTORS",
+      'column="product_code"',
+    ],
+    [
+      "src/features/monthly-sales/components/ModeTabs.tsx",
+      "MONTHLY_MODE_DESCRIPTORS",
+      "const modeOptions = [",
+    ],
+    [
+      "src/features/monthly-sales/components/ProductRankingTable.tsx",
+      "monthlySortDescriptorsForMode",
+      'column="quantity"',
+    ],
+    [
+      "src/features/monthly-sales/components/DepartmentTable.tsx",
+      "monthlySortDescriptorsForMode",
+      'column="amount"',
+    ],
+    [
+      "src/features/stock-inquiry/components/StatusChips.tsx",
+      "STOCK_FILTER_DESCRIPTORS",
+      "const CHIPS",
+    ],
+  ])("%s renders choices from the feature owner", (path, ownerName, forbiddenFragment) => {
+    const componentSource = source(path);
+    expect(componentSource).toContain(ownerName);
+    expect(componentSource).not.toContain(forbiddenFragment);
   });
 });

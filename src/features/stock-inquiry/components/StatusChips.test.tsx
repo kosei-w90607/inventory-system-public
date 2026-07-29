@@ -35,4 +35,14 @@ describe("StatusChips (REQ-302 状態フィルタ)", () => {
 
     expect(onChange).not.toHaveBeenCalled();
   });
+
+  it("renders every stock filter descriptor in owner order", () => {
+    render(<StatusChips value="all" onChange={vi.fn()} />);
+
+    expect(screen.getAllByRole("radio").map((chip) => chip.getAttribute("aria-label"))).toEqual([
+      "すべて",
+      "在庫切れ",
+      "在庫少",
+    ]);
+  });
 });

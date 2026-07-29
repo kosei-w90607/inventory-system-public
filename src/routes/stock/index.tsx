@@ -7,22 +7,14 @@
 // 設計: docs/function-design/58-ui-stock-inquiry.md §58.4
 
 import { createFileRoute } from "@tanstack/react-router";
-import { z } from "zod";
 
 import { StockInquiryPage } from "@/features/stock-inquiry/StockInquiryPage";
-import type { StockInquirySearch } from "@/features/stock-inquiry/types";
+import { stockInquirySearchSchema, type StockInquirySearch } from "@/features/stock-inquiry/types";
 
-const searchSchema = z.object({
-  q: z.string().min(1).max(100).optional().catch(undefined),
-  dept: z.coerce.number().int().positive().optional().catch(undefined),
-  status: z.enum(["all", "stockout", "low_stock"]).optional().catch(undefined),
-  selected: z.string().min(1).max(20).optional().catch(undefined),
-});
-
-export type SearchParams = z.output<typeof searchSchema>;
+export type SearchParams = StockInquirySearch;
 
 export const Route = createFileRoute("/stock/")({
-  validateSearch: searchSchema,
+  validateSearch: stockInquirySearchSchema,
   component: RouteComponent,
 });
 

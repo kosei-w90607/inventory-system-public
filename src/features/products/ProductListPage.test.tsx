@@ -80,6 +80,12 @@ describe("ProductListPage (UI-01a)", () => {
     // PR #98 Codex R2 P2 再発防止: SearchBar 共通化後も旧 contract の id を page が結線する
     // （patterns/SearchBar の commit 型既定は "search-input"、本画面は明示 id を渡す）
     expect(screen.getByLabelText("商品検索")).toHaveAttribute("id", "product-search-input");
+    expect(
+      Array.from(
+        screen.getByRole("group", { name: "廃番表示" }).querySelectorAll("button"),
+        (button) => button.textContent,
+      ),
+    ).toEqual(["表示中", "すべて", "廃番のみ"]);
     expect(screen.getByRole("link", { name: "商品登録" })).toHaveAttribute(
       "href",
       "/products/new?returnTo=%2Fproducts%3Fdiscontinued%3Dactive%26sort%3Dproduct_code%26dir%3Dasc%26page%3D1%26perPage%3D50",

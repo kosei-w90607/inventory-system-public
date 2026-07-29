@@ -17,7 +17,12 @@ import {
 } from "@/components/ui/table";
 import type { DailySaleItem } from "@/lib/bindings";
 import { calculateEffectiveUnitPrice } from "../lib/calculate-unit-price";
-import type { GroupedSection, SortColumn, SortDirection } from "../types";
+import {
+  DAILY_SORT_DESCRIPTORS,
+  type GroupedSection,
+  type SortColumn,
+  type SortDirection,
+} from "../types";
 
 export interface ProductTableProps {
   grouped: GroupedSection[];
@@ -49,45 +54,29 @@ export function ProductTable({
       <Table>
         <TableHeader>
           <TableRow>
-            <SortableHeader
-              column="product_code"
-              label="商品コード"
-              sortBy={sortBy}
-              sortDir={sortDir}
-              onClick={onSortChange}
-            />
-            <SortableHeader
-              column="name"
-              label="商品名"
-              sortBy={sortBy}
-              sortDir={sortDir}
-              onClick={onSortChange}
-            />
+            {DAILY_SORT_DESCRIPTORS.slice(0, 2).map((descriptor) => (
+              <SortableHeader
+                key={descriptor.value}
+                column={descriptor.value}
+                label={descriptor.label}
+                sortBy={sortBy}
+                sortDir={sortDir}
+                onClick={onSortChange}
+                align={descriptor.align}
+              />
+            ))}
             <TableHead>部門</TableHead>
-            <SortableHeader
-              column="quantity"
-              label="数量"
-              sortBy={sortBy}
-              sortDir={sortDir}
-              onClick={onSortChange}
-              align="right"
-            />
-            <SortableHeader
-              column="unit_price"
-              label="単価"
-              sortBy={sortBy}
-              sortDir={sortDir}
-              onClick={onSortChange}
-              align="right"
-            />
-            <SortableHeader
-              column="amount"
-              label="金額"
-              sortBy={sortBy}
-              sortDir={sortDir}
-              onClick={onSortChange}
-              align="right"
-            />
+            {DAILY_SORT_DESCRIPTORS.slice(2).map((descriptor) => (
+              <SortableHeader
+                key={descriptor.value}
+                column={descriptor.value}
+                label={descriptor.label}
+                sortBy={sortBy}
+                sortDir={sortDir}
+                onClick={onSortChange}
+                align={descriptor.align}
+              />
+            ))}
           </TableRow>
         </TableHeader>
         <TableBody>

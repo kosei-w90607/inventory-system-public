@@ -4,12 +4,35 @@
 // 設計: docs/function-design/58-ui-stock-inquiry.md §58.2 / §58.5
 
 import type { ProductWithRelations } from "@/lib/bindings";
+import { z } from "zod";
 
 /** 在庫状態表示用。閾値判定は持たず、source + stock_quantity から派生する。 */
 export type StockStatus = "ok" | "low" | "stockout";
 
+export const LOW_STOCK_FILTER = "low_stock" as const;
+export const STOCK_FILTER_DESCRIPTORS = [
+  { value: "all", label: "すべて" },
+  { value: "stockout", label: "在庫切れ" },
+  { value: LOW_STOCK_FILTER, label: "在庫少" },
+] as const;
+
 /** 状態チップのフィルタ値（URL state `status`）。 */
-export type ListChipFilter = "all" | "stockout" | "low_stock";
+export type ListChipFilter = (typeof STOCK_FILTER_DESCRIPTORS)[number]["value"];
+
+function descriptorValues<
+  const T extends readonly [{ readonly value: string }, ...{ readonly value: string }[]],
+>(descriptors: T): { [K in keyof T]: T[K]["value"] } {
+  return descriptors.map(({ value }) => value) as { [K in keyof T]: T[K]["value"] };
+}
+
+const STOCK_FILTER_VALUES = descriptorValues(STOCK_FILTER_DESCRIPTORS);
+
+export const stockInquirySearchSchema = z.object({
+  q: z.string().min(1).max(100).optional().catch(undefined),
+  dept: z.coerce.number().int().positive().optional().catch(undefined),
+  status: z.enum(STOCK_FILTER_VALUES).optional().catch(undefined),
+  selected: z.string().min(1).max(20).optional().catch(undefined),
+});
 
 /**
  * list query の戻り値正規化型。
@@ -35,9 +58,4 @@ export interface DepartmentOption {
 }
 
 /** URL search params（zod 4 validateSearch で検証）。 */
-export interface StockInquirySearch {
-  q?: string;
-  dept?: number;
-  status?: ListChipFilter;
-  selected?: string;
-}
+export type StockInquirySearch = z.output<typeof stockInquirySearchSchema>;
