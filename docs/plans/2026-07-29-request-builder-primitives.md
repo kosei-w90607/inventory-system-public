@@ -2,16 +2,16 @@
 
 ## Workflow State
 
-- Phase: implementing
+- Phase: human-confirm
 - Risk: R2
 - Execution Mode: dual-vendor-no-fable
 - Plan Commit: d8129d9
-- Amendments: none
+- Amendments: 6a70668c07d466341678a338a0e9233255670172
 - Coordinator: Codex（本thread。wave編成・packet起草・裁定・Registry/train管理）
 - Writer: Codex（plan-approved後の専用worktree / terminal W4-L2）
 - Plan Reviewer: Codex fresh context（read-only、Writer非関与）
-- Final Reviewer: Claude Opus 5 + Claude Sonnet 5 fresh contexts（同一発注・相互非開示・read-only、governance closure pending）
-- Reviewed Content HEAD: pending
+- Final Reviewer: Claude Opus 5 fresh context（formal、read-only）/ Claude Sonnet 5 fresh context（supplementary、read-only）
+- Reviewed Content HEAD: 6a70668c07d466341678a338a0e9233255670172
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
 - Human Gate: resolved（owner介入5/5でclean replacement、governance closure P1/P2=0、exact-HEAD L1 / hosted greenを条件にReady / mergeまで委任）
@@ -33,13 +33,17 @@ Narrative（append-only）:
 - 2026-07-30 Coordinator adjudication: P1 / P2をaccept。実decision pointは追加監査発注を含め4/3であり、同梱はcommit数を減らしてもdecision point数を減らさない。後続commitでは過去subjectを訂正できず、実content変更なしの「content相乗り」でSTATECAPを回避する案も棄却した。content SHAを保ったclean replacementを最小十分経路と裁定した。
 - 2026-07-30 owner recovery authorization A（介入5/5）: 既定3から5への一回限りの延長を承認し、`3141481`を祖先に保つclean replacement、fresh Claude dual closure P1/P2=0、exact-HEAD L1 / hosted greenを条件にReady / squash mergeまで一括委任した。追加owner decisionは要求しない。closure review relayを完了できるようrelay上限は3へ同期した。
 - 2026-07-30 clean replacement reconstruction: branch `codex/wave4-request-builder-primitives-clean` / Draft PR #40をcontent HEAD `3141481`から作成した。旧PR #37のstate/docs commit `508af7b` / `042da76` / `d47748d` / `1179754`は新履歴へ含めず、content SHAとplan-first ancestryを維持した。現Phaseは`implementing`のまま、本governance correctionのfresh Claude dual closureを待つ。本correction commitはclosure後のstate-only materializationで`Amendments`へSHA追記する。
+- 2026-07-30 governance closure review（reviewed HEAD `6a70668`、relay 3/3）: Claude Opus 5 fresh contextはAPPROVE、P1=0 / P2=0 / P3=0。Claude Sonnet 5 fresh contextは旧P1/P2をCLOSEDとし、新規P2としてlocal `main`より6 commit遅れた`origin/main`がGitHub PR diffを汚染している点だけを検出した。Opusの「発注baseが陳腐化」という逆因果の診断は、local mainのみがremoteより先行しfast-forward可能だった事実によりrejectした。
+- 2026-07-30 closure P2 correction: ownerの条件付き委任範囲内の機械操作としてlocal `main` `be63da7`を`origin/main`へfast-forward pushした。remote refとlocal mainは一致し、compare APIでlane 2 branchがbaseに対し3 commit・10 fileだけ先行することを確認した。branch contentは不変で追加reviewを要しない。
+- 2026-07-30 Subagent Budget incident: R2のper-lane上限は0–1 concurrentであり、Wave合算上限4はこれを緩和しない。Opus / Sonnet 2体を同時発火した運用はD-034違反としてacceptした。各reviewのread-only性・fresh性・相互非開示と成果物は損なわれていないため、Opusをformal Final Reviewer、Sonnetをsupplementary evidenceとして採用し、追加reviewは行わない。
+- 2026-07-30 implementing -> local-verified -> independent-review -> human-confirm（state-only materialization）: exact HEAD `6a70668`のL1 fullはCLEAN / PASS、formal Opus reviewはP1/P2=0、supplementary Sonnet P2はbranch非変更のremote base同期でclosed。governance correction SHAを`Amendments`と`Reviewed Content HEAD`へ設定し、owner介入5/5の条件付きReady / merge委任が成立した。
 
 ## Owner Effort Budget
 
 - 介入回数上限: 5（既定3から一回限り延長。内訳: wave起票 / review-route correction / reviewer指定 / pre-Ready dual audit / clean replacement + 条件付きReady・merge委任）
 - 実働時間上限: 30分
 - relay往復上限: 3（旧Opus review / pre-Ready dual audit / clean replacement closure）
-- 現況: 介入5/5、relay 2/3。追加owner decisionは禁止し、残りは既承認条件の機械的充足だけを行う
+- 現況: 介入5/5、relay 3/3。追加owner decision / relayは禁止し、残りは既承認条件の機械的充足だけを行う
 
 ## Risk
 
