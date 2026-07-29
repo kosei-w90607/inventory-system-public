@@ -4,17 +4,17 @@
 
 - Phase: implementing
 - Risk: R2
-- Execution Mode: codex-only
+- Execution Mode: dual-vendor-no-fable
 - Plan Commit: d8129d9
 - Amendments: none
 - Coordinator: Codex（本thread。wave編成・packet起草・裁定・Registry/train管理）
 - Writer: Codex（plan-approved後の専用worktree / terminal W4-L2）
 - Plan Reviewer: Codex fresh context（read-only、Writer非関与）
-- Final Reviewer: Codex fresh context（Plan Reviewerとは別context、read-only）
+- Final Reviewer: Claude Opus 5 + Claude Sonnet 5 fresh contexts（同一発注・相互非開示・read-only、governance closure pending）
 - Reviewed Content HEAD: pending
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
-- Human Gate: pending Ready / merge
+- Human Gate: resolved（owner介入5/5でclean replacement、governance closure P1/P2=0、exact-HEAD L1 / hosted greenを条件にReady / mergeまで委任）
 
 Narrative（append-only）:
 
@@ -23,13 +23,23 @@ Narrative（append-only）:
 - 2026-07-29 Plan Review round 1: P1=1 / P2=3。監査source誤参照、shared owner/APIのdurable source欠落、wrapper prefix/export/min oracle不足、UTC環境で生存するdate mutationを確認した。`76-ui-request-primitives.md`へ契約を昇格し、consumer直接testとtimezone非依存oracleへ補強して再レビューする。
 - 2026-07-29 formal Plan Review closure（Codex fresh context、lane 2 reviewed content `128407c`）: APPROVE、P1=0 / P2=0 / P3=0。76のdurable owner/API、4 exact prefix / named export / consumer min、timezone非依存date oracle、REQ token各1 occurrence、lane 2だけの90専有をread-only再確認した。後続`f929472`はlane 1/3 Packet / Matrixだけの変更でlane 2 reviewed content不変。
 - 2026-07-29 plan-gate -> plan-approved -> implementing（state-only compression）: 独立Plan Review closureでP1/P2=0となり、plan-first `d8129d9`とplan-gate corrections `7abfedf` / `128407c`は全実装commitより前に存在する。`Plan Commit`を`d8129d9`へ固定し、本state-only commit後にlane 2 Writer実装を許可する。
+- 2026-07-29 content verification: candidate `3141481558fc3fe090416e2c7135a226a38192eb`でexact-HEAD L1 fullがCLEAN / PASSとなった。一次candidateで検出したUI専用設計書76のdesign compliance登録漏れは、既存UI設計書と同じ`SKIP_DOCS`登録へ是正し、design compliance / traceability WARN 0 / frontend / Rust / docsを再実行した。
+- 2026-07-29 Codex preflight review: reviewed content `3141481558fc3fe090416e2c7135a226a38192eb`はP1=0 / P2=0 / P3=0、Approve。後続の外部Final Reviewを置換しないpreflight evidenceとして扱う。
+- 2026-07-29 owner review-route correction（介入2/5）: ownerがClaude review未実施を検出し、Codex preflightだけでは外部review gateを満たさないと裁定した。旧Draft PR #37のReadyを停止し、Execution Mode / Final Reviewerを実態へ合わせて訂正する方針を決定した。
+- 2026-07-29 owner Final Reviewer designation（介入3/5）: ownerは難所laneのread-only reviewerとしてClaude Opus 5を指名した。実際のreviewはlane 2 diffに対して初見だったが、lane 1 / 3のsubagent発注と集約を行った継続context内であり、旧PR #37の「fresh context」表記は実態と不一致だった。
+- 2026-07-29 Claude Opus 5 review（継続context、lane 2 diff初見、read-only）: contentはAPPROVE、P1=0 / P2=0 / P3=1。P3はPR bodyがplan-gate先行追加済みの設計書76 / FUNCTION_DESIGN登録までlane実装として記した誤帰属で、bodyを「76のdesign compliance UI除外登録」へ是正した。baseの76登録時点でdesign compliance / 90が一時redとなるlane外依存は、lane 2 contentが閉じる既知train依存としてacceptした。
+- 2026-07-30 owner pre-Ready dual audit request（介入4/5）: ownerはlane 2全差分とPacket / Matrix / state / PR bodyを対象に、Claude Opus 5 / Sonnet 5 fresh contextsの同一対象・同一effort・相互非開示監査を追加発注した。
+- 2026-07-30 pre-Ready independent audit（Claude Opus 5 + Sonnet 5 fresh contexts、旧PR #37 HEAD `1179754`）: 両者REQUEST CHANGES、P1=1 / P2=1 / P3=0で一致。content、mutation耐性、design compliance、traceability、merge train先頭根拠には懸念なし。P1はOwner Effort Budgetのdecision point過小計上、P2は非canonical subject `1179754`の実Phase遷移をSTATECAPが数えないfalse negative。旧reviewのfresh性表記も実態訂正対象とした。
+- 2026-07-30 Coordinator adjudication: P1 / P2をaccept。実decision pointは追加監査発注を含め4/3であり、同梱はcommit数を減らしてもdecision point数を減らさない。後続commitでは過去subjectを訂正できず、実content変更なしの「content相乗り」でSTATECAPを回避する案も棄却した。content SHAを保ったclean replacementを最小十分経路と裁定した。
+- 2026-07-30 owner recovery authorization A（介入5/5）: 既定3から5への一回限りの延長を承認し、`3141481`を祖先に保つclean replacement、fresh Claude dual closure P1/P2=0、exact-HEAD L1 / hosted greenを条件にReady / squash mergeまで一括委任した。追加owner decisionは要求しない。closure review relayを完了できるようrelay上限は3へ同期した。
+- 2026-07-30 clean replacement reconstruction: branch `codex/wave4-request-builder-primitives-clean` / Draft PR #40をcontent HEAD `3141481`から作成した。旧PR #37のstate/docs commit `508af7b` / `042da76` / `d47748d` / `1179754`は新履歴へ含めず、content SHAとplan-first ancestryを維持した。現Phaseは`implementing`のまま、本governance correctionのfresh Claude dual closureを待つ。本correction commitはclosure後のstate-only materializationで`Amendments`へSHA追記する。
 
 ## Owner Effort Budget
 
-- 介入回数上限: 3
+- 介入回数上限: 5（既定3から一回限り延長。内訳: wave起票 / review-route correction / reviewer指定 / pre-Ready dual audit / clean replacement + 条件付きReady・merge委任）
 - 実働時間上限: 30分
-- relay往復上限: 2
-- 現況: 介入1/3（wave 4起票）、relay 0/2
+- relay往復上限: 3（旧Opus review / pre-Ready dual audit / clean replacement closure）
+- 現況: 介入5/5、relay 2/3。追加owner decisionは禁止し、残りは既承認条件の機械的充足だけを行う
 
 ## Risk
 
