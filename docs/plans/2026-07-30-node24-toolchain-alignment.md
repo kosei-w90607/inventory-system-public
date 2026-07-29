@@ -54,10 +54,10 @@ Goal Invariant:
 ## Scope
 
 - `.node-version` を Node `24.18.0` の single version source として追加する。
-- `package.json` に Node 24 major の `engines.node` contract を追加する。
+- `package.json` に Node 24 major の `engines.node` contract と、通常の `npm install` / `npm ci` / `npm run` を不一致時に止める `devEngines.runtime` contract（`onFail: error`）を追加する。
 - `@types/node` を cooldown 済みの 24 系へ名指し更新し、必要な同一 dependency family の lockfile 差分だけを受け入れる。
 - `.github/workflows/ci.yml` と `.github/workflows/npm-security-monitor.yml` の `actions/setup-node@v6` を `.node-version` 参照へ統一する。
-- `scripts/tests/ci-workflow.test.sh` に、両 workflow と manifest が単一 pin / Node 24 contract から drift しない静的検査を追加する。
+- `scripts/tests/ci-workflow.test.sh` に、現在の単一 `$WORKFLOW` 前提を拡張し、`ci.yml` と `npm-security-monitor.yml` の両方および manifest が単一 pin / Node 24 contract から drift しない静的検査を追加する。
 - `docs/DEV_SETUP_CHECKLIST.md` の現運用 Node contract と導入手順を Node 24 / repository pin 前提へ更新する。
 - `Plans.md` の active change と旧 Node 22 backlog を現況へ同期する。
 - Node 24.18.0 で frontend targeted checks、L1 full、hosted final を実行する。
@@ -70,13 +70,15 @@ Goal Invariant:
 - GitHub Actions の trigger、job graph、permissions、cache policy、`continue-on-error` policy の変更
 - application source、Tauri / Rust source、DB、generated bindings、route tree の契約変更
 - user-wide Node default の無断変更
+- repository root の `Dockerfile` / `docker-compose.yml`。いずれも現行 workflow / script から参照されない退役 Docker 構成の生ファイルであり、本 change では更新・削除せず、履歴コピーとの不一致を含む整理を別 backlog とする。
 
 ## Acceptance Criteria
 
 - `.node-version` が `24.18.0` を一意に保持し、両 `setup-node@v6` が `node-version-file: .node-version` を使う。
-- `package.json` の `engines.node` が Node 24 major のみを許容し、direct `@types/node` が 24 系である。
-- live source（archive と退役履歴を除く）に `node-version: 20`、Node 20 CI contract、未着手 Node 22 migration backlog が残らない。
-- `scripts/tests/ci-workflow.test.sh` が pin / workflow / manifest の片側 drift で red になる。
+- `package.json` の `engines.node` と `devEngines.runtime.version` が Node 24 major のみを許容し、`devEngines.runtime.onFail` が `error`、direct `@types/node` が 24 系である。
+- Node 24 以外では、`--force` を付けない通常の `npm install` / `npm ci` / `npm run` が `EBADDEVENGINES` で fail-fast する。
+- live source（archive、`DEV_SETUP_CHECKLIST.md` §A.1、明示的に Non-scope とした退役 root Docker 構成を除く）に `node-version: 20`、Node 20 CI contract、未着手 Node 22 migration backlog が残らない。
+- `scripts/tests/ci-workflow.test.sh` が `ci.yml` / `npm-security-monitor.yml` のどちらか一方、pin、または manifest contract の drift で red になる。
 - Node 24.18.0 上で `npm ci --ignore-scripts`、frontend typecheck / lint / format / test / build が pass する。
 - `bash scripts/local-ci.sh full` が exact HEAD / CLEAN で pass し、GitHub hosted final が同一 HEAD で success になる。
 - `npm audit` の残件は本 change 前より増えず、既知の change B 対象だけが残る。
@@ -109,7 +111,7 @@ Goal Invariant:
 
 | Spec / requirement ID | Source design doc section | Decision ID | Why / rejected alternatives | Implementation target | Test target |
 |---|---|---|---|---|---|
-| TOOL-NODE24-D1 | `DEV_SETUP_CHECKLIST.md` §1.1 / §1.2 / §4.2 | TOOL-NODE24-D1 | EOL の Node 20 / 25 と major-only floating sources を退役し、現行 LTS の exact pin を単一 owner にする。Node 22 は LTS だが Node 24 より support runway が短いため不採用 | `.node-version`, `package.json`, workflows | `scripts/tests/ci-workflow.test.sh` |
+| TOOL-NODE24-D1 | `DEV_SETUP_CHECKLIST.md` §1.1 / §1.2 / §4.2 | TOOL-NODE24-D1 | EOL の Node 20 / 25 と major-only floating sources を退役し、現行 LTS の exact pin を単一 owner にする。日常コマンドの継続的一致は `engines` 単独や user-wide default 変更ではなく、npm が `install` / `ci` / `run` 前に評価する `devEngines.runtime` の fail-fast で担保する。Node 22 は LTS だが Node 24 より support runway が短いため不採用 | `.node-version`, `package.json`, workflows | `scripts/tests/ci-workflow.test.sh` + runtime mismatch probe |
 | TOOL-NODE24-D2 | `docs/ci.md` Verification Ladder | TOOL-NODE24-D2 | CI routingを変えず実行runtimeだけを交換する。別 workflow やmatrix追加は scope過大 | `.github/workflows/ci.yml`, `npm-security-monitor.yml` | workflow static test + hosted final |
 | TOOL-NODE24-D3 | `decision-log.md` D-030 | TOOL-NODE24-D3 | `@types/node` は24系を名指し更新し、force / blanket updateを使わない | `package.json`, `package-lock.json` | lock diff review + frontend full |
 
@@ -118,9 +120,9 @@ Goal Invariant:
 - Source docs can answer what is being built and why without chat history or archived Plan Packets: yes。現運用の version / setup contract は `DEV_SETUP_CHECKLIST.md` へ反映する。
 - Plan-only durable decisions found and promoted to source docs / decision-log / ADR: exact pin と Node 24 contract を `DEV_SETUP_CHECKLIST.md` へ反映。D-030 は既存正本で十分。
 - Assumptions and constraints: Node 24.18.0 は現行 LTS。`actions/setup-node@v6` は `.node-version` を `node-version-file` で読める。`@types/node@24.13.3` は7日 cooldown済み。
-- Deferred design gaps, risk, and follow-up target: user-wide shell の default 切替は無断実施せず、local verification は owner承認後に repository pin を使って行う。Rust monitor は次 change。
+- Deferred design gaps, risk, and follow-up target: user-wide shell の default 切替は無断実施せず、local verification は owner承認後に repository pin を使って行う。repository root の `Dockerfile` / `docker-compose.yml` は現行導線から未参照の退役資産として本 change から除外し、履歴コピーとの不一致を含む整理を別 backlog とする。Rust monitor は次 change。
 - Test Design Matrix can cite design decision IDs or source doc sections: R2のためMatrixは作らず、本packet Test Planで3 decisionをcoverする。
-- Absolute guarantee / escape hatch self-check completed, with every exception checked and compatibility stated: archive / 退役 Docker例の historical Node 20 は live contract sweep から除外する。
+- Absolute guarantee / escape hatch self-check completed, with every exception checked and compatibility stated: archive、`DEV_SETUP_CHECKLIST.md` §A.1 の退役 Docker例、現行導線から未参照で明示的に Non-scope とした root `Dockerfile` / `docker-compose.yml` の historical Node 20 は live contract sweep から除外する。`devEngines` は `--force` で警告へ降格できるが、D-030 の no-force 契約を維持する。
 
 ## Impact Review Lenses
 
@@ -157,10 +159,13 @@ R2のため非必須。Design Intent Traceで3 contractを追跡する。
 
 - targeted tests:
   - `bash scripts/tests/ci-workflow.test.sh`
+  - `ci-workflow.test.sh` の新規検査が `ci.yml` と `npm-security-monitor.yml` をループまたは個別関数で明示的に対象化していること
+  - Node 25.8.2 で通常の `npm run typecheck` が `EBADDEVENGINES` で失敗し、Node 24.18.0 の `mise exec -- npm run typecheck` が pass すること
   - Node 24.18.0 で `npm ci --ignore-scripts`
   - `npm run typecheck && npm run lint && npm run format:check && npm test && npm run build`
 - negative tests:
-  - workflow片側を一時的に literal Node 20へ戻す、またはmanifest majorを25へ戻す mutationでstatic testがredになることを確認し、即時復元する。
+  - `ci.yml` / `npm-security-monitor.yml` の片側を一時的に literal Node 20へ戻す、またはmanifestの `engines` / `devEngines` majorを25へ戻す mutationでstatic testがredになることを確認し、即時復元する。
+  - `awk '/^## A\.1 / { exit } { print }' docs/DEV_SETUP_CHECKLIST.md | rg -n 'v20\.|Node 20|node 20'` が no-match であること。
 - compatibility checks:
   - `@types/node` family以外の意図しない direct dependency差分がないこと。
   - CI event / job / permission / cache / audit warn-only差分がないこと。
@@ -176,7 +181,7 @@ R2のため非必須。Design Intent Traceで3 contractを追跡する。
 - consumer: local version manager / `actions/setup-node@v6`
 - wire type: UTF-8 text、単一 exact semver行
 - internal type: Node runtime version
-- precision/range: exact `24.18.0`; `package.json#engines.node` は `>=24 <25`
+- precision/range: exact `24.18.0`; `package.json#engines.node` / `package.json#devEngines.runtime.version` は `>=24 <25`
 - round-trip path: pin -> local Node / CI Node -> npm scripts / frontend gates
 - invalid input: pin欠落、非semver、workflow literal override、manifest major mismatchはstatic test failure
 - compatibility: package-lock format、application output、CI routingは不変
@@ -184,6 +189,7 @@ R2のため非必須。Design Intent Traceで3 contractを追跡する。
 ## Review Focus
 
 - `.node-version` が本当に単一 owner であり、workflow / manifest が独立したversion literalへ戻れないか。
+- `devEngines.runtime` が Node 24 以外の日常 `npm run` を実際に止め、single owner と major contract の役割分担が静的検査で固定されるか。
 - Node runtime 24、`@types/node` 24、TypeScript / Vite / Vitest の実行互換が実証されるか。
 - D-030 の named update / cooldown / no-force契約を破っていないか。
 - workflow差分がruntime source差替えだけで、event / permissions / gate semanticsを変えていないか。
@@ -200,3 +206,4 @@ pending
 ## Narrative
 
 - 2026-07-30 owner kickoff: Node 24一本化を先行し、Dependabotで一次監視済みのRust `cargo audit`は別changeとする方針を確定。介入1/3、relay 0/2。Plan Reviewer / Final ReviewerはClaude Sonnet 5 fresh contextとする。
+- 2026-07-30 Plan Gate review（relay 1/2）: Claude Sonnet 5 fresh context が REQUEST CHANGES（P1=1 / P2=2 / P3=1）。live §4.5 の Node 20 残存を Node 24.18.0 へ是正し、追加 sweep で見つけた live Node 22 backlog 4 箇所も active Node 24 change へ同期。ローカル継続一致は npm 現行仕様と Node 25.8.2 の隔離 probe を根拠に `devEngines.runtime` fail-fast を採用し、user-wide default 変更と install 時のみの `engine-strict` 単独案を不採用。未参照の root Docker 構成は明示 Non-scope + backlog 化し、workflow static test は両 workflow を個別に覆うことを計画へ追記した。Phase は `plan-gate`、Plan Commit は `pending` のまま fresh closure review を待つ。
