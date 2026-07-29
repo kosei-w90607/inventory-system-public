@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: implementing
+- Phase: human-confirm
 - Risk: R3
 - Execution Mode: dual-vendor-no-fable
 - Plan Commit: d8129d9
@@ -11,10 +11,10 @@
 - Writer: Codex（plan-approved後の専用worktree / terminal W4-L1）
 - Plan Reviewer: Codex fresh context（read-only、Writer非関与）
 - Final Reviewer: Claude fresh context（read-only。Codex reviewはpreflightのみ）
-- Reviewed Content HEAD: pending
+- Reviewed Content HEAD: 0ec5180a77c7b0e61a7c31620f7b7ee4dbad66ad
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
-- Human Gate: pending Ready / merge
+- Human Gate: resolved Ready / merge（owner介入4/4。exact-HEAD L1 / hosted greenを条件に委任）
 
 Narrative（append-only）:
 
@@ -27,13 +27,17 @@ Narrative（append-only）:
 - 2026-07-29 independent-review preflight: Codex reviewはformal Final Reviewer席を満たさないpreflightとして扱い、owner relayのClaude fresh contextがP1=1（production descriptor自身から期待値を導出するtest oracle）/ P3=1（inventory-record formatterの`slice(1)` sentinel順序依存）を報告した。両findingをacceptしPhaseは`implementing`のまま、Final ReviewerをClaude fresh contextへ明示した。owner介入は増やさず1/3を維持する。
 - 2026-07-29 finding correction: finite descriptorのvariant / order / label / payload / align期待をtest-only固定値へ独立転記し、product / records / movement / daily / monthly / stock / thresholdのcomponent oracleもproduction descriptor非依存へ変更した。`formatRecordStatus` / `formatRecordType`は全optionを位置非依存で検索しつつ`all` sentinelを値で除外する形へ直し、sentinel並替testを旧実装でRED後にGREEN化した。隔離copyでdaily `amount`削除、product `all`削除、未設計variant追加、label driftを注入し、全系列がREDになることを実証した。fresh Claude closure reviewは全local gate完了後に行う。
 - 2026-07-29 correction closure review（reviewed content `0ec5180a77c7b0e61a7c31620f7b7ee4dbad66ad`）: Claude Opus 5 / Sonnet 5の相互非開示fresh context 2 passがともにAPPROVE、P1=0 / P2=0 / P3=0。自己参照oracleとsentinel順序依存をCLOSEDとし、variant削除・追加・順序・label・payload / threshold metadata drift、旧`slice(1)`復元を隔離mutationで独立再実証した。これはLane 2未統合下の是正closure evidenceであり、設計書76起因でL1 full CLEANをまだ作れないためPhaseは`implementing`、`Reviewed Content HEAD`は`pending`を維持する。Lane 2統合後のconflict-free rebase、exact-HEAD L1 full CLEAN、formal Final Reviewを経て、同一state-only commitで`local-verified -> independent-review -> human-confirm`とReviewed Content HEADをmaterializeする。
+- 2026-07-30 owner-effort correction: 前項までの`介入1/3・relay 0/2`を実態へ合わせて訂正する。D-055のdecision pointはwave 4起票、review-route訂正、Claude Opus 5 / Sonnet 5 dual closure追加要請、Ready / merge承認の4件であり、ownerの本是正指示に基づき介入上限を既定3から一回限り4へ延長した。ownerが手動relayした一次reviewとclosureは2往復として実数化する。今回の記録訂正自体はscope・review route・Ready条件を新たに選び直すdecision pointではない。
+- 2026-07-30 dependency attribution correction: closure時のstale `origin/main`はPR-wide changed gateのdiff windowを拡大した要因であり、起動後のRust design compliance failureはLane 2が所有した`76-ui-request-primitives.md`分類gapだった。Lane 2はPR #40 squash `4a07f7d`で統合され、最新`main=d5f8bda`には当該分類が存在する。Lane 1をこのmainへrebaseした後のL1 fullではdesign complianceを含む全gateがPASSしたため、Lane 1 regressionではなくLane 2 mergeで解消したbase dependencyとして帰属を確定する。
+- 2026-07-30 merge-train rebase evidence: 旧base `be63da7` / 旧tip `4ebd3fd`のlane 1固有4 commitを`main=d5f8bda`へ競合なくrebaseし、新tip `5bbd65f`を得た。旧新4組のstable patch-id、`git range-diff`、旧全体差分`be63da7..4ebd3fd`と新全体差分`d5f8bda..5bbd65f`のstable patch-idは全て一致した。Plan Commit `d8129d9`は既にmain祖先でAmendmentsはnoneのためformal Rebase Map対象はない。Final Reviewerが監査したcontent HEAD `0ec5180`は同内容のrebased commit `aa90b7c`へ対応し、closure reviewをcarry forwardする。
+- 2026-07-30 implementing -> local-verified -> independent-review -> human-confirm（state-only materialization）: rebased HEAD `5bbd65f`のL1 fullはCLEAN / PASS、Claude Opus 5 / Sonnet 5 closure reviewはP1/P2=0、上記rebase同値性も成立した。実際のreview対象`0ec5180a77c7b0e61a7c31620f7b7ee4dbad66ad`をReviewed Content HEADへ設定し、owner介入4/4の条件付きReady / merge委任を確定した。
 
 ## Owner Effort Budget
 
-- 介入回数上限: 3
+- 介入回数上限: 4（既定3から一回限り延長。内訳: wave起票 / review-route訂正 / dual closure追加要請 / Ready・merge承認）
 - 実働時間上限: 30分
 - relay往復上限: 2
-- 現況: 介入1/3（wave 4起票）、relay 0/2
+- 現況: 介入4/4、relay 2/2。追加owner decision / relayは禁止し、残りは既承認条件の機械的充足だけを行う
 
 ## Risk
 
@@ -196,9 +200,9 @@ Test Design Matrix: `docs/plans/test-matrices/2026-07-29-finite-search-threshold
 
 ## Review Response
 
-- Findings Freeze: pending。Lane 2統合後のexact-HEAD L1とformal Final Review完了時に発効する
+- Findings Freeze: active。Claude closure reviewのP1/P2=0とconflict-free rebaseのcontent同値性、rebased HEADのL1 fullを確定済み
 - Plan Review: round 1 REQUEST CHANGES（P1=1 / P2=2 / P3=0）、round 2 REQUEST CHANGES（P1=1 / P2=0 / P3=0）、closure APPROVE（P1=0 / P2=0 / P3=0）
-- Final Review: correction closureはClaude Opus 5 / Sonnet 5の2 passともAPPROVE（P1=0 / P2=0 / P3=0、reviewed content `0ec5180a77c7b0e61a7c31620f7b7ee4dbad66ad`）。Lane 2統合後のexact-HEAD formal Final Reviewはpending
+- Final Review: correction closureはClaude Opus 5 / Sonnet 5の2 passともAPPROVE（P1=0 / P2=0 / P3=0、reviewed content `0ec5180a77c7b0e61a7c31620f7b7ee4dbad66ad`）。Lane 2統合後のconflict-free rebaseは全commit / range / 全体差分の同値性を証明し、rebased HEAD `5bbd65f`のL1 fullもPASSしたためreview evidenceをcarry forwardした
 
 ## Spec Contract
 
