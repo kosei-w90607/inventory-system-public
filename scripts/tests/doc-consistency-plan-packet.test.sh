@@ -28,7 +28,7 @@ assert_not_contains() {
 
 assert_helper_calls_have_no_negative_globs() {
     local file="$1"
-    local line arg cluster pattern
+    local line arg cluster option pattern
     local helper_calls=0
     local i
     local -a call_args=()
@@ -59,15 +59,30 @@ assert_helper_calls_have_no_negative_globs() {
                             ;;
                         -[^-]*)
                             cluster="${arg#-}"
-                            if [[ "$cluster" == *g* ]]; then
-                                pattern="${cluster#*g}"
-                                if [ -z "$pattern" ]; then
-                                    i=$((i + 1))
-                                    [ "$i" -lt "${#call_args[@]}" ] ||
-                                        fail "captured helper call has -g without a pattern"
-                                    pattern="${call_args[$i]}"
-                                fi
-                            fi
+                            while [ -n "$cluster" ]; do
+                                option="${cluster%"${cluster#?}"}"
+                                cluster="${cluster#?}"
+                                case "$option" in
+                                    g)
+                                        pattern="$cluster"
+                                        if [ -z "$pattern" ]; then
+                                            i=$((i + 1))
+                                            [ "$i" -lt "${#call_args[@]}" ] ||
+                                                fail "captured helper call has -g without a pattern"
+                                            pattern="${call_args[$i]}"
+                                        fi
+                                        cluster=""
+                                        ;;
+                                    e|f|E|m|j|d|t|T|A|B|C|M|r)
+                                        if [ -z "$cluster" ]; then
+                                            i=$((i + 1))
+                                            [ "$i" -lt "${#call_args[@]}" ] ||
+                                                fail "captured helper call has -$option without a value"
+                                        fi
+                                        cluster=""
+                                        ;;
+                                esac
+                            done
                             ;;
                     esac
                     if [[ "$pattern" == !* ]]; then
@@ -88,6 +103,47 @@ trap 'rm -rf "$tmp"' EXIT
 repo="$tmp/repo"
 mkdir -p "$repo/docs/plans" "$repo/docs/function-design"
 cp "$SOURCE_ROOT/scripts/doc-consistency-check.sh" "$repo/doc-consistency-check.sh"
+
+write_rg_call_log() {
+    local file="$1"
+    shift
+    {
+        echo "CALL"
+        for arg in "$@" tests src src-tauri; do
+            printf 'ARG\t%s\n' "$arg"
+        done
+        echo "END"
+    } > "$file"
+}
+
+assert_glob_guard_accepts() {
+    local label="$1"
+    shift
+    local file="$tmp/rg-argv-accept.log"
+    write_rg_call_log "$file" "$@"
+    assert_helper_calls_have_no_negative_globs "$file" ||
+        fail "glob argv guard rejected legal short-option grammar: $label"
+}
+
+assert_glob_guard_rejects() {
+    local label="$1"
+    shift
+    local file="$tmp/rg-argv-reject.log"
+    write_rg_call_log "$file" "$@"
+    if (assert_helper_calls_have_no_negative_globs "$file" >/dev/null 2>&1); then
+        fail "glob argv guard accepted a negative glob: $label"
+    fi
+}
+
+# A value-taking short option consumes the remainder of its cluster (or the
+# following argv), so a later "g" is data rather than another option.
+assert_glob_guard_accepts "-qeg!x" "-qeg!x"
+assert_glob_guard_accepts "-qe g!x" "-qe" "g!x"
+assert_glob_guard_accepts "-qAg!1" "-qAg!1"
+assert_glob_guard_accepts "-qA g!1" "-qA" "g!1"
+assert_glob_guard_accepts "-gq!x" "-gq!x"
+assert_glob_guard_rejects "-uvqg !x" "-uvqg" "!x"
+assert_glob_guard_rejects "-uvqg!x" "-uvqg!x"
 
 real_rg="$(command -v rg)"
 rg_shim_dir="$tmp/bin"
