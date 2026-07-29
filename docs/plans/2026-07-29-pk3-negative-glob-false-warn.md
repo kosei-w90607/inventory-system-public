@@ -4,13 +4,13 @@
 
 - Phase: implementing
 - Risk: R2
-- Execution Mode: codex-only
+- Execution Mode: dual-vendor-no-fable
 - Plan Commit: d8129d9
 - Amendments: none
 - Coordinator: Codex（本thread。wave編成・packet起草・裁定・Registry/train管理）
 - Writer: Codex（plan-approved後の専用worktree / terminal W4-L3）
 - Plan Reviewer: Codex fresh context（read-only、Writer非関与）
-- Final Reviewer: Codex fresh context（Plan Reviewerとは別context、read-only）
+- Final Reviewer: Claude fresh context（Plan Reviewerとは別context、read-only）
 - Reviewed Content HEAD: pending
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
@@ -24,6 +24,9 @@ Narrative（append-only）:
 - 2026-07-29 Plan Review round 2: P1=0 / P2=1 / P3=1。ripgrepが受理する`-qg PATTERN` / `-qgPATTERN` short-option clusterがargv parserから漏れ、Trace Matrixも旧static表記だった。value-taking `g`を含むshort cluster全体へparserとmutationを拡張し、runtime argv oracleへ記述を同期して再レビューする。
 - 2026-07-29 formal Plan Review closure（Codex fresh context、HEAD `f929472`）: APPROVE、P1=0 / P2=0 / P3=0。long optionと任意short cluster内のvalue-taking `g`、separate / attached、runtime argv Trace、ignored-only / real rg delegation / 3 roots / WARN exit / R2 / D-055をread-only再確認し、実装可能と判定した。
 - 2026-07-29 plan-gate -> plan-approved -> implementing（state-only compression）: 独立Plan Review closureでP1/P2=0となり、plan-first `d8129d9`とplan-gate corrections `7abfedf` / `128407c` / `f929472`は全実装commitより前に存在する。`Plan Commit`を`d8129d9`へ固定し、本state-only commit後にlane 3 Writer実装を許可する。
+- 2026-07-29 review route correction: owner指示によりExecution Modeを`dual-vendor-no-fable`、Formal Final ReviewerをClaude fresh contextへ訂正した。既存Codex reviewはpreflightとして扱い、Formal Final Review gateの充足には用いない。新しいowner decision pointではないため介入回数は1/3のまま据え置く。
+- 2026-07-29 external review P1 accepted: ignored-only fixtureがsynthetic treeをGit repositoryとして初期化せず、host / ripgrep versionによって`.gitignore`適用が変わるportable regressionを受理した。Phaseは`implementing`を維持し、fixture生成直後に`git init -q "$repo"`だけを追加した。
+- 2026-07-29 P1 correction verification: content commit `d506fe3`でbash syntax、doc-consistency plan-packet fixture suite、targeted plan check、workflow git、diff checkがPASSし、tree CLEANを確認した。PR-wide changed gateはlane 2未統合の`76-ui-request-primitives.md` design compliance分類だけで停止するため、merge train依存解消後にL1 fullとClaude fresh-context closure reviewを行う。
 
 ## Owner Effort Budget
 
