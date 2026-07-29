@@ -102,6 +102,7 @@ tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
 repo="$tmp/repo"
 mkdir -p "$repo/docs/plans" "$repo/docs/function-design"
+git init -q "$repo"
 cp "$SOURCE_ROOT/scripts/doc-consistency-check.sh" "$repo/doc-consistency-check.sh"
 
 write_rg_call_log() {
