@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# scripts/doc-consistency-check.sh の PK4 (check_plan_packet_workflow_state) と
-# PK1 拡張 (Owner Effort Budget / Contract Probe 必須化) を synthetic fixture で検証する。
+# scripts/doc-consistency-check.sh の PK3 (test_token_exists)、PK4
+# (check_plan_packet_workflow_state) と PK1 拡張
+# (Owner Effort Budget / Contract Probe 必須化) を synthetic fixture で検証する。
 # fixture はすべて本 test 自身が tmpdir に生成し、tracked fixture file は増やさない。
 set -euo pipefail
 
@@ -25,11 +26,152 @@ assert_not_contains() {
     fi
 }
 
+assert_helper_calls_have_no_negative_globs() {
+    local file="$1"
+    local line arg cluster option pattern
+    local helper_calls=0
+    local i
+    local -a call_args=()
+
+    while IFS= read -r line || [ -n "$line" ]; do
+        case "$line" in
+            CALL)
+                call_args=()
+                ;;
+            ARG$'\t'*)
+                call_args+=("${line#*$'\t'}")
+                ;;
+            END)
+                helper_calls=$((helper_calls + 1))
+                i=0
+                while [ "$i" -lt "${#call_args[@]}" ]; do
+                    arg="${call_args[$i]}"
+                    pattern=""
+                    case "$arg" in
+                        --glob)
+                            i=$((i + 1))
+                            [ "$i" -lt "${#call_args[@]}" ] ||
+                                fail "captured helper call has --glob without a pattern"
+                            pattern="${call_args[$i]}"
+                            ;;
+                        --glob=*)
+                            pattern="${arg#--glob=}"
+                            ;;
+                        -[^-]*)
+                            cluster="${arg#-}"
+                            while [ -n "$cluster" ]; do
+                                option="${cluster%"${cluster#?}"}"
+                                cluster="${cluster#?}"
+                                case "$option" in
+                                    g)
+                                        pattern="$cluster"
+                                        if [ -z "$pattern" ]; then
+                                            i=$((i + 1))
+                                            [ "$i" -lt "${#call_args[@]}" ] ||
+                                                fail "captured helper call has -g without a pattern"
+                                            pattern="${call_args[$i]}"
+                                        fi
+                                        cluster=""
+                                        ;;
+                                    e|f|E|m|j|d|t|T|A|B|C|M|r)
+                                        if [ -z "$cluster" ]; then
+                                            i=$((i + 1))
+                                            [ "$i" -lt "${#call_args[@]}" ] ||
+                                                fail "captured helper call has -$option without a value"
+                                        fi
+                                        cluster=""
+                                        ;;
+                                esac
+                            done
+                            ;;
+                    esac
+                    if [[ "$pattern" == !* ]]; then
+                        fail "captured helper call contains a negative glob: $arg $pattern"
+                    fi
+                    i=$((i + 1))
+                done
+                ;;
+        esac
+    done < "$file"
+
+    [ "$helper_calls" -gt 0 ] ||
+        fail "rg shim did not capture a tests/src/src-tauri helper call"
+}
+
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
 repo="$tmp/repo"
 mkdir -p "$repo/docs/plans" "$repo/docs/function-design"
+git init -q "$repo"
 cp "$SOURCE_ROOT/scripts/doc-consistency-check.sh" "$repo/doc-consistency-check.sh"
+
+write_rg_call_log() {
+    local file="$1"
+    shift
+    {
+        echo "CALL"
+        for arg in "$@" tests src src-tauri; do
+            printf 'ARG\t%s\n' "$arg"
+        done
+        echo "END"
+    } > "$file"
+}
+
+assert_glob_guard_accepts() {
+    local label="$1"
+    shift
+    local file="$tmp/rg-argv-accept.log"
+    write_rg_call_log "$file" "$@"
+    assert_helper_calls_have_no_negative_globs "$file" ||
+        fail "glob argv guard rejected legal short-option grammar: $label"
+}
+
+assert_glob_guard_rejects() {
+    local label="$1"
+    shift
+    local file="$tmp/rg-argv-reject.log"
+    write_rg_call_log "$file" "$@"
+    if (assert_helper_calls_have_no_negative_globs "$file" >/dev/null 2>&1); then
+        fail "glob argv guard accepted a negative glob: $label"
+    fi
+}
+
+# A value-taking short option consumes the remainder of its cluster (or the
+# following argv), so a later "g" is data rather than another option.
+assert_glob_guard_accepts "-qeg!x" "-qeg!x"
+assert_glob_guard_accepts "-qe g!x" "-qe" "g!x"
+assert_glob_guard_accepts "-qAg!1" "-qAg!1"
+assert_glob_guard_accepts "-qA g!1" "-qA" "g!1"
+assert_glob_guard_accepts "-gq!x" "-gq!x"
+assert_glob_guard_rejects "-uvqg !x" "-uvqg" "!x"
+assert_glob_guard_rejects "-uvqg!x" "-uvqg!x"
+
+real_rg="$(command -v rg)"
+rg_shim_dir="$tmp/bin"
+rg_argv_log="$tmp/rg-argv.log"
+mkdir -p "$rg_shim_dir"
+cat > "$rg_shim_dir/rg" <<'SHIM'
+#!/usr/bin/env bash
+set -euo pipefail
+
+args=("$@")
+argc=${#args[@]}
+if [ -n "${RG_ARGV_LOG:-}" ] && [ "$argc" -ge 3 ] \
+    && [ "${args[$((argc - 3))]}" = "tests" ] \
+    && [ "${args[$((argc - 2))]}" = "src" ] \
+    && [ "${args[$((argc - 1))]}" = "src-tauri" ]; then
+    {
+        echo "CALL"
+        for arg in "$@"; do
+            printf 'ARG\t%s\n' "$arg"
+        done
+        echo "END"
+    } >> "$RG_ARGV_LOG"
+fi
+
+exec "$REAL_RG" "$@"
+SHIM
+chmod +x "$rg_shim_dir/rg"
 
 # check_signature_cross_reference (既存 C2、本 test の対象外) は
 # docs/function-design/*.md に '^fn ' 行が1件も無いと rg が no-match で
@@ -162,6 +304,7 @@ reset_packet_defaults() {
     PKT_INCLUDE_CONTRACT_PROBE=1
     PKT_INCLUDE_FINDINGS_FREEZE=1
     PKT_INCLUDE_GOAL_INVARIANT=1
+    PKT_TRACE_TEST_CELL='`bash` fixture test'
 }
 
 write_packet() {
@@ -244,7 +387,7 @@ write_packet() {
             echo ""
             echo "| Spec ID | Plan Step | Test | Review Focus | Evidence |"
             echo "|---|---|---|---|---|"
-            echo "| SPEC-FIXTURE | Scope 1 | \`bash\` fixture test | Review Focus | fixture evidence |"
+            echo "| SPEC-FIXTURE | Scope 1 | ${PKT_TRACE_TEST_CELL} | Review Focus | fixture evidence |"
             echo ""
             echo "## Data Safety"
             echo ""
@@ -270,9 +413,11 @@ run_check() {
     (
         cd "$repo"
         if [ -n "$target" ]; then
-            bash doc-consistency-check.sh --target plan "$target"
+            PATH="$rg_shim_dir:$PATH" REAL_RG="$real_rg" RG_ARGV_LOG="$rg_argv_log" \
+                bash doc-consistency-check.sh --target plan "$target"
         else
-            bash doc-consistency-check.sh --target plan
+            PATH="$rg_shim_dir:$PATH" REAL_RG="$real_rg" RG_ARGV_LOG="$rg_argv_log" \
+                bash doc-consistency-check.sh --target plan
         fi
     ) > "$out" 2>&1
 }
@@ -288,6 +433,36 @@ if ! run_check "docs/plans/2026-01-01-fixture.md"; then
 fi
 assert_contains "$out" "PK4: Workflow State machine 整合 OK"
 assert_not_contains "$out" "Goal Invariant 構造に"
+
+# --- 1b. SPEC-WF-PK3-TOKEN: 3 root canary / ignore / WARN exit / argv guard ---
+setup_repo_dirs
+reset_packet_defaults
+PKT_TRACE_TEST_CELL="test_pk3_tests_root / test_pk3_src_root / test_pk3_src_tauri_root / test_pk3_ignored_only"
+write_packet "$repo/docs/plans/2026-01-01-pk3-fixture.md"
+write_plans_md_linking "2026-01-01-pk3-fixture.md"
+mkdir -p \
+    "$repo/tests" \
+    "$repo/src/target" \
+    "$repo/src/node_modules" \
+    "$repo/src/dist" \
+    "$repo/src-tauri"
+printf 'test test_pk3_tests_root\n' > "$repo/tests/pk3_canary.sh"
+printf 'it("test_pk3_src_root")\n' > "$repo/src/pk3_canary.ts"
+printf 'fn test_pk3_src_tauri_root() {}\n' > "$repo/src-tauri/pk3_canary.rs"
+printf 'fn test_pk3_ignored_only() {}\n' > "$repo/src/target/pk3_ignored.rs"
+printf 'fn test_pk3_ignored_only() {}\n' > "$repo/src/node_modules/pk3_ignored.ts"
+printf 'fn test_pk3_ignored_only() {}\n' > "$repo/src/dist/pk3_ignored.ts"
+printf 'target/\nnode_modules/\ndist/\n' > "$repo/.gitignore"
+: > "$rg_argv_log"
+if ! run_check "docs/plans/2026-01-01-pk3-fixture.md"; then
+    cat "$out" >&2
+    fail "PK3 token fixture unexpectedly exited nonzero"
+fi
+assert_not_contains "$out" 'test token `test_pk3_tests_root` が tests/src/src-tauri に見つかりません'
+assert_not_contains "$out" 'test token `test_pk3_src_root` が tests/src/src-tauri に見つかりません'
+assert_not_contains "$out" 'test token `test_pk3_src_tauri_root` が tests/src/src-tauri に見つかりません'
+assert_contains "$out" 'PK3: docs/plans/2026-01-01-pk3-fixture.md (R3) の Trace Matrix test token `test_pk3_ignored_only` が tests/src/src-tauri に見つかりません'
+assert_helper_calls_have_no_negative_globs "$rg_argv_log"
 
 # --- 2. '## Workflow State' セクション自体が欠落 ---
 setup_repo_dirs
