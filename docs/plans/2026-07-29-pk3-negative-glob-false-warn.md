@@ -27,6 +27,10 @@ Narrative（append-only）:
 - 2026-07-29 review route correction: owner指示によりExecution Modeを`dual-vendor-no-fable`、Formal Final ReviewerをClaude fresh contextへ訂正した。既存Codex reviewはpreflightとして扱い、Formal Final Review gateの充足には用いない。新しいowner decision pointではないため介入回数は1/3のまま据え置く。
 - 2026-07-29 external review P1 accepted: ignored-only fixtureがsynthetic treeをGit repositoryとして初期化せず、host / ripgrep versionによって`.gitignore`適用が変わるportable regressionを受理した。Phaseは`implementing`を維持し、fixture生成直後に`git init -q "$repo"`だけを追加した。
 - 2026-07-29 P1 correction verification: content commit `d506fe3`でbash syntax、doc-consistency plan-packet fixture suite、targeted plan check、workflow git、diff checkがPASSし、tree CLEANを確認した。PR-wide changed gateはlane 2未統合の`76-ui-request-primitives.md` design compliance分類だけで停止するため、merge train依存解消後にL1 fullとClaude fresh-context closure reviewを行う。
+- 2026-07-29 correction closure review（reviewed content `b4137ead85597b6e12ec0969d92518e03da154a2`）: Claude Opus 5 / Sonnet 5の相互非開示fresh context 2 passがともにAPPROVE、P1=0 / P2=0。Opus passはGit markerを持たないclean roomで`git init`除去時FAIL / 修正後PASSを対比し、前回P1の因果的closureを確定した。Sonnet passの`/tmp`再現はambientな空の`/tmp/.git`によりripgrepがGit treeと誤認するconfoundを受けたが、end-state suiteとnegative-glob / root / `--no-ignore` mutationは全て期待どおり検出した。
+- 2026-07-29 P3 evidence correction: `local-ci.sh changed`の実ログではdocs gate自体はPASSしている。一方、`origin/main=be93d63`がlocal `main=be63da7`より遅れたdiff windowをbaseに全gate分類が発火し、その結果起動したRust `design_compliance_test`が`76-ui-request-primitives.md`未登録で実際にFAILした。したがって発火原因はstale remote-tracking base、直接の失敗原因はLane 2が閉じる設計書76登録gapという二段であり、Lane 3起因ではないとの結論は維持する。
+- 2026-07-29 P3 owner-effort adjudication: review-route correctionは選択肢を伴う新しいHuman Gateではなく、現に利用可能なClaude slotとownerが既に指定したreview経路へ記録を合わせる是正であり、scope・merge train・Ready判断を変更していない。このdecision-point基準により介入は1/3据え置きとする。ambient `TMPDIR`祖先の空`.git`が将来のmutation再現感度を落とし得る点は現candidateのP1 closureを妨げないため、wave 4 WERのfollow-up候補へ分離する。
+- 2026-07-29 workflow disposition: 本reviewはLane 2未統合下の是正closure evidenceである。stale diff windowと設計書76依存によりL1 full CLEANをまだ作れないためPhaseは`implementing`、`Reviewed Content HEAD`は`pending`を維持する。Lane 2統合後のconflict-free rebase、exact-HEAD L1 full CLEAN、formal Final Reviewを経て、同一state-only commitで`local-verified -> independent-review -> human-confirm`とReviewed Content HEADをmaterializeする。
 
 ## Owner Effort Budget
 
@@ -153,6 +157,13 @@ not applicable — runtime wire / config / manifest不変。checker CLIのWARN/e
 - fixtureがcurrent rgの偶然の挙動に依存していないか
 - missing tokenとignored subtreeのoracleが逆転していないか
 - R3へ昇格するscope creepがないか
+
+## Review Response
+
+- Findings Freeze: pending。Lane 2統合後のexact-HEAD L1とformal Final Review完了時に発効する
+- Plan Review: round 1 REQUEST CHANGES（P1=0 / P2=1）、round 2 REQUEST CHANGES（P1=0 / P2=1 / P3=1）、closure APPROVE（P1=0 / P2=0 / P3=0）
+- Final Review: correction closureはClaude Opus 5 / Sonnet 5の2 passともAPPROVE（P1=0 / P2=0、reviewed content `b4137ead85597b6e12ec0969d92518e03da154a2`）。Lane 2統合後のexact-HEAD formal Final Reviewはpending
+- P3 disposition: stale `origin/main`によるgate発火と設計書76のRust design compliance failureを分離して訂正し、owner介入1/3のdecision-point基準を明記した。ambient `TMPDIR`のmutation再現感度はwave 4 WER follow-up候補
 
 ## Spec Contract
 
