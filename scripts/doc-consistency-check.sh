@@ -1044,8 +1044,7 @@ has_acceptance_observable_token() {
 
 test_token_exists() {
     local token="$1"
-    rg -q --glob '!*node_modules*' --glob '!*target*' --glob '!*dist*' \
-        "(fn|def|it|test)[[:space:]]+${token}|[\"']${token}[\"']" \
+    rg -q "(fn|def|it|test)[[:space:]]+${token}|[\"']${token}[\"']" \
         tests src src-tauri 2>/dev/null
 }
 
