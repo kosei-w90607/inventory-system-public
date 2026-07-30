@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: human-confirm
+- Phase: ready-hosted-final
 - Risk: R3
 - Execution Mode: dual-vendor-no-fable
 - Plan Commit: d90dc2d84b6fc59d25b31d00059b5344cda40838
@@ -14,7 +14,7 @@
 - Reviewed Content HEAD: e28249948ff53a8a906aee4c170e4f3e5a2d111f
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
-- Human Gate: Ready / merge pending（Final Review closure P1/P2=0、owner介入4/5）
+- Human Gate: none（ownerが介入5/5でReady / merge一括承認）
 
 ## Owner Effort Budget
 
@@ -295,3 +295,4 @@ Contract ID: SPEC-HOOK-01
 - 2026-07-31 CH10 closure correction: ownerが介入4/5として予算を介入5・relay 6へ拡張した。source-derived fixtureが`.claude/hooks/**`もmaterializeするAPIとpropagation mutationをtest-firstで追加し、旧実装の`CH10 source-derived hook fixture was not constructed` redからgreenへ転換した。次はexact content candidateのchanged / L1 fullとrelay 6/6 closure。
 - 2026-07-31 CH10 correction verification -> independent review: composite bypass mutationは派生fixtureのbaseline検査でred、targeted / changed / L1 fullはPASS / CLEAN / merge evidence valid。exact-HEAD SHAとevidence pathはPR bodyを正本とし、`implementing -> local-verified -> independent-review`をmaterializeしてOpus 5 / xHigh fresh-contextのclosure-only relay 6/6へ進む。
 - 2026-07-31 P2-CH10 final closure -> human-confirm: Opus 5 reviewerと相談窓口の独立mutationは、是正後targetをred、是正前controlをgreenとして再現し、P2-CH10をCLOSEDとした。Final Review closureはP1/P2=0。Matrix CH10表示名と実装labelの名称差はPost-Freeze P3 follow-upへ送り、audited content HEADを記録してownerのReady / merge判断を待つ。
+- 2026-07-31 human-confirm -> ready-hosted-final: ownerが介入5/5としてReady / merge一括承認を選択した。Draftのままstate-only Ready遷移をmaterializeし、そのexact HEADでL1 full、PR body refresh、Ready、hosted final、三点SHA一致、merge、Post-Merge Closeoutを連続実行する。
