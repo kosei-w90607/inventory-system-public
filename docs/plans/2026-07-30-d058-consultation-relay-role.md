@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: independent-review
+- Phase: human-confirm
 - Risk: R3
 - Execution Mode: dual-vendor-no-fable
 - Plan Commit: 850df036cc6f14b4e8c64f893f38c8871321a333
@@ -11,10 +11,10 @@
 - Writer: Codex
 - Plan Reviewer: Claude Sonnet 5 / xHigh fresh context
 - Final Reviewer: Double Audit（Claude Sonnet 5 / xHigh fresh context + Claude Opus 5 / xHigh fresh context・D-056 §5.4低制約profile）
-- Reviewed Content HEAD: pending
+- Reviewed Content HEAD: 58c1956fb47521a781dc59ce1960144b2f27f563
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
-- Human Gate: none（ownerはD-058方針と理由付き改定を承認済み。次のowner判断はFinal Review P1/P2=0後のReady / merge）
+- Human Gate: Ready / merge（Final Review closure P1/P2=0。ownerの一括承認待ち）
 
 ## Owner Effort Budget
 
@@ -275,6 +275,13 @@ Contract ID: SPEC-WF-D058-2026-07-30
 - 両pass完了によりFindings Freezeを発効した。blockerは初回Broad Audit内のfindingであり、`DEV_WORKFLOW.md`に従って`independent-review -> implementing`へ戻す。
 - ownerは介入2/3としてrelay上限を4から6へ拡張し、同一PR是正とSonnet / Opus各1回のclosureを承認した。
 
+### Final Review closure（2026-07-30、relay 5/6 + 6/6）
+
+- Sonnet 5 / xHigh fresh context: APPROVE（P1=0 / P2=0）。初回P3の`PROJECT_HANDOFF.md` phase driftはCLOSED。是正差分の契約回帰なし。Manual §5.5の`pathを` 1箇所を新規cosmetic P3として報告した。
+- Opus 5 / xHigh fresh context・D-056 §5.4低制約profile: APPROVE（P1=0 / P2=0）。初回7件は6件CLOSED、spacing driftだけPARTIALLY CLOSED。新規P3としてMatrixのdocumented assertion commandがA18のtemplate targetを含まない再現性gapを報告した。
+- Coordinator裁定: 両P3のproblem claimは実読でacceptする。一方は空白1字、他方はdocumented commandのtarget列挙漏れで、契約実体・A18 literalのtemplate内一意hit・P2-3 closureには影響しない。Findings Freeze後の新規P3なので本PRのblockerにせず、PR bodyへdispositionを記録してPost-Merge Closeoutのfollow-upへ送る。追加content commit、3巡目Double Audit、relay上限拡張は行わない。
+- Double Audit closureのP1/P2=0が揃ったため、audited content commit `58c1956fb47521a781dc59ce1960144b2f27f563`を`Reviewed Content HEAD`へ記録し、`independent-review -> human-confirm`をmaterializeする。
+
 ## Narrative
 
 - 2026-07-30 kickoff -> design -> plan-gate: ownerがD-058案と理由付き改定を承認（介入1/3）。CoordinatorはR3 workflow gate change、Plan Packet + Matrix、Double Audit、hosted requiredと判定した。「必要な数」は無界なので、Coordinator指定の数値cap + target change budget算入へ補正。D-056 read-onlyを生成subagentへ継承し、Fable復帰時は新規投入停止とした。実装前にClaude Sonnet 5 / xHigh fresh-context Plan Gateへ渡す。
@@ -285,3 +292,4 @@ Contract ID: SPEC-WF-D058-2026-07-30
 - 2026-07-30 Final Review Double Audit -> implementing: Sonnet passはP3=1、Opus passはP1=1 / P2=3 / P3=3。target SHAのevidence ownership衝突、order ref currentness、subagent空き枠予約、Packet template登録を同一PR blockerとしてacceptし、Findings Freezeを発効した。ownerは介入2/3でrelay上限6と同一PR是正を承認したため、state-only backtrack後にgated correctionへ進む。
 - 2026-07-30 gated correction implementation: amendment `d67efc111ad22144773903a32e90a9f51b47e924`をsource修正より先に確定した。Manual §3 / §5.4 / §5.5、D-058、Packet template、Handoff / Plansを、専用remote order branch + current-head照合 + target SHA時点Packet + Coordinator予約枠へ同期した。次はA1〜A20 / X1〜X16 / N1〜N6 / G1〜G9とL1 fullを再実行する。
 - 2026-07-30 gated correction local verification -> independent review: correction candidateで新規・変更mutation 8件を独立再実測し、既存mutation 12件のうち不変8件は前candidateの実測を維持した。全anchor / invariant / docs / workflow gateとL1 fullがgreen、tree cleanを確認し、Sonnet / Opus closureへ戻す。
+- 2026-07-30 Final Review closure -> human-confirm: Sonnet / Opus closureはいずれもAPPROVE（P1/P2=0）。初回blockerは全件CLOSED。Freeze後P3としてManualの空白1字とMatrix assertionのtemplate target列挙漏れをacceptしたが、契約実体へ影響せず追加roundの予算もないためPost-Merge Closeout follow-upへ送る。audited content HEADを記録し、ownerのReady / merge一括承認を待つ。
