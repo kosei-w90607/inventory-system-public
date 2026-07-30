@@ -2,10 +2,10 @@
 
 ## Workflow State
 
-- Phase: plan-gate
+- Phase: implementing
 - Risk: R3
 - Execution Mode: dual-vendor-no-fable
-- Plan Commit: pending
+- Plan Commit: 850df036cc6f14b4e8c64f893f38c8871321a333
 - Amendments: none
 - Coordinator: Codex
 - Writer: Codex
@@ -253,7 +253,14 @@ Fill after implementation.
 - P3-1: Fable復帰がpartial dispatch中の場合、in-flightだけを集約し、未dispatch remainderを取消してCoordinatorへ返す。§5.5で同orderの残りを再開しない。
 - P3-2: X8はactivation boundary D1とrecovery D6を同時に守る意図的二重被覆であることをMatrixへ注記した。
 
+### Plan Review closure（2026-07-30、Claude Sonnet 5 / xHigh fresh context、relay 2/4）
+
+- Verdict APPROVE（P1=0 / P2=0 / P3=0）。round 1のP1-1 / P2-1 / P2-2 / P3-1 / P3-2はすべてCLOSED、新規P1/P2なし。
+- 非blocking observation「宣言pathの参照時点」は、Scope / Boundary Contractが同じimmutable refのcommitにあるtarget Packetを復元して宣言pathを照合する契約なので、referenced commit時点と裁定した。実装文言で明示し、HEAD時点のworking-tree Packetは照合元にしない。
+- reviewerの「Plan Commitを是正後HEAD `fd473cce459ca17aaef0863f8d3878d36e7fe0f7`へ向ける」提案は棄却した。`DEV_WORKFLOW.md`の定義はplan-first commitのSHAであり、plan-gate correctionを最新snapshotとして指定する欄ではない。plan-first `850df036cc6f14b4e8c64f893f38c8871321a333`を固定し、是正commit `fd473cce459ca17aaef0863f8d3878d36e7fe0f7`はその後かつ実装前のreviewed correctionとしてNarrativeに保持する。
+
 ## Narrative
 
 - 2026-07-30 kickoff -> design -> plan-gate: ownerがD-058案と理由付き改定を承認（介入1/3）。CoordinatorはR3 workflow gate change、Plan Packet + Matrix、Double Audit、hosted requiredと判定した。「必要な数」は無界なので、Coordinator指定の数値cap + target change budget算入へ補正。D-056 read-onlyを生成subagentへ継承し、Fable復帰時は新規投入停止とした。実装前にClaude Sonnet 5 / xHigh fresh-context Plan Gateへ渡す。
 - 2026-07-30 Plan Review round 1（relay 1/4）: REQUEST CHANGES（P1=1 / P2=2 / P3=2）。provenanceをtracked artifact + immutable SHA/path + `git show`検証へ再設計し、§3.4 guardをsection byte比較、§2 / §3.1〜§3.3 guardを追加。Fable復帰時のpartial dispatchとX8二重被覆を明文化した。Phaseはplan-gate、Plan Commitはpendingのままclosure reviewを待つ。
+- 2026-07-30 Plan Review closure（relay 2/4）: APPROVE（P1=0 / P2=0 / P3=0）。全finding CLOSED。Plan Commitは`DEV_WORKFLOW.md`のplan-first identity契約に従い`850df036cc6f14b4e8c64f893f38c8871321a333`へ固定し、是正後HEADへ差し替えるreviewer提案は棄却。必要証跡が揃ったため`plan-gate -> plan-approved -> implementing`を圧縮遷移し、source docs実装を開始する。
