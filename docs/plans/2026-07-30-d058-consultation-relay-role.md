@@ -6,7 +6,7 @@
 - Risk: R3
 - Execution Mode: dual-vendor-no-fable
 - Plan Commit: 850df036cc6f14b4e8c64f893f38c8871321a333
-- Amendments: none
+- Amendments: d67efc111ad22144773903a32e90a9f51b47e924
 - Coordinator: Codex
 - Writer: Codex
 - Plan Reviewer: Claude Sonnet 5 / xHigh fresh context
@@ -246,6 +246,7 @@ Contract ID: SPEC-WF-D058-2026-07-30
 - `docs/decision-log.md`へD-058をappendし、owner決定、理由、影響、却下案、rollback / revisitを正本化した。`docs/PROJECT_HANDOFF.md`と`docs/Plans.md`をlive stateへ同期した。
 - Matrix A1〜A15は対象sourceで一意に接続し、N1〜N6は既存DEV_WORKFLOW / D-056 / §2 / §3.1〜§3.4 / §5.4の非改変を確認した。negative mutationとexact-head L1 / review evidenceはPR bodyへ記録する。
 - Matrix X1〜X12とguard sensitivity G1〜G9は、implementation commit後のclean treeで各ケースを独立に注入し、red -> restore -> green -> cleanを確認した。Node 24.18.0のrepo pin下でL1 fullを通過し、Draft PR #47を作成した。
+- Final Review amendment `d67efc111ad22144773903a32e90a9f51b47e924`に従い、target PR外の専用remote order branch、order / target両remote refのcurrent-head再検査、target SHA時点Packet照合、Coordinator予約枠、Plan Packet template `Consultation Relay`登録へsource contractを是正した。
 
 ## Review Response
 
@@ -281,3 +282,4 @@ Contract ID: SPEC-WF-D058-2026-07-30
 - 2026-07-30 implementation: Manual §3 / §5.4 / §5.5、decision-log D-058、PROJECT_HANDOFFを実装した。closure observationはreferenced commit時点のPacket宣言を照合元と明記して閉じた。A1〜A15とN1〜N6、target plan / full docs consistencyをgreen確認し、implementation commit後のclean treeでnegative mutationへ進む。
 - 2026-07-30 local verification -> independent review: X1〜X12 / G1〜G9を各red -> restore -> green -> cleanで完了。system Node 25の初回L1はNode 24以外を拒否する`devEngines`契約どおりfail-fastしたため、明示repo pin `mise exec node@24.18.0 --`で再実行してPASS / CLEAN / merge evidence validを確認した。Draft PR #47を作成し、`implementing -> local-verified -> independent-review`を本validation / dashboard content commitに同乗させてDouble Auditへ進む。
 - 2026-07-30 Final Review Double Audit -> implementing: Sonnet passはP3=1、Opus passはP1=1 / P2=3 / P3=3。target SHAのevidence ownership衝突、order ref currentness、subagent空き枠予約、Packet template登録を同一PR blockerとしてacceptし、Findings Freezeを発効した。ownerは介入2/3でrelay上限6と同一PR是正を承認したため、state-only backtrack後にgated correctionへ進む。
+- 2026-07-30 gated correction implementation: amendment `d67efc111ad22144773903a32e90a9f51b47e924`をsource修正より先に確定した。Manual §3 / §5.4 / §5.5、D-058、Packet template、Handoff / Plansを、専用remote order branch + current-head照合 + target SHA時点Packet + Coordinator予約枠へ同期した。次はA1〜A20 / X1〜X16 / N1〜N6 / G1〜G9とL1 fullを再実行する。
