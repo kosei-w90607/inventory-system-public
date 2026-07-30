@@ -205,8 +205,8 @@ Claude Code hook は、設定の置き場所と効力を分離する（D-059）�
 - tracked `.claude/settings.json` が repository 固有 hook の唯一の正本。command path は `${CLAUDE_PROJECT_DIR}` から解決し、event の `cwd` や個人 home の絶対 path に依存しない
 - `.claude/settings.local.json` は machine-local override であり、tracked 正本の代用にしない。repository の `.gitignore` でも保護する
 - plugin hook は project hook と別の decision layer。plugin 単位で監査・採用を決め、未監査または宣言と実効動作が一致しない plugin は project scope で無効化する。plugin cache の直接 patch は行わない
-- decision hook は入力、stdout、stderr、exit code、許可 / 拒否条件を契約化し、fixture test を持つ。欠落した project root、checker、解釈不能な状態を成功扱いしない
+- decision hook は入力、stdout、stderr、exit code、許可 / 拒否条件を契約化し、fixture test を持つ。欠落した project root、checker、解釈不能な状態、未捕捉の内部故障を成功扱いしない。hook runner の外側 timeout より短い内部 deadline を置き、script が制御できる全非 0 outcome を block 用 exit 2 へ正規化する
 - advisory hook は tool 実行の成否や副作用を command 文字列だけから推定しない。実際には完了していない push / PR 作成を完了済みと表現したり、read-only role へ tracked write を命じたり、`[MANDATORY]` 文言で repository workflow を上書きしたりしない
-- Plan Reviewer、Final Reviewer、subagent、Self-Review の要否は Plan Packet と DEV_WORKFLOW が所有する。hook は model 名、agent log、時間窓、個人 memory を根拠に追加 review を強制しない
+- Plan Reviewer、Final Reviewer、subagent の要否は Plan Packet と DEV_WORKFLOW が所有する。旧hook固有の7観点 `Self-Review` とplan rally強制は後継なしで退役する。hook は model 名、agent log、時間窓、個人 memory を根拠に追加 review を強制しない
 - effective hook inventory と settings / script の接続は repo-owned test を local full と hosted final の両方で実行する
 - CASIO 語彙（`Z00x` / `CV17` / `SR-S4000` / `CP932`）の BIZ/CMD 契約への混入検出は機械ガードが存在しない。レビューが最後の砦であり、[review-checklist](quality/review-checklist.md) の設計判断レンズ #2 を必ず使う。

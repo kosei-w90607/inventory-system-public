@@ -15,6 +15,7 @@ Risk: R3
 
 - extra hookまたはpluginがhidden decision layerを復活させる。
 - cwdがsubdirectory、root/checker欠落、checker failureでもallowする。
+- checkerの想定外exitまたはhangがClaude Codeの0/2以外fail-openへ漏れる。
 - exit codeだけgreenでstdout/stderrが壊れる、またはdiagnosticがunbounded。
 - command文字列の検索・dry-runを副作用完了と誤認する。
 - test scriptは存在するがclassifier/local-ci/hostedから呼ばれない。
@@ -32,6 +33,8 @@ Risk: R3
 | H2 | checker missing | negative | CH6 `missing_checker_blocks` | exit 2でない |
 | H2 | checker failure | negative | CH7 `checker_failure_blocks` | failureをallowする |
 | H2 | malformed stdin | negative | CH8 `stdin_not_authority` | stdinのcwd/commandでrootを上書きできる |
+| H2 | unexpected internal failure | negative/mutation | CH8A `unexpected_nonzero_normalizes_to_block` | checker exit 1/126/127またはtrap可能な内部故障がexit 2以外になる |
+| H2 | checker hang | timeout | CH8B `checker_deadline_blocks_before_runner_timeout` | 20秒超checkerがouter 30秒より前にbounded stderr + exit 2にならない |
 | H3 | output contract drift | wire | CH9 `output_is_bounded` | success stdout/stderr非空、failure stdout非空、stderr20行超 |
 | H3 | write/false completion注入 | static | CH10 `forbidden_context_absent` | effective settings/scriptに禁止literal |
 | H3 | model-specific review gate | static | CH11 `review_policy_not_in_hook` | model/agent log/30分/Self-Reviewを強制 |
@@ -46,7 +49,7 @@ Risk: R3
 
 | State / subject | Initial | Pending | Success | Invalidate | Refetch | Revisit | Restart | Failure | Retry | Evidence |
 |---|---|---|---|---|---|---|---|---|---|---|
-| ExitPlanMode | tool call proposed | checker running | exit 0、normal Claude permission flow | Packet/doc edit | next invocation | next plan | session restart | exit 2 + bounded stderr | fix docs and retry | CH3〜CH9 |
+| ExitPlanMode | tool call proposed | checker running（inner deadline 20s / kill-after 2s、outer 30s） | exit 0、normal Claude permission flow | Packet/doc edit | next invocation | next plan | session restart | exit 2 + bounded stderr | fix docs and retry | CH3〜CH9 |
 | harness containment | user true / project false | Claude config resolution | effective false | tracked/local setting change | plugin list | separate audited adoption | Claude restart | enabled true | restore false | CH2 + runtime probe |
 | workflow candidate | content HEAD | L1 / Double Audit | Reviewed Content HEAD | tracked correction | rerun full/review | Ready | new session via Packet | P1/P2 or gate fail | implementingへ戻る | PR body |
 
@@ -112,6 +115,7 @@ Risk: R3
 - hook commandから`${CLAUDE_PROJECT_DIR}`を除くとCH4/CH5がredになる。
 - missing checker branchをexit 0へ反転するとCH6がredになる。
 - checker nonzeroを無視するとCH7がredになる。
+- unexpected nonzeroの2正規化を外すとCH8A、inner deadlineまたはouter-before-inner余白を壊すとCH8Bがredになる。
 - failure stderrをstdoutへ移すとCH9がredになる。
 - settingsへ旧audit hookを1本戻すとCH1/CH10がredになる。
 - classifierから対象3 path群を除く、または`.claude/skills/**`をworkflowへ広げるとCH12がredになる。
@@ -121,6 +125,7 @@ Risk: R3
 ## Residual Test Gaps
 
 - Claude Code本体がsettingsをhot reloadする時機はfixtureでは再現しない。新sessionのreal ExitPlanModeをdogfoodする。
+- outer hook runner自体がdeadline前に異常終了する経路はscript内trapで捕捉できない。inner 20秒 + kill-after 2秒がouter 30秒より先にblockへ収束することをfixtureとreal dogfoodで確認し、残余はClaude Code runtime境界として記録する。
 - project `enabledPlugins:false`の解決優先順位はCLI 2.1.220で実測済みだが、将来versionはRevisit対象。
 - user-global settingsにrepo hookが再追加されたことをpublic CIから検査できない。tracked contractとlocal auditの責務分離として残す。
 - shellは任意commandのsemantic side effectを判定しない。副作用通知自体を非採用にして回避する。

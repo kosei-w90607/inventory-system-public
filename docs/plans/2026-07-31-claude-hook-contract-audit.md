@@ -58,7 +58,7 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 ## Scope
 
 - `.claude/settings.json`: `claude-code-harness`をproject scopeで明示無効化し、effective project hookを`PreToolUse(ExitPlanMode)` 1本にする。
-- `.claude/hooks/check-plan-on-exit.sh`: `${CLAUDE_PROJECT_DIR}`起点、full docs/active Packet check、exit 0/2のfail-closed contractへ縮約する。
+- `.claude/hooks/check-plan-on-exit.sh`: `${CLAUDE_PROJECT_DIR}`起点、full docs/active Packet check、strict mode + trap + 内部checker deadline、exit 0/2のfail-closed contractへ縮約する。
 - `.claude/hooks/`の未接続7 scriptを削除し、`.claude/commands/plan-rally.md`をoptional helperへ訂正する。
 - `CLAUDE.md`の2-hook / memory-hook記述、`docs/DEV_SETUP_CHECKLIST.md`のglobal-ignore / SessionStart記述、`docs/TOOLING_SKILL_COMMANDS.md`のplugin実効一覧をD-059へ同期する。
 - `.gitignore`: `**/.claude/settings.local.json`をrepo-owned ignoreへ追加する。
@@ -79,6 +79,7 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 
 - `jq`でtracked settingsを列挙するとproject hookは`PreToolUse / ExitPlanMode / check-plan-on-exit.sh` 1件だけで、harnessは`false`。
 - rootと`docs/` cwdのfixtureで同じcheckerが呼ばれ、`CLAUDE_PROJECT_DIR`欠落、checker欠落、checker exit nonzeroはexit 2、成功はexit 0。
+- checkerの想定外exit 1/126/127と内部deadline超過は、hook runner timeout前にbounded stderr + exit 2へ正規化される。
 - successはstdout/stderr空、failureはstdout空・bounded stderrにreasonを持つ。`permissionDecision: ask/allow`やadditionalContextを出さない。
 - effective project hook/commandに`MANDATORY`、`git push`、`gh pr create`、memory write、agent-log 30分条件、model名がない。
 - `.claude/settings.local.json`がrepository `.gitignore`のruleでignoreされる。
@@ -109,7 +110,7 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 
 | 新規追加物 | 登録・生成義務 |
 |---|---|
-| `scripts/tests/claude-hooks.test.sh` | `local-ci.sh`、hosted CI、CI static testへ登録し、classifierが`.claude/**`をworkflowへ送る |
+| `scripts/tests/claude-hooks.test.sh` | `local-ci.sh`、hosted CI、CI static testへ登録し、classifierが`.claude/settings.json`、`.claude/hooks/**`、`.claude/commands/**`をworkflowへ送る |
 | tracked hook command | `.claude/settings.json`から`${CLAUDE_PROJECT_DIR}`絶対解決で1箇所だけ接続する |
 
 ## Design Intent Trace
@@ -117,7 +118,7 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 | Spec / requirement ID | Source design doc section | Decision ID | Why / rejected alternatives | Implementation target | Test target |
 |---|---|---|---|---|---|
 | SPEC-HOOK-01 | Manual §6.1 | D-059-H1 single owner | duplicate/global ownerを排除 | `.claude/settings.json` | CH1/CH2 |
-| SPEC-HOOK-02 | Manual §6.1 | D-059-H2 fail-closed root | cwd allow bypassを排除 | `check-plan-on-exit.sh` | CH3〜CH8 |
+| SPEC-HOOK-02 | Manual §6.1 | D-059-H2 fail-closed root | cwd allow bypassと想定外非0/timeoutのfail-openを排除 | `check-plan-on-exit.sh` | CH3〜CH8B |
 | SPEC-HOOK-03 | Manual §6.1 | D-059-H3 bounded output | injected write指示を排除 | hook stdout/stderr | CH9〜CH11 |
 | SPEC-HOOK-04 | Manual §6.1 | D-059-H4 permanent wiring | manual-only gateを排除 | local-ci / CI / classifier | CH12〜CH16 |
 
@@ -152,6 +153,7 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 ## Contract Probe
 
 - Claude Code 2.1.220 official hook wire: `${CLAUDE_PROJECT_DIR}`、PreToolUse exit 2 block、exit 0 JSONなしallowを公式referenceで確認 -> proposed wireと一致。
+- Claude Code 2.1.220 outer hook timeout / exit 0・2以外: runnerによるcancelまたはその他exitはblock契約にならない -> settings outer timeout 30秒より短い`timeout --kill-after=2s 20s`をcheckerへ適用し、124/137を含む非0をexit 2へ正規化する計画。
 - global PostToolUse false semantic inference: `rg -n "(git push"`で旧global hookが発火した実測を確認 -> 3 hookをcontainmentで削除、global hook count 0。
 - project tag notification: `rg -n "git tag v1" docs` + success responseを入力すると`audit-trigger-phase.sh`が段階完了を出力 -> command text oracleをreject。
 - project root binding: `cwd=.../docs`で現`check-plan-on-exit.sh`がchecker不在allow -> `${CLAUDE_PROJECT_DIR}`必須。
@@ -164,7 +166,7 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 | Design contract / decision ID | Implementation target | Automated test | L3 or non-scope |
 |---|---|---|---|
 | D-059-H1 single project owner | settings / delete unused hooks / live docs | CH1/CH2/CH9 | global contentはnon-scope |
-| D-059-H2 cwd-independent fail-closed | check-plan-on-exit | CH3〜CH8 | real ExitPlanMode dogfood |
+| D-059-H2 cwd-independent fail-closed | check-plan-on-exit | CH3〜CH8B | real ExitPlanMode dogfood |
 | D-059-H3 no false completion/write injection | settings / optional plan-rally doc | CH9〜CH11 | memory content non-scope |
 | D-059-H4 permanent gate wiring | classifier/local-ci/CI | CH12〜CH16 | hosted final required |
 | local settings remain local | `.gitignore` | CH17 | local file内容non-scope |
@@ -174,7 +176,7 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 Test Design Matrix: [2026-07-31-claude-hook-contract-audit.md](test-matrices/2026-07-31-claude-hook-contract-audit.md)
 
 - targeted tests: `bash scripts/tests/claude-hooks.test.sh`、classifier/local-ci/CI static fixture。
-- negative tests: missing root/checker、checker nonzero、malformed settings、extra hook、plugin true、forbidden injection literal。
+- negative tests: missing root/checker、checker exit 1/126/127、checker hang、malformed settings、extra hook、plugin true、forbidden injection literal。
 - compatibility checks: root/subdirectory cwd、paths with spaces synthetic root、Claude Code exit 0/2 contract。
 - data safety checks: local/global/plugin filesがgit diffへ入らず、repository ignoreがlocal settingsを保護。
 - main wiring/integration checks: `local-ci.sh changed`実行ログとhosted docs step。
@@ -185,9 +187,9 @@ Test Design Matrix: [2026-07-31-claude-hook-contract-audit.md](test-matrices/202
 - consumer: `.claude/hooks/check-plan-on-exit.sh`。
 - wire type: stdin JSONは消費するがpolicy判断には使わない。project rootはenvironment `${CLAUDE_PROJECT_DIR}`。
 - internal type: canonical absolute project root + checker exit status + bounded diagnostic text。
-- precision/range: exit codeは0/2のみ。stderrは末尾20行以下、stdoutは常に空。
+- precision/range: public exit codeは0/2のみ。strict mode + trapでscript-controlledな想定外非0を2へ正規化する。checkerは`timeout --kill-after=2s 20s`、settingsのouter timeoutは30秒。stderrは末尾20行以下、stdoutは常に空。
 - round-trip path: settings command -> hook -> `scripts/doc-consistency-check.sh` -> exit 0/2。
-- invalid input: root unset/non-directory、checker missing/non-executable、checker nonzeroはexit 2。
+- invalid input: root unset/non-directory、checker missing/non-executable、checker nonzero、内部deadline超過、trap可能な内部故障はexit 2。
 - compatibility: event cwd、user home、plugin state、model名に依存しない。
 
 ## Review Focus
@@ -204,6 +206,7 @@ Contract ID: SPEC-HOOK-01
 
 - effective inventoryはtracked project owner 1本、未監査plugin 0本。
 - ExitPlanMode gateはcwd非依存でrepo checkerを実行し、検証不能をallowしない。
+- script-controlledな想定外非0とchecker hangはouter timeout前にexit 2へ正規化する。
 - hookは副作用完了やtracked writeをadditional contextとして注入しない。
 - hook testはlocal/hosted双方のmain wiringに接続する。
 
@@ -212,7 +215,7 @@ Contract ID: SPEC-HOOK-01
 | Spec ID | Plan Step | Test | Review Focus | Evidence |
 |---|---|---|---|---|
 | SPEC-HOOK-01/H1 | settings縮約 | CH1/CH2/CH9 | effective owner | test output / PR body |
-| SPEC-HOOK-01/H2 | gate rewrite | CH3〜CH8 | fail-closed/root | test output / dogfood |
+| SPEC-HOOK-01/H2 | gate rewrite | CH3〜CH8B | fail-closed/root/timeout | test output / dogfood |
 | SPEC-HOOK-01/H3 | advisory退役 | CH9〜CH11 | false claims/write injection | sweep |
 | SPEC-HOOK-01/H4 | permanent wiring | CH12〜CH17 | local/hosted/classifier | local/hosted evidence |
 
@@ -230,6 +233,15 @@ Contract ID: SPEC-HOOK-01
 
 - Findings Freeze: not yet frozen; post-freeze exceptions: none.
 
+### Plan Review round 1（2026-07-31、consultation relay 1/4）
+
+- Opus 5相談窓口が発注書を検証し、Workflow `agent()`でClaude Sonnet 5 / xHigh fresh-context reviewerを1人だけ起動・集約した。Verdict REQUEST CHANGES（P1=0 / P2=2 / P3=0）。
+- P2-1 problem claimをaccept。Claude Codeは0/2以外をblockに使わないため、checker既知failureだけを2へ変換しても未捕捉内部故障とhangがfail-openになりうる。strict mode + trapによるscript-controlled非0の2正規化と、outer 30秒より短い内部20秒 + kill-after 2秒deadlineを契約・AC・Matrixへ追加した。外側runner自身の強制cancelはscriptから捕捉できないため、inner deadlineが先に成立することをfixtureで検証する。
+- P2-2 problem claimをaccept。Plan Packet / DEV_WORKFLOWはSelf-Reviewを所有していなかった。旧hook固有7観点Self-Reviewを後継なしで退役し、Plan Packetへ昇格しない理由をManual §6.1とD-059 Alternativesへ明記した。
+- 相談窓口の独立検算をaccept。session-monitorのGNU `stat -f`はexit 1の部分stdout後にfallback stdoutを連結するのが正しく、malformed JSON結論は不変。plugin hook数はcommand 19 + prompt 1 = 20でD-059記述が正しい。いずれもsource修正不要。
+- mechanism差はevidenceとして記録する。Agent toolではper-agent effort xHighを指定できないため、相談窓口はWorkflow `agent()`を1回だけ使い、model / effort / fresh context / generation 1 / depth 1 / read-onlyを満たした。
+
 ## Narrative
 
 - 2026-07-31 kickoff -> design -> plan-gate: ownerがglobal repo固有hook停止とproject harness無効化のcontainment、および別branchでのR3 Hook監査着手を承認。D-058 closeoutを先にmainへ確定した。現物読解とContract Probeでcommand text誤発火、nested cwd allow、malformed plugin stateを再現し、D-059 / Manual §6.1 / Packet / Matrixを起草した。plan-first commit後、ownerがD-058の本来目的は複数review laneのterminal/session管理をOpus相談窓口へ集約することだと明確化したため、本Plan Gateを最初のeligible consultation relay dogfoodとし、Opus窓口からSonnet 5 / xHigh fresh-context reviewer 1本を起動する。
+- 2026-07-31 Plan Review round 1 -> correction: consultation relayは生成1 / depth 1 / read-onlyを守り、Sonnet reviewerのP2×2を集約した。想定外非0とchecker hangのfail-openをstrict/trap/inner deadline + Matrixへ追加し、所有者不在だったSelf-Reviewは後継なし退役として正本化した。Phaseはplan-gateのまま、新しいtarget/order refでclosure reviewへ戻す。
