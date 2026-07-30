@@ -2,10 +2,10 @@
 
 ## Workflow State
 
-- Phase: plan-gate
+- Phase: implementing
 - Risk: R3
 - Execution Mode: dual-vendor-no-fable
-- Plan Commit: pending
+- Plan Commit: d90dc2d84b6fc59d25b31d00059b5344cda40838
 - Amendments: none
 - Coordinator: Codex
 - Writer: Codex
@@ -14,7 +14,7 @@
 - Reviewed Content HEAD: pending
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
-- Human Gate: Plan Gate approval pending
+- Human Gate: Ready / merge pending（Plan Gate承認済み、owner介入2/3）
 
 ## Owner Effort Budget
 
@@ -248,3 +248,4 @@ Contract ID: SPEC-HOOK-01
 - 2026-07-31 kickoff -> design -> plan-gate: ownerがglobal repo固有hook停止とproject harness無効化のcontainment、および別branchでのR3 Hook監査着手を承認。D-058 closeoutを先にmainへ確定した。現物読解とContract Probeでcommand text誤発火、nested cwd allow、malformed plugin stateを再現し、D-059 / Manual §6.1 / Packet / Matrixを起草した。plan-first commit後、ownerがD-058の本来目的は複数review laneのterminal/session管理をOpus相談窓口へ集約することだと明確化したため、本Plan Gateを最初のeligible consultation relay dogfoodとし、Opus窓口からSonnet 5 / xHigh fresh-context reviewer 1本を起動する。
 - 2026-07-31 Plan Review round 1 -> correction: consultation relayは生成1 / depth 1 / read-onlyを守り、Sonnet reviewerのP2×2を集約した。想定外非0とchecker hangのfail-openをstrict/trap/inner deadline + Matrixへ追加し、所有者不在だったSelf-Reviewは後継なし退役として正本化した。Phaseはplan-gateのまま、新しいtarget/order refでclosure reviewへ戻す。
 - 2026-07-31 Plan Gate closure round 2 -> design pivot: P2-2はclosed、P2-1は実runtimeがinner/outer timeoutを超えるためresidual。通常系が成立しないのでP1相当blockerと裁定し、8本から1本ではなく0本へ縮約する。ExitPlanModeの重複gateを廃止し、既存workflow gateを正本として維持するPlan/Matrixへ改定した。
+- 2026-07-31 Plan Gate closure round 3 -> plan-approved -> implementing: Sonnet 5 / xHigh fresh-context closureはAPPROVE（P1=0 / P2=0 / P3=1）。zero-hook pivotと既存gate ownershipの実体を確認し、ownerが選択肢AとしてPlan Gateを承認した。Plan Commitを`d90dc2d84b6fc59d25b31d00059b5344cda40838`へ固定し、隣接遷移をmaterializeした。P3のManual §6前文driftはimplementation時にCH4のlive docs対象として是正する。Final Double Auditは残るrelay 1回でSonnet 5 / Opus 5 fresh-context reviewerを各1人起動する。
