@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: implementing
+- Phase: independent-review
 - Risk: R3
 - Execution Mode: dual-vendor-no-fable
 - Plan Commit: 850df036cc6f14b4e8c64f893f38c8871321a333
@@ -241,6 +241,7 @@ Contract ID: SPEC-WF-D058-2026-07-30
 - `docs/AGENT_OPERATING_MANUAL.md` §3 / §5.4 / §5.5へ、`dual-vendor-no-fable`限定の相談窓口役、tracked immutable order ref、referenced commit時点のPacket宣言照合、read-only継承、数値capと既存budget算入、Fable復帰時の停止境界を実装した。
 - `docs/decision-log.md`へD-058をappendし、owner決定、理由、影響、却下案、rollback / revisitを正本化した。`docs/PROJECT_HANDOFF.md`と`docs/Plans.md`をlive stateへ同期した。
 - Matrix A1〜A15は対象sourceで一意に接続し、N1〜N6は既存DEV_WORKFLOW / D-056 / §2 / §3.1〜§3.4 / §5.4の非改変を確認した。negative mutationとexact-head L1 / review evidenceはPR bodyへ記録する。
+- Matrix X1〜X12とguard sensitivity G1〜G9は、implementation commit後のclean treeで各ケースを独立に注入し、red -> restore -> green -> cleanを確認した。Node 24.18.0のrepo pin下でL1 fullを通過し、Draft PR #47を作成した。
 
 ## Review Response
 
@@ -267,3 +268,4 @@ Contract ID: SPEC-WF-D058-2026-07-30
 - 2026-07-30 Plan Review round 1（relay 1/4）: REQUEST CHANGES（P1=1 / P2=2 / P3=2）。provenanceをtracked artifact + immutable SHA/path + `git show`検証へ再設計し、§3.4 guardをsection byte比較、§2 / §3.1〜§3.3 guardを追加。Fable復帰時のpartial dispatchとX8二重被覆を明文化した。Phaseはplan-gate、Plan Commitはpendingのままclosure reviewを待つ。
 - 2026-07-30 Plan Review closure（relay 2/4）: APPROVE（P1=0 / P2=0 / P3=0）。全finding CLOSED。Plan Commitは`DEV_WORKFLOW.md`のplan-first identity契約に従い`850df036cc6f14b4e8c64f893f38c8871321a333`へ固定し、是正後HEADへ差し替えるreviewer提案は棄却。必要証跡が揃ったため`plan-gate -> plan-approved -> implementing`を圧縮遷移し、source docs実装を開始する。
 - 2026-07-30 implementation: Manual §3 / §5.4 / §5.5、decision-log D-058、PROJECT_HANDOFFを実装した。closure observationはreferenced commit時点のPacket宣言を照合元と明記して閉じた。A1〜A15とN1〜N6、target plan / full docs consistencyをgreen確認し、implementation commit後のclean treeでnegative mutationへ進む。
+- 2026-07-30 local verification -> independent review: X1〜X12 / G1〜G9を各red -> restore -> green -> cleanで完了。system Node 25の初回L1はNode 24以外を拒否する`devEngines`契約どおりfail-fastしたため、明示repo pin `mise exec node@24.18.0 --`で再実行してPASS / CLEAN / merge evidence validを確認した。Draft PR #47を作成し、`implementing -> local-verified -> independent-review`を本validation / dashboard content commitに同乗させてDouble Auditへ進む。
