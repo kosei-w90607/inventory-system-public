@@ -109,7 +109,7 @@
 
 ## 次の行動
 
-0. **Claude Hook監査に着手**: global / project / pluginのeffective hookを棚卸しし、虚偽の成功通知、cwd依存、重複owner、malformed state、未監査のpermission decisionを閉じるR3 workflow gate change。D-058 closeout後に別branchでDesign / Contract Probe / Plan Packet / Matrixを作成し、Plan Gate承認前はproject hook実装へ進まない。globalのrepo固有hook 3本は停止済み、`claude-code-harness`は当repoだけ暫定無効化済み。`.claude/settings.local.json`のrepo ignore、stdout + exit code同時oracle、allow / deny / askの正負test、missing / malformed state、実mutation、per-hook ownerを計画へ含める。
+0. **Claude Hook監査 ready-hosted-final / final実行中**: **[Packet](plans/2026-07-31-claude-hook-contract-audit.md) / [Matrix](plans/test-matrices/2026-07-31-claude-hook-contract-audit.md) / PR #48**。Final closureはAPPROVE（P1/P2/P3=0）、P2-CH10 CLOSED。ownerが介入5/5でReady / merge一括承認済み、relay 6/6。Draftのままstate-only Ready遷移を作成し、そのexact HEADでL1 full、PR body refresh、Ready、hosted final、三点SHA一致、merge、Post-Merge Closeoutまで進める。Matrix CH10表示名の名称差はcloseoutで同期する。
    **直近完了**: **[D-058 Fable slot不在編成の相談窓口役 Packet](archive/plans/2026-07-30-d058-consultation-relay-role.md) / [Matrix](archive/plans/test-matrices/2026-07-30-d058-consultation-relay-role.md) / PR #47 squash merge `b50e86a`。** Double Audit closure P1/P2=0、Ready HEAD `56f76d4`のexact local / hosted三点一致を確認。Post-Freeze P3のManual空白1字とMatrix assertionのtemplate target列挙漏れはcloseoutで是正した。最初のdogfood targetは次のeligible consultation relay order。
    前段の **順10 scope 精査（拡張版）は 2026-07-27 実施済み**: [report](research/audit-2026-07/report.md) の優先度付き是正リスト 22 単位を順1〜9 消化実績（PR #14〜#26、上記完了リスト）と突合し、**残 = 順10〜22 の 13 単位**を確定（numbering の正本は report.md。[adjudication](research/audit-2026-07/adjudication.md) の「新順/旧順」表記は第 1 パス旧番号）。同一 file 干渉 pair = 順13×順14（`src/lib/bindings.ts` 生成物）/ 順15×順17（`OperationLogsPage.tsx`）/ 順15×順18（`navigation.ts`）/ 順15×順21（`ManualSaleRecordDetailPage.tsx`）/ 順10×順18（`53-ui-home.md`）。順9 は PR #26 squash merge `9cba5aa` で完了（archived [Packet](archive/plans/2026-07-26-file-contract-unification.md) 参照）。
    **是正記録（2026-07-21）**: closeout `8a36224` は「次 = roadmap 1-2 横断監査」としていたが、1-2 は **PR #13 squash merge `d9e16fe`（2026-07-17）で消化済み**（上記完了リスト参照。監査発注書 [00-order.md](research/audit-2026-07/00-order.md) 自身が roadmap 1-2 と明記）。roadmap リストの取り消し線漏れに起因して PR #17 closeout 以降 3 closeout 連続で「1-2 は未着手」扱いの drift が伝播していたため、owner 確認の上で是正。D-050 (iii) の revisit 先「roadmap 1-2 横断監査の発注書作成時」は「次回の横断監査発注書作成時」と読み替える。
@@ -139,7 +139,7 @@
    5. **v1.0 gate**: Windows MSI 配布手順 docs 化 + 配布判定（4 の受入テスト pass が入口条件）
 
    UI 部品・UX 系（~~FilePicker 共通化~~（順9 PR #26 で消化）/ 復元成功表示強調）と ツールチェーン系（audit 消化 / ~~Node 24 toolchain alignment（PR #46）~~ / command drift detection）は独立 track として隙間で消化。PLU スロット永続割当 / UI-09a/b 将来設計は店舗確認（下記 2）待ち。
-2. slice 2 follow-up 群（軽量、単独 PR 可）: hook 統合導入（`.claude/hooks/` + settings.json、sandbox 書込み制約の外での作業が前提）/ `Amendments:` SHA 抽出の strict 化 / `check_plan_commit_ancestry` の section-scoped 抽出 / `check_signature_cross_reference` の pipefail 潜在バグ / no-active-plan check の導入（WARN から）。詳細は [archive/plans/2026-07-12-mechanical-workflow-slice2.md](archive/plans/2026-07-12-mechanical-workflow-slice2.md) Review Response と decision-log D-039。
+2. slice 2 follow-up 群（軽量、単独 PR 可）: `Amendments:` SHA 抽出の strict 化 / `check_plan_commit_ancestry` の section-scoped 抽出 / `check_signature_cross_reference` の pipefail 潜在バグ / no-active-plan check の導入（WARN から）。旧hook統合導入案はD-059で不採用となり、tracked project hook inventory 0本へ置換した。詳細は [archive/plans/2026-07-12-mechanical-workflow-slice2.md](archive/plans/2026-07-12-mechanical-workflow-slice2.md) Review Response と decision-log D-039 / D-059。
 
 ## 後回し Backlog の参照先
 

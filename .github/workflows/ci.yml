@@ -320,6 +320,9 @@ jobs:
       - name: Run Codex safe wrapper regression tests
         run: bash scripts/tests/codex-safe-wrappers.test.sh
 
+      - name: Audit Claude project hook inventory
+        run: bash scripts/tests/claude-hooks.test.sh
+
       - name: Run doc consistency check
         run: bash scripts/doc-consistency-check.sh
 

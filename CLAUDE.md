@@ -10,11 +10,11 @@
 
 `AGENTS.md` `Session Start` が唯一の canonical reading order。Claude Code でもその順序とリンク先に従い、ここへ順序や共通 workflow を複製しない。Codex/OpenAI harness の `.agents/skills/*/SKILL.md` は、Claude Code が Skill として load しない場合も plain procedure docs として読める。
 
-## Claude subagent / hook
+## Claude subagent / project hook
 
 Role / availability mode / subagent budget は `docs/AGENT_OPERATING_MANUAL.md` と `docs/DEV_WORKFLOW.md` を正とする。Claude worker が編集するときは worktree isolation または Plan Packet に明示した非重複 ownership を使い、writer を自己承認者にしない。
 
-Claude 固有の `ExitPlanMode` hook は `check-plan-on-exit.sh` と `suggest-subagent-for-plan.sh`。hook の結果は Workflow State や Plan Gate の代替ではない。
+このrepositoryのtracked project hook inventoryは0本。`claude-code-harness`もproject scopeで無効化する。Plan Gateは独立Plan Review、doc consistency、pre-push、local full、hosted finalが所有し、Claude固有hookで再実装しない。
 
 ## セッション復旧・引き継ぎ
 
@@ -22,13 +22,12 @@ Claude 固有の `ExitPlanMode` hook は `check-plan-on-exit.sh` と `suggest-su
 
 ## 記憶システム運用
 
-Claude Code 純正の auto-memory を主記憶。詳細方針は `~/.claude/CLAUDE.md` の「記憶システム優先順位」参照。
+Claude Code純正のauto-memoryは個人用の補助層としてのみ使う。project固有の事実・判断・進捗は`AGENTS.md`のMemory Modelに従ってtracked docsへ置き、repository hookからmemory writeを注入しない。
 
 - 格納場所: `/home/kosei/.claude/projects/-home-kosei-Projects-inventory-system-public/memory/`
-- 明示保存トリガー（例外なく Write）: `覚えておいて` / `記憶して` / `残しておいて` / `feedback残す` / `save this` / `remember this`
-- 暗黙保存: 俺の提案を**否定** → feedback型（Why:に理由）、**採用** → project型、**好み/判断軸** → feedback型、**未ドキュメント情報** → project or user型
-- hook: `.claude/hooks/memory-capture-feedback.sh` がトリガー語検知して additionalContext 注入
-- セッション終了時: turn で出た feedback/判断軸が memory/ に反映されているか確認、未反映なら Write
+- project固有の進捗正本: `Plans.md` / Plan Packet / PR body
+- durableなproject判断: `docs/decision-log.md`または該当design doc
+- auto-memoryへの保存は明示的な個人メモ用途に限定し、workflow gateや完了条件にしない
 
 ## npm 供給網防御ルール（常設、2026-07-05 D-030 で凍結から移行）
 

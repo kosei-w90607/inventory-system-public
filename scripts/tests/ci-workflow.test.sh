@@ -173,9 +173,17 @@ end
 RUBY
 }
 
+validate_claude_hook_audit() {
+    local workflow="${1:-$WORKFLOW}"
+    grep -Fq 'run: bash scripts/tests/claude-hooks.test.sh' "$workflow"
+}
+
 validate_job_graph "$WORKFLOW"
 validate_workflow_contract "$WORKFLOW"
 validate_node_contract
+# D-059 / SPEC-HOOK-01 / CH8: hosted workflow owns the inventory audit step.
+validate_claude_hook_audit ||
+    fail "CH8 hosted Claude hook audit step is missing"
 
 mutation_dir="$(mktemp -d)"
 trap 'rm -rf "$mutation_dir"' EXIT
@@ -276,6 +284,12 @@ if validate_workflow_contract "$merge_group_mutation" >/dev/null 2>&1; then
     fail "workflow contract validator accepted an extra top-level trigger"
 fi
 
+claude_hook_step_mutation="$mutation_dir/missing-claude-hook-audit.yml"
+sed '\|run: bash scripts/tests/claude-hooks.test.sh|d' "$WORKFLOW" > "$claude_hook_step_mutation"
+if validate_claude_hook_audit "$claude_hook_step_mutation" >/dev/null 2>&1; then
+    fail "CH9 workflow validator accepted a missing Claude hook audit step"
+fi
+
 reject_fixed "  push:"
 reject_fixed '      - "**/*.md"'
 require_fixed "  workflow_dispatch:"
@@ -297,6 +311,7 @@ require_fixed "if: always() && needs.changes.result == 'success'"
 require_fixed "name: Rust (fmt + clippy + test)"
 require_fixed "cache: npm"
 require_fixed "bash scripts/tests/codex-safe-wrappers.test.sh"
+require_fixed "bash scripts/tests/claude-hooks.test.sh"
 
 if grep -Fq 'Hosted CI: skip' "$PR_TEMPLATE"; then
     fail "PR template contains the opt-in skip token by default"

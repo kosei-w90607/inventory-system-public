@@ -314,7 +314,7 @@ if rg -n "$OLD_ROOT_PATTERN" \
     fail "T11 execpolicy still contains history-view path tokens"
 fi
 
-# T12-T13: live B-group docs/hooks use the public path/namespace. The setup
+# T12-T13: live B-group docs/commands use the public path/namespace. The setup
 # checklist scan is intentionally limited to its live sections so A-group
 # historical lines remain untouched.
 live_files=(
@@ -322,12 +322,6 @@ live_files=(
     "$SOURCE_ROOT/.codex/README.md"
     "$SOURCE_ROOT/docs/TOOLING_SKILL_COMMANDS.md"
     "$SOURCE_ROOT/.claude/commands/plan-rally.md"
-    "$SOURCE_ROOT/.claude/hooks/check-plan-on-exit.sh"
-    "$SOURCE_ROOT/.claude/hooks/memory-capture-feedback.sh"
-    "$SOURCE_ROOT/.claude/hooks/memory-precompact-scan.sh"
-    "$SOURCE_ROOT/.claude/hooks/audit-trigger-phase.sh"
-    "$SOURCE_ROOT/.claude/hooks/audit-trigger-plan.sh"
-    "$SOURCE_ROOT/.claude/hooks/audit-safety-net.sh"
     "$SOURCE_ROOT/CLAUDE.md"
 )
 if rg -n "$OLD_ROOT_PATTERN" "${live_files[@]}"; then
@@ -343,12 +337,6 @@ if rg -n -- "$old_namespace_pattern" "${live_files[@]}"; then
     fail "T12 live B-group file still contains the history-view encoded namespace"
 fi
 namespace_files=(
-    "$SOURCE_ROOT/.claude/hooks/check-plan-on-exit.sh"
-    "$SOURCE_ROOT/.claude/hooks/memory-capture-feedback.sh"
-    "$SOURCE_ROOT/.claude/hooks/memory-precompact-scan.sh"
-    "$SOURCE_ROOT/.claude/hooks/audit-trigger-phase.sh"
-    "$SOURCE_ROOT/.claude/hooks/audit-trigger-plan.sh"
-    "$SOURCE_ROOT/.claude/hooks/audit-safety-net.sh"
     "$SOURCE_ROOT/CLAUDE.md"
 )
 for namespace_file in "${namespace_files[@]}"; do

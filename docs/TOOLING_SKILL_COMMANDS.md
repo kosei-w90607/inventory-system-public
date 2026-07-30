@@ -248,13 +248,13 @@ cargo test
 - ~/.claude/plugins/cache/*
 - ~/.claude/plugins/data/*
 
-現在有効:
+user-globalで導入を確認:
 - engram@engram
 - rust-analyzer-lsp@claude-plugins-official
 - claude-mem@thedotmack
 - claude-code-harness@claude-code-harness-marketplace
 
-メモ: claude-code-harness は現在「いったん脇に置く」方針でも、設定上は有効のまま残っている。
+repository実効値: `claude-code-harness`はtracked `.claude/settings.json`でproject scope無効。plugin cacheはpatchせず、再採用はD-059のRevisit条件に従う。
 
 ---
 
@@ -356,8 +356,8 @@ MCPツール（README記載）:
 - /harness-review
 
 使いどころ:
-- Plan → Work → Review の自律サイクルを統一
-- ただし現状は init で詰まりがあったため、再導入時に段階的検証推奨
+- 導入コマンドの履歴参照のみ。このrepositoryでは無効
+- 再導入時はdecision hook、state producer、正常系runtime / timeoutを別R3 Plan Gateで監査する
 
 ---
 

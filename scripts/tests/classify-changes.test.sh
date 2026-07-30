@@ -91,6 +91,20 @@ assert_contract "$output"
 assert_value "$output" workflow true
 assert_value "$output" unknown false
 
+# D-059 / SPEC-HOOK-01 / CH6: Claude settings, hooks, and commands route to workflow.
+for path in .claude/settings.json .claude/hooks/check-plan-on-exit.sh .claude/commands/plan-rally.md; do
+    output="$(classify_paths "$path")"
+    assert_contract "$output"
+    assert_value "$output" workflow true
+    assert_value "$output" unknown false
+done
+
+output="$(classify_paths .claude/skills/example/SKILL.md)"
+assert_contract "$output"
+assert_value "$output" docs true
+assert_value "$output" workflow false
+assert_value "$output" unknown false
+
 for path in mystery.xyz unknown/deep/file.bin; do
     output="$(classify_paths "$path")"
     assert_contract "$output"

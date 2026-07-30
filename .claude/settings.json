@@ -26,57 +26,7 @@
     ],
     "deny": []
   },
-  "hooks": {
-    "UserPromptSubmit": [
-      {
-        "hooks": [
-          { "type": "command", "command": ".claude/hooks/memory-capture-feedback.sh" }
-        ]
-      }
-    ],
-    "PreCompact": [
-      {
-        "hooks": [
-          { "type": "command", "command": ".claude/hooks/memory-precompact-scan.sh" }
-        ]
-      }
-    ],
-    "PreToolUse": [
-      {
-        "matcher": "ExitPlanMode",
-        "hooks": [
-          { "type": "command", "command": ".claude/hooks/check-plan-on-exit.sh", "timeout": 10 },
-          { "type": "command", "command": ".claude/hooks/suggest-subagent-for-plan.sh", "timeout": 10 }
-        ]
-      }
-    ],
-    "PostToolUse": [
-      {
-        "matcher": "Bash",
-        "hooks": [
-          { "type": "command", "command": ".claude/hooks/audit-trigger-phase.sh" }
-        ]
-      },
-      {
-        "matcher": "Write|Edit|MultiEdit",
-        "hooks": [
-          { "type": "command", "command": ".claude/hooks/audit-trigger-plan.sh" }
-        ]
-      }
-    ],
-    "SessionStart": [
-      {
-        "matcher": "compact",
-        "hooks": [
-          { "type": "command", "command": ".claude/hooks/memory-postcompact-check.sh" }
-        ]
-      },
-      {
-        "matcher": "startup|clear|compact",
-        "hooks": [
-          { "type": "command", "command": ".claude/hooks/audit-safety-net.sh" }
-        ]
-      }
-    ]
+  "enabledPlugins": {
+    "claude-code-harness@claude-code-harness-marketplace": false
   }
 }

@@ -193,7 +193,20 @@ docs/Plans.md cleanup は DEV_WORKFLOW.md の Post-Merge Closeout に準拠す�
 
 ## 6. ハーネス間の既知の非対称（重要な注意）
 
-- `.codex/hooks.json` は gitignore 済みの未確認実験で非稼働。Claude 側 hook（ExitPlanMode チェック等）の機械強制は Codex には効かない。その分、pre-push / CI の機械ゲートと review-only packet を厚めに使う。
+- `.codex/hooks.json` は gitignore 済みの未確認実験で非稼働。Claude側もD-059採用時点のtracked project hook inventoryは0本。両harnessともpre-push / local full / hosted CIの正本gateとreview-only packetを使う。
 - `$inventory-workflow-start` 等の `$` 記法は Codex/OpenAI harness の入口。Claude や他 agent は `.agents/skills/*/SKILL.md` を plain procedure docs として読む。
 - subagent 数の上限は [DEV_WORKFLOW.md](DEV_WORKFLOW.md)「Subagent Budget」が正本。ハーネス側の並列機能がこれを超えられる場合でも budget を守る。
+
+### 6.1 Claude project hook の所有境界
+
+Claude Code hook は、設定の置き場所と効力を分離する（D-059）。
+
+- user-global `~/.claude/settings.json` は repository 非依存の個人設定だけを所有し、この repository 固有の command、path、`Plans.md` 更新指示を置かない
+- tracked `.claude/settings.json` が repository 固有 hook inventory の唯一の正本。D-059の採用時点ではinventoryを0本とし、Plan GateをClaude固有hookで再実装しない
+- `.claude/settings.local.json` は machine-local override であり、tracked 正本の代用にしない。repository の `.gitignore` でも保護する
+- plugin hook は project hook と別の decision layer。plugin 単位で監査・採用を決め、未監査または宣言と実効動作が一致しない plugin は project scope で無効化する。plugin cache の直接 patch は行わない
+- 将来decision hookを再導入する場合は、入力、stdout、stderr、exit code、許可 / 拒否条件、正常系runtime、timeoutを先に契約化し、fixture testを持たせる。既存checkerの単純接続は、正常系runtimeがhook timeoutを超えないことを複数回実測するまで採用しない
+- advisory hook は tool 実行の成否や副作用を command 文字列だけから推定しない。実際には完了していない push / PR 作成を完了済みと表現したり、read-only role へ tracked write を命じたり、`[MANDATORY]` 文言で repository workflow を上書きしたりしない
+- Plan Reviewer、Final Reviewer、subagent の要否は Plan Packet と DEV_WORKFLOW が所有する。旧hook固有の7観点 `Self-Review` とplan rally強制は後継なしで退役する。hook は model 名、agent log、時間窓、個人 memory を根拠に追加 review を強制しない
+- effective hook inventory（0本を含む）とplugin無効化はrepo-owned testをlocal fullとhosted finalの両方で実行する
 - CASIO 語彙（`Z00x` / `CV17` / `SR-S4000` / `CP932`）の BIZ/CMD 契約への混入検出は機械ガードが存在しない。レビューが最後の砦であり、[review-checklist](quality/review-checklist.md) の設計判断レンズ #2 を必ず使う。
