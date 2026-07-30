@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: independent-review
+- Phase: implementing
 - Risk: R3
 - Execution Mode: dual-vendor-no-fable
 - Plan Commit: d90dc2d84b6fc59d25b31d00059b5344cda40838
@@ -230,7 +230,7 @@ Contract ID: SPEC-HOOK-01
 
 ## Review Response
 
-- Findings Freeze: not yet frozen; post-freeze exceptions: none.
+- Findings Freeze: frozen after both Final Double Audit passes completed on `3a54baf`; post-freeze exceptions: runtime-proven P2 only.
 
 ### Plan Review round 1（2026-07-31、consultation relay 1/4）
 
@@ -253,6 +253,14 @@ Contract ID: SPEC-HOOK-01
 - P3のManual §6前文driftをaccept。実装で現在形のExitPlanMode強制記述をinventory 0本へ同期し、CH4 `forbidden_hook_claims_absent`のlive docs対象へManualを含めた。
 - ownerは選択肢Aを承認。relay上限4を維持し、Final Double Auditは最後の1 orderでSonnet 5 / Opus 5 fresh-context reviewerを各1人生成する。
 
+### Final Double Audit（2026-07-31、consultation relay 4/4）
+
+- Sonnet 5 passはREQUEST CHANGES（P1=0 / P2=1 / P3=2）、Opus 5 passはP1=0 / P2=1 / P3=1を報告した。Opusの`APPROVE`表記はP2件数と発注書gateが矛盾するため採用せず、aggregateをREQUEST CHANGESと裁定した。両pass完了時点でFindings Freezeを発効した。
+- 共通findingのCH4 live docsから`docs/Plans.md`が欠落する問題をP2としてacceptした。MatrixのAdjacent Pattern AuditがPlans backlogをCH4で覆うと主張する以上、実体のないcoverage claimはmerge blockerである。
+- Opus単独findingのCH10未実装をP2としてacceptした。source rootへの`validate_contract`呼出しを削除してもfixture mutation群がgreenとなるため、Matrix / Ledgerが主張するanti-tautology契約を満たさない。
+- Sonnet単独findingのhosted validator裸呼出しをP3、CH6 / CH8 / CH9のtest ID表示欠落をP3としてacceptした。いずれも同じtest correction内で閉じる。
+- `DEV_WORKFLOW.md`のcorrection ruleに従い`independent-review -> implementing`へbacktrackする。Scope / Non-scope / durable contractは変更せず、test coverageと診断だけをsame-PR correctionする。
+
 ## Narrative
 
 - 2026-07-31 kickoff -> design -> plan-gate: ownerがglobal repo固有hook停止とproject harness無効化のcontainment、および別branchでのR3 Hook監査着手を承認。D-058 closeoutを先にmainへ確定した。現物読解とContract Probeでcommand text誤発火、nested cwd allow、malformed plugin stateを再現し、D-059 / Manual §6.1 / Packet / Matrixを起草した。plan-first commit後、ownerがD-058の本来目的は複数review laneのterminal/session管理をOpus相談窓口へ集約することだと明確化したため、本Plan Gateを最初のeligible consultation relay dogfoodとし、Opus窓口からSonnet 5 / xHigh fresh-context reviewer 1本を起動する。
@@ -261,3 +269,4 @@ Contract ID: SPEC-HOOK-01
 - 2026-07-31 Plan Gate closure round 3 -> plan-approved -> implementing: Sonnet 5 / xHigh fresh-context closureはAPPROVE（P1=0 / P2=0 / P3=1）。zero-hook pivotと既存gate ownershipの実体を確認し、ownerが選択肢AとしてPlan Gateを承認した。Plan Commitを`d90dc2d84b6fc59d25b31d00059b5344cda40838`へ固定し、隣接遷移をmaterializeした。P3のManual §6前文driftはimplementation時にCH4のlive docs対象として是正する。Final Double Auditは残るrelay 1回でSonnet 5 / Opus 5 fresh-context reviewerを各1人起動する。
 - 2026-07-31 implementing first pass: zero-hook settings、tracked hook削除、harness false、optional plan helper、repo-owned inventory / mutation test、workflow classifier、local / hosted wiring、live docs同期を実装した。Plan Review P3のManual前文もCH4対象として是正し、targeted testsをgreenにした。
 - 2026-07-31 local verification -> independent review: implementation commit `b3e1ad92fe0bc878a75b66024e8bcf9d743dfb57`をNode 24.18.0のrepo pin下でchanged / L1 full検証し、PASS / CLEAN / merge evidence validを確認した。system Node 25の初回changedは`devEngines`契約どおりfail-fastしたためmerge evidenceには採用しない。Draft PR #48を作成し、このvalidation / dashboard content commitへ`implementing -> local-verified -> independent-review`を同乗させ、最後のconsultation relay orderによるDouble Auditへ進む。
+- 2026-07-31 Final Double Audit -> implementing: relay 4/4の独立2 passはCH4 Plans coverage欠落とCH10 source-direct anti-tautology未実装をP2として検出した。Coordinatorは両problem claimを実ソースで再現し、P3の診断 / ID表示と同じtest-only correctionで閉じると裁定した。Findings Freezeを発効し、正本規則どおり`independent-review -> implementing`へbacktrackする。
