@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: independent-review
+- Phase: implementing
 - Risk: R3
 - Execution Mode: dual-vendor-no-fable
 - Plan Commit: 850df036cc6f14b4e8c64f893f38c8871321a333
@@ -245,7 +245,7 @@ Contract ID: SPEC-WF-D058-2026-07-30
 
 ## Review Response
 
-- Findings Freeze: not yet frozen; post-freeze exceptions: none.
+- Findings Freeze: frozen after Double Audit; post-freeze exceptions: none.
 
 ### Plan Review round 1（2026-07-30、Claude Sonnet 5 / xHigh fresh context、relay 1/4）
 
@@ -262,6 +262,13 @@ Contract ID: SPEC-WF-D058-2026-07-30
 - 非blocking observation「宣言pathの参照時点」は、Scope / Boundary Contractが同じimmutable refのcommitにあるtarget Packetを復元して宣言pathを照合する契約なので、referenced commit時点と裁定した。実装文言で明示し、HEAD時点のworking-tree Packetは照合元にしない。
 - reviewerの「Plan Commitを是正後HEAD `fd473cce459ca17aaef0863f8d3878d36e7fe0f7`へ向ける」提案は棄却した。`DEV_WORKFLOW.md`の定義はplan-first commitのSHAであり、plan-gate correctionを最新snapshotとして指定する欄ではない。plan-first `850df036cc6f14b4e8c64f893f38c8871321a333`を固定し、是正commit `fd473cce459ca17aaef0863f8d3878d36e7fe0f7`はその後かつ実装前のreviewed correctionとしてNarrativeに保持する。
 
+### Final Review Double Audit（2026-07-30、relay 3/4 + 4/4）
+
+- Sonnet 5 / xHigh fresh context: APPROVE（P1=0 / P2=0 / P3=1）。D-058実体契約は適合し、`PROJECT_HANDOFF.md`最終更新ヘッダーのphase driftだけをP3として報告した。
+- Opus 5 / xHigh fresh context・D-056 §5.4低制約profile: REQUEST CHANGES（P1=1 / P2=3 / P3=3）。Coordinatorはproblem claimを全件実読し、target content SHAのPacket帰属がD-035/D-038と衝突する点、superseded order refのcurrentness欠落、既使用枠を差し引かないcap、Packet templateの宣言欄欠落、§3 cross-reference、order配置とtarget binding、同節のspacing driftをacceptした。severity境界にかかわらずP1/P2 gateは未達。
+- 両pass完了によりFindings Freezeを発効した。blockerは初回Broad Audit内のfindingであり、`DEV_WORKFLOW.md`に従って`independent-review -> implementing`へ戻す。
+- ownerは介入2/3としてrelay上限を4から6へ拡張し、同一PR是正とSonnet / Opus各1回のclosureを承認した。
+
 ## Narrative
 
 - 2026-07-30 kickoff -> design -> plan-gate: ownerがD-058案と理由付き改定を承認（介入1/3）。CoordinatorはR3 workflow gate change、Plan Packet + Matrix、Double Audit、hosted requiredと判定した。「必要な数」は無界なので、Coordinator指定の数値cap + target change budget算入へ補正。D-056 read-onlyを生成subagentへ継承し、Fable復帰時は新規投入停止とした。実装前にClaude Sonnet 5 / xHigh fresh-context Plan Gateへ渡す。
@@ -269,3 +276,4 @@ Contract ID: SPEC-WF-D058-2026-07-30
 - 2026-07-30 Plan Review closure（relay 2/4）: APPROVE（P1=0 / P2=0 / P3=0）。全finding CLOSED。Plan Commitは`DEV_WORKFLOW.md`のplan-first identity契約に従い`850df036cc6f14b4e8c64f893f38c8871321a333`へ固定し、是正後HEADへ差し替えるreviewer提案は棄却。必要証跡が揃ったため`plan-gate -> plan-approved -> implementing`を圧縮遷移し、source docs実装を開始する。
 - 2026-07-30 implementation: Manual §3 / §5.4 / §5.5、decision-log D-058、PROJECT_HANDOFFを実装した。closure observationはreferenced commit時点のPacket宣言を照合元と明記して閉じた。A1〜A15とN1〜N6、target plan / full docs consistencyをgreen確認し、implementation commit後のclean treeでnegative mutationへ進む。
 - 2026-07-30 local verification -> independent review: X1〜X12 / G1〜G9を各red -> restore -> green -> cleanで完了。system Node 25の初回L1はNode 24以外を拒否する`devEngines`契約どおりfail-fastしたため、明示repo pin `mise exec node@24.18.0 --`で再実行してPASS / CLEAN / merge evidence validを確認した。Draft PR #47を作成し、`implementing -> local-verified -> independent-review`を本validation / dashboard content commitに同乗させてDouble Auditへ進む。
+- 2026-07-30 Final Review Double Audit -> implementing: Sonnet passはP3=1、Opus passはP1=1 / P2=3 / P3=3。target SHAのevidence ownership衝突、order ref currentness、subagent空き枠予約、Packet template登録を同一PR blockerとしてacceptし、Findings Freezeを発効した。ownerは介入2/3でrelay上限6と同一PR是正を承認したため、state-only backtrack後にgated correctionへ進む。
