@@ -2,10 +2,10 @@
 
 ## Workflow State
 
-- Phase: plan-gate
+- Phase: implementing
 - Risk: R2
 - Execution Mode: dual-vendor-no-fable
-- Plan Commit: pending
+- Plan Commit: 2047400
 - Amendments: none
 - Coordinator: Codex
 - Writer: Codex
@@ -14,7 +14,7 @@
 - Reviewed Content HEAD: pending
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
-- Human Gate: pending local Node 24 installation / Ready / merge
+- Human Gate: pending Ready / merge
 
 ## Owner Effort Budget
 
@@ -207,3 +207,4 @@ pending
 
 - 2026-07-30 owner kickoff: Node 24一本化を先行し、Dependabotで一次監視済みのRust `cargo audit`は別changeとする方針を確定。介入1/3、relay 0/2。Plan Reviewer / Final ReviewerはClaude Sonnet 5 fresh contextとする。
 - 2026-07-30 Plan Gate review（relay 1/2）: Claude Sonnet 5 fresh context が REQUEST CHANGES（P1=1 / P2=2 / P3=1）。live §4.5 の Node 20 残存を Node 24.18.0 へ是正し、追加 sweep で見つけた live Node 22 backlog 4 箇所も active Node 24 change へ同期。ローカル継続一致は npm 現行仕様と Node 25.8.2 の隔離 probe を根拠に `devEngines.runtime` fail-fast を採用し、user-wide default 変更と install 時のみの `engine-strict` 単独案を不採用。未参照の root Docker 構成は明示 Non-scope + backlog 化し、workflow static test は両 workflow を個別に覆うことを計画へ追記した。Phase は `plan-gate`、Plan Commit は `pending` のまま fresh closure review を待つ。
+- 2026-07-30 Plan Gate closure（relay 2/2）: Claude Sonnet 5 / xHigh の fresh context が reviewed state HEAD `056795fd36c761d1f39d10abe2a2ece11f1b1779` を read-only closure reviewし、Verdict APPROVE、P1/P2/P3=0。Coordinator は live file、npm 11.11.1実装、公式npm CLI契約、`bash scripts/doc-consistency-check.sh --target plan`を独立再確認し、承認を妨げない evidence wording 2点（active Packet自身のNode 22説明を除外していない「hitゼロ」表現、`Plans.md`の現行行番号137→140）だけを補正して受理した。ownerはrepository外local tool cacheへのNode 24.18.0導入を介入2/3として承認。Plan-first commit `2047400` とclosure commit `056795f` が実装より先行することを確認し、`plan-gate -> plan-approved -> implementing`をmaterializeした。
