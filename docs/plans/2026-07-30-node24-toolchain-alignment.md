@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: human-confirm
+- Phase: ready-hosted-final
 - Risk: R2
 - Execution Mode: dual-vendor-no-fable
 - Plan Commit: 2047400
@@ -14,7 +14,7 @@
 - Reviewed Content HEAD: d6ae17b1465005b2e9e0faa1f90c76edd979e19a
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
-- Human Gate: pending Ready / merge
+- Human Gate: none
 
 ## Owner Effort Budget
 
@@ -27,7 +27,7 @@
 1. Node 24 一本化を先行し、Rust `cargo audit` は別 change とする方針の決定（実施済み、介入 1/4）
 2. repository 外の local tool cache へ Node 24.18.0 を導入する承認（実施済み、介入 2/4）
 3. Draft PR 公開と必須 Final Review 用の budget exception（実施済み、介入 3/4）
-4. Ready / merge の一括承認（pending）
+4. Ready / merge の一括承認（実施済み、介入 4/4）
 
 ## Risk
 
@@ -217,3 +217,5 @@ R2のため非必須。Design Intent Traceで3 contractを追跡する。
 - 2026-07-30 owner budget exception: Plan Gateの初回reviewとclosureでrelay既定上限2回を消費した一方、Workflow Stateで割当済みの必須Final Reviewerが未実施だったため、ownerが介入上限を3回から4回、relay上限を2回から3回へ今回限り拡張した。介入3/4はDraft PR公開とexact content HEADへのClaude Sonnet 5 fresh-context Final Review 1往復に限定し、介入4/4はP1/P2=0後のReady / merge一括承認用に予約する。scope、実装契約、hosted requirementは変更しない。
 - 2026-07-30 formal Final Review（relay 3/3）: Claude Sonnet 5 / xHigh fresh contextがDraft PR #46のcontent HEAD `d6ae17b1465005b2e9e0faa1f90c76edd979e19a`をread-only監査し、Verdict APPROVE、P1/P2/P3=0。Coordinatorはlive diff 9 file、PR headRefOid、Node contract文言、workflow/static-test差分、working tree CLEANを独立再確認して受理した。reviewer観察のNode不一致時に`npm view`も拒否される挙動は、source docが保証する`install` / `ci` / `run`の最小契約より広いfail-fastであり方針と互換。review用local branch `pr-46-review`と既存prunable worktreeはcandidate差分・current HEAD・working treeを変更していないため本changeでは削除しない。
 - 2026-07-30 implementing -> local-verified -> independent-review -> human-confirm（state-only compression）: reviewed content HEADのL1 full CLEAN evidenceはPR #46 body、Final ReviewerはP1/P2=0。`Reviewed Content HEAD`を`d6ae17b1465005b2e9e0faa1f90c76edd979e19a`へ固定し、Findings Freezeを発効した。Ready / hosted final / mergeは未承認のままowner gateへ進む。
+- 2026-07-30 owner Ready / merge一括承認（介入4/4）: ownerがFinal Review P1/P2=0を受け、Ready化、required hosted final、三点SHA一致後のmerge、Post-Merge Closeoutを一括承認した。追加owner判断は不要だが、各preconditionとmerge gateは省略しない。
+- 2026-07-30 human-confirm -> ready-hosted-final: 本state-only commitをDraftのまま作成し、そのexact HEADでL1 fullを再実行してPR bodyを更新する。同一HEADをReady化してrequired hosted finalを起動し、live PR HEAD、PR bodyのLocal full evidence HEAD SHA、hosted run headShaの三点一致とmerge CLEANを確認してから承認済みmergeを実行する。
