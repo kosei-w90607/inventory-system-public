@@ -26,8 +26,8 @@
 
 ## Consultation Relay
 
-- Review Order Artifact: none
-- Review Order Ref: none
+- Review Order Artifact: docs/review-orders/2026-07-31-claude-hook-plan-gate.md
+- Review Order Ref: refs/heads/review-orders/claude-hook-plan-gate
 
 ## Risk
 
@@ -232,4 +232,4 @@ Contract ID: SPEC-HOOK-01
 
 ## Narrative
 
-- 2026-07-31 kickoff -> design -> plan-gate: ownerがglobal repo固有hook停止とproject harness無効化のcontainment、および別branchでのR3 Hook監査着手を承認。D-058 closeoutを先にmainへ確定した。現物読解とContract Probeでcommand text誤発火、nested cwd allow、malformed plugin stateを再現し、D-059 / Manual §6.1 / Packet / Matrixを起草した。次はplan-first commit後の独立Plan Review。
+- 2026-07-31 kickoff -> design -> plan-gate: ownerがglobal repo固有hook停止とproject harness無効化のcontainment、および別branchでのR3 Hook監査着手を承認。D-058 closeoutを先にmainへ確定した。現物読解とContract Probeでcommand text誤発火、nested cwd allow、malformed plugin stateを再現し、D-059 / Manual §6.1 / Packet / Matrixを起草した。plan-first commit後、ownerがD-058の本来目的は複数review laneのterminal/session管理をOpus相談窓口へ集約することだと明確化したため、本Plan Gateを最初のeligible consultation relay dogfoodとし、Opus窓口からSonnet 5 / xHigh fresh-context reviewer 1本を起動する。
