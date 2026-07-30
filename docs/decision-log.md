@@ -439,3 +439,13 @@ Use concise ADR-style entries.
 - Impact: root `AGENTS.md` step 5がagent-guidance indexへ条件付きroutingし、shared contractが判断順、承認範囲、検証、応答密度を所有する。profileはtask fitだけを補足し、approval / autonomy / validation / stop差を持たない。root overrideはCodex discovery上同階層の`AGENTS.md`を置換するため、base loaderを必須とする。Codex-managed worktreeではignored root overrideが自動copyされるが、手動git worktreeではtracked AGENTSだけへ安全にfallbackする。
 - Alternatives considered: 人格をtracked fileへ置く案（public repositoryへ個人的な応答設定と評価材料が露出するため却下）; model名別に完全なpromptを複製する案（D-034単一所有とprompt driftに反するため却下）; 人格側だけに判断補正を置く案（controlとの因果が交絡するため却下）; root overrideからtracked AGENTSを読まない案（canonical workflowが消えるため却下）。
 - Revisit: 同一の公開fixtureでprofile別またはmodel更改後の回帰が測定されたとき。model固有のtask-behavior差は推測で追加せず、§3.4の対応更新またはtracked contract変更を別Decisionとして裁定する。
+
+## D-058
+
+- Decision: Fable slot 不在編成（Plan Packet `Execution Mode: dual-vendor-no-fable`）に限り、AGENT_OPERATING_MANUAL §3 の高自律・低制約適性 slot に main-thread の相談窓口役を認める。担当は全体把握、発注書への観点指摘、Coordinator作成・owner relayのimmutable order refからのread-only subagent投入と結果集約、D-056既定の難所レビュー。発注書の起草・改変、指揮判断、state遷移管理、merge、Writer作業、findings最終裁定は引き続き割り当てない。target Plan Packetがtracked artifact pathを宣言し、Coordinatorが§5.4の5項目と数値上限を含む発注書をcommitし、ownerはSHA + pathだけをrelayする。相談窓口役はreferenced commit時点のPacket宣言、ancestor、Coordinator、target content、blobを検証し、`git show`で取得した原本だけを使う。生成する子もread-onlyで、target changeの既存Subagent Budgetへ算入する。Fable復帰後は新規生成を止め、in-flight結果だけを集約し、未dispatch分は取り消す。
+- Status: accepted（2026-07-30、owner 協議で確定）
+- Why: Fable不在編成ではownerが複数terminalのrelayと状態整理を担い、判断より交通整理へ注意を消費する。main threadに検証済みrelayと集約を持たせればownerは判断に集中できる。一方、D-056が避けたprocess規律の内面化と指揮権限への流入は防ぐ必要がある。Coordinatorがrepositoryへ発注書をcommitし、ownerはimmutable refだけをrelayする方式なら、「相談用の提示が実質発注になる」境界を閉じたまま、原本一致を検証できる。既存budget、read-only、one-writer、最終裁定の所有者は変えない。
+- Impact: AGENT_OPERATING_MANUAL §3に§5.5参照を追加し、§5.4 item 5の既定0に数値上限付き例外を接続し、§5.5に適用条件、責務、禁止権限、tracked ref検証、委譲上限、Fable復帰時の停止を定義する。DEV_WORKFLOWのSubagent Budget、Workflow State、Wave Operation、Contract Audit、Human Gateは変更しない。
+- Alternatives considered: 助言限定を維持する案（ownerがsubagent起動と集約を持ち続け、交通整理負荷を減らせないため却下）; 発注書の起草まで許可する案（相談と発注の境界が消え、D-056が避けた指揮判断へ流入するため却下）; ownerが自由テキスト本文をrelayする案（Coordinator原本との一致を検証できないため却下）; Coordinator代役まで拡張する案（D-056の非採用判断と自己承認禁止を維持するため却下）。
+- Rollback: 発注書の起草・改変、指揮判断、state遷移、write委譲、最終裁定への越境が発生した場合は本役を停止し、全体把握・観点指摘・難所レビューだけの助言限定へ rollback する。
+- Revisit: Fable slotが稼働編成へ復帰したとき、§5.4 item 5例外の運用実績が蓄積したとき、または最初のeligible orderをdogfoodしてowner terminal数・relay回数・権限越境を評価したとき。

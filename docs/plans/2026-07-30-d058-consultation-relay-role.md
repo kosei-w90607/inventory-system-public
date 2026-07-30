@@ -238,7 +238,9 @@ Contract ID: SPEC-WF-D058-2026-07-30
 
 ## Implementation Results
 
-Fill after implementation.
+- `docs/AGENT_OPERATING_MANUAL.md` §3 / §5.4 / §5.5へ、`dual-vendor-no-fable`限定の相談窓口役、tracked immutable order ref、referenced commit時点のPacket宣言照合、read-only継承、数値capと既存budget算入、Fable復帰時の停止境界を実装した。
+- `docs/decision-log.md`へD-058をappendし、owner決定、理由、影響、却下案、rollback / revisitを正本化した。`docs/PROJECT_HANDOFF.md`と`docs/Plans.md`をlive stateへ同期した。
+- Matrix A1〜A15は対象sourceで一意に接続し、N1〜N6は既存DEV_WORKFLOW / D-056 / §2 / §3.1〜§3.4 / §5.4の非改変を確認した。negative mutationとexact-head L1 / review evidenceはPR bodyへ記録する。
 
 ## Review Response
 
@@ -264,3 +266,4 @@ Fill after implementation.
 - 2026-07-30 kickoff -> design -> plan-gate: ownerがD-058案と理由付き改定を承認（介入1/3）。CoordinatorはR3 workflow gate change、Plan Packet + Matrix、Double Audit、hosted requiredと判定した。「必要な数」は無界なので、Coordinator指定の数値cap + target change budget算入へ補正。D-056 read-onlyを生成subagentへ継承し、Fable復帰時は新規投入停止とした。実装前にClaude Sonnet 5 / xHigh fresh-context Plan Gateへ渡す。
 - 2026-07-30 Plan Review round 1（relay 1/4）: REQUEST CHANGES（P1=1 / P2=2 / P3=2）。provenanceをtracked artifact + immutable SHA/path + `git show`検証へ再設計し、§3.4 guardをsection byte比較、§2 / §3.1〜§3.3 guardを追加。Fable復帰時のpartial dispatchとX8二重被覆を明文化した。Phaseはplan-gate、Plan Commitはpendingのままclosure reviewを待つ。
 - 2026-07-30 Plan Review closure（relay 2/4）: APPROVE（P1=0 / P2=0 / P3=0）。全finding CLOSED。Plan Commitは`DEV_WORKFLOW.md`のplan-first identity契約に従い`850df036cc6f14b4e8c64f893f38c8871321a333`へ固定し、是正後HEADへ差し替えるreviewer提案は棄却。必要証跡が揃ったため`plan-gate -> plan-approved -> implementing`を圧縮遷移し、source docs実装を開始する。
+- 2026-07-30 implementation: Manual §3 / §5.4 / §5.5、decision-log D-058、PROJECT_HANDOFFを実装した。closure observationはreferenced commit時点のPacket宣言を照合元と明記して閉じた。A1〜A15とN1〜N6、target plan / full docs consistencyをgreen確認し、implementation commit後のclean treeでnegative mutationへ進む。

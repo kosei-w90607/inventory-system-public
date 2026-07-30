@@ -33,7 +33,7 @@
 - R4・workflow gate change は Double Audit（独立2回の Contract Audit。詳細は [DEV_WORKFLOW.md](DEV_WORKFLOW.md)「Contract Audit (R3/R4)」参照）
 - Human Gate は owner 限定
 - 希少・高コストな model slot は通常実装の Writer に充てない（現行の容量温存規範を model-neutral に継承。投入条件は §3.1 参照）。例外を適用する場合は Workflow State に理由を 1 行記録する
-- 高自律・低制約適性 slot（§3.4 で対応。過程指示を減らすほど性能が出る世代特性の model slot）は read-only の Reviewer / Explorer 発注書ロール専任とし、Writer / Coordinator / state 遷移管理に割り当てない。§3.1 の design board 例外の対象外（同例外の主語は希少・最高能力 slot であり、本区分には適用しない）。投入はレビュー難所・広域調査の発注書単位で Coordinator が判断し、通常レビューは既存分業を維持する。発注書は §5.4 の低制約 profile を用いる。本項の Reviewer / Explorer は §2 の Plan Reviewer / Final Reviewer / Explorer / Evidence を指す総称（D-056）
+- 高自律・低制約適性 slot（§3.4 で対応。過程指示を減らすほど性能が出る世代特性の model slot）は read-only の Reviewer / Explorer 発注書ロール専任とし、Writer / Coordinator / state 遷移管理に割り当てない。§3.1 の design board 例外の対象外（同例外の主語は希少・最高能力 slot であり、本区分には適用しない）。投入はレビュー難所・広域調査の発注書単位で Coordinator が判断し、通常レビューは既存分業を維持する。発注書は §5.4 の低制約 profile を用いる。本項の Reviewer / Explorer は §2 の Plan Reviewer / Final Reviewer / Explorer / Evidence を指す総称（D-056）。Fable slot 不在編成では §5.5 の相談窓口役を兼ねる（D-058）
 
 数値閾値（`Owner Effort Budget` 等）は [DEV_WORKFLOW.md](DEV_WORKFLOW.md) を参照し、本書には再掲しない。
 
@@ -159,9 +159,35 @@ docs/Plans.md cleanup は DEV_WORKFLOW.md の Post-Merge Closeout に準拠す�
 2. scope 境界（対象物と読取り範囲）
 3. read-only 宣言（ファイル変更・git / PR 操作の禁止）
 4. 報告フォーマット（Verdict 形式・件数上限・file:line 実読・全文 dump 禁止）
-5. subagent 生成上限（既定 0。委譲過多傾向への上限明記は必須）
+5. subagent 生成上限（既定 0。委譲過多傾向への上限明記は必須。§5.5 相談窓口役では Coordinator が数値の subagent 生成上限を明記した場合だけ例外を適用する）
 
 出力契約（4）と委譲上限（5）は必ず書く。観点 list・必読順・検証 command の指定は書かない。従来型発注書（手順込み）は他 slot 向けに従来どおり使用する。Contract Audit / Final Review 役への発注では、[DEV_WORKFLOW.md](DEV_WORKFLOW.md)「Contract Audit」の実施項目を**検証対象として scope 境界（2）に列挙する** — これは対象物の指定（出力契約）であり過程指示ではない。検証の手順・順序・command は引き続き指定しない。
+
+### 5.5 相談窓口役（Fable slot 不在編成のみ）
+
+§3 の高自律・低制約適性 slot は、対象 change の Plan Packet で Execution Mode が `dual-vendor-no-fable` の場合に限る相談窓口役を main thread で兼ねる（D-058）。`fable-window` / `codex-only` では本役を使わない。main-thread への配置は Coordinator 権限を与えない。
+
+やること:
+
+1. §3 の広域調査として全体を把握する
+2. 発注書について、抜けた観点と曖昧な scope 境界を指摘する
+3. owner が relay した immutable order ref から検証済み原本を取得し、read-only subagent へ投入する。返却結果は集約して判定材料に整理する
+4. §3 既定のレビュー難所を扱う
+
+やらないこと: 発注書の起草 / 改変 / 指揮判断（レビュー対象の選定、発注書内容の決定、優先順位付け）/ state 遷移管理 / merge / Writer 作業 / findings の最終裁定。
+
+発注書の受け渡しと検証:
+
+1. target Plan Packet は tracked review order artifact の repo-relative path を宣言する。Coordinator は §5.4 の5項目だけで構成した発注書をその path へ commit し、scope 境界に target content SHA と branch または PR を記す。owner は本文を転送せず、`Order Ref: <40-hex commit SHA>:<repo-relative path>`だけを relay する
+2. 相談窓口役は ref を strict parseし、`git merge-base --is-ancestor <commit> HEAD` が成功すること、ref path が referenced commit 時点の target Plan Packet に宣言された path と一致すること、同じ commit の Packet から Coordinator と target content SHA を復元できることを確認する
+3. `git show <commit>:<path>` で取得した blob だけを原本とする。relay本文、working tree、HEAD 時点の Packet を発注内容または宣言pathの照合元にしない。検証不能・不一致・必須項目欠落なら投入しない
+4. 観点指摘により変更が必要なら、Coordinator が tracked order artifact を再作成し owner が新しい ref を relayするまでfail-closedとする。相談窓口役は原本を作成・変更しない
+
+委譲境界:
+
+- 投入対象は read-only で、生成する subagent も read-only。write task、Writer 権限、merge、state 遷移を委譲しない
+- §5.4 item 5にtarget changeのRisk / stageに応じた非負整数の数値上限がある場合だけ既定0を置換できる。欠落、非整数、負数、既存上限超過なら投入しない。生成したsubagentはtarget changeの DEV_WORKFLOW の `Subagent Budget` へ算入する。per-risk上限、wave合計、depth 1、one-writer ruleを超えない
+- Fable slotが投入前に復帰した場合は投入しない。partial dispatch後ならin-flightのread-only結果だけを集約し、未 dispatch remainder は取り消す。Fable slot が復帰した後は新規 subagent を生成しない。同じorderの残りを§5.5で再開せずCoordinatorへ返す
 
 ## 6. ハーネス間の既知の非対称（重要な注意）
 
