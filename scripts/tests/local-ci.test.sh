@@ -11,6 +11,8 @@ fail() {
 
 [[ -x "$LOCAL_CI" ]] || fail "local-ci.sh is missing or not executable"
 grep -Fq 'run_required frontend-install "$REPO_ROOT" npm ci' "$LOCAL_CI" || fail "full mode does not run npm ci"
+grep -Fq 'run_required claude-hook-audit "$REPO_ROOT" bash scripts/tests/claude-hooks.test.sh' "$LOCAL_CI" ||
+    fail "workflow mode does not run Claude hook inventory audit"
 if grep -Fq 'bash -n "${shell_files[@]}"' "$LOCAL_CI"; then
     fail "shell syntax gate passes multiple files as bash positional arguments"
 fi

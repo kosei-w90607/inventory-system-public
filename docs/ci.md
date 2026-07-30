@@ -94,6 +94,8 @@ evidence は `.local/ci-evidence/` に保存し、ファイル名と本文へ fu
 
 1 path が複数分類に属してよい。1 件でも unknown path がある場合、または base/head を判定できない場合は、全 area を `true` にして full gate へ倒す。workflow / CI script 自体の変更も全 gate を要求する。
 
+Claude project設定のうち`.claude/settings.json`、`.claude/hooks/**`、`.claude/commands/**`は`workflow`へ分類する。`.claude/skills/**`は既存どおり`docs`へ分類する。workflow gateでは`claude-hooks.test.sh`がproject hook inventory 0本と`claude-code-harness`無効化を検査し、hostedの`Design doc consistency` jobでも同じtestを実行する（D-059）。
+
 git diff は追加・変更・削除を含め、rename / copy では旧パスと新パスを両方分類する。copy は未変更のsourceも検出する。たとえば `src/**` から `docs/**` への rename / copy は frontend と docs の双方を実行対象にする。
 
 ## Pre-push Contract

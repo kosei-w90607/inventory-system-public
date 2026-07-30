@@ -56,6 +56,10 @@ classify_files() {
                 workflow=true
                 matched=true
                 ;;
+            .claude/settings.json|.claude/hooks/*|.claude/commands/*)
+                workflow=true
+                matched=true
+                ;;
         esac
 
         case "$file" in

@@ -235,6 +235,7 @@ Project-specific failure modes to test:
 - Task-local evidence belongs in active/archive plans. Long PR histories should not make `Plans.md` the product truth.
 - `docs/PROJECT_HANDOFF.md` may lag live implementation status. Use it for broad context, not current branch truth.
 - CI merge evidence uses L0 pre-push, L1 local-ci full, and L2 hosted final. Docs-only is 0 hosted runs; workflow/script and unknown paths route to full gates. Treat local evidence as valid only when its HEAD SHA matches the PR HEAD.
+- Claude Codeのtracked project hook inventoryはD-059採用時点で0本、`claude-code-harness`はproject scopeで無効。repo-owned inventory testをlocal fullとhosted finalで実行し、Plan Gateは既存workflow正本が所有する。
 - Keep CMD thin and BIZ authoritative. UI and CMD should not duplicate business rules that belong in BIZ.
 - Prefer Windows native verification for Japanese input and operator-facing Phase 2+ UI flows.
 - Risk classification is review-assisted and self-reported in this workflow PR. Machine detection for under-classified changes belongs in a future workflow-hardening plan/PR.

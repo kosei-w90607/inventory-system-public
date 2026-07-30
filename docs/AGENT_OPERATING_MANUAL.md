@@ -193,7 +193,7 @@ docs/Plans.md cleanup は DEV_WORKFLOW.md の Post-Merge Closeout に準拠す�
 
 ## 6. ハーネス間の既知の非対称（重要な注意）
 
-- `.codex/hooks.json` は gitignore 済みの未確認実験で非稼働。Claude 側 hook（ExitPlanMode チェック等）の機械強制は Codex には効かない。その分、pre-push / CI の機械ゲートと review-only packet を厚めに使う。
+- `.codex/hooks.json` は gitignore 済みの未確認実験で非稼働。Claude側もD-059採用時点のtracked project hook inventoryは0本。両harnessともpre-push / local full / hosted CIの正本gateとreview-only packetを使う。
 - `$inventory-workflow-start` 等の `$` 記法は Codex/OpenAI harness の入口。Claude や他 agent は `.agents/skills/*/SKILL.md` を plain procedure docs として読む。
 - subagent 数の上限は [DEV_WORKFLOW.md](DEV_WORKFLOW.md)「Subagent Budget」が正本。ハーネス側の並列機能がこれを超えられる場合でも budget を守る。
 

@@ -222,7 +222,11 @@ Contract ID: SPEC-HOOK-01
 
 ## Implementation Results
 
-未着手。Plan Gate通過前にproject hook実装を変更しない。
+- tracked `.claude/settings.json` の`hooks`をempty contractへ縮約し、`claude-code-harness@claude-code-harness-marketplace`をproject scopeで`false`に固定した。
+- `.claude/hooks/`のtracked 8 scriptを削除し、`plan-rally.md`を任意のread-only review helperへ縮約した。model、agent log、時間窓、Self-Review、memory writeをgate化しない。
+- `claude-hooks.test.sh`をCH1〜CH11のsource-direct / mutation auditとして追加し、classifier、local-ci、hosted docs job、CI static testへ接続した。`.claude/settings.json` / hooks / commandsはworkflow、skillsはdocs routingを維持する。
+- `CLAUDE.md`、Manual §6.1、DEV_SETUP、TOOLING、DEV_WORKFLOW、ci.md、project-profile、D-059、Plans / handoffをzero-hook contractへ同期した。repository `.gitignore`がmachine-local settingsを所有する。
+- TDD redは旧8 hook、classifier unknown、hosted step欠落で再現し、実装後にtargeted fixture / mutation testsがgreenとなった。L1 fullとFinal Double Auditは後続phaseで実行する。
 
 ## Review Response
 
@@ -243,9 +247,16 @@ Contract ID: SPEC-HOOK-01
 - outer 60秒 / inner 45秒案は各ExitPlanModeへ約34秒の待ちを課し、doc増加で固定値が再び腐るためreject。hook専用軽量checker案もPlan Gate正本を二重化するためreject。D-059 / Manual §6.1 / Packet / Matrixをproject hook inventory 0本へ改定し、既存の独立Plan Review、doc consistency、pre-push、local full、hosted finalへ所有権を戻す。
 - Phaseはplan-gateのまま。改定HEADとsupersedeしたimmutable order refでclosure review 3/4へ戻し、P1/P2=0までimplementationへ進まない。
 
+### Plan Gate closure round 3（2026-07-31、consultation relay 3/4）
+
+- Verdict APPROVE（P1=0 / P2=0 / P3=1）。P2-1はCLOSED。zero-hook pivotが失敗経路を緩和せず除去し、6 closure-target docと既存gate ownershipの実体が整合することを確認した。P2-2もCLOSEDを維持した。
+- P3のManual §6前文driftをaccept。実装で現在形のExitPlanMode強制記述をinventory 0本へ同期し、CH4 `forbidden_hook_claims_absent`のlive docs対象へManualを含めた。
+- ownerは選択肢Aを承認。relay上限4を維持し、Final Double Auditは最後の1 orderでSonnet 5 / Opus 5 fresh-context reviewerを各1人生成する。
+
 ## Narrative
 
 - 2026-07-31 kickoff -> design -> plan-gate: ownerがglobal repo固有hook停止とproject harness無効化のcontainment、および別branchでのR3 Hook監査着手を承認。D-058 closeoutを先にmainへ確定した。現物読解とContract Probeでcommand text誤発火、nested cwd allow、malformed plugin stateを再現し、D-059 / Manual §6.1 / Packet / Matrixを起草した。plan-first commit後、ownerがD-058の本来目的は複数review laneのterminal/session管理をOpus相談窓口へ集約することだと明確化したため、本Plan Gateを最初のeligible consultation relay dogfoodとし、Opus窓口からSonnet 5 / xHigh fresh-context reviewer 1本を起動する。
 - 2026-07-31 Plan Review round 1 -> correction: consultation relayは生成1 / depth 1 / read-onlyを守り、Sonnet reviewerのP2×2を集約した。想定外非0とchecker hangのfail-openをstrict/trap/inner deadline + Matrixへ追加し、所有者不在だったSelf-Reviewは後継なし退役として正本化した。Phaseはplan-gateのまま、新しいtarget/order refでclosure reviewへ戻す。
 - 2026-07-31 Plan Gate closure round 2 -> design pivot: P2-2はclosed、P2-1は実runtimeがinner/outer timeoutを超えるためresidual。通常系が成立しないのでP1相当blockerと裁定し、8本から1本ではなく0本へ縮約する。ExitPlanModeの重複gateを廃止し、既存workflow gateを正本として維持するPlan/Matrixへ改定した。
 - 2026-07-31 Plan Gate closure round 3 -> plan-approved -> implementing: Sonnet 5 / xHigh fresh-context closureはAPPROVE（P1=0 / P2=0 / P3=1）。zero-hook pivotと既存gate ownershipの実体を確認し、ownerが選択肢AとしてPlan Gateを承認した。Plan Commitを`d90dc2d84b6fc59d25b31d00059b5344cda40838`へ固定し、隣接遷移をmaterializeした。P3のManual §6前文driftはimplementation時にCH4のlive docs対象として是正する。Final Double Auditは残るrelay 1回でSonnet 5 / Opus 5 fresh-context reviewerを各1人起動する。
+- 2026-07-31 implementing first pass: zero-hook settings、tracked hook削除、harness false、optional plan helper、repo-owned inventory / mutation test、workflow classifier、local / hosted wiring、live docs同期を実装した。Plan Review P3のManual前文もCH4対象として是正し、targeted testsをgreenにした。

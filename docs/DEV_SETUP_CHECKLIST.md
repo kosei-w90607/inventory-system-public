@@ -137,7 +137,7 @@ npx lefthook install          # .git/hooks/pre-commit を書き込む（初回�
 
 Claude Code の auto-memory 機能（`MEMORY.md` / 個別 memory ファイル / `.last_audit` sentinel など）は `~/.claude/projects/<sanitized-cwd>/memory/` に保存される。本リポジトリでは sanitize 後の path が `~/.claude/projects/-home-kosei-Projects-inventory-system-public/memory/` で固定だが、ここはデフォルトの sandbox writable mount に含まれないため、Claude 側からの書き込み (`touch .last_audit` や新規 memory ファイル `Write`) が `Read-only file system` で失敗する。
 
-auto-memory を使う場合、project local settings (`./.claude/settings.local.json`、global gitignore でリポジトリ管理外) に sandbox writable mount を 1 行追加する:
+auto-memory を使う場合、project local settings (`./.claude/settings.local.json`、repository `.gitignore` で管理外) に sandbox writable mount を 1 行追加する:
 
 ```json
 {
@@ -181,7 +181,7 @@ auto-memory を使う場合、project local settings (`./.claude/settings.local.
 
 - `settings.local.json` は machine-specific で team 共有されない。他マシン / 他 user は本節の手順で個別に設定する
 - 操作は必ず `~/.agents/skills/agmsg/scripts/` 配下の script 経由で行う。`teams/` や `db/` を直接読んだり編集したりしない
-- Claude Code は project hook を使えるが、project 側 `.claude/settings.json` に `SessionStart` hook があるように、hook 設定は harness / machine ごとの差分が出やすい。Codex には Monitor tool がないため、agmsg delivery mode は `turn`（ターン終端チェック）または `off` のみを使う
+- tracked `.claude/settings.json` のproject hook inventoryは0本で、`claude-code-harness`もproject scopeでは無効。agmsg delivery modeはrepository hookに依存させず、Claude Code / Codexとも`turn`（ターン終端チェック）または`off`のみを使う
 - Claude Code の `Edit` で monitor mode の hook 設定を書こうとすると、auto-mode classifier が self-modification と判定して deny することがある。その場合は user が内容を確認して手作業で配置する
 - sandbox が invocation ごとに PID namespace を分ける環境では、monitor の pidfile 生存判定が stale と誤判定されることがある。これは monitor 配信周辺の注意点で、script 経由の inbox / send 自体は引き続き使える
 
