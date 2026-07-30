@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: independent-review
+- Phase: implementing
 - Risk: R3
 - Execution Mode: dual-vendor-no-fable
 - Plan Commit: d90dc2d84b6fc59d25b31d00059b5344cda40838
@@ -264,6 +264,12 @@ Contract ID: SPEC-HOOK-01
 - Correction implementation: `claude-hooks.test.sh`のCH4 / CH10、`classify-changes.test.sh`のCH6、`ci-workflow.test.sh`のCH8 / CH9を最小是正した。CH10 source invocation削除mutationは期待どおりred、復元後は3 targeted testがgreen。追加review relayはOwner Effort Budget 4/4のため未生成。
 - Owner budget exception: ownerが介入3/4として介入上限を3から4、relay上限を4から5へ今回限り拡張した。追加1回は同じfrozen finding setのP2 closureだけに使い、Claude Opus 5 / xHigh fresh-context reviewerを1人だけ生成する。Scope / Acceptance Criteria / Matrix / implementation contractは変更しないため、`Amendments`は`none`を維持する。
 
+### Frozen P2 closure（2026-07-31、consultation relay 5/5）
+
+- Opus 5 / xHigh fresh-context reviewerはREQUEST CHANGES（P1=0 / P2=1 / P3=0）。P2-CH4はCLOSED、P2-CH10はPARTIALLY CLOSEDと判定した。
+- CoordinatorはP2-CH10のproblem claimをaccept。source-direct呼出し2行をコメント化してliteralだけを残し、実sourceへstray hookを追加した使い捨てcloneで、`claude-hooks.test.sh`全体がPASSする合成迂回を独立再現した。Findings Freeze後だがruntime実証済みP2のためblockerを維持する。
+- ownerは選択肢Aとしてsame-PR是正を承認した。正本規則どおり`independent-review -> implementing`へbacktrackし、次のcontent commitで予算拡張とCH10 source-hook propagation testを実装する。
+
 ## Narrative
 
 - 2026-07-31 kickoff -> design -> plan-gate: ownerがglobal repo固有hook停止とproject harness無効化のcontainment、および別branchでのR3 Hook監査着手を承認。D-058 closeoutを先にmainへ確定した。現物読解とContract Probeでcommand text誤発火、nested cwd allow、malformed plugin stateを再現し、D-059 / Manual §6.1 / Packet / Matrixを起草した。plan-first commit後、ownerがD-058の本来目的は複数review laneのterminal/session管理をOpus相談窓口へ集約することだと明確化したため、本Plan Gateを最初のeligible consultation relay dogfoodとし、Opus窓口からSonnet 5 / xHigh fresh-context reviewer 1本を起動する。
@@ -275,3 +281,4 @@ Contract ID: SPEC-HOOK-01
 - 2026-07-31 Final Double Audit -> implementing: relay 4/4の独立2 passはCH4 Plans coverage欠落とCH10 source-direct anti-tautology未実装をP2として検出した。Coordinatorは両problem claimを実ソースで再現し、P3の診断 / ID表示と同じtest-only correctionで閉じると裁定した。Findings Freezeを発効し、正本規則どおり`independent-review -> implementing`へbacktrackする。
 - 2026-07-31 correction implementation: CH4へPlans live sourceと専用mutationを追加し、CH10へsource-direct invocation単一性guardを実装した。source invocationを一時削除してCH10 redを再現し、復元後にhook audit / classifier / CI workflow testをgreen確認した。P3の診断とID表示も同じ3 test file内で閉じた。
 - 2026-07-31 correction verification -> independent review: correction content candidateはtargeted / changed / L1 fullがPASS / CLEANで、`MERGE_EVIDENCE_VALID=true`を確認した。exact-HEAD SHAとevidence pathはPR bodyを正本とする。ownerが介入3/4として予算を介入4・relay 5へ拡張したため、`implementing -> local-verified -> independent-review`をmaterializeし、relay 5/5をClaude Opus 5 / xHigh fresh-context reviewer 1人によるfrozen P2 closureに限定する。
+- 2026-07-31 frozen P2 closure -> implementing: relay 5/5のOpus closureはP2-CH4をCLOSED、P2-CH10をPARTIALLY CLOSEDとした。Coordinatorもsource呼出しコメント化 + stray hookの合成で全体PASSを再現し、runtime-proven P2としてacceptした。ownerはAを選択し、same-PR是正のため`independent-review -> implementing`へbacktrackする。
