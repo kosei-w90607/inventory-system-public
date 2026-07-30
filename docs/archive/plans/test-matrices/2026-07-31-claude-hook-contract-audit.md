@@ -34,7 +34,7 @@ Risk: R3
 | H4 | local audit未接続 | integration | CH7 `local_ci_runs_hook_audit` | workflow changeでinventory testが呼ばれない |
 | H4 | hosted未接続 | static/mutation | CH8 `hosted_runs_hook_audit` | CI step削除でgreen |
 | H4 | static test未接続 | mutation | CH9 `ci_test_guards_hook_step` | command literal mutationをkillしない |
-| H4 | source testでない | anti-tautology / source propagation mutation | CH10 `test_reads_tracked_settings_and_hooks` | tracked sourceのsettings / docs / hooksを派生fixtureへmaterializeしない、またはsource hook追加が派生fixtureでgreen |
+| H4 | source testでない | anti-tautology / source propagation mutation | CH10 `source hook propagation` | tracked sourceのsettings / docs / hooksを派生fixtureへmaterializeしない、またはsource hook追加が派生fixtureでgreen |
 | local boundary | global ignore依存 | gitignore | CH11 `local_settings_repo_ignored` | repository rule欠落 |
 
 ## State Lifecycle Matrix

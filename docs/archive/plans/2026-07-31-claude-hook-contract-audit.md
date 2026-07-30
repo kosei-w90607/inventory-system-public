@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: ready-hosted-final
+- Phase: archive
 - Risk: R3
 - Execution Mode: dual-vendor-no-fable
 - Plan Commit: d90dc2d84b6fc59d25b31d00059b5344cda40838
@@ -14,7 +14,7 @@
 - Reviewed Content HEAD: e28249948ff53a8a906aee4c170e4f3e5a2d111f
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
-- Human Gate: none（ownerが介入5/5でReady / merge一括承認）
+- Human Gate: resolved Ready / merge（owner介入5/5）
 
 ## Owner Effort Budget
 
@@ -296,3 +296,4 @@ Contract ID: SPEC-HOOK-01
 - 2026-07-31 CH10 correction verification -> independent review: composite bypass mutationは派生fixtureのbaseline検査でred、targeted / changed / L1 fullはPASS / CLEAN / merge evidence valid。exact-HEAD SHAとevidence pathはPR bodyを正本とし、`implementing -> local-verified -> independent-review`をmaterializeしてOpus 5 / xHigh fresh-contextのclosure-only relay 6/6へ進む。
 - 2026-07-31 P2-CH10 final closure -> human-confirm: Opus 5 reviewerと相談窓口の独立mutationは、是正後targetをred、是正前controlをgreenとして再現し、P2-CH10をCLOSEDとした。Final Review closureはP1/P2=0。Matrix CH10表示名と実装labelの名称差はPost-Freeze P3 follow-upへ送り、audited content HEADを記録してownerのReady / merge判断を待つ。
 - 2026-07-31 human-confirm -> ready-hosted-final: ownerが介入5/5としてReady / merge一括承認を選択した。Draftのままstate-only Ready遷移をmaterializeし、そのexact HEADでL1 full、PR body refresh、Ready、hosted final、三点SHA一致、merge、Post-Merge Closeoutを連続実行する。
+- 2026-07-31 ready-hosted-final -> merge -> archive: exact-HEAD L1 fullはPASS / CLEAN / merge evidence valid。hosted final初回は既知の`ProductListPage.test.tsx` timing flakeで停止したが、同一HEADのfailed-job rerunは全gate greenとなり、PR bodyの三点SHA一致とmerge-cleanを確認してPR #48をsquash merge `2a3cbdb`で完了した。Post-Merge CloseoutでPacket / Matrixをarchiveし、CH10表示名を実装labelへ同期した。D-059の次dogfoodは、このrepositoryを開く次のClaude Code fresh sessionでproject hook 0本・harness無効・虚偽のPostToolUse / Haiku Stop注入なしを確認する。
