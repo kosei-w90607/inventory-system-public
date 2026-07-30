@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: implementing
+- Phase: independent-review
 - Risk: R3
 - Execution Mode: dual-vendor-no-fable
 - Plan Commit: d90dc2d84b6fc59d25b31d00059b5344cda40838
@@ -271,6 +271,7 @@ Contract ID: SPEC-HOOK-01
 - ownerは選択肢Aとしてsame-PR是正を承認した。正本規則どおり`independent-review -> implementing`へbacktrackし、次のcontent commitで予算拡張とCH10 source-hook propagation testを実装する。
 - Owner budget exception: ownerが介入4/5として介入上限を4から5、relay上限を5から6へ今回限り拡張した。追加1回はP2-CH10のclosureだけに使い、Ready / merge判断を介入5回目へ留保する。Scope / Acceptance Criteria / durable contractは変更しないため、`Amendments`は`none`を維持する。
 - Correction implementation: `make_fixture(source, fixture)`へ入力元を明示し、tracked sourceの`.claude/hooks/**`をsettings / docs / wiringと同じ派生fixtureへ複写する。source側stray hookが派生fixtureでrejectされるCH10 mutationを追加し、旧実装でred、実装後greenを確認した。
+- Correction verification: source-direct検査をコメント化してliteralだけ残し、source側へstray hookを置く合成mutationを使い捨てcloneへ再注入したところ、派生fixtureのbaseline検査でredになった。targeted / changed / L1 fullはPASS / CLEANで、`MERGE_EVIDENCE_VALID=true`を確認した。`implementing -> local-verified -> independent-review`をmaterializeし、relay 6/6をP2-CH10 closureへ限定する。
 
 ## Narrative
 
@@ -285,3 +286,4 @@ Contract ID: SPEC-HOOK-01
 - 2026-07-31 correction verification -> independent review: correction content candidateはtargeted / changed / L1 fullがPASS / CLEANで、`MERGE_EVIDENCE_VALID=true`を確認した。exact-HEAD SHAとevidence pathはPR bodyを正本とする。ownerが介入3/4として予算を介入4・relay 5へ拡張したため、`implementing -> local-verified -> independent-review`をmaterializeし、relay 5/5をClaude Opus 5 / xHigh fresh-context reviewer 1人によるfrozen P2 closureに限定する。
 - 2026-07-31 frozen P2 closure -> implementing: relay 5/5のOpus closureはP2-CH4をCLOSED、P2-CH10をPARTIALLY CLOSEDとした。Coordinatorもsource呼出しコメント化 + stray hookの合成で全体PASSを再現し、runtime-proven P2としてacceptした。ownerはAを選択し、same-PR是正のため`independent-review -> implementing`へbacktrackする。
 - 2026-07-31 CH10 closure correction: ownerが介入4/5として予算を介入5・relay 6へ拡張した。source-derived fixtureが`.claude/hooks/**`もmaterializeするAPIとpropagation mutationをtest-firstで追加し、旧実装の`CH10 source-derived hook fixture was not constructed` redからgreenへ転換した。次はexact content candidateのchanged / L1 fullとrelay 6/6 closure。
+- 2026-07-31 CH10 correction verification -> independent review: composite bypass mutationは派生fixtureのbaseline検査でred、targeted / changed / L1 fullはPASS / CLEAN / merge evidence valid。exact-HEAD SHAとevidence pathはPR bodyを正本とし、`implementing -> local-verified -> independent-review`をmaterializeしてOpus 5 / xHigh fresh-contextのclosure-only relay 6/6へ進む。
