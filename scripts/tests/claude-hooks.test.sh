@@ -32,6 +32,7 @@ validate_live_docs() {
         "$root/docs/AGENT_OPERATING_MANUAL.md"
         "$root/docs/DEV_SETUP_CHECKLIST.md"
         "$root/docs/TOOLING_SKILL_COMMANDS.md"
+        "$root/docs/Plans.md"
         "$root/.claude/commands/plan-rally.md"
     )
     local forbidden_patterns=(
@@ -94,6 +95,16 @@ validate_contract() {
         validate_repo_ignore "$root"
 }
 
+validate_source_binding() {
+    local script="$1"
+    local source_prefix='$SOURCE'
+    local source_suffix='_ROOT'
+    local invocation
+
+    invocation="validate_contract \"${source_prefix}${source_suffix}\""
+    [[ "$(grep -Fc -- "$invocation" "$script")" == "1" ]]
+}
+
 expect_rejected() {
     local label="$1"
     local root="$2"
@@ -103,6 +114,8 @@ expect_rejected() {
     fi
 }
 
+validate_source_binding "$SOURCE_ROOT/scripts/tests/claude-hooks.test.sh" ||
+    fail "CH10 source-direct validation binding is missing or ambiguous"
 validate_contract "$SOURCE_ROOT" ||
     fail "live Claude hook contract is not the D-059 zero-hook inventory"
 
@@ -124,6 +137,7 @@ make_fixture() {
     cp "$SOURCE_ROOT/docs/AGENT_OPERATING_MANUAL.md" "$fixture/docs/AGENT_OPERATING_MANUAL.md"
     cp "$SOURCE_ROOT/docs/DEV_SETUP_CHECKLIST.md" "$fixture/docs/DEV_SETUP_CHECKLIST.md"
     cp "$SOURCE_ROOT/docs/TOOLING_SKILL_COMMANDS.md" "$fixture/docs/TOOLING_SKILL_COMMANDS.md"
+    cp "$SOURCE_ROOT/docs/Plans.md" "$fixture/docs/Plans.md"
     cp "$SOURCE_ROOT/scripts/ci/classify-changes.sh" "$fixture/scripts/ci/classify-changes.sh"
     cp "$SOURCE_ROOT/scripts/local-ci.sh" "$fixture/scripts/local-ci.sh"
     cp "$SOURCE_ROOT/scripts/pre-push.sh" "$fixture/scripts/pre-push.sh"
@@ -157,6 +171,11 @@ claim_mutant="$tmp/claim-mutant"
 cp -a "$fixture" "$claim_mutant"
 printf '%s\n' 'Claude 固有の `ExitPlanMode` hook' >> "$claim_mutant/CLAUDE.md"
 expect_rejected "CH4 active hook claim" "$claim_mutant"
+
+plans_claim_mutant="$tmp/plans-claim-mutant"
+cp -a "$fixture" "$plans_claim_mutant"
+printf '%s\n' 'Claude 固有の `ExitPlanMode` hook' >> "$plans_claim_mutant/docs/Plans.md"
+expect_rejected "CH4 Plans backlog claim" "$plans_claim_mutant"
 
 gate_mutant="$tmp/gate-mutant"
 cp -a "$fixture" "$gate_mutant"

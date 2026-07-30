@@ -227,6 +227,7 @@ Contract ID: SPEC-HOOK-01
 - `claude-hooks.test.sh`をCH1〜CH11のsource-direct / mutation auditとして追加し、classifier、local-ci、hosted docs job、CI static testへ接続した。`.claude/settings.json` / hooks / commandsはworkflow、skillsはdocs routingを維持する。
 - `CLAUDE.md`、Manual §6.1、DEV_SETUP、TOOLING、DEV_WORKFLOW、ci.md、project-profile、D-059、Plans / handoffをzero-hook contractへ同期した。repository `.gitignore`がmachine-local settingsを所有する。
 - TDD redは旧8 hook、classifier unknown、hosted step欠落で再現し、実装後にtargeted fixture / mutation testsがgreenとなった。Node 24.18.0のrepo pin下でchanged / L1 fullをPASS / CLEAN、L1は`MERGE_EVIDENCE_VALID=true`まで確認し、Draft PR #48を作成した。Final Double Auditは後続phaseで実行する。
+- Final Double Audit correctionでCH4のlive docs / fixture / mutationへ`docs/Plans.md`を追加し、CH10はsource-direct invocationの単一性を自己一致しない分割literalで検査した。source invocation削除でCH10がred、復元後greenを実測した。CH6 / CH8 / CH9のtest IDとhosted validatorのfail診断も同期した。
 
 ## Review Response
 
@@ -260,6 +261,7 @@ Contract ID: SPEC-HOOK-01
 - Opus単独findingのCH10未実装をP2としてacceptした。source rootへの`validate_contract`呼出しを削除してもfixture mutation群がgreenとなるため、Matrix / Ledgerが主張するanti-tautology契約を満たさない。
 - Sonnet単独findingのhosted validator裸呼出しをP3、CH6 / CH8 / CH9のtest ID表示欠落をP3としてacceptした。いずれも同じtest correction内で閉じる。
 - `DEV_WORKFLOW.md`のcorrection ruleに従い`independent-review -> implementing`へbacktrackする。Scope / Non-scope / durable contractは変更せず、test coverageと診断だけをsame-PR correctionする。
+- Correction implementation: `claude-hooks.test.sh`のCH4 / CH10、`classify-changes.test.sh`のCH6、`ci-workflow.test.sh`のCH8 / CH9を最小是正した。CH10 source invocation削除mutationは期待どおりred、復元後は3 targeted testがgreen。追加review relayはOwner Effort Budget 4/4のため未生成。
 
 ## Narrative
 
@@ -270,3 +272,4 @@ Contract ID: SPEC-HOOK-01
 - 2026-07-31 implementing first pass: zero-hook settings、tracked hook削除、harness false、optional plan helper、repo-owned inventory / mutation test、workflow classifier、local / hosted wiring、live docs同期を実装した。Plan Review P3のManual前文もCH4対象として是正し、targeted testsをgreenにした。
 - 2026-07-31 local verification -> independent review: implementation commit `b3e1ad92fe0bc878a75b66024e8bcf9d743dfb57`をNode 24.18.0のrepo pin下でchanged / L1 full検証し、PASS / CLEAN / merge evidence validを確認した。system Node 25の初回changedは`devEngines`契約どおりfail-fastしたためmerge evidenceには採用しない。Draft PR #48を作成し、このvalidation / dashboard content commitへ`implementing -> local-verified -> independent-review`を同乗させ、最後のconsultation relay orderによるDouble Auditへ進む。
 - 2026-07-31 Final Double Audit -> implementing: relay 4/4の独立2 passはCH4 Plans coverage欠落とCH10 source-direct anti-tautology未実装をP2として検出した。Coordinatorは両problem claimを実ソースで再現し、P3の診断 / ID表示と同じtest-only correctionで閉じると裁定した。Findings Freezeを発効し、正本規則どおり`independent-review -> implementing`へbacktrackする。
+- 2026-07-31 correction implementation: CH4へPlans live sourceと専用mutationを追加し、CH10へsource-direct invocation単一性guardを実装した。source invocationを一時削除してCH10 redを再現し、復元後にhook audit / classifier / CI workflow testをgreen確認した。P3の診断とID表示も同じ3 test file内で閉じた。

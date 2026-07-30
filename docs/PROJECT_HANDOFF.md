@@ -4,7 +4,7 @@
 >
 > **更新ルール**: 会話で進展があるたびにこのファイルを更新する。各セクションは最新の状態を反映し、過去の経緯は「経緯ログ」セクションに蓄積する。
 >
-> **最終更新**: 2026-07-31 / Claude Hook監査 independent-review。次のgateは`Plans.md`を優先
+> **最終更新**: 2026-07-31 / Claude Hook監査 Final Review是正検証中。次のgateは`Plans.md`を優先
 
 ---
 
@@ -31,7 +31,7 @@
 **Phase 2 の日常利用 UI 5 画面は code-complete / route active で、PR #75 closeout merge `f44f99a` に `v0.8.0-ui-daily` tag を作成済み。AI Quality Workflow は PR #87 `ef0fd73` で Design Phase を導入済み。Phase 3 商品マスタ UI と Phase 4（UI-11b / UI-11a / UI-10 / UI-11c / UI-13）は完了済み。次期 milestone と監査是正の最新順序は `Plans.md` を優先する。**
 
 ### 直近の作業状態
-- **Claude Hook contract audit**: **independent-review**（R3 workflow gate、Draft PR #48、branch `codex/claude-hook-audit`）。Plan Gate closure round 3はAPPROVE（P1=0 / P2=0 / P3=1）、owner承認済み。project hook inventory 0本、harness project無効、tracked hook 8本退役、optional plan helper、CH1〜CH11 inventory / mutation test、workflow classifier、local / hosted wiring、live docs同期を実装した。Node 24.18.0のrepo pin下でchanged / L1 fullはPASS / CLEAN、L1はmerge evidence valid。次は最後のconsultation relay 1回でSonnet 5 + Opus 5 fresh-context Double Audit、owner Ready / merge、hosted final。
+- **Claude Hook contract audit**: **implementing / Final Review是正検証中**（R3 workflow gate、Draft PR #48、branch `codex/claude-hook-audit`）。Final Double Audit（relay 4/4）はCH4 Plans coverage欠落とCH10 source-direct anti-tautology未実装をP2として検出し、`independent-review -> implementing`へbacktrack。CH4へPlans live source / mutation、CH10へsource-direct invocation guardを追加し、P3のhosted validator診断とCH6 / CH8 / CH9 ID表示も同期した。targeted testとCH10 red→greenは確認済み。次はchanged / L1 fullとclosure gateの予算裁定。
 - **D-058 Fable slot不在編成の相談窓口役**: **完了**（R3 workflow gate docs-only、PR #47 squash merge `b50e86a`、2026-07-30）。target PR外の専用remote order branch、order / target両refのcurrent-head照合、target SHA時点Packet、Coordinator予約枠、template `Consultation Relay`欄を正本化した。Double Audit closure P1/P2=0、Ready HEAD `56f76d4`のexact local / hosted三点一致を確認し、Post-Freeze P3 2件もcloseoutで是正済み。証跡はarchived [Plan Packet](archive/plans/2026-07-30-d058-consultation-relay-role.md) / [Matrix](archive/plans/test-matrices/2026-07-30-d058-consultation-relay-role.md)。最初のdogfood targetは次のeligible consultation relay order。
 - **Node 24 toolchain alignment**: **完了**（R2、PR #46 squash merge `0497c28`、2026-07-30）。`.node-version`のNode 24.18.0をlocal / frontend CI / npm security monitorのsingle ownerとし、`engines.node` / `devEngines.runtime`、`@types/node`、DEV_SETUP、両workflowのstatic drift testを同期した。Claude Sonnet 5 / xHigh Final Review P1/P2/P3=0、Ready HEADのexact local full / Hosted CI三点一致を確認。証跡はarchived [Plan Packet](archive/plans/2026-07-30-node24-toolchain-alignment.md)。CI側dogfoodは完了し、npm security monitor側は次回scheduled/manual runで確認する。
 - **finite search / threshold descriptor contract（監査順16 / wave 4 lane 1）**: **完了**（R3、PR #38 squash merge `5e341b5`、2026-07-30）。product / movement / records / daily / monthly / stock inquiryの有限値ownerとthreshold 2 fieldをfeature-local descriptorへ集約し、独立literal oracleと実mutationで片側driftを閉じた。Claude Opus 5 / Sonnet 5 closure P1/P2/P3=0、merge-train rebase同値、final HEADのexact-HEAD local / hosted三点一致を確認。表示・操作・URL・fallback・wire・保存意味論は不変。証跡はarchived [Plan Packet](archive/plans/2026-07-29-finite-search-threshold-contract.md) / [Matrix](archive/plans/test-matrices/2026-07-29-finite-search-threshold-contract.md) / [wave 4 WER](archive/plans/2026-07-30-wave-4-workflow-effectiveness-review.md)。dependency / lockfileは非変更で、audit warn-onlyの更新判断は次の独立changeへ分離した。

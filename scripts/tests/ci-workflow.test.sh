@@ -181,7 +181,9 @@ validate_claude_hook_audit() {
 validate_job_graph "$WORKFLOW"
 validate_workflow_contract "$WORKFLOW"
 validate_node_contract
-validate_claude_hook_audit
+# D-059 / SPEC-HOOK-01 / CH8: hosted workflow owns the inventory audit step.
+validate_claude_hook_audit ||
+    fail "CH8 hosted Claude hook audit step is missing"
 
 mutation_dir="$(mktemp -d)"
 trap 'rm -rf "$mutation_dir"' EXIT
@@ -285,7 +287,7 @@ fi
 claude_hook_step_mutation="$mutation_dir/missing-claude-hook-audit.yml"
 sed '\|run: bash scripts/tests/claude-hooks.test.sh|d' "$WORKFLOW" > "$claude_hook_step_mutation"
 if validate_claude_hook_audit "$claude_hook_step_mutation" >/dev/null 2>&1; then
-    fail "workflow validator accepted a missing Claude hook audit step"
+    fail "CH9 workflow validator accepted a missing Claude hook audit step"
 fi
 
 reject_fixed "  push:"
