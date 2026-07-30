@@ -3,6 +3,9 @@ set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 WORKFLOW="$REPO_ROOT/.github/workflows/ci.yml"
+NPM_SECURITY_WORKFLOW="$REPO_ROOT/.github/workflows/npm-security-monitor.yml"
+NODE_VERSION_FILE="$REPO_ROOT/.node-version"
+PACKAGE_JSON="$REPO_ROOT/package.json"
 PR_TEMPLATE="$REPO_ROOT/.github/pull_request_template.md"
 
 fail() {
@@ -125,11 +128,93 @@ end
 RUBY
 }
 
+validate_node_contract() {
+    local node_version_file="${1:-$NODE_VERSION_FILE}"
+    local package_json="${2:-$PACKAGE_JSON}"
+    local ci_workflow="${3:-$WORKFLOW}"
+    local npm_security_workflow="${4:-$NPM_SECURITY_WORKFLOW}"
+
+    ruby - "$node_version_file" "$package_json" "$ci_workflow" "$npm_security_workflow" <<'RUBY'
+require "json"
+require "yaml"
+
+node_version_file, package_json, *workflow_paths = ARGV
+pin_lines = File.readlines(node_version_file, chomp: true)
+abort ".node-version must contain exactly 24.18.0" unless pin_lines == ["24.18.0"]
+
+manifest = JSON.parse(File.read(package_json))
+expected_range = ">=24 <25"
+abort "engines.node drifted" unless manifest.dig("engines", "node") == expected_range
+
+runtime = manifest.dig("devEngines", "runtime")
+expected_runtime = {
+  "name" => "node",
+  "version" => expected_range,
+  "onFail" => "error",
+}
+abort "devEngines.runtime drifted" unless runtime == expected_runtime
+
+types_node = manifest.dig("devDependencies", "@types/node")
+abort "@types/node must stay on major 24" unless types_node&.match?(/\A\^24\.\d+\.\d+\z/)
+
+workflow_paths.each do |path|
+  workflow = YAML.safe_load(File.read(path), aliases: true)
+  setup_steps = workflow.fetch("jobs").values.flat_map { |job| job.fetch("steps", []) }
+    .select { |step| step["uses"] == "actions/setup-node@v6" }
+  abort "#{path}: setup-node@v6 step is missing" if setup_steps.empty?
+
+  setup_steps.each do |step|
+    setup_with = step.fetch("with")
+    unless setup_with["node-version-file"] == ".node-version" && !setup_with.key?("node-version")
+      abort "#{path}: setup-node must use only node-version-file: .node-version"
+    end
+  end
+end
+RUBY
+}
+
 validate_job_graph "$WORKFLOW"
 validate_workflow_contract "$WORKFLOW"
+validate_node_contract
 
 mutation_dir="$(mktemp -d)"
 trap 'rm -rf "$mutation_dir"' EXIT
+
+pin_mutation="$mutation_dir/.node-version"
+printf '%s\n' "25.8.2" > "$pin_mutation"
+if validate_node_contract "$pin_mutation" >/dev/null 2>&1; then
+    fail "Node contract validator accepted a drifted exact pin"
+fi
+
+ci_node_mutation="$mutation_dir/ci-node20.yml"
+sed 's/node-version-file: .node-version/node-version: 20/' "$WORKFLOW" > "$ci_node_mutation"
+if validate_node_contract "$NODE_VERSION_FILE" "$PACKAGE_JSON" "$ci_node_mutation" "$NPM_SECURITY_WORKFLOW" >/dev/null 2>&1; then
+    fail "Node contract validator accepted literal Node 20 in ci.yml"
+fi
+
+npm_security_node_mutation="$mutation_dir/npm-security-node20.yml"
+sed 's/node-version-file: .node-version/node-version: 20/' "$NPM_SECURITY_WORKFLOW" > "$npm_security_node_mutation"
+if validate_node_contract "$NODE_VERSION_FILE" "$PACKAGE_JSON" "$WORKFLOW" "$npm_security_node_mutation" >/dev/null 2>&1; then
+    fail "Node contract validator accepted literal Node 20 in npm-security-monitor.yml"
+fi
+
+engines_mutation="$mutation_dir/engines-node25.json"
+sed '0,/"node": ">=24 <25"/s//"node": ">=25 <26"/' "$PACKAGE_JSON" > "$engines_mutation"
+if validate_node_contract "$NODE_VERSION_FILE" "$engines_mutation" >/dev/null 2>&1; then
+    fail "Node contract validator accepted a drifted engines.node major"
+fi
+
+dev_engines_mutation="$mutation_dir/dev-engines-node25.json"
+sed '0,/"version": ">=24 <25"/s//"version": ">=25 <26"/' "$PACKAGE_JSON" > "$dev_engines_mutation"
+if validate_node_contract "$NODE_VERSION_FILE" "$dev_engines_mutation" >/dev/null 2>&1; then
+    fail "Node contract validator accepted a drifted devEngines.runtime major"
+fi
+
+types_node_mutation="$mutation_dir/types-node25.json"
+sed 's/"@types\/node": "\^24\.[0-9][0-9.]*"/"@types\/node": "^25.0.0"/' "$PACKAGE_JSON" > "$types_node_mutation"
+if validate_node_contract "$NODE_VERSION_FILE" "$types_node_mutation" >/dev/null 2>&1; then
+    fail "Node contract validator accepted a drifted @types/node major"
+fi
 
 job_graph_mutation="$mutation_dir/unguarded-job.yml"
 cp "$WORKFLOW" "$job_graph_mutation"

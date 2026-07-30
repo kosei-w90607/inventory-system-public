@@ -28,7 +28,7 @@ jobs:
 
       - uses: actions/setup-node@v6
         with:
-          node-version: 20
+          node-version-file: .node-version
 
       # npm audit は package-lock.json だけで実行できるため npm ci は不要。
       # script 内の gh api（advisory check）に GH_TOKEN が必要。
