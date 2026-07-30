@@ -1,21 +1,22 @@
-# Review Order: Claude hook contract audit frozen P2 closure
+# Review Order: Claude hook contract audit final CH10 closure
 
 ## 1. Goal
 
-Claude Opus 5 / effort xHigh / fresh context（D-056 §5.4低制約profile）のread-only reviewerを1人だけ起動し、PR #48のFinal Double AuditでfrozenとなったP2 2件についてclosure-only reviewを行う。相談窓口役は原本を改変せず投入し、reviewer結果と自身の検算を区別して集約し、Coordinatorが`independent-review -> human-confirm`可否を裁定できる材料をownerへ返す。新規Broad Audit、P3探索、任意の証跡拡張は行わない。
+Claude Opus 5 / effort xHigh / fresh context（D-056 §5.4低制約profile）のread-only reviewerを1人だけ起動し、PR #48のfrozen P2-CH10について最終closure-only reviewを行う。相談窓口役は原本を改変せず投入し、reviewer結果と自身の検算を区別して集約し、Coordinatorが`independent-review -> human-confirm`可否を裁定できる材料をownerへ返す。P2-CH4の再審、新規Broad Audit、P3探索、任意の証跡拡張は行わない。
 
 ## 2. Scope boundary
 
 - Target Plan Packet: `docs/plans/2026-07-31-claude-hook-contract-audit.md`
-- Target content SHA: `4cc49baec3a31aa6d705c7402177501e86ff764a`
+- Target content SHA: `e28249948ff53a8a906aee4c170e4f3e5a2d111f`
 - Target remote branch ref: `refs/heads/codex/claude-hook-audit`
 - Target PR: `#48`
 - Risk / stage: `R3 workflow gate change / independent-review closure`
-- Initial reviewed SHA: `3a54baf67c900f20e72bddf5f4e5018961338c98`
-- Review target: `3a54baf67c900f20e72bddf5f4e5018961338c98..4cc49baec3a31aa6d705c7402177501e86ff764a`のcorrection差分、およびexact target HEADの該当source / tests / Packet / Matrix / PR body。
-- Frozen P2-CH4: `scripts/tests/claude-hooks.test.sh`の`validate_live_docs()`が`docs/Plans.md`を実際に読み、Plans専用mutationで契約違反がredになること。Matrixの「Plans backlogをCH4 + drift sweepで覆う」主張と実装が一致すること。
-- Frozen P2-CH10: source-direct `validate_contract "$SOURCE_ROOT"`呼出しの削除がfixture mutation群とは独立にredになるanti-tautology guardが実装され、documented CH10 claimと実装が一致すること。
-- Correction-boundary regression check: 上記2件と同じtest-only correctionに含めたCH6 / CH8 / CH9 labelとhosted validator failure診断が、既存Scope / Non-scope / durable zero-hook contractを変えず成立すること。
+- Initial reviewed SHA: `4cc49baec3a31aa6d705c7402177501e86ff764a`
+- Review target: `4cc49baec3a31aa6d705c7402177501e86ff764a..e28249948ff53a8a906aee4c170e4f3e5a2d111f`のCH10 re-correction差分、およびexact target HEADの該当source / test / Packet / Matrix / PR body。
+- Frozen P2-CH10: `scripts/tests/claude-hooks.test.sh`でsource-direct検査2行をコメント化してliteralだけ残し、tracked sourceへstray hookを追加する合成mutationがredになること。
+- Behavioral closure criterion: `make_fixture(source, fixture)`がtracked sourceのsettings / docs / `.claude/hooks/**`を同じ派生fixtureへmaterializeし、duplicate fixtureだけを読む退化やsource hook非伝播を許さないこと。使い捨てcopy / temporary cloneで合成mutationを実行して確認すること。
+- Claim alignment: Matrix CH10のsource propagation mutation、Packet / PR bodyのcorrection claim、実装のfailure pathが一致すること。
+- Frozen P2-CH4は前回closureでCLOSED済み。再審しない。CH6 / CH8 / CH9と既存P3も再審しない。
 - Evidence check: PR headRefOidがtarget content SHAと一致し、working tree clean、exact target HEADのL1 fullがPR bodyのSHAと一致してPASS / CLEAN / `MERGE_EVIDENCE_VALID=true`であること。hosted final pendingはReady前の既知gapでありfindingにしない。
 - Findings Freezeを維持する。新規P2はruntime failureを実証した場合だけfreeze exception候補として報告し、既存P3や新規cosmetic findingの探索は行わない。
 - npm audit既知5件、user-global `~/.claude/**`、Claude Code本体、plugin cache / upgrade / repair、Codex hook、product code、DB、UIはNon-scope。correction差分が越境した場合だけ報告する。
@@ -27,7 +28,7 @@ Claude Opus 5 / effort xHigh / fresh context（D-056 §5.4低制約profile）の
 ## 4. Report format
 
 - Verdictは`APPROVE`または`REQUEST CHANGES`とし、closure対象のP1 / P2 / P3件数を示す。P1/P2=0ならhuman-confirm可、1件以上ならfrozen finding IDごとのresidual failure pathと最小是正境界を示す。
-- `P2-CH4` / `P2-CH10`をそれぞれ`CLOSED` / `PARTIALLY CLOSED` / `OPEN`で判定し、source file:line、実行・mutation evidence、主張と実体の一致を根拠にする。
+- `P2-CH10`を`CLOSED` / `PARTIALLY CLOSED` / `OPEN`で判定し、source file:line、合成mutationの実行 evidence、主張と実体の一致を根拠にする。P2-CH4は再審しない。
 - Rejected / Deferred、Verification Gaps、Merge / Split Judgment、Review Summaryを含める。約15項目以内のbounded evidence summaryとし、raw log、full-file dump、長大なdiff転載は返さない。
 - 相談窓口役はreviewerのverdictを改変せず示し、その後に独立検算、発注spec遵守、Coordinator裁定候補を区別して集約する。
 
