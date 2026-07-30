@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: implementing
+- Phase: independent-review
 - Risk: R3
 - Execution Mode: dual-vendor-no-fable
 - Plan Commit: d90dc2d84b6fc59d25b31d00059b5344cda40838
@@ -226,7 +226,7 @@ Contract ID: SPEC-HOOK-01
 - `.claude/hooks/`のtracked 8 scriptを削除し、`plan-rally.md`を任意のread-only review helperへ縮約した。model、agent log、時間窓、Self-Review、memory writeをgate化しない。
 - `claude-hooks.test.sh`をCH1〜CH11のsource-direct / mutation auditとして追加し、classifier、local-ci、hosted docs job、CI static testへ接続した。`.claude/settings.json` / hooks / commandsはworkflow、skillsはdocs routingを維持する。
 - `CLAUDE.md`、Manual §6.1、DEV_SETUP、TOOLING、DEV_WORKFLOW、ci.md、project-profile、D-059、Plans / handoffをzero-hook contractへ同期した。repository `.gitignore`がmachine-local settingsを所有する。
-- TDD redは旧8 hook、classifier unknown、hosted step欠落で再現し、実装後にtargeted fixture / mutation testsがgreenとなった。L1 fullとFinal Double Auditは後続phaseで実行する。
+- TDD redは旧8 hook、classifier unknown、hosted step欠落で再現し、実装後にtargeted fixture / mutation testsがgreenとなった。Node 24.18.0のrepo pin下でchanged / L1 fullをPASS / CLEAN、L1は`MERGE_EVIDENCE_VALID=true`まで確認し、Draft PR #48を作成した。Final Double Auditは後続phaseで実行する。
 
 ## Review Response
 
@@ -260,3 +260,4 @@ Contract ID: SPEC-HOOK-01
 - 2026-07-31 Plan Gate closure round 2 -> design pivot: P2-2はclosed、P2-1は実runtimeがinner/outer timeoutを超えるためresidual。通常系が成立しないのでP1相当blockerと裁定し、8本から1本ではなく0本へ縮約する。ExitPlanModeの重複gateを廃止し、既存workflow gateを正本として維持するPlan/Matrixへ改定した。
 - 2026-07-31 Plan Gate closure round 3 -> plan-approved -> implementing: Sonnet 5 / xHigh fresh-context closureはAPPROVE（P1=0 / P2=0 / P3=1）。zero-hook pivotと既存gate ownershipの実体を確認し、ownerが選択肢AとしてPlan Gateを承認した。Plan Commitを`d90dc2d84b6fc59d25b31d00059b5344cda40838`へ固定し、隣接遷移をmaterializeした。P3のManual §6前文driftはimplementation時にCH4のlive docs対象として是正する。Final Double Auditは残るrelay 1回でSonnet 5 / Opus 5 fresh-context reviewerを各1人起動する。
 - 2026-07-31 implementing first pass: zero-hook settings、tracked hook削除、harness false、optional plan helper、repo-owned inventory / mutation test、workflow classifier、local / hosted wiring、live docs同期を実装した。Plan Review P3のManual前文もCH4対象として是正し、targeted testsをgreenにした。
+- 2026-07-31 local verification -> independent review: implementation commit `b3e1ad92fe0bc878a75b66024e8bcf9d743dfb57`をNode 24.18.0のrepo pin下でchanged / L1 full検証し、PASS / CLEAN / merge evidence validを確認した。system Node 25の初回changedは`devEngines`契約どおりfail-fastしたためmerge evidenceには採用しない。Draft PR #48を作成し、このvalidation / dashboard content commitへ`implementing -> local-verified -> independent-review`を同乗させ、最後のconsultation relay orderによるDouble Auditへ進む。
