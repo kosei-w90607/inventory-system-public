@@ -1,6 +1,6 @@
 # 開発環境構築チェックリスト
 
-> **最終更新**: 2026-06-08 / agmsg sandbox setup notes 追加
+> **最終更新**: 2026-07-30 / Node 24 LTS exact pin 方針
 > **方針**: WSL2 直接開発を現運用とする。Docker 完結（旧案 C）は §A.1 退役記録に履歴保存
 
 ---
@@ -34,7 +34,7 @@ Windows 11 Home
 ├── WebView2 Runtime（Windows 11 にプリインストール済み）
 └── WSL2 (Ubuntu)
     ├── Rust 1.83+ (stable)
-    ├── Node.js 20 LTS（CI ビルド対象。ローカルは nvm で 22+ も可）
+    ├── Node.js 24 LTS（repository の `.node-version` を local / CI 共通で使用）
     ├── npm
     ├── Tauri 2.0 CLI + Linux 依存ライブラリ
     ├── SQLite3 dev libraries
@@ -47,7 +47,7 @@ Windows 11 Home
 | ツール | バージョン | 用途 |
 |---|---|---|
 | Rust | 1.83+ stable | Tauri バックエンド + scripts |
-| Node.js | 20 LTS（CI 基準） | フロントエンド（React 19 + Vite + TanStack） |
+| Node.js | 24.18.0（`.node-version` が正本） | フロントエンド（React 19 + Vite + TanStack） |
 | npm | Node 同梱 | 依存管理 + lefthook |
 | ripgrep (`rg`) | apt 経由 | docs / Rust test traceability などの静的チェック |
 | WebView2 Runtime | Windows 11 同梱 | Tauri Windows 描画 |
@@ -198,16 +198,15 @@ curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 rustup component add clippy rustfmt
 ```
 
-### 4.2 Node.js 20 LTS（nvm 経由を推奨）
+### 4.2 Node.js 24 LTS（repository pin）
 
 ```bash
-curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash
-source ~/.zshrc   # または ~/.bashrc
-nvm install 20
-nvm use 20
+mise install node@$(tr -d '\r\n' < .node-version)
+mise exec -- node --version
+mise exec -- npm --version
 ```
 
-> CI のビルド対象は Node 20 LTS。ローカルが 22+ でも開発上は通るが、`npm run build` の最終確認は CI 同等環境（Node 20）で行う。Node 22 移行検討は Plans.md Backlog 「CI ビルド対象 Node を 20 → 22 LTS に更新検討」を参照。
+> Node version の正本は repository root の `.node-version`。ローカル検証と `actions/setup-node@v6` は同じ exact version を読み、`package.json#engines.node`、`package.json#devEngines.runtime`、`@types/node` は同じ Node 24 major に揃える。`devEngines.runtime.onFail = "error"` により、Node 24 以外での通常の `npm install` / `npm ci` / `npm run` は fail-fast する。user-wide default の変更は必須ではなく、WSL2 では `mise exec -- <command>` で repository pin を明示して実行できる。
 
 ### 4.3 Tauri 2 Linux 依存ライブラリ
 
@@ -235,7 +234,7 @@ cargo install tauri-cli --version "^2"
 ### 4.5 動作確認
 
 - [x] `rustc --version` → 1.83 以上
-- [x] `node --version` → v20.x（CI 整合）/ ローカル 22+ も可
+- [x] `node --version` → v24.18.0（`.node-version` / CI 整合）
 - [x] プロジェクトディレクトリで `cargo tauri dev` → GUI ウィンドウが表示される
 - [x] Claude Code の作業ディレクトリは WSL2 上の `/home/{user}/inventory-system-public` に固定（プロジェクト外保存禁止、CLAUDE.md 「やってはいけないこと」参照）
 
@@ -465,7 +464,7 @@ ARCHITECTURE.md の 5 層分割（UI / CMD / BIZ / IO / MNT）に従い、`src-t
 - [x] PR #45 ESLint 9 flat config + typescript-eslint strict-type-checked + typecheck 独立化
 - [x] PR #46 lefthook pre-commit + CI frontend ジョブ拡張 + npm audit warn-only
 
-> 申し送り Backlog: `tsr.config.*` 一本化 / npm audit 3 件修正 / Node 22 移行 / CI frontend job 名と branch protection rule の整合（[Plans.md](../Plans.md) Backlog 参照）
+> 申し送り Backlog: `tsr.config.*` 一本化 / npm audit 残件 / CI frontend job 名と branch protection rule の整合（Node runtime の一本化は Node 24 toolchain alignment change で対応、[Plans.md](../Plans.md) 参照）
 
 ---
 
