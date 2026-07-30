@@ -1,21 +1,23 @@
-# Review Order: Claude hook contract audit Plan Gate
+# Review Order: Claude hook contract audit Plan Gate closure
 
 ## 1. Goal
 
-Claude Sonnet 5 / effort xHigh / fresh context の read-only subagent を **1人だけ**起動し、target Plan Packet と Test Design Matrixを独立Plan Gate reviewする。相談窓口役は返却結果を集約し、Coordinatorが裁定できる判定材料としてownerへ返す。
+Claude Sonnet 5 / effort xHigh / fresh context の read-only subagent を **1人だけ**起動し、Plan Review round 1のP2×2が閉じたかをclosure-only reviewする。相談窓口役は返却結果を集約し、Coordinatorが裁定できる判定材料としてownerへ返す。
 
 ## 2. Scope boundary
 
 - Target Plan Packet: `docs/plans/2026-07-31-claude-hook-contract-audit.md`
-- Target content SHA: `62cf930bba9a2db86014dd25ab46ed46f882494e`
+- Target content SHA: `4c4284fb706e0122ede3f735d074ac9f3a8ec704`
 - Target remote branch ref: `refs/heads/codex/claude-hook-audit`
 - Risk / stage: `R3 workflow gate change / plan-gate`
-- Primary review targets:
+- Closure targets:
   - `docs/plans/2026-07-31-claude-hook-contract-audit.md`
   - `docs/plans/test-matrices/2026-07-31-claude-hook-contract-audit.md`
   - `docs/AGENT_OPERATING_MANUAL.md` §6.1
   - `docs/decision-log.md` D-059
-- Review the real repository sources needed to verify the plan. Focus on ownership across global/project/local/plugin layers, ExitPlanMode exit 0/2 wire behavior, cwd independence, false completion/write injection, test anti-tautology, live-doc drift sweep, classifier/local/hosted wiring, Scope/Non-scope completeness.
+- Verify P2-1 closure: strict mode + trap normalizes script-controlled unexpected nonzero to exit 2; an inner checker deadline finishes before the outer runner timeout; Matrix has nonzero and hang cases without claiming the outer runner can always be trapped.
+- Verify P2-2 closure: Self-Review ownership misstatement is removed; the old 7-point Self-Review and mandatory plan rally retire without successor, with the rejected promotion alternative and reason recorded.
+- Check only correction regressions and direct drift from these two fixes. Do not reopen the accepted Scope/Non-scope boundary or add new review lenses.
 - Do not review implementation because it has not started. Do not demand a non-pending `Plan Commit`: at `plan-gate`, `d90dc2d` is the plan-first identity candidate and the field remains `pending` until approval.
 
 ## 3. Read-only declaration
@@ -26,8 +28,8 @@ Claude Sonnet 5 / effort xHigh / fresh context の read-only subagent を **1人
 
 - Verdict: `APPROVE` or `REQUEST CHANGES`
 - P1 / P2 / P3 counts
-- Findings: each item includes `file:line`, reproducible failure path, impact, and minimum correction boundary
-- Contract Probe claim disposition
+- Closure table for P2-1 and P2-2
+- New correction-regression findings, if any: each includes `file:line`, reproducible failure path, impact, and minimum correction boundary
 - Rejected / Deferred candidates
 - Verification Gaps
 - Plan Gate disposition: P1/P2=0ならimplementation可、それ以外はplan-gate維持
