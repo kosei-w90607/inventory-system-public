@@ -14,15 +14,15 @@
 - Reviewed Content HEAD: pending
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
-- Human Gate: Ready / merge pending（Plan Gate承認済み、owner介入3/4）
+- Human Gate: Ready / merge pending（Plan Gate承認済み、owner介入4/5）
 
 ## Owner Effort Budget
 
-- 介入回数上限: 4
+- 介入回数上限: 5
 - 実働時間上限: 30分
-- relay 往復上限: 5
+- relay 往復上限: 6
 
-既定より介入を1回、relayを3回増やす。初回relay 4回はPlan Gate 3 roundとFinal Review Double Audit 1 orderで消化した。Final Reviewのruntime-proven P2是正後、ownerが介入3/4としてclosure-only relay 1回を承認したため上限を5へ拡張する。追加relayはClaude Opus 5 / xHigh fresh-context reviewer 1人による既存P2のclosure確認だけに使い、新規Broad Audit、P3探索、任意の証跡追加には使わない。介入4回目はReady / merge判断用に留保する。
+既定より介入を2回、relayを4回増やす。relay 5/5のclosureでCH10合成迂回がruntime実証されたため、ownerが介入4/5としてsame-PR是正とclosure-only relay 1回を承認した。relay 6はClaude Opus 5 / xHigh fresh-context reviewer 1人によるP2-CH10 closureだけに使い、新規Broad Audit、P3探索、任意の証跡追加には使わない。介入5回目はReady / merge判断用に留保する。
 
 ## Consultation Relay
 
@@ -269,6 +269,8 @@ Contract ID: SPEC-HOOK-01
 - Opus 5 / xHigh fresh-context reviewerはREQUEST CHANGES（P1=0 / P2=1 / P3=0）。P2-CH4はCLOSED、P2-CH10はPARTIALLY CLOSEDと判定した。
 - CoordinatorはP2-CH10のproblem claimをaccept。source-direct呼出し2行をコメント化してliteralだけを残し、実sourceへstray hookを追加した使い捨てcloneで、`claude-hooks.test.sh`全体がPASSする合成迂回を独立再現した。Findings Freeze後だがruntime実証済みP2のためblockerを維持する。
 - ownerは選択肢Aとしてsame-PR是正を承認した。正本規則どおり`independent-review -> implementing`へbacktrackし、次のcontent commitで予算拡張とCH10 source-hook propagation testを実装する。
+- Owner budget exception: ownerが介入4/5として介入上限を4から5、relay上限を5から6へ今回限り拡張した。追加1回はP2-CH10のclosureだけに使い、Ready / merge判断を介入5回目へ留保する。Scope / Acceptance Criteria / durable contractは変更しないため、`Amendments`は`none`を維持する。
+- Correction implementation: `make_fixture(source, fixture)`へ入力元を明示し、tracked sourceの`.claude/hooks/**`をsettings / docs / wiringと同じ派生fixtureへ複写する。source側stray hookが派生fixtureでrejectされるCH10 mutationを追加し、旧実装でred、実装後greenを確認した。
 
 ## Narrative
 
@@ -282,3 +284,4 @@ Contract ID: SPEC-HOOK-01
 - 2026-07-31 correction implementation: CH4へPlans live sourceと専用mutationを追加し、CH10へsource-direct invocation単一性guardを実装した。source invocationを一時削除してCH10 redを再現し、復元後にhook audit / classifier / CI workflow testをgreen確認した。P3の診断とID表示も同じ3 test file内で閉じた。
 - 2026-07-31 correction verification -> independent review: correction content candidateはtargeted / changed / L1 fullがPASS / CLEANで、`MERGE_EVIDENCE_VALID=true`を確認した。exact-HEAD SHAとevidence pathはPR bodyを正本とする。ownerが介入3/4として予算を介入4・relay 5へ拡張したため、`implementing -> local-verified -> independent-review`をmaterializeし、relay 5/5をClaude Opus 5 / xHigh fresh-context reviewer 1人によるfrozen P2 closureに限定する。
 - 2026-07-31 frozen P2 closure -> implementing: relay 5/5のOpus closureはP2-CH4をCLOSED、P2-CH10をPARTIALLY CLOSEDとした。Coordinatorもsource呼出しコメント化 + stray hookの合成で全体PASSを再現し、runtime-proven P2としてacceptした。ownerはAを選択し、same-PR是正のため`independent-review -> implementing`へbacktrackする。
+- 2026-07-31 CH10 closure correction: ownerが介入4/5として予算を介入5・relay 6へ拡張した。source-derived fixtureが`.claude/hooks/**`もmaterializeするAPIとpropagation mutationをtest-firstで追加し、旧実装の`CH10 source-derived hook fixture was not constructed` redからgreenへ転換した。次はexact content candidateのchanged / L1 fullとrelay 6/6 closure。

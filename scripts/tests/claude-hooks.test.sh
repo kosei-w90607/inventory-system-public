@@ -123,7 +123,8 @@ tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
 
 make_fixture() {
-    local fixture="$1"
+    local source="$1"
+    local fixture="$2"
 
     mkdir -p \
         "$fixture/.claude/commands" \
@@ -131,24 +132,36 @@ make_fixture() {
         "$fixture/.github/workflows" \
         "$fixture/docs" \
         "$fixture/scripts/ci"
-    cp "$SOURCE_ROOT/.claude/settings.json" "$fixture/.claude/settings.json"
-    cp "$SOURCE_ROOT/.claude/commands/plan-rally.md" "$fixture/.claude/commands/plan-rally.md"
-    cp "$SOURCE_ROOT/.github/workflows/ci.yml" "$fixture/.github/workflows/ci.yml"
-    cp "$SOURCE_ROOT/docs/AGENT_OPERATING_MANUAL.md" "$fixture/docs/AGENT_OPERATING_MANUAL.md"
-    cp "$SOURCE_ROOT/docs/DEV_SETUP_CHECKLIST.md" "$fixture/docs/DEV_SETUP_CHECKLIST.md"
-    cp "$SOURCE_ROOT/docs/TOOLING_SKILL_COMMANDS.md" "$fixture/docs/TOOLING_SKILL_COMMANDS.md"
-    cp "$SOURCE_ROOT/docs/Plans.md" "$fixture/docs/Plans.md"
-    cp "$SOURCE_ROOT/scripts/ci/classify-changes.sh" "$fixture/scripts/ci/classify-changes.sh"
-    cp "$SOURCE_ROOT/scripts/local-ci.sh" "$fixture/scripts/local-ci.sh"
-    cp "$SOURCE_ROOT/scripts/pre-push.sh" "$fixture/scripts/pre-push.sh"
-    cp "$SOURCE_ROOT/CLAUDE.md" "$fixture/CLAUDE.md"
-    cp "$SOURCE_ROOT/.gitignore" "$fixture/.gitignore"
+    cp "$source/.claude/settings.json" "$fixture/.claude/settings.json"
+    cp "$source/.claude/commands/plan-rally.md" "$fixture/.claude/commands/plan-rally.md"
+    cp "$source/.github/workflows/ci.yml" "$fixture/.github/workflows/ci.yml"
+    cp "$source/docs/AGENT_OPERATING_MANUAL.md" "$fixture/docs/AGENT_OPERATING_MANUAL.md"
+    cp "$source/docs/DEV_SETUP_CHECKLIST.md" "$fixture/docs/DEV_SETUP_CHECKLIST.md"
+    cp "$source/docs/TOOLING_SKILL_COMMANDS.md" "$fixture/docs/TOOLING_SKILL_COMMANDS.md"
+    cp "$source/docs/Plans.md" "$fixture/docs/Plans.md"
+    cp "$source/scripts/ci/classify-changes.sh" "$fixture/scripts/ci/classify-changes.sh"
+    cp "$source/scripts/local-ci.sh" "$fixture/scripts/local-ci.sh"
+    cp "$source/scripts/pre-push.sh" "$fixture/scripts/pre-push.sh"
+    cp "$source/CLAUDE.md" "$fixture/CLAUDE.md"
+    cp "$source/.gitignore" "$fixture/.gitignore"
+    if [[ -d "$source/.claude/hooks" ]]; then
+        cp -a "$source/.claude/hooks/." "$fixture/.claude/hooks/"
+    fi
     git -C "$fixture" init -q
 }
 
 fixture="$tmp/base"
-make_fixture "$fixture"
+make_fixture "$SOURCE_ROOT" "$fixture"
 validate_contract "$fixture" || fail "unmodified contract fixture is not green"
+
+source_hook_mutant="$tmp/source-hook-mutant"
+cp -a "$fixture" "$source_hook_mutant"
+printf '%s\n' '#!/usr/bin/env bash' > "$source_hook_mutant/.claude/hooks/stray.sh"
+propagated_hook_fixture="$tmp/propagated-hook-fixture"
+make_fixture "$source_hook_mutant" "$propagated_hook_fixture"
+[[ -f "$propagated_hook_fixture/.claude/settings.json" ]] ||
+    fail "CH10 source-derived hook fixture was not constructed"
+expect_rejected "CH10 source hook propagation" "$propagated_hook_fixture"
 
 hook_mutant="$tmp/hook-mutant"
 cp -a "$fixture" "$hook_mutant"

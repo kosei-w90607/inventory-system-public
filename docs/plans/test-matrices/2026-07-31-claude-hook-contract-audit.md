@@ -34,7 +34,7 @@ Risk: R3
 | H4 | local audit未接続 | integration | CH7 `local_ci_runs_hook_audit` | workflow changeでinventory testが呼ばれない |
 | H4 | hosted未接続 | static/mutation | CH8 `hosted_runs_hook_audit` | CI step削除でgreen |
 | H4 | static test未接続 | mutation | CH9 `ci_test_guards_hook_step` | command literal mutationをkillしない |
-| H4 | source testでない | anti-tautology | CH10 `test_reads_tracked_settings_and_hooks` |duplicate fixtureだけでもgreen |
+| H4 | source testでない | anti-tautology / source propagation mutation | CH10 `test_reads_tracked_settings_and_hooks` | tracked sourceのsettings / docs / hooksを派生fixtureへmaterializeしない、またはsource hook追加が派生fixtureでgreen |
 | local boundary | global ignore依存 | gitignore | CH11 `local_settings_repo_ignored` | repository rule欠落 |
 
 ## State Lifecycle Matrix
@@ -110,7 +110,7 @@ Risk: R3
 - canonical doc-consistency wiringをpre-push / local full / hosted finalのいずれかから削除するとCH5がredになる。
 - classifierから対象3 path群を除く、または`.claude/skills/**`をworkflowへ広げるとCH6がredになる。
 - CIのinventory-test stepまたはlocal-ci registrationを削るとCH7〜CH9がredになる。
-- testをtracked settings / hook directoryではなくduplicate fixtureだけ読むよう変えるとCH10がredになる。
+- source-derived fixtureからtracked settings / hook directoryの複写を外す、またはsource側stray hookが派生fixtureへ届かないよう変えるとCH10がredになる。
 - repo `.gitignore`からlocal settings ruleを削るとCH11がredになる。
 
 ## Residual Test Gaps
