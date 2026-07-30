@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: implementing
+- Phase: independent-review
 - Risk: R3
 - Execution Mode: dual-vendor-no-fable
 - Plan Commit: d90dc2d84b6fc59d25b31d00059b5344cda40838
@@ -14,15 +14,15 @@
 - Reviewed Content HEAD: pending
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
-- Human Gate: Ready / merge pending（Plan Gate承認済み、owner介入2/3）
+- Human Gate: Ready / merge pending（Plan Gate承認済み、owner介入3/4）
 
 ## Owner Effort Budget
 
-- 介入回数上限: 3
+- 介入回数上限: 4
 - 実働時間上限: 30分
-- relay 往復上限: 4
+- relay 往復上限: 5
 
-既定よりrelayを2回増やす。R3 workflow gate changeのPlan Review 1回、必要時closure 1回、Final Review Double Audit 2 passを同一change内で完了するため。P3だけの追加roundは行わない。
+既定より介入を1回、relayを3回増やす。初回relay 4回はPlan Gate 3 roundとFinal Review Double Audit 1 orderで消化した。Final Reviewのruntime-proven P2是正後、ownerが介入3/4としてclosure-only relay 1回を承認したため上限を5へ拡張する。追加relayはClaude Opus 5 / xHigh fresh-context reviewer 1人による既存P2のclosure確認だけに使い、新規Broad Audit、P3探索、任意の証跡追加には使わない。介入4回目はReady / merge判断用に留保する。
 
 ## Consultation Relay
 
@@ -262,6 +262,7 @@ Contract ID: SPEC-HOOK-01
 - Sonnet単独findingのhosted validator裸呼出しをP3、CH6 / CH8 / CH9のtest ID表示欠落をP3としてacceptした。いずれも同じtest correction内で閉じる。
 - `DEV_WORKFLOW.md`のcorrection ruleに従い`independent-review -> implementing`へbacktrackする。Scope / Non-scope / durable contractは変更せず、test coverageと診断だけをsame-PR correctionする。
 - Correction implementation: `claude-hooks.test.sh`のCH4 / CH10、`classify-changes.test.sh`のCH6、`ci-workflow.test.sh`のCH8 / CH9を最小是正した。CH10 source invocation削除mutationは期待どおりred、復元後は3 targeted testがgreen。追加review relayはOwner Effort Budget 4/4のため未生成。
+- Owner budget exception: ownerが介入3/4として介入上限を3から4、relay上限を4から5へ今回限り拡張した。追加1回は同じfrozen finding setのP2 closureだけに使い、Claude Opus 5 / xHigh fresh-context reviewerを1人だけ生成する。Scope / Acceptance Criteria / Matrix / implementation contractは変更しないため、`Amendments`は`none`を維持する。
 
 ## Narrative
 
@@ -273,3 +274,4 @@ Contract ID: SPEC-HOOK-01
 - 2026-07-31 local verification -> independent review: implementation commit `b3e1ad92fe0bc878a75b66024e8bcf9d743dfb57`をNode 24.18.0のrepo pin下でchanged / L1 full検証し、PASS / CLEAN / merge evidence validを確認した。system Node 25の初回changedは`devEngines`契約どおりfail-fastしたためmerge evidenceには採用しない。Draft PR #48を作成し、このvalidation / dashboard content commitへ`implementing -> local-verified -> independent-review`を同乗させ、最後のconsultation relay orderによるDouble Auditへ進む。
 - 2026-07-31 Final Double Audit -> implementing: relay 4/4の独立2 passはCH4 Plans coverage欠落とCH10 source-direct anti-tautology未実装をP2として検出した。Coordinatorは両problem claimを実ソースで再現し、P3の診断 / ID表示と同じtest-only correctionで閉じると裁定した。Findings Freezeを発効し、正本規則どおり`independent-review -> implementing`へbacktrackする。
 - 2026-07-31 correction implementation: CH4へPlans live sourceと専用mutationを追加し、CH10へsource-direct invocation単一性guardを実装した。source invocationを一時削除してCH10 redを再現し、復元後にhook audit / classifier / CI workflow testをgreen確認した。P3の診断とID表示も同じ3 test file内で閉じた。
+- 2026-07-31 correction verification -> independent review: correction content candidateはtargeted / changed / L1 fullがPASS / CLEANで、`MERGE_EVIDENCE_VALID=true`を確認した。exact-HEAD SHAとevidence pathはPR bodyを正本とする。ownerが介入3/4として予算を介入4・relay 5へ拡張したため、`implementing -> local-verified -> independent-review`をmaterializeし、relay 5/5をClaude Opus 5 / xHigh fresh-context reviewer 1人によるfrozen P2 closureに限定する。
