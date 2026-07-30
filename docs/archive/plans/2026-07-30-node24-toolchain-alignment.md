@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: ready-hosted-final
+- Phase: archive
 - Risk: R2
 - Execution Mode: dual-vendor-no-fable
 - Plan Commit: 2047400
@@ -14,7 +14,7 @@
 - Reviewed Content HEAD: d6ae17b1465005b2e9e0faa1f90c76edd979e19a
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
-- Human Gate: none
+- Human Gate: resolved Ready / merge（owner介入4/4）
 
 ## Owner Effort Budget
 
@@ -219,3 +219,4 @@ R2のため非必須。Design Intent Traceで3 contractを追跡する。
 - 2026-07-30 implementing -> local-verified -> independent-review -> human-confirm（state-only compression）: reviewed content HEADのL1 full CLEAN evidenceはPR #46 body、Final ReviewerはP1/P2=0。`Reviewed Content HEAD`を`d6ae17b1465005b2e9e0faa1f90c76edd979e19a`へ固定し、Findings Freezeを発効した。Ready / hosted final / mergeは未承認のままowner gateへ進む。
 - 2026-07-30 owner Ready / merge一括承認（介入4/4）: ownerがFinal Review P1/P2=0を受け、Ready化、required hosted final、三点SHA一致後のmerge、Post-Merge Closeoutを一括承認した。追加owner判断は不要だが、各preconditionとmerge gateは省略しない。
 - 2026-07-30 human-confirm -> ready-hosted-final: 本state-only commitをDraftのまま作成し、そのexact HEADでL1 fullを再実行してPR bodyを更新する。同一HEADをReady化してrequired hosted finalを起動し、live PR HEAD、PR bodyのLocal full evidence HEAD SHA、hosted run headShaの三点一致とmerge CLEANを確認してから承認済みmergeを実行する。
+- 2026-07-30 ready-hosted-final -> merge -> archive: state-only Ready HEADのL1 fullはCLEAN PASS、同一headShaのHosted CI run `30539150593`は全job SUCCESS、live PR HEAD / PR body local evidence / hosted runの三点一致とmerge CLEANを確認した。PR #46をsquash merge `0497c28`として統合し、本Packetをarchiveした。CI workflowのNode 24 pinは同runでdogfood済み。npm security monitor側の最初のdogfood targetは次回scheduled runまたはowner起動のmanual dispatchとし、`.node-version`読込みとaudit実行を確認する。
