@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: ready-hosted-final
+- Phase: archive
 - Risk: R3
 - Execution Mode: dual-vendor-no-fable
 - Plan Commit: 850df036cc6f14b4e8c64f893f38c8871321a333
@@ -14,7 +14,7 @@
 - Reviewed Content HEAD: 58c1956fb47521a781dc59ce1960144b2f27f563
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
-- Human Gate: none（ownerが介入3/3でReady / hosted final / green時mergeを一括承認済み）
+- Human Gate: resolved Ready / merge（owner介入3/3）
 
 ## Owner Effort Budget
 
@@ -294,3 +294,4 @@ Contract ID: SPEC-WF-D058-2026-07-30
 - 2026-07-30 gated correction local verification -> independent review: correction candidateで新規・変更mutation 8件を独立再実測し、既存mutation 12件のうち不変8件は前candidateの実測を維持した。全anchor / invariant / docs / workflow gateとL1 fullがgreen、tree cleanを確認し、Sonnet / Opus closureへ戻す。
 - 2026-07-30 Final Review closure -> human-confirm: Sonnet / Opus closureはいずれもAPPROVE（P1/P2=0）。初回blockerは全件CLOSED。Freeze後P3としてManualの空白1字とMatrix assertionのtemplate target列挙漏れをacceptしたが、契約実体へ影響せず追加roundの予算もないためPost-Merge Closeout follow-upへ送る。audited content HEADを記録し、ownerのReady / merge一括承認を待つ。
 - 2026-07-30 owner authorization -> ready-hosted-final: ownerが介入3/3でReady / hosted final / green時mergeを一括承認した。Draftのままstate-only Ready遷移をmaterializeし、その完成HEADでL1 full、PR body freshness、Ready化、hosted final explicit dispatch、三点SHA一致確認へ進む。
+- 2026-07-30 ready-hosted-final -> merge -> archive: Ready完成HEAD `56f76d4c56f96bc20145b18ea3da4fb68d8248da`のL1 fullはCLEAN PASS、同一headShaのHosted CI run `30550504023`はSUCCESS、live PR HEAD / PR body local evidence / hosted runの三点一致を確認した。PR #47をsquash merge `b50e86a5c26dd889108e171039897a7321c7b3de`として統合した。Post-Freeze P3のManual空白1字とMatrix assertionのtemplate target列挙漏れをcloseoutで是正し、本PacketとMatrixをarchiveした。最初のdogfood targetは、D-058 §5.5を使う次のeligible consultation relay orderとする。

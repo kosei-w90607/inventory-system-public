@@ -55,7 +55,7 @@ Risk: R3（workflow gate change）
 Assertion:
 
 ```bash
-rg -F '<anchor phrase>' docs/AGENT_OPERATING_MANUAL.md docs/decision-log.md
+rg -F '<anchor phrase>' docs/AGENT_OPERATING_MANUAL.md docs/decision-log.md docs/templates/plan-packet.md
 ```
 
 各anchorは該当targetでexit 0・単一hit。cross-reference追加で複数hitになる場合は、定義anchorと参照anchorを別literalにして弁別する。
