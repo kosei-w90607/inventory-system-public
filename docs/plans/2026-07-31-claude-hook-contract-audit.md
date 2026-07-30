@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: independent-review
+- Phase: human-confirm
 - Risk: R3
 - Execution Mode: dual-vendor-no-fable
 - Plan Commit: d90dc2d84b6fc59d25b31d00059b5344cda40838
@@ -11,10 +11,10 @@
 - Writer: Codex
 - Plan Reviewer: Claude Sonnet 5 / xHigh fresh context
 - Final Reviewer: Double Audit（Claude Sonnet 5 / xHigh fresh context + Claude Opus 5 / xHigh fresh context・D-056 §5.4低制約profile）
-- Reviewed Content HEAD: pending
+- Reviewed Content HEAD: e28249948ff53a8a906aee4c170e4f3e5a2d111f
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
-- Human Gate: Ready / merge pending（Plan Gate承認済み、owner介入4/5）
+- Human Gate: Ready / merge pending（Final Review closure P1/P2=0、owner介入4/5）
 
 ## Owner Effort Budget
 
@@ -273,6 +273,13 @@ Contract ID: SPEC-HOOK-01
 - Correction implementation: `make_fixture(source, fixture)`へ入力元を明示し、tracked sourceの`.claude/hooks/**`をsettings / docs / wiringと同じ派生fixtureへ複写する。source側stray hookが派生fixtureでrejectされるCH10 mutationを追加し、旧実装でred、実装後greenを確認した。
 - Correction verification: source-direct検査をコメント化してliteralだけ残し、source側へstray hookを置く合成mutationを使い捨てcloneへ再注入したところ、派生fixtureのbaseline検査でredになった。targeted / changed / L1 fullはPASS / CLEANで、`MERGE_EVIDENCE_VALID=true`を確認した。`implementing -> local-verified -> independent-review`をmaterializeし、relay 6/6をP2-CH10 closureへ限定する。
 
+### P2-CH10 final closure（2026-07-31、consultation relay 6/6）
+
+- Opus 5 / xHigh fresh-context reviewerはAPPROVE（P1=0 / P2=0 / P3=0）、P2-CH10をCLOSEDと判定した。
+- reviewerと相談窓口はそれぞれ独立の使い捨てcloneで、source-direct検査2行をコメント化してliteral count 1を維持し、tracked sourceへstray hookを置く合成mutationを実行した。是正後targetはbaseline検査でred、是正前controlはgreenとなり、source hook propagationが迂回路を閉じたことを実証した。
+- Matrix CH10、Packet narrative、PR bodyのfailure pathは実測と一致する。Matrixの表示名`test_reads_tracked_settings_and_hooks`と実装label`CH10 source hook propagation`の不一致は名称だけのPost-Freeze P3としてacceptし、現HEADを動かすcontent修正にはせずPost-Merge Closeout follow-upへ送る。
+- P1/P2=0が揃ったため、audited content commit `e28249948ff53a8a906aee4c170e4f3e5a2d111f`を`Reviewed Content HEAD`へ記録し、`independent-review -> human-confirm`をmaterializeする。
+
 ## Narrative
 
 - 2026-07-31 kickoff -> design -> plan-gate: ownerがglobal repo固有hook停止とproject harness無効化のcontainment、および別branchでのR3 Hook監査着手を承認。D-058 closeoutを先にmainへ確定した。現物読解とContract Probeでcommand text誤発火、nested cwd allow、malformed plugin stateを再現し、D-059 / Manual §6.1 / Packet / Matrixを起草した。plan-first commit後、ownerがD-058の本来目的は複数review laneのterminal/session管理をOpus相談窓口へ集約することだと明確化したため、本Plan Gateを最初のeligible consultation relay dogfoodとし、Opus窓口からSonnet 5 / xHigh fresh-context reviewer 1本を起動する。
@@ -287,3 +294,4 @@ Contract ID: SPEC-HOOK-01
 - 2026-07-31 frozen P2 closure -> implementing: relay 5/5のOpus closureはP2-CH4をCLOSED、P2-CH10をPARTIALLY CLOSEDとした。Coordinatorもsource呼出しコメント化 + stray hookの合成で全体PASSを再現し、runtime-proven P2としてacceptした。ownerはAを選択し、same-PR是正のため`independent-review -> implementing`へbacktrackする。
 - 2026-07-31 CH10 closure correction: ownerが介入4/5として予算を介入5・relay 6へ拡張した。source-derived fixtureが`.claude/hooks/**`もmaterializeするAPIとpropagation mutationをtest-firstで追加し、旧実装の`CH10 source-derived hook fixture was not constructed` redからgreenへ転換した。次はexact content candidateのchanged / L1 fullとrelay 6/6 closure。
 - 2026-07-31 CH10 correction verification -> independent review: composite bypass mutationは派生fixtureのbaseline検査でred、targeted / changed / L1 fullはPASS / CLEAN / merge evidence valid。exact-HEAD SHAとevidence pathはPR bodyを正本とし、`implementing -> local-verified -> independent-review`をmaterializeしてOpus 5 / xHigh fresh-contextのclosure-only relay 6/6へ進む。
+- 2026-07-31 P2-CH10 final closure -> human-confirm: Opus 5 reviewerと相談窓口の独立mutationは、是正後targetをred、是正前controlをgreenとして再現し、P2-CH10をCLOSEDとした。Final Review closureはP1/P2=0。Matrix CH10表示名と実装labelの名称差はPost-Freeze P3 follow-upへ送り、audited content HEADを記録してownerのReady / merge判断を待つ。
