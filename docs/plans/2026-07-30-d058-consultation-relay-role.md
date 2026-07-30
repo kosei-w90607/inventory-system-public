@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: human-confirm
+- Phase: ready-hosted-final
 - Risk: R3
 - Execution Mode: dual-vendor-no-fable
 - Plan Commit: 850df036cc6f14b4e8c64f893f38c8871321a333
@@ -14,7 +14,7 @@
 - Reviewed Content HEAD: 58c1956fb47521a781dc59ce1960144b2f27f563
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
-- Human Gate: Ready / merge（Final Review closure P1/P2=0。ownerの一括承認待ち）
+- Human Gate: none（ownerが介入3/3でReady / hosted final / green時mergeを一括承認済み）
 
 ## Owner Effort Budget
 
@@ -293,3 +293,4 @@ Contract ID: SPEC-WF-D058-2026-07-30
 - 2026-07-30 gated correction implementation: amendment `d67efc111ad22144773903a32e90a9f51b47e924`をsource修正より先に確定した。Manual §3 / §5.4 / §5.5、D-058、Packet template、Handoff / Plansを、専用remote order branch + current-head照合 + target SHA時点Packet + Coordinator予約枠へ同期した。次はA1〜A20 / X1〜X16 / N1〜N6 / G1〜G9とL1 fullを再実行する。
 - 2026-07-30 gated correction local verification -> independent review: correction candidateで新規・変更mutation 8件を独立再実測し、既存mutation 12件のうち不変8件は前candidateの実測を維持した。全anchor / invariant / docs / workflow gateとL1 fullがgreen、tree cleanを確認し、Sonnet / Opus closureへ戻す。
 - 2026-07-30 Final Review closure -> human-confirm: Sonnet / Opus closureはいずれもAPPROVE（P1/P2=0）。初回blockerは全件CLOSED。Freeze後P3としてManualの空白1字とMatrix assertionのtemplate target列挙漏れをacceptしたが、契約実体へ影響せず追加roundの予算もないためPost-Merge Closeout follow-upへ送る。audited content HEADを記録し、ownerのReady / merge一括承認を待つ。
+- 2026-07-30 owner authorization -> ready-hosted-final: ownerが介入3/3でReady / hosted final / green時mergeを一括承認した。Draftのままstate-only Ready遷移をmaterializeし、その完成HEADでL1 full、PR body freshness、Ready化、hosted final explicit dispatch、三点SHA一致確認へ進む。
