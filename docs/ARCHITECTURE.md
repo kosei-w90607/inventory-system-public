@@ -165,7 +165,7 @@ REQ-403（POS 部門別売上照合）は UI-13 / REQ-904 の在庫整合性と�
 | BIZ-06 | 棚卸しロジック | REQ-205 | 棚卸し開始（全商品のstocktake_items生成）・カウント入力・確定（total_cost計算、valuation_cost_price記録、差異補正のinventory_movements記録）。進行中は1件まで制約。新規商品登録時の自動追加 |
 | BIZ-07 | 整合性チェックロジック | QR系 | stock_quantity突合（SUM(inventory_movements) vs products.stock_quantity）。差異発見時の利用者確認フロー |
 | BIZ-08 | 日報取込みロジック | REQ-401 | Z001/Z002/Z005 bundleのParse→Validate→Preview→Commit、日報テーブル保存、論理rollback。sale_records/inventory_movementsへ擬似展開しない |
-| BIZ-09 | システム設定・操作ログロジック | REQ-902, 905 | 設定一覧取得・設定upsert・操作ログ検索（日付validation所有）・operation_type一覧。system_repoを呼ぶBIZ境界（D-060。実装は順12 実装 PR、仕様詳細は38-biz-system-service.md新設時に確定） |
+| BIZ-09 | システム設定・操作ログロジック | REQ-902, 905 | 設定一覧取得・設定upsert・操作ログ検索（日付validation所有）・operation_type一覧。system_repoを呼ぶBIZ境界（D-060。仕様詳細は38-biz-system-service.md） |
 
 ### IO層（ファイルI/O・DB）
 

@@ -341,7 +341,24 @@ enum BizError {
 
 領収書画像の拡張子 validation は BIZ 層（inventory_service）が所有する（D-060）。`receipt_image_path` は返品記録（§12.4）の要素であり、画像保存は returns domain に属する。
 
-- 責務分担: CMD（`save_receipt_image`、function-design 43 §43.10）は Base64 decode の wire 型変換のみを行い、decode 済みバイト列と拡張子を BIZ へ渡す。BIZ が拡張子（`jpg|jpeg|png|gif|webp`）を検証して `BizError::ValidationFailed` を返し、通過後に `io::image_manager`（IO-06）を呼ぶ
+- 責務分担: CMD（`save_receipt_image`、function-design 43 §43.10）は Base64 decode の wire 型変換のみを行い、decode 済みバイト列と拡張子を BIZ へ渡す。BIZ が拡張子（`jpg|jpeg|png|gif|webp`）を検証して `BizError::ValidationFailedAt` を返し、通過後に `io::image_manager`（IO-06）を呼ぶ
 - IO 層（28-io-image-manager.md）の拡張子 check は防御として現状維持する（DB CHECK 制約と同型。正常系で到達しない。ARCH-VAL-D1 は CMD/BIZ 間の二重判定禁止であり、IO 防御は対象外）
 - wire 契約（kind / message / field）は移行前と不変
-- 関数契約（シグネチャ・処理ステップ）は順12 実装 PR で本 doc に追記する（packet: 2026-07-31-settings-service-boundary-design の SPEC-CMD11-D5 (ii)）
+
+**シグネチャ**:
+```rust
+pub fn save_receipt_image(
+    app_data_dir: &Path,
+    image_bytes: &[u8],
+    extension: &str,
+) -> Result<String, BizError>
+```
+
+**処理ステップ**:
+1. `extension` を小文字化し、`jpg|jpeg|png|gif|webp` のいずれかであることを検証する。
+2. 検証通過後、元の `extension` と decode 済み `image_bytes` を `io::image_manager::save_receipt_image` へ渡す。
+3. IO 層が返したアプリデータディレクトリからの相対パスをそのまま返す。
+
+**エラーハンドリング**:
+- 拡張子不正は `BizError::ValidationFailedAt { message: "不正な画像拡張子: {extension}（許可: jpg, jpeg, png, gif, webp）", field: "extension" }`。
+- IO 層の失敗は `BizError::DatabaseError` へ変換する。CMD wire 上の internal message は移行前と不変。

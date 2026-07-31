@@ -200,6 +200,8 @@ fn build_doc_to_modules_map() -> HashMap<&'static str, Vec<&'static str>> {
         ],
     );
 
+    map.insert("38-biz-system-service.md", vec!["biz::system_service"]);
+
     map.insert("40-cmd-product.md", vec!["cmd::product_cmd"]);
 
     map.insert(
