@@ -190,7 +190,7 @@ fn restore_backup(
   - 区別の伝搬は message 文字列比較に依存せず型・variant レベルで行う。**実装 PR1 確定形**: MNT 層は `RestoreError::Recovered | Unrecoverable | DurabilityUnknown`、CMD wire は `CmdError.kind` の `restore_failed_recovered | restore_failed_unrecoverable | restore_durability_unknown` を用いる（`DbError` の汎用 variant は追加しない）。**CMD → UI の伝搬も同じ構造化分類識別子で行い、frontend が文言の部分一致で分岐しない**（68 §68.7 参照。Codex 再々レビュー P2-2）
 - Why: 現行 CMD パターンの `db::init_database` による復旧は create 能力を持つため、二重失敗で main が `{db_path}.restore_backup` 側に残ったまま `{db_path}` が不在の状態では**空 DB を新規作成して migration まで成功**し、復旧不能な状態が recoverable として UI（68 §68.7 の `restore_failed_recovered`）に渡る。operator は「現在のデータに戻した」と誤認して空 DB へ入力を続ける — 本設計が塞ぐべき空 DB 隠蔽経路そのもの
 - Rejected alternatives: 現行の create-capable `init_database` による復旧（上記の偽装経路）/ message 文字列での分岐追加のみ（文字列は契約として脆く、監査 P3-4 = 順 8 で是正予定の分裂をさらに深める）
-- 見直し契機: 順 8（error 表示 contract 統一)で CmdError に相関 ID / kind 拡張が入るとき
+- 見直し契機: 順 8（error 表示 contract 統一)で CmdError に相関 ID / kind 拡張が入るとき — 順 8 は PR #25（D-053）で消化済み。kind の generated enum 化（D-061、順14）でも本契約の variant 対応・分類意味論・wire 文字列表現は不変（型のみ `CmdErrorKind` へ強化）
 
 **MNT-01-D5: restore の中断（process/power interruption）復旧契約（PR #14 Codex P1-2、再レビュー P1×3 で manifest 方式へ改訂）**
 

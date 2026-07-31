@@ -29,12 +29,14 @@ TauriコマンドはUI向けのエラー種別に正規化して返す。String�
 
 ```
 struct CmdError {
-    kind: String,     // "validation" / "duplicate" / "not_found" / "internal" ほか（POS連携追加分は41-cmd-pos.md 17.4。全kindのenum化は監査是正 順14で扱う）
+    kind: CmdErrorKind,  // generated enum（D-061。下記の値一覧。POS連携追加分の由来は41-cmd-pos.md 17.4）
     message: String,  // 利用者向け日本語メッセージ（rawな技術詳細を含めない。CMD-ERR-D2）
     field: Option<String>,  // バリデーションエラー時のフィールド名
     error_id: Option<String>,  // 診断ログ相関ID（CMD-ERR-D1）。internal / restore_*系でのみSome
 }
 ```
+
+**kind の enum 契約（D-061、順14 実装 PR1 で追随。それまでの現行実装は `kind: String`）**: `CmdErrorKind` は `#[derive(serde::Serialize, serde::Deserialize, specta::Type)]` + `#[serde(rename_all = "snake_case")]` の generated enum とし、wire 表現は従来の snake_case 文字列と 1:1 完全一致（値・分岐・error_id 相関は不変）。値は 12 個で現状凍結: `validation` / `duplicate` / `not_found` / `internal` / `import_error` / `export_error` / `idempotency_conflict` / `stocktake_in_progress` / `stocktake_not_in_progress` / `restore_failed_recovered` / `restore_failed_unrecoverable` / `restore_durability_unknown`。frontend は bindings 由来の literal union で分岐し、手動定数・手動 union（55 §55.5 の `CMD_ERROR_KIND` 等）を退役する。
 
 **エラーID契約（CMD-ERR-D1）**: raw な失敗詳細を wire に載せず診断ログ側にのみ記録する kind（`internal` と `restore_failed_recovered` / `restore_failed_unrecoverable` / `restore_durability_unknown`）は、生成時に `error_id`（形式 `E-<YYYYMMDD-HHMMSS>-<4hex>`。chrono ローカル時刻 + uuid v4 短縮、新規依存なし）を発行し、response と `tracing::error!` の両方に同一値を載せる。利用者は画面に表示された error_id と診断ログ（[70-mnt-diagnostic-log.md](70-mnt-diagnostic-log.md)）の同一 error_id で事象を突合できる。日次ローテーションのログファイル特定を助けるため時刻併記形式とする。他の kind は None。
 

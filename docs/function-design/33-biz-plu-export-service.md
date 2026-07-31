@@ -24,6 +24,8 @@ enum ExportMode {
 }
 ```
 
+**enum 契約化（D-061）**: `ExportMode` に `serde::Serialize`/`Deserialize` + `specta::Type` + `rename_all = "snake_case"` を付与し wire 境界まで露出する（D-061）。値・wire 表現は不変。
+
 **PluExportPrepareRequest構造体**:
 - mode: ExportMode
 

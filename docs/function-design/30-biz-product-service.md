@@ -46,6 +46,8 @@ fn create_product(conn: &mut DbConnection, req: ProductCreateRequest) -> Result<
    f. department_idの存在チェック → product_repo::find_department_by_id()。None → BizError::ValidationFailed("指定された部門が存在しません")
    g. supplier_idがSomeの場合 → 存在チェック。None → BizError::ValidationFailed("指定された取引先が存在しません")
 
+**enum 契約化（D-061、二層化）**: D-061 で wire 経路（CMD 境界の request/response）は tax_rate/stock_unit の enum 型が置換するが、上記 d/e の validation は CSV 一括インポート（BIZ-01 の file 由来経路）の guard として維持する（文言不変）。file 由来値は wire を経由せず本 validation を通るため、wire 型置換後も本チェックは残置する。
+
 2. **トランザクション開始（rusqlite::Transaction RAII）**
    - `conn.transaction()` で開始。Drop 時に自動 ROLLBACK
    - 実装時の差分: 元の設計ではステップ3だったが、generate_custom_code 内の increment_next_seq が DB を更新するため TX 内に含める必要あり

@@ -417,6 +417,8 @@ struct DisposalCreateResult {
 
 **処理ステップ**: create_receiving と同パターン
 
+**enum 契約化（D-061）**: 本節群（§23.5〜§23.7）の `return_type` / `direction` / `disposal_type` / `reason` の各 field は D-061 により generated enum 型へ置換される。値・wire 表現・分岐意味論は不変（順14 実装 PR2 で追随。それまでの現行実装は移行前の String 形）。
+
 ---
 
 #### list_disposals
@@ -824,6 +826,8 @@ struct MovementSourceLink {
 **設計判断 — is_voided=0 の暗黙フィルタ**: IO層のSQLで `WHERE is_voided = 0` を常に付与する。ロールバック済みの変動は在庫照会画面に表示しない。
 
 **設計判断 — source link の責務**: IO層は `reference_type/reference_id` を取得し、BIZ層が `source` を解決する。既知の `reference_type` は `label` と `route` を返す。`reference_type` または `reference_id` が NULL、または未知の値の場合は movement 行を残したまま `source=None` にする。
+
+**enum 契約化（D-061）**: `movement_type` / `reference_type` は DB 層既存 enum（MovementType/ReferenceType）を generated enum として wire 露出する（D-061、reference_type は Option）。値・wire 表現・分岐意味論は不変（順14 実装 PR2 で追随。それまでの現行実装は移行前の String 形）。
 
 **入力例**:
 ```json
