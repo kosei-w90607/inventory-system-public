@@ -2,10 +2,10 @@
 
 ## Workflow State
 
-- Phase: plan-draft
+- Phase: plan-gate
 - Risk: R3
 - Execution Mode: fable-window
-- Plan Commit: pending
+- Plan Commit: 686ca2ad095a2bb61ea02272da75cd789e78c3d0
 - Amendments: none
 - Coordinator: Claude (Fable 5, main session)
 - Writer: Codex (GPT-5.6, owner relay)
