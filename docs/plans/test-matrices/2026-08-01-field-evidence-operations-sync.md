@@ -26,7 +26,7 @@
 |---|---|---|---|
 | M1 | FIELD-Z004-D1 | verification/memory/architecture/32/D-025でZ004列とBIZ pipelineを確認 | 数量・金額を持つ確認済みreport + 実装済み在庫増減 |
 | M2 | FIELD-Z004-D3 | verification/23/Plansのlayout記述を突合 | IO-02 layout A未対応が一貫 |
-| M3 | FIELD-Z004-D1 | AC記載の限定stale grep（在庫引落し候補 / 在庫増減候補 / 使えるか再評価 / 在庫接続未実装。active plan/archiveは除外） | source docsで0件 |
+| M3 | FIELD-Z004-D1 | AC記載の限定stale grep（`在庫[自動]引落し候補` / `在庫[自動]増減候補` / `使えるか...評価` / `在庫接続未実装`。active plan/archiveは除外） | source docsで0件 |
 | M4 | FIELD-Z004-D2 | `日報ファイル群` 周辺をレビュー | CV17/operator集合とcore二系統が併記 |
 | M5 | REPORT-ACCEPT-D1 | verification/56/57のExcel・紙記述を突合 | Excelは毎日上書きされ日別履歴なし、紙だけが現行履歴、受入保留が一貫 |
 | M6 | REPORT-ACCEPT-D1 | 紙廃止・完全代替の断定grep | active docsで断定なし |
