@@ -7,6 +7,11 @@ NPM_SECURITY_WORKFLOW="$REPO_ROOT/.github/workflows/npm-security-monitor.yml"
 NODE_VERSION_FILE="$REPO_ROOT/.node-version"
 PACKAGE_JSON="$REPO_ROOT/package.json"
 PR_TEMPLATE="$REPO_ROOT/.github/pull_request_template.md"
+CI_DOC="$REPO_ROOT/docs/ci.md"
+DEV_WORKFLOW_DOC="$REPO_ROOT/docs/DEV_WORKFLOW.md"
+DECISION_LOG="$REPO_ROOT/docs/decision-log.md"
+PLANS_DOC="$REPO_ROOT/docs/Plans.md"
+PROJECT_HANDOFF_DOC="$REPO_ROOT/docs/PROJECT_HANDOFF.md"
 
 fail() {
     echo "FAIL: $*" >&2
@@ -178,15 +183,143 @@ validate_claude_hook_audit() {
     grep -Fq 'run: bash scripts/tests/claude-hooks.test.sh' "$workflow"
 }
 
+validate_public_actions_doc_contract() {
+    local ci_doc="${1:-$CI_DOC}"
+    local dev_workflow_doc="${2:-$DEV_WORKFLOW_DOC}"
+    local decision_log="${3:-$DECISION_LOG}"
+    local plans_doc="${4:-$PLANS_DOC}"
+    local project_handoff_doc="${5:-$PROJECT_HANDOFF_DOC}"
+
+    [ -f "$ci_doc" ] && [ -f "$dev_workflow_doc" ] && [ -f "$decision_log" ] &&
+        [ -f "$plans_doc" ] && [ -f "$project_handoff_doc" ] || return 1
+
+    if grep -Eq '75%|90%|月間 billed minutes|枠 reset|^## Budget Pressure$' \
+        "$ci_doc" "$dev_workflow_doc" "$plans_doc" "$project_handoff_doc"; then
+        return 1
+    fi
+
+    grep -Fq 'CI-PUBLIC-D1:' "$ci_doc" || return 1
+    grep -Fq 'CI-TRIGGER-D1:' "$ci_doc" || return 1
+    grep -Fq '| non-doc を含む event-eligible change | owner が Draft から Ready にする。Ready のまま更新された例外経路は `synchronize` | dispatch しない |' "$ci_doc" || return 1
+    grep -Fq '| `paths-ignore` 対象だが hosted-required の workflow / release contract docs-only change | owner が Ready にした後、自動 run が作られていないことを確認して `workflow_dispatch` | 同一 HEAD の run が 0 件であること |' "$ci_doc" || return 1
+    grep -Fq '| required final の自動 run または explicit dispatch が作成されない、失敗、または cancel | 原因を確認・是正した後の recovery として `workflow_dispatch` | 同一 HEAD に successful / in-progress run がないこと |' "$ci_doc" || return 1
+    grep -Fq '| 同一 HEAD に successful final が既にある | 既存 run を evidence に使う | Ready の再操作も dispatch も行わない |' "$ci_doc" || return 1
+    grep -Fq '**non-release R2/R3 Actions unavailable**' "$ci_doc" || return 1
+    grep -Fq '**public repository Phase B bootstrap R4**' "$ci_doc" || return 1
+    grep -Fq '`not-required` でも観測済み product/test/gate failure は blocker' "$ci_doc" || return 1
+    grep -Fq 'CI-TRIGGER-D1' "$dev_workflow_doc" || return 1
+    grep -Fxq '## D-063' "$decision_log"
+}
+
 validate_job_graph "$WORKFLOW"
 validate_workflow_contract "$WORKFLOW"
 validate_node_contract
 # D-059 / SPEC-HOOK-01 / CH8: hosted workflow owns the inventory audit step.
 validate_claude_hook_audit ||
     fail "CH8 hosted Claude hook audit step is missing"
+# D-063 / SPEC-WF-CI-PUBLIC-D1: live CI docs own the public-runner contract.
+validate_public_actions_doc_contract "$CI_DOC" "$DEV_WORKFLOW_DOC" "$DECISION_LOG" "$PLANS_DOC" "$PROJECT_HANDOFF_DOC" ||
+    fail "public Actions docs contract drifted"
 
 mutation_dir="$(mktemp -d)"
 trap 'rm -rf "$mutation_dir"' EXIT
+
+ci_doc_quota_mutation="$mutation_dir/ci-private-quota.md"
+cp "$CI_DOC" "$ci_doc_quota_mutation"
+printf '%s\n' 'At 75% monthly usage, stop normal hosted CI.' >> "$ci_doc_quota_mutation"
+if validate_public_actions_doc_contract "$ci_doc_quota_mutation" "$DEV_WORKFLOW_DOC" "$DECISION_LOG" "$PLANS_DOC" "$PROJECT_HANDOFF_DOC" >/dev/null 2>&1; then
+    fail "M1 public Actions docs validator accepted private quota wording"
+fi
+
+ci_doc_event_dispatch_mutation="$mutation_dir/ci-event-dispatch.md"
+sed 's/| dispatch しない |/| workflow_dispatch してよい |/' "$CI_DOC" > "$ci_doc_event_dispatch_mutation"
+if validate_public_actions_doc_contract "$ci_doc_event_dispatch_mutation" "$DEV_WORKFLOW_DOC" "$DECISION_LOG" "$PLANS_DOC" "$PROJECT_HANDOFF_DOC" >/dev/null 2>&1; then
+    fail "M2a public Actions docs validator accepted preventive dispatch for an event-eligible change"
+fi
+
+ci_doc_zero_run_mutation="$mutation_dir/ci-zero-run-removed.md"
+sed 's/同一 HEAD の run が 0 件であること/同一 HEAD の run 確認は不要/' "$CI_DOC" > "$ci_doc_zero_run_mutation"
+if validate_public_actions_doc_contract "$ci_doc_zero_run_mutation" "$DEV_WORKFLOW_DOC" "$DECISION_LOG" "$PLANS_DOC" "$PROJECT_HANDOFF_DOC" >/dev/null 2>&1; then
+    fail "M2b public Actions docs validator accepted dispatch without the zero-run prerequisite"
+fi
+
+ci_doc_recovery_scope_mutation="$mutation_dir/ci-recovery-auto-only.md"
+sed 's/required final の自動 run または explicit dispatch/event-eligible だが自動 run/' "$CI_DOC" > "$ci_doc_recovery_scope_mutation"
+if validate_public_actions_doc_contract "$ci_doc_recovery_scope_mutation" "$DEV_WORKFLOW_DOC" "$DECISION_LOG" "$PLANS_DOC" "$PROJECT_HANDOFF_DOC" >/dev/null 2>&1; then
+    fail "M2c public Actions docs validator accepted recovery narrowed to automatic events"
+fi
+
+ci_doc_in_progress_mutation="$mutation_dir/ci-in-progress-wait-removed.md"
+sed 's/successful \/ in-progress run/successful run/' "$CI_DOC" > "$ci_doc_in_progress_mutation"
+if validate_public_actions_doc_contract "$ci_doc_in_progress_mutation" "$DEV_WORKFLOW_DOC" "$DECISION_LOG" "$PLANS_DOC" "$PROJECT_HANDOFF_DOC" >/dev/null 2>&1; then
+    fail "M2c public Actions docs validator accepted recovery without the in-progress wait"
+fi
+
+ci_doc_successful_row_mutation="$mutation_dir/ci-successful-row-removed.md"
+sed '/同一 HEAD に successful final が既にある/d' "$CI_DOC" > "$ci_doc_successful_row_mutation"
+if validate_public_actions_doc_contract "$ci_doc_successful_row_mutation" "$DEV_WORKFLOW_DOC" "$DECISION_LOG" "$PLANS_DOC" "$PROJECT_HANDOFF_DOC" >/dev/null 2>&1; then
+    fail "M2d public Actions docs validator accepted a missing already-successful no-op row"
+fi
+
+ci_doc_availability_mutation="$mutation_dir/ci-actions-unavailable-route-removed.md"
+sed 's/non-release R2\/R3 Actions unavailable/non-release R2\/R3 route removed/' "$CI_DOC" > "$ci_doc_availability_mutation"
+if validate_public_actions_doc_contract "$ci_doc_availability_mutation" "$DEV_WORKFLOW_DOC" "$DECISION_LOG" "$PLANS_DOC" "$PROJECT_HANDOFF_DOC" >/dev/null 2>&1; then
+    fail "M3 public Actions docs validator accepted a missing Actions-unavailable route"
+fi
+
+ci_doc_bootstrap_route_mutation="$mutation_dir/ci-bootstrap-route-removed.md"
+sed 's/public repository Phase B bootstrap R4/public repository bootstrap route removed/' "$CI_DOC" > "$ci_doc_bootstrap_route_mutation"
+if validate_public_actions_doc_contract "$ci_doc_bootstrap_route_mutation" "$DEV_WORKFLOW_DOC" "$DECISION_LOG" "$PLANS_DOC" "$PROJECT_HANDOFF_DOC" >/dev/null 2>&1; then
+    fail "M3 public Actions docs validator accepted a missing Phase B bootstrap route"
+fi
+
+ci_doc_failure_blocker_mutation="$mutation_dir/ci-product-failure-not-blocking.md"
+sed 's/not-required` でも観測済み product\/test\/gate failure は blocker/not-required` でも観測済み product\/test\/gate failure は owner disposition 可/' "$CI_DOC" > "$ci_doc_failure_blocker_mutation"
+if validate_public_actions_doc_contract "$ci_doc_failure_blocker_mutation" "$DEV_WORKFLOW_DOC" "$DECISION_LOG" "$PLANS_DOC" "$PROJECT_HANDOFF_DOC" >/dev/null 2>&1; then
+    fail "M3 public Actions docs validator accepted a non-blocking product or gate failure"
+fi
+
+ci_doc_public_anchor_mutation="$mutation_dir/ci-public-anchor-removed.md"
+sed 's/CI-PUBLIC-D1/CI-PUBLIC-REMOVED/g' "$CI_DOC" > "$ci_doc_public_anchor_mutation"
+if validate_public_actions_doc_contract "$ci_doc_public_anchor_mutation" "$DEV_WORKFLOW_DOC" "$DECISION_LOG" "$PLANS_DOC" "$PROJECT_HANDOFF_DOC" >/dev/null 2>&1; then
+    fail "public Actions docs validator accepted a missing CI-PUBLIC-D1 anchor"
+fi
+
+ci_doc_trigger_anchor_mutation="$mutation_dir/ci-trigger-anchor-removed.md"
+sed 's/CI-TRIGGER-D1/CI-TRIGGER-REMOVED/g' "$CI_DOC" > "$ci_doc_trigger_anchor_mutation"
+if validate_public_actions_doc_contract "$ci_doc_trigger_anchor_mutation" "$DEV_WORKFLOW_DOC" "$DECISION_LOG" "$PLANS_DOC" "$PROJECT_HANDOFF_DOC" >/dev/null 2>&1; then
+    fail "public Actions docs validator accepted a missing CI-TRIGGER-D1 anchor"
+fi
+
+dev_workflow_trigger_mutation="$mutation_dir/dev-workflow-trigger-reference-removed.md"
+sed 's/CI-TRIGGER-D1/CI-TRIGGER-REMOVED/g' "$DEV_WORKFLOW_DOC" > "$dev_workflow_trigger_mutation"
+if validate_public_actions_doc_contract "$CI_DOC" "$dev_workflow_trigger_mutation" "$DECISION_LOG" "$PLANS_DOC" "$PROJECT_HANDOFF_DOC" >/dev/null 2>&1; then
+    fail "public Actions docs validator accepted a missing DEV_WORKFLOW CI-TRIGGER-D1 reference"
+fi
+
+decision_log_d063_mutation="$mutation_dir/decision-log-d063-removed.md"
+sed 's/^## D-063$/## D-063-REMOVED/' "$DECISION_LOG" > "$decision_log_d063_mutation"
+if validate_public_actions_doc_contract "$CI_DOC" "$DEV_WORKFLOW_DOC" "$decision_log_d063_mutation" "$PLANS_DOC" "$PROJECT_HANDOFF_DOC" >/dev/null 2>&1; then
+    fail "public Actions docs validator accepted a missing D-063 decision"
+fi
+
+m4_root="$mutation_dir/m4-root"
+mkdir -p "$m4_root/docs/archive"
+cp "$CI_DOC" "$m4_root/docs/ci.md"
+cp "$DEV_WORKFLOW_DOC" "$m4_root/docs/DEV_WORKFLOW.md"
+cp "$DECISION_LOG" "$m4_root/docs/decision-log.md"
+cp "$PLANS_DOC" "$m4_root/docs/Plans.md"
+cp "$PROJECT_HANDOFF_DOC" "$m4_root/docs/PROJECT_HANDOFF.md"
+printf '%s\n' 'Historical policy: 75% and 90% private quota thresholds.' > "$m4_root/docs/archive/private-ci-history.md"
+grep -Fq '75%' "$m4_root/docs/archive/private-ci-history.md" ||
+    fail "M4 archive fixture is missing its historical private quota wording"
+validate_public_actions_doc_contract \
+    "$m4_root/docs/ci.md" \
+    "$m4_root/docs/DEV_WORKFLOW.md" \
+    "$m4_root/docs/decision-log.md" \
+    "$m4_root/docs/Plans.md" \
+    "$m4_root/docs/PROJECT_HANDOFF.md" ||
+    fail "M4 public Actions docs validator scanned archive history as current policy"
 
 pin_mutation="$mutation_dir/.node-version"
 printf '%s\n' "25.8.2" > "$pin_mutation"

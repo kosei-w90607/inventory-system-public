@@ -11,7 +11,7 @@
 - Writer: Codex (GPT-5.6, main session)
 - Plan Reviewer: Claude Sonnet 5 (external, fresh context)
 - Final Reviewer: Claude Sonnet 5 (external, fresh context; Double Audit first pass) + independent fresh second pass
-- Reviewed Content HEAD: 297066b
+- Reviewed Content HEAD: pending
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
 - Human Gate: Ready authorization + merge approval (pending)
@@ -24,6 +24,7 @@ Narrative (append-only):
 - 2026-08-01 implementation wiring probe: `rg -n 'ci-workflow.test.sh' scripts/local-ci.sh .github/workflows/ci.yml scripts` -> registration は `scripts/local-ci.sh:214` のみで、hosted docs job は `ci-workflow.test.sh` を実行しないと判明。Packet の「既存 hosted routing を再利用」は事実誤認のため、implementation を停止して state-backtrack implementing -> design。owner は current change を L1 local guard に限定し、`doc-consistency-check.sh` への hosted 統合（C案）は別 R3 follow-up とすることを決定した。TDD途中差分は commit せず一時退避した。
 - 2026-08-01 wiring correction -> plan-draft -> plan-gate: Registration / Main Wiring / Matrix / D-063 を実配線へ訂正した。current guard は `scripts/tests/ci-workflow.test.sh` を `scripts/local-ci.sh full` から実行する L1 local-only 契約であり、hosted docs job はこの check を実行しない。hosted 側の docs contract 実防御が必要になった場合は `scripts/doc-consistency-check.sh` へ統合する別 R3 change を起票する。訂正内容を external Claude Sonnet 5 の fresh re-Plan Review に戻す。
 - 2026-08-01 fresh re-Plan Review closure: external Claude Sonnet 5 reviewed exact content HEAD `297066b` and reported `P1=0 / P2=0 / P3=0`。L1 local-only registration、hosted未配線、別R3の `doc-consistency-check.sh` 統合、hosted finalをguard実行証拠と扱わない境界、workflow YAML zero-diff、state-backtrack / `Amendments: none` の妥当性を独立再確認した。plan-gate -> plan-approved -> implementing をこの state-only commit で materialize し、退避中のTDD実装を復元して再開する。
+- 2026-08-01 implementation evidence-ownership correction: `Reviewed Content HEAD` は Plan Review HEAD ではなく Final Reviewer が監査した実装 content HEAD を後続 state-only commit で記録する field のため、Plan Review の `297066b` は上記 Narrative に保持し、field は `pending` へ戻した。
 
 ## Owner Effort Budget
 
@@ -260,7 +261,10 @@ Contract ID: SPEC-WF-CI-PUBLIC-D1
 
 ## Implementation Results
 
-TDD途中の `scripts/tests/ci-workflow.test.sh` 差分は wiring 誤認の発見時に commit せず一時退避した。current Packet correction の fresh re-Plan Gate を通過するまで復元・継続しない。
+- `scripts/tests/ci-workflow.test.sh` に `validate_public_actions_doc_contract` を追加し、live docs の private-era quota wording、CI-PUBLIC-D1 / CI-TRIGGER-D1、4 state trigger table、Actions-unavailable closed routes、D-063 reference を検査する。
+- M1 / M2a〜M2d / M3 / M4 の synthetic mutation fixtures を追加し、private quota 再導入、trigger state 個別弱体化、availability route 削除を reject し、archive history は検査入力外であることを固定した。
+- targeted `ci-workflow.test.sh` と L1 `local-ci.sh full` は pass。最初の system Node 25 実行は repository pin と異なるため `devEngines` が fail-fastし、`.node-version` の Node 24.18.0 を `mise exec --` で明示した再実行で全 gate が passした。
+- `.github/workflows/*.yml` は変更せず、guard は既存 `scripts/local-ci.sh:214` 配線だけで実行する。
 
 ## Review Response
 
