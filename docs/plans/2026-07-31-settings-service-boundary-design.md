@@ -65,6 +65,9 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 
 - `docs/ARCHITECTURE.md` 呼び出し原則の改訂（D-060: CMD→MNT 正規経路の限定明文化 + CMD→IO 直呼び禁止の明文化）
 - `docs/ARCHITECTURE.md` §2 task table の整合（Plan Review round 1 P2-1）: BIZ 層 table へ BIZ-09（システム設定・操作ログロジック = biz::system_service、実装は順12 実装 PR）行を新設し、CMD-11 行の呼び出す BIZ を `BIZ-09, BIZ-02, MNT-01, MNT-02` へ更新（BIZ-02 は画像 validation の returns domain 所有分）
+- `docs/ARCHITECTURE.md` §5-9「タスク仕様（詳細）」mapping table の BIZ 層行を `BIZ-01〜BIZ-09` へ更新（Plan Review round 2 P2）
+- `docs/architecture/biz-task-specs.md` へ `### BIZ-09` task 仕様節を新設（責務・対応 command・validation 所有・「関数 level 契約は 38 doc = 実装 PR」注記。Plan Review round 2 P2 派生）
+- `docs/architecture/cmd-task-specs.md` CMD-11 節の改訂（round 2 self-audit 発見）: 「許可済み例外」paragraph（`architecture_test.rs` allowlist 根拠の system_repo 直呼び正当化、baseline 4 hit）を D-060 経路の記述へ全面書き換え、command table の「IO-01経由（許可済み例外）」3 行を `BIZ-09` へ更新
 - `docs/function-design/43-cmd-settings-log.md` 全面改訂: 設定・操作ログ系 4 command を `biz::system_service` 経由の処理ステップへ、§43.5 の CMD 内 validation アルゴリズム所有記述と `system_repo::` 直呼び処理記述の削除（BIZ へ移動）、§43.2 SaveImageRequest 注意書きの「CMD/IO の最終 validation」表現を BIZ 所有 + IO 防御へ統一（Plan Review round 1 P2-2）、backup/restore 5 command 節の 71 §71.7 normative 参照化（重複記述の解消）、画像保存節の boundary 再定義（base64 decode = CMD wire 変換残留、拡張子 validation = BIZ 所有）
 - `docs/function-design/31-biz-inventory-service.md` へ領収書画像 validation 所有の設計判断を prose で追記（fn シグネチャのコードブロックは追加しない — Contract Probe 参照）
 - `docs/decision-log.md` に D-060 追加
@@ -87,6 +90,9 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 - `rg -c "まずASCII strict" docs/function-design/43-cmd-settings-log.md` → `0`（§43.5 の CMD validation アルゴリズム所有記述の消滅。改訂前 baseline = 1 を実測済み。空集合 oracle のため次項の非空 oracle と対にする）
 - `rg -c "system_repo::" docs/function-design/43-cmd-settings-log.md` → `0`（CMD の IO 直呼び処理記述の消滅。改訂前 baseline = 4 を実測済み）
 - `rg -c "biz::system_service" docs/function-design/43-cmd-settings-log.md` → 4 以上（4 command の処理ステップが新経路で記述されている）
+- `rg -c "BIZ-01〜BIZ-09" docs/ARCHITECTURE.md` → `1`（§5-9 mapping 更新）
+- `rg -c "許可済み例外" docs/architecture/cmd-task-specs.md` → `0`（改訂前 baseline = 4 を実測済み。空集合 oracle のため `rg -c "BIZ-09" docs/architecture/cmd-task-specs.md` ≥ 1 と対にする）
+- `rg -c "^### BIZ-09" docs/architecture/biz-task-specs.md` → `1`
 - `bash scripts/doc-consistency-check.sh --target plan` exit 0
 - `cargo test --test design_compliance_test`（src-tauri）pass — 43 改訂後も cmd fn 抽出と module 対応が成立
 - `bash scripts/local-ci.sh full` pass
@@ -96,6 +102,8 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 - Requirements / spec: `docs/research/audit-2026-07/report.md` 順12 / `findings/p2-layer-boundaries.md` P2-1
 - Architecture: `docs/ARCHITECTURE.md`（レイヤー分割方針、CMD層の責務ルール、ARCH-VAL-D1、レイヤー間の呼び出し原則）
 - Function / command / DTO: `docs/function-design/43-cmd-settings-log.md`、`31-biz-inventory-service.md`、`28-io-image-manager.md`、`42-cmd-sales-stocktake.md`（順5 の validation 一本化前例）
+- Task specs: `docs/architecture/cmd-task-specs.md`（CMD-11 節、「許可済み例外」paragraph）、`docs/architecture/biz-task-specs.md`
+- 機械 enforcement: `src-tauri/tests/architecture_test.rs`（`LAYER_EXCEPTIONS` allowlist = settings_cmd の db/io 直呼び 2 entry。実装 PR で削除し layer test を D-060 (b) の恒久 gate にする）
 - DB: 変更なし
 - Screen / UI: 変更なし（`68-ui-backup-restore.md` §68.7 の kind 契約は参照のみ）
 - Decision log / ADR: D-051〜D-059（既存）、D-060（本 PR で新設）、MNT-01-D1/D4/D5（71 §71.7、不変）
@@ -168,8 +176,11 @@ Minimum design checks for business-app work:
 | D-060 (a) CMD→MNT 正規経路の限定明文化（normative pattern は 71 §71.7 所有、CMD は実行のみ） | ARCHITECTURE.md 呼び出し原則 | Matrix M2（token） | non-scope（コード変更なし） |
 | D-060 (b) CMD→IO 直呼び禁止 + settings/log 系の biz::system_service 経由化 | ARCHITECTURE.md / 43 | Matrix M3, M5, M12（token） | 実装は follow-up PR |
 | D-060 (b) 派生: ARCHITECTURE.md §2 task table 整合（BIZ-09 行新設 + CMD-11 行更新。Plan Review round 1 P2-1） | ARCHITECTURE.md §2 | Matrix M13（token） | 実装は follow-up PR |
+| D-060 (b) 派生: ARCHITECTURE.md §5-9 mapping 範囲 + biz-task-specs.md BIZ-09 節新設（Plan Review round 2 P2） | ARCHITECTURE.md §5-9 / biz-task-specs.md | Matrix M14, M16（token） | 実装は follow-up PR |
+| D-060 (b) 派生: cmd-task-specs.md CMD-11「許可済み例外」廃止 + 実装 PR での `LAYER_EXCEPTIONS` 削除義務（round 2 self-audit） | cmd-task-specs.md / SPEC-CMD11-D5 (vi) | Matrix M15（token、baseline 4 実測）+ 実装 PR で architecture_test | 実装は follow-up PR |
 | D-060 (c) 業務 validation の BIZ 一本化を CMD-11 に適用（log 日付 / 画像拡張子） | 43 / 31 | Matrix M4+M5, M7, M10 | 実装は follow-up PR |
 | D-060 (c) 派生: 43 §43.2 SaveImageRequest 注意書きの所有表現統一（Plan Review round 1 P2-2） | 43 §43.2 | Matrix M11（レビュー）+ M4 系 token の対象外のため独立レビューで確認 | 実装は follow-up PR |
+| D-060 (c) 派生: 43 §43.5「エラーハンドリング（追加分、UI-11c-D2/D3）」小節の扱い（Plan Review round 2 P3）: kind/message の wire contract 記述としては存続させ、validation 所有の表現を「BIZ 所有 → `From<BizError>` 変換」へ書き換える（削除ではない。M4 anchor の対象外のため M11 独立レビューへ明示委譲） | 43 §43.5 | Matrix M11（レビュー） | 実装は follow-up PR |
 | D-060 (d) 43 §43.9 の 71 §71.7 参照化（restore 意味論不変） | 43 | Matrix M6, M9 | non-scope（71 無変更） |
 | SPEC-CMD11-D2 biz::system_service 関数契約（凍結） | 本 packet → 実装 PR で 38 doc | 実装 PR の test 義務として転記 | 実装 PR |
 | SPEC-CMD11-D3 画像保存境界（base64 = CMD wire 変換、拡張子 = BIZ、IO 防御維持） | 31 / 43 | Matrix M7, M10 | 実装 PR |
@@ -211,11 +222,11 @@ Test Design Matrix: [test-matrices/2026-07-31-settings-service-boundary-design.m
 
 Contract ID: SPEC-CMD11-D1〜D5
 
-- SPEC-CMD11-D1（層経路正本）: レイヤー間呼び出し原則に次を明文化する — (i) 標準経路は UI → CMD → BIZ → IO/MNT の一方向。(ii) CMD → MNT の直接呼び出しは、DB 接続所有権の交換を要する保守 orchestration（MNT-01 バックアップ/復元系）に限り正規経路とする。復旧規則・分類の正本は 71 §71.7 が所有し、CMD は同 § の呼び出しパターンを実行するのみで独自の規則を定義しない。(iii) CMD が IO 層を直接呼ぶことは禁止。(iv) ARCHITECTURE.md §2 task table を新経路と整合させる: BIZ 層 table へ BIZ-09（システム設定・操作ログロジック、実装は順12 実装 PR の注記付き）を新設し、CMD-11 行の呼び出す BIZ を `BIZ-09, BIZ-02, MNT-01, MNT-02` とする
+- SPEC-CMD11-D1（層経路正本）: レイヤー間呼び出し原則に次を明文化する — (i) 標準経路は UI → CMD → BIZ → IO/MNT の一方向。(ii) CMD → MNT の直接呼び出しは、DB 接続所有権の交換を要する保守 orchestration（MNT-01 バックアップ/復元系）に限り正規経路とする。復旧規則・分類の正本は 71 §71.7 が所有し、CMD は同 § の呼び出しパターンを実行するのみで独自の規則を定義しない。(iii) CMD が IO 層を直接呼ぶことは禁止。(iv) ARCHITECTURE.md §2 task table を新経路と整合させる: BIZ 層 table へ BIZ-09（システム設定・操作ログロジック、実装は順12 実装 PR の注記付き）を新設し、CMD-11 行の呼び出す BIZ を `BIZ-09, BIZ-02, MNT-01, MNT-02` とする。(v) 同 §5-9 mapping table の BIZ 層行を `BIZ-01〜BIZ-09` へ、`biz-task-specs.md` へ BIZ-09 task 仕様節を、`cmd-task-specs.md` CMD-11 節の「許可済み例外」記述を D-060 経路へ、それぞれ整合させる（task 範囲不整合を design PR 内で残さない）
 - SPEC-CMD11-D2（biz::system_service 契約 = task ID BIZ-09、実装 PR で 38 doc へ転記）: 対応 command は get_settings / update_setting / list_logs / list_log_operation_types の 4 系。service は (i) 設定一覧取得・設定 upsert・操作ログ検索・operation_type 一覧を `system_repo` 経由で提供、(ii) 操作ログ検索の日付 validation（ASCII strict YYYY-MM-DD + chrono 実在暦日 + start>end 早期拒否。43 §43.5 の現行条件・文言・field を維持）を所有、(iii) error は `BizError::ValidationFailed`（field 付き）/ `BizError::DatabaseError` で返し、CMD は `From<BizError>` の一元変換に復帰する。settings_cmd の独自 helper `db_err` / `validate_log_date_range` は廃止
 - SPEC-CMD11-D3（画像保存境界）: base64 decode は wire 型変換として CMD 残留（ARCHITECTURE.md「wire型変換の失敗…はCMD境界で拒否してよい」に整合）。拡張子 validation は biz::inventory_service（returns domain）が所有し `BizError::ValidationFailed` で返す。`io::image_manager` の拡張子防御 check は DB CHECK 制約と同型の防御として現状維持（正常系で到達しない）
 - SPEC-CMD11-D4（backup/restore 現状維持）: backup/restore 5 command（create_backup / check_auto_backup / get_effective_backup_dir / list_backups / restore_backup）は D-060 (a) の CMD→MNT 正規経路。`get_backup_dir` helper（AppHandle からの app_data_dir 解決）は環境解決として CMD 残留、実効 backup dir の決定規則は従来どおり `mnt::backup::resolve_backup_dir` 所有。restore の Mutex 所有権交換・`?` 早期 return 禁止・no-create 復旧・kind 3 値は 71 §71.7 の normative pattern のまま実装・文言とも不変
-- SPEC-CMD11-D5（実装 follow-up PR 義務）: (i) `38-biz-system-service.md` 新設 + `build_doc_to_modules_map()` 登録 + checker 必須セクション充足、(ii) `31-biz-inventory-service.md` へ save_receipt_image の関数契約（シグネチャ含む）追記、(iii) settings_cmd test の production CMD test 規範（順5: mock_builder + AppState + 実 command 関数呼び出し）化と BIZ test 新設、(iv) `bindings.ts` 再生成 diff ゼロの確認、(v) 本 packet の凍結契約との突合を実装 PR Plan Review の必須観点とする
+- SPEC-CMD11-D5（実装 follow-up PR 義務）: (i) `38-biz-system-service.md` 新設 + `build_doc_to_modules_map()` 登録 + checker 必須セクション充足、(ii) `31-biz-inventory-service.md` へ save_receipt_image の関数契約（シグネチャ含む）追記、(iii) settings_cmd test の production CMD test 規範（順5: mock_builder + AppState + 実 command 関数呼び出し）化と BIZ test 新設、(iv) `bindings.ts` 再生成 diff ゼロの確認、(v) 本 packet の凍結契約との突合を実装 PR Plan Review の必須観点とする、(vi) `src-tauri/tests/architecture_test.rs` の `LAYER_EXCEPTIONS` から settings_cmd の 2 entry（`("cmd/settings_cmd.rs", "db")` / `("cmd/settings_cmd.rs", "io")`）を削除し、CMD→IO 直呼び禁止を機械 gate へ復帰させる（既存の layer 依存 test が D-060 (b) を恒久 enforce する）
 
 ## Trace Matrix
 
@@ -245,5 +256,12 @@ Contract ID: SPEC-CMD11-D1〜D5
 - P2-1（ARCHITECTURE.md §2 task table の未整合）: **accept**。BIZ-09 行新設 + CMD-11 行更新を Scope / SPEC-CMD11-D1 (iv) / Ledger / Matrix M13 に追加
 - P2-2（43 §43.2 注意書きの矛盾残存）: **accept**。§43.2 の所有表現統一を Scope / Design Intent Trace / Ledger に追加
 - 適用 commit: plan-gate 中の packet 修正（plan-approved 前のため Amendments 対象外）
+
+### Plan Review round 2（independent Claude subagent, Sonnet 5, fresh context）
+
+- round 1 是正の検証: M4/M12/M13 の baseline 実測一致、packet 内波及の取り残しなしを確認済み
+- P2（ARCHITECTURE.md §5-9 mapping table の `BIZ-01〜BIZ-08` 未整合）: **accept**。§5-9 更新 + biz-task-specs.md BIZ-09 節新設を Scope / SPEC-CMD11-D1 (v) / Ledger / AC / Matrix M14, M16 に追加
+- P3（43 §43.5 エラーハンドリング小節の扱い不明記）: **accept**。「wire contract として存続 + 所有表現書き換え（削除ではない）、M11 委譲」を Ledger に明記
+- round 2 self-audit（Writer 側の同型 premise 全体 sweep で発見、P1 相当）: `cmd-task-specs.md` CMD-11 節が `architecture_test.rs` の `LAYER_EXCEPTIONS` allowlist を根拠に system_repo/image_manager 直呼びを「許可済み例外」として正本化していた（baseline 4 hit）。D-060 (b) と正面矛盾するため cmd-task-specs.md 改訂を Scope へ、allowlist 2 entry 削除を SPEC-CMD11-D5 (vi) へ追加。機械 enforcement の存在は設計にとって好材料（実装 PR 完了後は layer test が D-060 (b) を恒久保証する）
 
 - Findings Freeze: not yet frozen; post-freeze exceptions: none.
