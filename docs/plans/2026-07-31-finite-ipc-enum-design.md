@@ -37,7 +37,7 @@
 Risk: R3
 
 Reason:
-docs-only だが、IPC wire contract の型強化方針（D-061）を全 family 横断で凍結する設計であり、誤った境界規則を正本化すると実装 PR 群が広範囲に誤る。40 §5.3 / 42 §22.5 / 71 §71.7 が本是正を自己指名しており、restore 系 kind（data-safety 隣接）も対象に含む。design-first の先例（順1+2 / 順3 / 順12）と同じ tier。
+docs-only だが、IPC wire contract の型強化方針（D-061）を全 family 横断で凍結する設計であり、誤った境界規則を正本化すると実装 PR 群が広範囲に誤る。40 §5.3 / 42 §22.5 が「順14」を自己指名しており、71 §71.7 は「順 8」の見直し契機行（kind 拡張時）が接続対象（round 1 P3-1 で精緻化。Scope 節参照）。restore 系 kind（data-safety 隣接）も対象に含む。design-first の先例（順1+2 / 順3 / 順12）と同じ tier。
 
 ## Goal
 
@@ -68,7 +68,7 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 - `docs/decision-log.md` に D-061 追加（下記 Spec Contract の凍結内容）
 - CmdError.kind 値集合の正本 4 箇所の改訂: `40-cmd-product.md` §5.3（`kind: String` → generated enum `CmdErrorKind` 前提へ。「順14 で扱う」自己指名の消化）、`41-cmd-pos.md` §17.4（POS 3 値の継承記述）、`68-ui-backup-restore.md` §68.7（restore 3 値は値・分岐不変で型強化される旨の注記）、`71-mnt-backup.md` §71.7（MNT-01-D4 の「見直し契機: 順 8…」該当行の消化注記 — **意味論変更なしの最小注記に限定**）
 - `42-cmd-sales-stocktake.md` §22.5 CMD-09-CONV-D1 の改訂: `SalesMode` request 側 String 据え置き（H-1）の解消判断を確定し、`SalesReportType` A 案を全 family の標準形として昇格
-- domain family の境界 doc 改訂: `44-cmd-inventory.md` §23.5-23.7（wire 型注記）、`31-biz-inventory-service.md` §12.4/§12.6（返品・廃棄・reason の enum 所有）、`33-biz-plu-export-service.md` §16.2 + `41-cmd-pos.md` §17.6（ExportMode 境界露出、`parse_export_mode` 廃止）、`32-biz-csv-import-service.md` §15（ParseErrorType 露出と status）
+- domain family の境界 doc 改訂: `44-cmd-inventory.md` §23.5-23.7（wire 型注記）+ 同 list_movements 節（movement_type / reference_type の enum 露出 — round 1 P1-1）、`31-biz-inventory-service.md` §12.4/§12.6（返品・廃棄・reason の enum 所有）、`33-biz-plu-export-service.md` §16.2 + `41-cmd-pos.md` §17.6（ExportMode 境界露出、`parse_export_mode` 廃止）、`32-biz-csv-import-service.md` §15（error_type 4 値 wire enum の合成新設と status — round 1 P1-2 機序訂正を反映）
 - frontend 手動 union の置換方針の正本化: `55-ui-csv-import.md` §55.5（`CMD_ERROR_KIND` wrapper を bindings 由来へ）、`62-ui-manual-sale.md` §62.4、`67-ui-plu-export.md` §67.8、`56-ui-daily-sales.md` §56.2 + `53-ui-home.md` D-10 行（**D-10 解消**）、`57-ui-monthly-sales.md`（SalesMode 手動 union 置換）
 - `docs/DB_DESIGN.md` CHECK 制約方針への接続注記（DB CHECK は enum 化後も防御として維持、IPC enum との対応関係 1 行）
 - `Plans.md` の active packet link 追加（PK4）と D-10 backlog 表記の更新
@@ -121,7 +121,7 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 
 | Spec / requirement ID | Source design doc section | Decision ID | Why / rejected alternatives | Implementation target | Test target |
 |---|---|---|---|---|---|
-| 監査 P4-1（型二重定義） | UI_TECH_STACK §2.5 / 42 §22.5 | D-061 (a) 共通 pattern | `#[derive(Serialize, Deserialize, specta::Type)]` + `#[serde(rename_all = "snake_case")]` を標準形とする。`SalesReportType`（42 CMD-09-CONV-D1 A 案）が request/response 両方向の本番実績を持つ先例。PascalCase 先例（SortKey 等）への統一は wire 表現変更になるため棄却 | 全 family | Matrix N2 |
+| 監査 P4-1（型二重定義） | UI_TECH_STACK §2.5 / 42 §22.5 | D-061 (a) 共通 pattern | `#[derive(Serialize, Deserialize, specta::Type)]` + `#[serde(rename_all = "snake_case")]` を標準形とする。先例は方向別: request 直受けは `SalesReportType`（42 CMD-09-CONV-D1 A 案）、response 直出しは `SalesMode`（`MonthlySalesReport.mode`、Serialize + specta）。単一 enum での両方向本番実績は未存在のため、両方向は方向別実績の合成として実装 PR の round-trip test で担保する（round 1 P2-1 訂正）。PascalCase 先例（SortKey 等）への統一は wire 表現変更になるため棄却 | 全 family | Matrix N2 |
 | 監査 P4-1（不正値経路） | ARCHITECTURE.md wire 型変換規定 / 41 §17.6 | D-061 (b) 不正値の精密化 | 「wire 不変」を「**正常値の wire 表現不変**」と精密化。request 側 enum 直受けにより不正文字列は serde deserialize 拒否（CMD 境界の wire 型変換失敗）へ統一され、旧 `parse_export_mode` 等の手動 parse + validation 文言は廃止。全 family の不正値は UI 固定操作（select / toggle / 定数）から到達不能で、利用者可視の変化なし。String 受け + 手動 parse 維持案は request 方向の型検査欠落（P4-1 の中核）を残すため棄却 | 41 §17.6 / 42 §22.5 | Matrix N4, N5 |
 | 監査 P4-1（DB 交差） | DB_DESIGN CHECK 方針 / transaction-tables | D-061 (c) 境界規則 | enum 化は IPC wire + BIZ 内部まで。DB/repo 層は TEXT + CHECK のまま（防御維持、schema 不変）。DB 読み出し値の enum 変換失敗は明示 match で internal（CHECK により実質到達不能、catch-all 禁止）。repo まで enum 化する案は schema/migration へ波及し「値集合は現状凍結」の非目的に反するため棄却 | DB_DESIGN 注記 / 31 / 32 | Matrix N6 |
 | P8b 系（kind 分岐） | 40 §5.3 / 68 §68.7 / 71 §71.7 | D-061 (d) CmdError.kind | `kind: CmdErrorKind`（12 値）へ。値・分岐・error_id 相関（D-053）・restore 3 値の意味論は不変。frontend の `CMD_ERROR_KIND` 手動定数（`export_error` 欠落の非対称あり）と手動 union 群は bindings 由来型へ置換 | 40 / 41 / 68 / 71 注記 / 55 | Matrix N3, N7 |
@@ -131,7 +131,7 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 
 - Source docs can answer what is being built and why without chat history: 改訂後は D-061（共通 pattern + family 一覧 + 境界規則）+ 各正本 doc の改訂 § で完結
 - Plan-only durable decisions promoted: D-061。family 別の実装詳細（derive 位置・変換 site）は各 doc の改訂 § が所有
-- Assumptions and constraints: bindings 生成は `collect_commands!` 対象 command のシグネチャから型グラフを自動収集（lib.rs、順14 事前調査で実証済み）。`SalesReportType` が両方向 enum の本番実績（42 §22.5 A 案）
+- Assumptions and constraints: bindings 生成は `collect_commands!` 対象 command のシグネチャから型グラフを自動収集（lib.rs、順14 事前調査で実証済み）。先例は方向別 — request = `SalesReportType`（A 案）、response = `SalesMode`。単一 enum 両方向の実績は未存在（round 1 P2-1 訂正）
 - Deferred design gaps: 反復言及 doc の追随は実装 PR の drift sweep へ（Required Design Artifacts）
 - Test Design Matrix can cite design decision IDs: D-061 (a)-(e) / SPEC-P41-D1〜D5
 - Absolute guarantee / escape hatch self-check: 絶対保証は新設しない。restore 系の条件付き保証は 71 §71.7 のまま不変
@@ -160,7 +160,7 @@ Minimum design checks for business-app work:
 ## Contract Probe
 
 - 生成基盤の型収集方式: `src-tauri/src/lib.rs` の `export_specta_bindings()` が `collect_commands!` からの型グラフ自動収集であることを事前調査で実証済み（enum を command シグネチャに載せれば bindings に literal union が出る）
-- 両方向 enum の本番先例: `SalesReportType`（`biz/sales_service.rs` の derive + `cmd/sales_cmd.rs` の直接 deserialize、42 §22.5 A 案）が実装・merge 済みであることを実読確認済み
+- 方向別 enum の本番先例: request 直受け = `SalesReportType`（`cmd/sales_cmd.rs:88` の引数直 deserialize、42 §22.5 A 案）、response 直出し = `SalesMode`（`MonthlySalesReport.mode`、Serialize + specta）をそれぞれ実読確認済み。`SalesReportType` は response struct に不在で、単一 enum の両方向実績は未存在（round 1 P2-1 で訂正。両方向の担保は実装 PR の family 別 round-trip test へ）
 - 不正値時の serde 拒否挙動（invalid string → invoke error の具体 shape）: **実装 PR1 の Contract Probe へ委譲**（是正仮適用の end-to-end 実測が必要。docs-only の本 PR では実測不能のため、D-061 (b) は「UI 到達不能経路」であることを根拠に凍結し、実測で shape を確認してから frontend の error 表示 fallback（describe-error 既定文言）への合流を実装 PR で確定する）
 
 ## Contract Coverage Ledger
@@ -172,7 +172,7 @@ Minimum design checks for business-app work:
 | D-061 (c) 境界規則（IPC+BIZ まで、DB TEXT+CHECK 維持、変換失敗は明示 internal） | decision-log / DB_DESIGN 注記 / 31 / 32 | Matrix N6（token） | 実装は follow-up PR |
 | D-061 (d) CmdErrorKind 12 値（値・分岐・error_id・restore 意味論不変、frontend 手動定数置換） | 40 §5.3 / 41 §17.4 / 68 §68.7 / 71 §71.7 注記 / 55 §55.5 | Matrix N3, N7（token） | 実装は follow-up PR |
 | D-061 (e) D-10 吸収（source の union 化を family へ） | 56 §56.2 / 53 D-10 行 | Matrix N8（token） | 実装は follow-up PR |
-| family 一覧の完全性（CmdErrorKind / return_type / direction / disposal_type / reason / source / CsvImportResult.status / ParseErrorType / ExportMode / SalesMode の 10 family、対象外 = StocktakeProgressBiz.status・26-io error_type・operation_type とその理由） | 本 packet + D-061 | Matrix N9（レビュー: inventory 調査との突合） | — |
+| family 一覧の完全性（CmdErrorKind / return_type / direction / disposal_type / reason / source / CsvImportResult.status / ErrorRow.error_type / ExportMode / SalesMode / movement_type / reference_type の 12 family、対象外 = StocktakeProgressBiz.status・26-io error_type・operation_type とその理由 + (11)(12) の P4-2 界面除外） | 本 packet + D-061 | Matrix N9（レビュー: inventory 調査との突合）+ N11（token） | — |
 | 順12 実装との直列制約（settings_cmd error 生成箇所 / bindings.ts 干渉）と実装分割（PR1 = CmdErrorKind 横断、PR2 = domain family 群。順序の既定 = 順12 実装 → 順14 PR1 → PR2、owner 裁定で変更可） | 本 packet SPEC-P41-D5 | 実装 PR Plan Gate で突合 | — |
 | 隣接 contract sweep: 各改訂 § の同居契約（40 §5.3 の error_id 契約 / 68 §68.7 の表示文言 / 42 §22.5 の集計意味論 / 55 §55.5 の wrapper 実装例 / 71 §71.7 の D1/D4/D5）は値・意味論不変で型注記のみ追加。除外契約なし | — | 独立レビューで再確認 | — |
 
@@ -202,7 +202,7 @@ Test Design Matrix: [test-matrices/2026-07-31-finite-ipc-enum-design.md](test-ma
 
 - D-061 (b) の「不正値経路の精密化」が wire 互換の原則を破っていないか（正常値不変 + 到達不能経路の統一、という論理の穴）
 - restore 系 kind の型強化が 68 §68.7 / 71 §71.7 の意味論（値・分岐・表示文言・error_id）を一切変えないか
-- family 一覧の漏れ（inventory 調査の 10 family + 対象外 3 系の理由の妥当性）
+- family 一覧の漏れ（inventory 調査 + round 1 P1-1 追補の 12 family + 対象外 3 系の理由の妥当性、CHECK 制約付き有限集合の全数突合）
 - D-060（順12）との整合 — 特に CmdError 変換一元化（`From<BizError>`）と kind enum 化の接続、settings_cmd 干渉の直列制約
 - 改訂 doc の future-state 注記漏れ（実装 PR 追随の明示）
 
@@ -211,7 +211,7 @@ Test Design Matrix: [test-matrices/2026-07-31-finite-ipc-enum-design.md](test-ma
 Contract ID: SPEC-P41-D1〜D5
 
 - SPEC-P41-D1（共通 pattern）: 有限 IPC 値の SSOT は Rust enum とし、`#[derive(serde::Serialize, serde::Deserialize, specta::Type)]` + `#[serde(rename_all = "snake_case")]` で generated literal union に露出する。wire 文字列は現行値と 1:1 完全一致。標準形の先例は `SalesReportType`（42 §22.5 A 案）
-- SPEC-P41-D2（family 一覧、値は現状凍結）: (1) `CmdErrorKind` 12 値（validation / duplicate / not_found / internal / import_error / export_error / idempotency_conflict / stocktake_in_progress / stocktake_not_in_progress / restore_failed_recovered / restore_failed_unrecoverable / restore_durability_unknown）、(2) 返品 `return_type`（return / exchange）、(3) 返品 `direction`（in / out）、(4) 廃棄 `disposal_type`（disposal / damage / other）、(5) 手動販売 `reason`（plu_unregistered / other）、(6) 日次売上 `source`（auto / manual、= D-10）、(7) `CsvImportResult.status`（completed / completed_partial / rolled_back）、(8) `ParseErrorType`（unmatched_product / invalid_format / invalid_jan / invalid_number — IO 既存 enum の露出）、(9) PLU `ExportMode`（full / diff — BIZ 既存 enum の露出、`parse_export_mode` 廃止）、(10) `SalesMode`（request 側 String 据え置き H-1 の解消）。対象外 = `StocktakeProgressBiz.status`（frontend 二重管理なし）/ 26-io の別種 error_type（別 contract）/ `operation_type`（オープン集合）
+- SPEC-P41-D2（family 一覧、値は現状凍結）: (1) `CmdErrorKind` 12 値（validation / duplicate / not_found / internal / import_error / export_error / idempotency_conflict / stocktake_in_progress / stocktake_not_in_progress / restore_failed_recovered / restore_failed_unrecoverable / restore_durability_unknown）、(2) 返品 `return_type`（return / exchange）、(3) 返品 `direction`（in / out）、(4) 廃棄 `disposal_type`（disposal / damage / other）、(5) 手動販売 `reason`（plu_unregistered / other）、(6) 日次売上 `source`（auto / manual、= D-10）、(7) `CsvImportResult.status`（completed / completed_partial / rolled_back）、(8) `ErrorRow.error_type`（unmatched_product / invalid_format / invalid_jan / invalid_number — **BIZ 層 String field の enum 化**。IO の `ParseErrorType` は 3 variant（InvalidFormat / InvalidJan / InvalidNumber）のみで `unmatched_product` は BIZ の突合段階で生成されるため、IO enum の直接露出では 4 値を覆えない。IO 3 variant + BIZ 1 値を合成した 4 値の wire enum を新設し、IO→wire 変換は明示 match とする — Plan Review round 1 P1-2 機序訂正）、(9) PLU `ExportMode`（full / diff — BIZ 既存 enum の露出、`parse_export_mode` 廃止）、(10) `SalesMode`（request 側 String 据え置き H-1 の解消）、(11) `movement_type`（sale_auto / sale_manual / receiving / return / disposal / stocktake — DB 層既存 enum `MovementType` の露出。request filter `MovementQuery.movement_type` と response `MovementRecord` の両方向。Plan Review round 1 P1-1）、(12) `reference_type`（csv_import / manual_sale / receiving_record / return_record / disposal_record / stocktake — DB 層既存 enum `ReferenceType` の露出、nullable のため wire は `Option`。同 P1-1）。対象外 = `StocktakeProgressBiz.status`（frontend 二重管理なし）/ 26-io の別種 error_type（別 contract）/ `operation_type`（オープン集合）。なお (11)(12) の URL search 層の重複（`src/features/stock-movements/types.ts` の route/feature 型反復）は監査 P4-2 の scope であり本 change では扱わない
 - SPEC-P41-D3（境界規則）: enum 化は IPC wire + BIZ 内部まで。DB/repo 層は TEXT + CHECK 不変。DB 読み出し値の enum 変換失敗は明示 match で internal（catch-all 禁止、`.claude/rules/implementation-quality.md` の既存規範に整合）。不正 wire 値は serde deserialize 拒否へ統一し、旧手動 parse の validation 文言は契約から除去（正常値の wire 表現・利用者可視挙動は不変）
 - SPEC-P41-D4（kind 分岐の不変条件）: CmdErrorKind 化で値・分岐・error_id 相関（D-053 / CMD-ERR-D1/D2）・restore 3 値の表示契約（68 §68.7）は不変。frontend は `CMD_ERROR_KIND` 手動定数・手動 union（`export_error` 欠落の非対称を含む）を bindings 由来型へ置換し、文字列 literal の直書き比較を退役する
 - SPEC-P41-D5（実装 PR 群の義務）: (i) 実装は 2 PR 分割 — PR1 = CmdErrorKind（横断・機械的）、PR2 = domain family 群（(2)〜(10)）。順序の既定は 順12 実装 → 順14 PR1 → PR2（settings_cmd / bindings.ts 干渉の直列制約。owner 裁定で変更可）、(ii) 各 PR で bindings 再生成 diff が型強化のみであることを review 必須観点に、(iii) family ごとに wire round-trip test（正常全値 + 不正値拒否）を追加、(iv) 反復言及 doc / code comment（compute-summary.ts の D-10 comment 等）の drift sweep を rg で全箇所実施、(v) 不正値拒否の wire shape を PR1 の Contract Probe で実測し frontend fallback 表示との合流を確定、(vi) 本 packet の凍結契約との突合を各実装 PR Plan Review の必須観点とする
@@ -239,3 +239,10 @@ Contract ID: SPEC-P41-D1〜D5
 ## Review Response
 
 - Findings Freeze: not yet frozen; post-freeze exceptions: none.
+
+### Plan Review round 1（independent Claude subagent, Sonnet 5, fresh context）
+
+- P1-1（movement_type / reference_type の family 漏れ）: **accept**。`db/inventory_repo.rs` の `MovementType` / `ReferenceType`（各 6 値）と `schema_v1.rs:182,185` の CHECK を Writer が実読確認。family (11)(12) として追加、44 list_movements 節を Scope へ、Matrix N11 を追加。P4-2 界面（URL search 層の重複）は対象外と明記
+- P1-2（ErrorRow.error_type の値が `n` である・IO enum 露出の機序誤り）: **値主張は refute / 機序副論点は accept**。Writer の一次資料裏取りで wire 値は `unmatched_product / invalid_format / invalid_jan / invalid_number` — `schema_v1.rs:153` CHECK・`parse.rs:104` の実生成・frontend `formatErrorRow.ts` switch の三点一致を実測し、`"n"` は repo 内に存在しない（reviewer 主張の根拠は再現不能）。一方「IO の `ParseErrorType` は 3 variant のみで `unmatched_product` は BIZ 生成」は事実（`z004_parser.rs:62-69` 実読）— 「IO 既存 enum の露出」という機序記述を「IO 3 variant + BIZ 1 値を合成した 4 値 wire enum の新設」へ訂正
+- P2-1（`SalesReportType` 両方向実績の主張誤り）: **accept**。`SalesReportType` は request 引数のみ（response struct に不在を実読確認）。先例を方向別（request = SalesReportType / response = SalesMode）に訂正し、両方向担保は実装 PR の round-trip test へ
+- P3-1（71 の自己指名表現）: **accept**。71 §71.7 の見直し契機行は「順 8」であり Risk 節を精緻化（Scope 節は当初から正確）

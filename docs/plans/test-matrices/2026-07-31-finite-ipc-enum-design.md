@@ -18,7 +18,8 @@ docs-only PR のため、機械 token 検査 + 既存 gate 回帰 + 独立レビ
 | N7b | 55 §55.5 の frontend 手動定数置換方針（SPEC-P41-D4。新設 literal、baseline 0。既存の frontend 型名 `CmdErrorKind`（55 に baseline 1 で既出）とは別 anchor を用いる） | `rg -c "bindings 由来の generated union へ置換" docs/function-design/55-ui-csv-import.md` | `1` | 機械 |
 | N8 | D-10 の吸収（D-061 (e)。消滅系 — N8b と対。56 baseline = 2 / 53 row baseline = 1。53 §308 の無関係な「D-1〜D-10」は plan 内番号で本 anchor に非該当と確認済み） | `rg -c "Backlog D-10" docs/function-design/56-ui-daily-sales.md` / `rg -c "D-10、本 PR スコープ外" docs/function-design/53-ui-home.md` | 各 `0` | 機械 |
 | N8b | 56 の順14 吸収注記（N8 の非空対。56 baseline 0） | `rg -c "順14" docs/function-design/56-ui-daily-sales.md` | `1` 以上 | 機械 |
-| N9 | family 一覧の完全性（SPEC-P41-D2 の 10 family + 対象外 3 系の理由）を順14 事前 inventory 調査と突合。値集合（各 family の literal 列挙）が現行コード・DB CHECK と一致すること | 独立レビュー（Plan Review の必須観点） | 漏れ・値誤り 0 | レビュー |
+| N9 | family 一覧の完全性（SPEC-P41-D2 の 12 family + 対象外 3 系の理由 + (11)(12) の P4-2 界面除外）を順14 事前 inventory 調査・round 1 P1-1 追補と突合。値集合（各 family の literal 列挙）が現行コード・DB CHECK と一致すること（round 1 で P1-2 の値誤指摘を一次資料裏取りで refute した経緯があるため、Reviewer は必ず schema_v1.rs の CHECK と生成箇所コードを自分で実読すること） | 独立レビュー（Plan Review / Final Review の必須観点） | 漏れ・値誤り 0 | レビュー |
+| N11 | 44 の list_movements 節に movement_type / reference_type の enum 露出契約（SPEC-P41-D2 (11)(12)。新設 literal、baseline 0 実測済み） | `rg -c "generated enum" docs/function-design/44-cmd-inventory.md` | `1` 以上 | 機械 |
 | N10 | 既存 gate 回帰 + docs-only 確認 + 隣接 sweep | `bash scripts/doc-consistency-check.sh --target plan` / `cargo test --test design_compliance_test` / `bash scripts/local-ci.sh full` / `git diff --stat main...HEAD` に `src-tauri/src/` `src/` が現れない / 71 の変更が見直し契機消化の最小注記に留まる（restore 意味論の本文無変更を diff 実読で確認） | gate 全 pass / docs-only 成立 / 71 最小注記のみ | 機械 + レビュー |
 
 ## mutation 感度の考え方（docs-only）
@@ -27,6 +28,6 @@ docs-only PR のため、機械 token 検査 + 既存 gate 回帰 + 独立レビ
 
 ## 実行タイミング
 
-- N1〜N8b: implementing 完了時（Writer）と independent-review（Reviewer 再実行）の 2 回
+- N1〜N8b, N11: implementing 完了時（Writer）と independent-review（Reviewer 再実行）の 2 回
 - N9: Plan Review と Final Review
 - N10: implementing 完了時 + human-confirm → ready-hosted-final 遷移直前の local full 再実行
