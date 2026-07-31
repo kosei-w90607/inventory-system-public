@@ -1,6 +1,8 @@
 ## 13. IO-02: Z004パーサー
 
 > **2026-06-30 field-check note**: 本書は既存実装の Z004 parser contract を記録する。現場確認では、現在の店舗日報主入力は `Z001`/`Z002`/`Z005` であり、`Z004` は PLU(商品) / 商品別トラックとして再評価する対象になった。REQ-401 の current SALES import を変更する場合は、本書を拡張するのではなく SALES redesign で `Z001`/`Z002`/`Z005` parser contract を別途定義する。
+>
+> **2026-08-01 evidence boundary**: 2026-07-06 issue #135 で、Z004 が `メモリNo. / コード / 名称 / 個数 / 金額` を持つCV17のPLU別売上レポートであり、代表販売1件が個数非ゼロ行へ出ることを確認済み。本書の現行runtime contractは1行目から日付を取る従来shapeのままで、CV17のSD取込み後 `EcrDatas` に残るメタ6行+headerのlayout Aは未対応で安全停止する。BIZ-03のsale_records作成・`pos_stock_sync`在庫増減・rollbackは実装済みであり、別R3の対象は二形状対応と店舗採取shapeでのend-to-end再検証。本changeは現行関数契約を変更しない。
 
 ### 13.1 モジュール構成
 

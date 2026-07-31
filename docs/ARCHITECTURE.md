@@ -83,7 +83,7 @@ POS連携は、レジ固有の adapter とアプリ内共通モデルの境界�
 |---|---|---|
 | PLU export | CV17 1.1.1 PLUファイル `.txt` / PCツール / SR-S4000 | 商品マスタから生成したPLU登録候補と書出し結果 |
 | Daily report import | `Z001` / `Z002` / `Z005` | 日報サマリ、決済/取引キー集計、部門別売上 |
-| Product-sales import | `Z004` after PLU registration | 商品別売上、在庫引落し候補 |
+| Product-sales import | `Z004` after PLU registration | 商品別売上、`pos_stock_sync`に基づく在庫増減・rollback（実装済み。店舗採取layout Aは未対応） |
 | Optional report tabs | `Z006` / `Z009` / `Z011` | 初期非スコープ。グループ、時間帯別、担当者別の具体的な個人店ニーズが出た時だけ追加 |
 | Operation procedure | SDカード、PCツール、バックアップ、実機確認 | operator workflow、証跡、安全手順 |
 
@@ -146,7 +146,7 @@ REQ-403（POS 部門別売上照合）は UI-13 / REQ-904 の在庫整合性と�
 | CMD-04 | 手動販売出庫コマンド群 | BIZ-02 | 手動販売出庫の作成の入口 |
 | CMD-05 | 廃棄・破損コマンド群 | BIZ-02 | 廃棄・破損記録の作成・一覧取得の入口 |
 | CMD-06 | 在庫照会コマンド群 | BIZ-01, BIZ-02 | 在庫照会・変動履歴の取得の入口 |
-| CMD-07 | Z004商品別CSV取込みコマンド群 | BIZ-03 | parse/validate/commit/rollbackの入口。PLU登録後の商品別売上・在庫引落し候補 |
+| CMD-07 | Z004商品別CSV取込みコマンド群 | BIZ-03 | parse/validate/commit/rollbackの入口。商品別売上と`pos_stock_sync`在庫増減は実装済み。店舗採取layout AはIO-02未対応 |
 | CMD-08 | PLU書出しコマンド群 | BIZ-04 | PLUファイル生成の入口 |
 | CMD-09 | 売上集計コマンド群 | BIZ-05 | 日次・月次集計データ取得の入口 |
 | CMD-10 | 棚卸しコマンド群 | BIZ-06 | 棚卸し操作の入口 |
