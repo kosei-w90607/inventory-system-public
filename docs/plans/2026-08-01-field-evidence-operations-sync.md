@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: human-confirm
+- Phase: ready-hosted-final
 - Risk: R3
 - Execution Mode: dual-vendor-no-fable
 - Plan Commit: 2902177341b455833a5193bfa9519a6565ad41c1
@@ -14,7 +14,7 @@
 - Reviewed Content HEAD: 657c3cc56a93613d7562d447e910c67277284dd8
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
-- Human Gate: pending Ready, merge
+- Human Gate: pending merge
 
 ## Owner Effort Budget
 
@@ -236,3 +236,5 @@ runtime wire変更なし。
 - Final Contract Audit（2026-08-01、exact live HEAD `a5ae3f0aa83a73396707a084c8de7666a7812780`）: independent Claude Sonnet 5がContract Coverage Ledger、negative space、adapter/core境界、reporting semantics、operator workflow、current/future境界、manual verification、data safety、stale wording guard、state/evidence separationを監査し、P1/P2/P3=0。Findings Freezeをfrozenとする。
 - Reviewed Content HEAD adjudication（2026-08-01）: reviewerはL1 evidence HEADとの一致を理由に`a5ae3f0aa83a73396707a084c8de7666a7812780`を推奨したが、同commitはstate-onlyであり、D-035はこのfieldを監査済みcontent-bearing commitと定義し、final L1 evidenceから分離する。したがって対象source docsの最終content commit `657c3cc56a93613d7562d447e910c67277284dd8`を記録し、L1 full CLEAN/PASSの`a5ae3f0aa83a73396707a084c8de7666a7812780`はPR body evidenceとして扱う。
 - State Transition（2026-08-01）: content candidate `657c3cc56a93613d7562d447e910c67277284dd8`、exact live HEAD `a5ae3f0aa83a73396707a084c8de7666a7812780`のL1 full CLEAN/PASS、Final Contract Audit P1/P2=0がこのcommitより前に揃ったため、implementing -> local-verified -> independent-review -> human-confirmをmaterializeする。
+- Owner Ready Authorization（2026-08-01）: ownerが介入2/3として「Ready OK」を明示し、Draft PR #55をready-hosted-finalへ進めることを承認した。
+- State Transition（2026-08-01）: owner Ready authorizationを受け、このstate-only commitでhuman-confirm -> ready-hosted-finalをmaterializeする。resulting exact HEADでL1 fullを再実行し、PR bodyを全面更新してからReady化・required hosted finalへ進む。
