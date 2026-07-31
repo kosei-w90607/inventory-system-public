@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: human-confirm
+- Phase: archive
 - Risk: R3
 - Execution Mode: fable-window（未確認 — 本 Packet は drafting subagent が起票したもので live vendor slot 可用性を独立確認できない。Plan Gate 時に Coordinator が実確認して確定する。これは本 Packet 自身が導入する「数値・状態主張は実測か明示未確認タグの二択」規律のドッグフーディングでもある）
 - Plan Commit: c437897744ac445c1aa2069cbbd90a025b7b6256
@@ -301,6 +301,10 @@ Gate 結果:
 - `bash scripts/doc-consistency-check.sh --target plan`: exit 0（WARN 2 件、同上、ERROR 0 件）。
 - `bash scripts/tests/doc-consistency-plan-packet.test.sh`: PASS（新規 PK6 fixture group #20 含む全 20 groups）。
 - `mise exec -- bash scripts/local-ci.sh full`: `RESULT=PASS` / `EXIT_CODE=0`（npm-audit の既存 warn-only advisory 5 件は本 PR 非接触の既存 pre-existing dependency 事項、`GATE_EXIT_CODE=1`/`WARN_ONLY_GATE=npm-audit` として PASS に含まれる既定挙動）。
+
+## 遷移圧縮記録（ready-hosted-final -> merge -> archive）
+
+- hosted = run 30636788316 success（exact-HEAD `adfc163`、owner 指示 dispatch。PR event 走行は changed-area classifier で skipped だったため explicit dispatch で充足）。merge = owner 委任で squash `82a3609`。本 commit で archive 移動
 
 ## Review Response
 
