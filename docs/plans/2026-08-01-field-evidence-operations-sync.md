@@ -2,10 +2,10 @@
 
 ## Workflow State
 
-- Phase: plan-gate
+- Phase: implementing
 - Risk: R3
 - Execution Mode: dual-vendor-no-fable
-- Plan Commit: pending
+- Plan Commit: 2902177341b455833a5193bfa9519a6565ad41c1
 - Amendments: none
 - Coordinator: Codex GPT-5.6 (main session)
 - Writer: Codex GPT-5.6 (main session)
@@ -14,7 +14,7 @@
 - Reviewed Content HEAD: pending
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
-- Human Gate: pending Plan Review, Final Review, Ready, merge
+- Human Gate: pending Final Review, Ready, merge
 
 ## Owner Effort Budget
 
@@ -231,3 +231,5 @@ runtime wire変更なし。
 - P3-1 accepted same-change: stale-grepが自身の検査式・棄却説明・正常なgo-live準備候補へ自己一致した。active plan/archiveを除外し、検出語彙を過去の誤記へ限定した改訂ACを実行してno matches（rg exit 1）を確認。correction HEADのclosure確認はpending。
 - Closure Review（2026-08-01、Reviewed Content HEAD `7100d345f22a4a44d5bc19eba46ed6d38b55353d`）: P3-1はCLOSED。新規P2-1として、限定後のstale-grepが是正前の実在variant `在庫自動引落し候補` を検出しないことをacceptした。Plan Gateは継続する。
 - P2-1 accepted same-change: `自動` の任意挿入、`引落し` / `増減`、`使えるか` から `評価` までの表現差を吸収するregexへ改訂した。`main`の実在variantを検出し、現行active source docsではno matches（rg exit 1）を確認。correction HEADのclosure確認はpending。
+- Plan Review Closure（2026-08-01、Reviewed Content HEAD `657c3cc56a93613d7562d447e910c67277284dd8`）: P3-1 / P2-1はCLOSED、新規P1/P2/P3は0。Plan GateのP1/P2=0条件を満たした。
+- State Transition（2026-08-01）: plan-first commit `2902177341b455833a5193bfa9519a6565ad41c1` とPlan Review closureがimplementationより前に揃ったため、このstate-only commitでplan-gate -> plan-approved -> implementingをmaterializeする。pre-approval correctionは`7100d345f22a4a44d5bc19eba46ed6d38b55353d` / `657c3cc56a93613d7562d447e910c67277284dd8`で、`Amendments: none`を維持する。
