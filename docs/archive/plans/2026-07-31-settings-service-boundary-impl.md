@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: human-confirm
+- Phase: archive
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: 0fd8551f5566000df0ef2c85791eb48d9feb2d27
@@ -344,6 +344,12 @@ Contract ID: SPEC-CMD11-D2, D3, D5（design PR で凍結、本 PR で実装） +
 - 「文言不変」条項の精密化: **validation 文言（条件・field 込み）は逐語不変**のまま維持。internal 系の汎用文言のみ、対象 4 command の DB 失敗経路に限り標準文言へ統一される
 - test 追随: 旧 message を固定する `test_list_logs_req902_invalid_page_to_cmderror` は標準文言の完全一致 assert へ更新する（弱体化ではなく新契約の同等固定）
 - Final Review 必須観点: message 変更の波及が上記 4 command の DatabaseError 経路のみであること（validation 文言・他 command・restore 系に変化がないこと）を diff で確認する
+
+### 遷移圧縮記録（human-confirm -> ready-hosted-final -> merge -> archive、archive commit で実体化）
+
+- ready-hosted-final: 最終 local full = HEAD `5cfc314` PASS / CLEAN / MERGE_EVIDENCE_VALID=true。hosted = workflow_dispatch run 30624447300 success（exact-HEAD 一致、初回 green）
+- merge: owner 委任（「回して、マージまで頼む」2026-07-31）に基づき Coordinator が Ready + squash merge `b1c5f55`
+- archive: 本 commit で packet / Matrix を archive へ移動、Plans.md 転記
 
 ### Final Review（independent Claude subagent, Sonnet 5。audited = 6b1d0fe）
 
