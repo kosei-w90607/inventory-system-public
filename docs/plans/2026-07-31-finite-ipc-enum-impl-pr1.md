@@ -288,7 +288,26 @@ Contract ID: D-061 (a), (d)（design PR で凍結、本 PR で実装） + SPEC-P
 
 ## Implementation Results
 
-（実装後に記入）
+- TDD: `cmd::tests::test_cmd_error_req905_from_import_error` の assertion を先に `CmdErrorKind::ImportError` へ変更し、未定義型による compile failure を RED として確認後、enum 本体と構築 site を実装して GREEN を確認した。
+- Rust: `CmdErrorKind` 12 variant を response 専用 derive で新設し、production 26 site と既存 assertion 39 箇所を enum 比較へ移行した。`correlated()` は `kind = ?kind` とし、message / field / error_id・restore 接続所有権処理は変更していない。
+- Frontend / generated: bindings を再生成して `CmdError.kind: CmdErrorKind` + 12 値 literal union を生成した。`CMD_ERROR_KIND` は generated union から導く exhaustive map、restore state と kind 依存 test helper は bindings 由来型へ移行し、PascalCase mock drift を是正した。
+- Docs: 40 §5.3 / 55 §55.5・§55.9 / 68 §68.7 を実装後の現在形へ同期した。domain family (2)〜(14)、BIZ/DB/MNT、restore の値・分岐・表示文言は無変更。
+- Gate: Rust fmt / clippy / full test / architecture / design compliance、frontend typecheck / lint / format / full test / build、bindings 再生成、doc consistency（full + plan）を実装 commit 前に PASS。最終 exact-HEAD の L1 full と件数は PR body を正本とする。
+- Bindings blob: 実装前 `9fae4b34c0572283edbd66a99913e1615e77b9ff` → 実装後 `4623f29bfb1345f21281459ea73c2d458030a5d0`。X1/X4 復元後の再生成でも実装後 blob に一致し、差分は `CmdError.kind` の型強化と `CmdErrorKind` export のみ。
+
+### Mutation 実測（clean commit `f3f9413`）
+
+| Mutation | 注入 | RED oracle | 結果 |
+|---|---|---|---|
+| X1 | `rename_all = "snake_case"` を削除 | bindings 再生成 | 12 値が PascalCase へ変化し検出。復元・再生成後 clean |
+| X2 | `product_cmd.rs` を旧 `String` 構築へ戻す | `cargo build` | `expected CmdErrorKind, found String` で compile failure |
+| X3 | recovered assertion の期待 variant を unrecoverable へ交換 | restore kind 単体 test | left/right variant 不一致で failure |
+| X4 | 13 番目の `Dummy` variant を追加 | bindings 再生成 | literal union への `dummy` 追加を検出。復元・再生成後 clean |
+| X5 | `CMD_ERROR_KIND.EXPORT_ERROR` を削除 | `npx tsc --noEmit` | exhaustive map の property 欠落で type error |
+| X6 | 対象 mock を `ValidationFailed` へ戻す | `npx tsc --noEmit` | `CmdErrorKind` 非互換で type error |
+| X7 | fatal restore title 分岐条件を入替 | BackupRestorePage test | 既存表示 test が RED |
+
+全 mutation を復元後、`git diff --exit-code` clean、Rust build + restore kind 単体 test、TypeScript typecheck、BackupRestorePage test の GREEN を再確認した。survivor 0。
 
 ## Review Response
 
