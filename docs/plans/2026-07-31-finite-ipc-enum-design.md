@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: implementing
+- Phase: human-confirm
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: f328692716c5f1ffcc0cfdae8a4ba457e019e153
@@ -11,10 +11,10 @@
 - Writer: Claude (Fable 5, main session)
 - Plan Reviewer: independent Claude subagent (Sonnet 5)
 - Final Reviewer: independent Claude subagent (Sonnet 5)
-- Reviewed Content HEAD: pending
+- Reviewed Content HEAD: d7e1088d3784238532f3fa917ed638c44ef35ede
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
-- Human Gate: hosted workflow_dispatch 指示（docs-only のため event filter 対象外）+ merge approval。L3 なし
+- Human Gate: pending items = hosted workflow_dispatch 指示（docs-only のため event filter 対象外）+ merge approval。L3 なし
 
 ## Owner Effort Budget
 
@@ -242,7 +242,7 @@ Contract ID: SPEC-P41-D1〜D5
 
 ## Review Response
 
-- Findings Freeze: not yet frozen; post-freeze exceptions: none.
+- Findings Freeze: frozen after Broad Audit; post-freeze exceptions: none.
 
 ### Plan Review round 1（independent Claude subagent, Sonnet 5, fresh context）
 
@@ -275,6 +275,12 @@ Contract ID: SPEC-P41-D1〜D5
 ### Writer self-audit（plan-approved 後、amendment AMD1）
 
 - DB_DESIGN.md の CHECK 一覧改訂の執筆中に、round 3/5 の「全数突合」が schema_v1.rs のみを列挙し **schema_v2/v4 の daily report 系 CHECK（status / source_adapter / source_file）を見ていなかった**ことを検出。実査の結果**新 family は無し**: `DailyReportImportResult` 系 `status: String` は frontend 比較なし（StocktakeProgressBiz.status と同類）、`duplicate_check.status` / `source_file` は `DailyReportDuplicateStatus` / `DailyReportSourceKind` として既に generated enum 済み（本是正の先行事例）、`source_adapter` は POS Adapter Boundary の拡張点。対象外リストへ 3 点を追補し、N9 の突合方法を「全 schema file + DB_DESIGN CHECK 一覧」へ強化。Final Review で再検証すること
+
+### Final Review（independent Claude subagent, Sonnet 5, fresh context, audited content = d7e1088）
+
+- Matrix N1〜N16 を Reviewer が独立再実行し全 oracle 一致。N9 は全 schema file（v1: 12 CHECK + v4: 5 CHECK）+ DB_DESIGN 一覧の両方で 14 family + 対象外分類の網羅を独立再現
+- P1（44 の enum 契約化注記が manual_sales.reason と廃棄の自由記述 reason を無限定にまとめ、実装 PR2 の誤読で自由記述 field の enum 化 = 機能退行を招き得る）: **accept**。分離明示 + 廃棄 reason の enum 化禁止を明記（commit d7e1088）。Reviewer が是正 diff・N11 継続・無矛盾を確認し **P1/P2 = 0 を認定**
+- P2/P3 = 0
 
 ### Plan Review round 5（independent Claude subagent, Sonnet 5, fresh context）
 
