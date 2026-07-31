@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: implementing
+- Phase: human-confirm
 - Risk: R3
 - Execution Mode: fable-window（未確認 — 本 Packet は drafting subagent が起票したもので live vendor slot 可用性を独立確認できない。Plan Gate 時に Coordinator が実確認して確定する。これは本 Packet 自身が導入する「数値・状態主張は実測か明示未確認タグの二択」規律のドッグフーディングでもある）
 - Plan Commit: c437897744ac445c1aa2069cbbd90a025b7b6256
@@ -11,7 +11,7 @@
 - Writer: Claude subagent (Sonnet 5)
 - Plan Reviewer: independent Claude subagent (Sonnet 5, fresh context)
 - Final Reviewer: independent Claude subagent (Sonnet 5, fresh context) — 本 change は「workflow gate change」に該当するため、DEV_WORKFLOW.md `Review Rules` の Double Audit 規定（R4 or workflow gate change は Contract Audit を独立 2 context で実施）が Owner 発注書の「Reviewer 独立」という短い表現より優先し、Final Reviewer は独立 2 pass 必須とする
-- Reviewed Content HEAD: pending
+- Reviewed Content HEAD: to-be-fixed
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required（`scripts/doc-consistency-check.sh` という非 docs-only path を含むため通常の PR event で hosted CI が走り、明示 workflow_dispatch は不要という前提。ci.md のクラス分類は実装時に再確認する）
 - Human Gate: Ready 承認 + merge 承認（pending）
@@ -138,7 +138,7 @@ Plan Packets are not durable design source of truth.
 
 ## Registration / Generation Obligations
 
-該当なし — 新規 Tauri command、function-design doc、route、operator 画面のいずれも追加しない。PK6 の新規 test は既存 `scripts/tests/doc-consistency-plan-packet.test.sh`（local-ci / hosted CI に登録済み）へのテストケース追加であり、新規ファイル登録は不要。§5.5 consultation relay は使わない。
+該当なし — 新規 Tauri command、function-design doc、route、operator 画面のいずれも追加しない。PK6 の新規 test は既存 `scripts/tests/doc-consistency-plan-packet.test.sh`（`scripts/local-ci.sh:211` にのみ登録済み — hosted CI の docs job は `doc-consistency-check.sh` を直接呼ぶのみで本 test file は呼ばない。実測: `.github/workflows/ci.yml` に参照 0 hit、既存 gap で本 PR の退行ではない。Final Review P2 で是正）へのテストケース追加であり、新規ファイル登録は不要。§5.5 consultation relay は使わない。
 
 | 新規追加物 | 登録・生成義務 |
 |---|---|
@@ -313,4 +313,11 @@ Plan Review round 1（Coordinator 裁定 = 全 accept、修正案どおり）:
 - P3: Compatibility Checks の archive 不変検査が機序を明記していなかった点を accept。`iter_active_dated_plans()` は `-maxdepth 1` で `docs/archive/plans/**` を元々スキャン対象外にしていることを実測確認済みの記述へ是正した（`scripts/doc-consistency-check.sh:804`）。
 - 是正後: P1/P2 = 0（round 1 是正で解消、Coordinator 裁定）。
 
-- Findings Freeze: not yet frozen; post-freeze exceptions: none.
+- Findings Freeze: frozen after Broad Audit; post-freeze exceptions: none.
+
+### Final Review（independent Claude subagent, Sonnet 5。audited = c0a2298 + 是正）
+
+- diff 過不足なし、PK6 WARN-only を code+実行で二重確認、歴史的 red/green・mutation M1〜M3a・noise 5/6 を独立再現。M3b/M3c の敵対的読解で骨抜き余地なしを確認
+- P2（fixture test の hosted CI 登録という未検証主張 — **D-062 導入 PR 自身の D-062 違反**）: accept、「local-ci のみ」へ実測付き訂正。ci.yml への追加は既存 gap のため scope 外（本 PR の退行ではない）
+- P3（DEV_WORKFLOW 新 bullet の英文重複）: accept、削除
+- 是正後 P1/P2 = 0
