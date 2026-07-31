@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: implementing
+- Phase: ready-hosted-final
 - Risk: R3
 - Execution Mode: dual-vendor-no-fable
 - Plan Commit: 1ef0336bab42cd5f816a3e661b08338c82845ca7
@@ -11,10 +11,10 @@
 - Writer: Codex (GPT-5.6, main session)
 - Plan Reviewer: Claude Sonnet 5 (external, fresh context)
 - Final Reviewer: Claude Sonnet 5 (external, fresh context; Double Audit first pass) + independent fresh second pass
-- Reviewed Content HEAD: pending
+- Reviewed Content HEAD: cff8a7eb1f566acd7ea4e7214d48ce6f1835e5f4
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
-- Human Gate: Ready authorization + merge approval (pending)
+- Human Gate: merge approval (pending; Ready authorization completed at owner intervention 3/3)
 
 Narrative (append-only):
 
@@ -26,6 +26,7 @@ Narrative (append-only):
 - 2026-08-01 fresh re-Plan Review closure: external Claude Sonnet 5 reviewed exact content HEAD `297066b` and reported `P1=0 / P2=0 / P3=0`。L1 local-only registration、hosted未配線、別R3の `doc-consistency-check.sh` 統合、hosted finalをguard実行証拠と扱わない境界、workflow YAML zero-diff、state-backtrack / `Amendments: none` の妥当性を独立再確認した。plan-gate -> plan-approved -> implementing をこの state-only commit で materialize し、退避中のTDD実装を復元して再開する。
 - 2026-08-01 implementation evidence-ownership correction: `Reviewed Content HEAD` は Plan Review HEAD ではなく Final Reviewer が監査した実装 content HEAD を後続 state-only commit で記録する field のため、Plan Review の `297066b` は上記 Narrative に保持し、field は `pending` へ戻した。
 - 2026-08-01 Final Double Audit initial result: Pass 1 / Pass 2 統合で `P1=0 / P2=1 / P3=2`。P2 は accept。`e7fe55a` が Plan Review HEAD を `Reviewed Content HEAD` へ誤記し、`cff8a7e` が通常 content commit で `pending` へ戻したため、DEV_WORKFLOW の「Final Reviewer 後の state-only transition commit だけがこの field を書く」契約に二重に違反した。履歴上の違反を隠さず本記録で受理し、field は `pending` のまま維持する。closure と owner Ready authorization が揃うまで forward state commit を増やさず、その後 `implementing -> local-verified -> independent-review -> human-confirm -> ready-hosted-final` を残る 1 state-only commit へ圧縮し、そこで初めて audited content HEAD を記録する。
+- 2026-08-01 Final Double Audit closure -> Ready authorization: closure target `9bfca81` に対して external Claude Sonnet 5 が `P1=0 / P2=0 / P3=2`、P2-1 CLOSED、P3 二件は non-blocking residual と確認した。Findings Freeze は initial Broad Audit の Pass 1 + Pass 2 完了時点で発効済みであり、closure は後続 confirmation として扱う。実装 candidate `cff8a7eb1f566acd7ea4e7214d48ce6f1835e5f4` の exact clean L1 full、Final Double Audit と closure、owner intervention 3/3 の Ready authorization がすべて本 commit 前に揃ったため、`implementing -> local-verified -> independent-review -> human-confirm -> ready-hosted-final` を残る 1 state-only commit へ圧縮し、`Reviewed Content HEAD` を同 candidate に初めて正規記録する。Draft PR #54 の resulting HEAD で L1 full を再実行して PR body をrefreshし、CI-TRIGGER-D1 の event-eligible routeとしてReadyにする。予防的dispatchは行わない。
 
 ## Owner Effort Budget
 
@@ -33,7 +34,7 @@ Narrative (append-only):
 - 実働時間上限: 30分
 - relay 往復上限: 2
 
-規範値確認: `sed -n '269,272p' docs/DEV_WORKFLOW.md` -> `interventions ≤3, hands-on time ≤30 minutes, relay round-trips ≤2`。現時点の owner 介入は kickoff / scope 承認と wiring correction 方針（current local-only / C案は別R3）決定の 2 回。
+規範値確認: `sed -n '269,272p' docs/DEV_WORKFLOW.md` -> `interventions ≤3, hands-on time ≤30 minutes, relay round-trips ≤2`。owner 介入は kickoff / scope 承認、wiring correction 方針（current local-only / C案は別R3）決定、Ready authorization の 3 回で完了。
 
 ## Consultation Relay
 
@@ -269,7 +270,7 @@ Contract ID: SPEC-WF-CI-PUBLIC-D1
 
 ## Review Response
 
-- Findings Freeze: pending P2 closure; post-freeze exceptions: none.
+- Findings Freeze: frozen when Final Double Audit Pass 1 + Pass 2 completed; P2-1 closure confirmed on `9bfca81`; post-freeze exceptions: none.
 - P2-1 `Reviewed Content HEAD` write mechanism violation: accepted。現在値 `pending` は正しいが、`e7fe55a` / `cff8a7e` の書込み経路違反は事実。本 append-only audit record、closure再確認、次回の正規 state-only transition まで field 非変更を最小是正とする。
 - P3-1 M4 evidence wording: accepted as non-blocking residual。M4 は archiveを意味解析して識別する能力ではなく、validatorが明示された5 live-doc pathだけを入力とし archiveを走査しない構造を確認する test と位置づける。実装変更は行わない。
 - P3-2 lexical guard paraphrase gap: accepted as non-blocking residual。有限の禁止語彙 guard は意味的な言い換えを完全検出しない。source-doc review / Contract Auditを残し、絶対保証とは扱わない。実装変更は行わない。
