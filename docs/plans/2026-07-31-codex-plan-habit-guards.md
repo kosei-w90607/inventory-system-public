@@ -11,7 +11,7 @@
 - Writer: Claude subagent (Sonnet 5)
 - Plan Reviewer: independent Claude subagent (Sonnet 5, fresh context)
 - Final Reviewer: independent Claude subagent (Sonnet 5, fresh context) — 本 change は「workflow gate change」に該当するため、DEV_WORKFLOW.md `Review Rules` の Double Audit 規定（R4 or workflow gate change は Contract Audit を独立 2 context で実施）が Owner 発注書の「Reviewer 独立」という短い表現より優先し、Final Reviewer は独立 2 pass 必須とする
-- Reviewed Content HEAD: to-be-fixed
+- Reviewed Content HEAD: 1ef84984d6ced6565fbf83af1e5f2e729230bee7
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required（`scripts/doc-consistency-check.sh` という非 docs-only path を含むため通常の PR event で hosted CI が走り、明示 workflow_dispatch は不要という前提。ci.md のクラス分類は実装時に再確認する）
 - Human Gate: Ready 承認 + merge 承認（pending）
