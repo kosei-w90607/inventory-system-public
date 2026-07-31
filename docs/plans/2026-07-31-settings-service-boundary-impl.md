@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: plan-gate
+- Phase: implementing
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: 0fd8551f5566000df0ef2c85791eb48d9feb2d27
@@ -18,7 +18,7 @@
 
 Narrative（append-only）:
 
-- 2026-07-31 kickoff -> spec-check -> plan-draft: design PR（D-060、packet 2026-07-31-settings-service-boundary-design、archive 済み）が `ARCHITECTURE.md` / `43-cmd-settings-log.md` / `cmd-task-specs.md` / `biz-task-specs.md` / `31-biz-inventory-service.md` §12.9 を既に BIZ-09 経由の目標形へ改訂済みのため、spec-check は「既存設計書で十分」の唯一許容 skip 経路（design → plan-draft ではなく spec-check → plan-draft）を取る。Coordinator が現行 `settings_cmd.rs` / `architecture_test.rs` / `design_compliance_test.rs` / `biz/mod.rs` を read-only 調査し、db_err 使用箇所（7 箇所、うち 4 箇所が settings/log 系で移行対象）、LAYER_EXCEPTIONS の import 行検出機構、biz 層 re-export 慣行（`DbConnection`/`PaginatedResult`/`Department`/`Supplier` 等は既に `biz/mod.rs` で re-export 済みだが `DbError`/`AppSetting`/`OperationLog` は未 re-export）、5 doc に残る「順12 実装 PR」未来形注記（計 7 箇所）を実測した。本 Packet と Matrix はこの実測に基づく plan-draft であり、production 実装は未着手。
+- 2026-07-31 kickoff -> spec-check -> plan-draft: design PR（D-060、packet 2026-07-31-settings-service-boundary-design、archive 済み）が `ARCHITECTURE.md` / `43-cmd-settings-log.md` / `cmd-task-specs.md` / `biz-task-specs.md` / `31-biz-inventory-service.md` §12.9 を既に BIZ-09 経由の目標形へ改訂済みのため、spec-check は「既存設計書で十分」の唯一許容 skip 経路（design → plan-draft ではなく spec-check → plan-draft）を取る。Coordinator が現行 `settings_cmd.rs` / `architecture_test.rs` / `design_compliance_test.rs` / `biz/mod.rs` を read-only 調査し、db_err 使用箇所（7 箇所、うち 4 箇所が settings/log 系で移行対象）、LAYER_EXCEPTIONS の import 行検出機構、biz 層 re-export 慣行（`DbConnection`/`PaginatedResult`/`Department`/`Supplier` 等は既に `biz/mod.rs` で re-export 済みだが `DbError`/`AppSetting`/`OperationLog` は未 re-export）、5 doc に残る「順12 実装 PR」未来形注記（計 8 箇所 — Plan Review round 1 P2 で 7→8 に実測是正、43 §43.12:269 の追随注記が当初列挙から漏れていた）を実測した。本 Packet と Matrix はこの実測に基づく plan-draft であり、production 実装は未着手。
 
 ## Owner Effort Budget
 
@@ -91,7 +91,7 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。AC や�
 - `settings_cmd.rs` の既存 test を production CMD test 規範（`tauri::test::mock_builder` + `AppState` + 実 `#[tauri::command]` 関数呼び出し。順5 = PR #22 で確立、`stocktake_cmd.rs::test_update_count_req205_negative_validation` 等が現行例）へ書き換える。validation 条件の単体検証（日付形式・実在暦日・範囲順序・拡張子）は BIZ 層 test（`biz::system_service` / `biz::inventory_service`）へ移す
 - `biz::system_service` / `biz::inventory_service::save_receipt_image` の新規 test 追加（REQ-902/REQ-905/REQ-906 番号付き）
 - `bindings.ts` 再生成（`cd src-tauri && cargo run --bin generate_bindings`）で diff ゼロを確認する
-- 隣接 wording sweep: `docs/ARCHITECTURE.md`（§2 BIZ-09 行）、`docs/function-design/43-cmd-settings-log.md`（§43.1 実装追随注記、§43.3、§43.12）、`docs/architecture/cmd-task-specs.md`（CMD-11 節末尾）、`docs/architecture/biz-task-specs.md`（BIZ-09 タスク要求）、`docs/function-design/31-biz-inventory-service.md`（§12.9）の計 5 file 7 箇所に残る「順12 実装 PR」「実装追随注記」「移行前の直呼び形」という未来形表現を、本 PR 実装完了後の現在形へ更新する（`docs/archive/` と `docs/research/` の履歴記述は sweep 対象外）
+- 隣接 wording sweep: `docs/ARCHITECTURE.md`（§2 BIZ-09 行）、`docs/function-design/43-cmd-settings-log.md`（§43.1 実装追随注記、§43.3、§43.12 の 2 箇所を含む計 4 hit）、`docs/architecture/cmd-task-specs.md`（CMD-11 節末尾）、`docs/architecture/biz-task-specs.md`（BIZ-09 タスク要求）、`docs/function-design/31-biz-inventory-service.md`（§12.9）の計 5 file 8 箇所に残る「順12 実装 PR」「実装追随注記」「移行前の直呼び形」という未来形表現を、本 PR 実装完了後の現在形へ更新する（`docs/archive/` と `docs/research/` の履歴記述は sweep 対象外）
 
 ## Non-scope
 
@@ -117,7 +117,7 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。AC や�
 - `rg -c "pub use crate::db::DbError" src-tauri/src/biz/mod.rs` → `1`
 - `rg -c "pub use crate::db::system_repo::{AppSetting, OperationLog}" src-tauri/src/biz/mod.rs` → `1`
 - `cd src-tauri && cargo run --bin generate_bindings` 実行後、`git diff --stat src/lib/bindings.ts` が出力なし（0 行）
-- `rg -c "順12 実装 PR|実装追随注記|移行前の直呼び形" docs/ARCHITECTURE.md docs/function-design/43-cmd-settings-log.md docs/architecture/cmd-task-specs.md docs/architecture/biz-task-specs.md docs/function-design/31-biz-inventory-service.md` の合算 → `0`（baseline 7 実測、`docs/archive/`・`docs/research/` は対象外）
+- `rg -c "順12 実装 PR|実装追随注記|移行前の直呼び形" docs/ARCHITECTURE.md docs/function-design/43-cmd-settings-log.md docs/architecture/cmd-task-specs.md docs/architecture/biz-task-specs.md docs/function-design/31-biz-inventory-service.md` の合算 → `0`（baseline 8 実測、`docs/archive/`・`docs/research/` は対象外）
 - `cargo fmt --check` / `cargo clippy -- -D warnings` / `cargo test`（src-tauri 全体）PASS
 - `bash scripts/doc-consistency-check.sh --target plan` PASS（PK1/PK2 の必須セクション・placeholder 検査を含む。M2 warn は 38 doc の必須セクション充足で解消）
 - `bash scripts/local-ci.sh full` PASS
@@ -168,7 +168,7 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。AC や�
 | SPEC-CMD11-D5 (iii) | 43 §43.12 | SPEC-CMD11-D5 | settings_cmd test を production CMD test 規範（順5）へ書き換え、validation 単体検証を BIZ test へ分離する。CMD test に validation 単体検証を残す現状維持案は「実 CMD 経由の検証」を欠いたまま冗長化するため却下 | `cmd/settings_cmd.rs` test + `biz/system_service.rs` test | Matrix M8, M12 |
 | 実装固有（未凍結。本 PR で新規発見） | `biz/mod.rs` 既存 re-export pattern（`DbConnection`/`PaginatedResult`/`Department`/`Supplier`） | SPEC-CMD11-IMPL-D1 | LAYER_EXCEPTIONS 削除後も `db_err`（backup 用）と command 戻り値型（`AppSetting`/`OperationLog`）が層違反にならないよう、既存 re-export pattern を `DbError`/`AppSetting`/`OperationLog` へ適用する。settings_cmd.rs に `crate::db::` import を残す代替案は AC（layer import 0件）と直接矛盾するため却下 | `biz/mod.rs` | Matrix M2, M9 |
 | 実装固有（未凍結。本 PR で新規発見） | `cmd/settings_cmd.rs` 現行 `db_err` 使用箇所 7 件 | SPEC-CMD11-IMPL-D2 | `db_err` を全廃すると Non-scope の backup/restore・`get_backup_dir` 無変更契約と矛盾するため、settings/log 4 箇所のみ除去し backup 3 箇所は維持する scope narrowing を明示する | `cmd/settings_cmd.rs` | Matrix M3, M13 |
-| 実装固有（design PR に残存した future-tense、本 PR で発見） | 43/cmd-task-specs/biz-task-specs/31/ARCHITECTURE.md の計 7 箇所 | SPEC-CMD11-IMPL-D3 | 実装完了後も「順12 実装 PR で新設/追記する」という未来形が live source docs に残ると、product-patch packet（PR #36）P2-1 と同型の stale wording drift になる。sweep しない案は将来の読者が現況を誤認するため却下 | 5 doc（Scope 記載） | Matrix M14 |
+| 実装固有（design PR に残存した future-tense、本 PR で発見） | 43/cmd-task-specs/biz-task-specs/31/ARCHITECTURE.md の計 8 箇所 | SPEC-CMD11-IMPL-D3 | 実装完了後も「順12 実装 PR で新設/追記する」という未来形が live source docs に残ると、product-patch packet（PR #36）P2-1 と同型の stale wording drift になる。sweep しない案は将来の読者が現況を誤認するため却下 | 5 doc（Scope 記載） | Matrix M14 |
 
 ## Design Intent Audit
 
@@ -203,7 +203,7 @@ Minimum design checks for business-app work:
 ## Contract Probe
 
 - `architecture_test.rs` の layer 違反検知単位: `find_forbidden_imports`（:79-137）は `use crate::{module}` import 行のパターンマッチであり、関数呼び出し箇所単位ではない → settings_cmd.rs production コードから `use crate::db::` / `use crate::io::` 行そのものを消す必要がある（型参照は biz re-export 経由に置換）。実測: 現行ファイルに `use crate::db::{self, system_repo, DbConnection, PaginatedResult};` と `use crate::io::image_manager;` が各 1 行存在（`rg -c "^use crate::db::"` / `"^use crate::io::"` 共に `1`）
-- `biz/mod.rs` の既存 re-export 網羅性: `rg -n "pub use crate::db" src-tauri/src/biz/mod.rs` で `DbConnection` / `PaginatedResult` / `Department` / `Supplier` 等 11 行を確認したが `DbError` / `AppSetting` / `OperationLog` は含まれない → 本 PR で 2 行追加する必要がある（Scope 記載）
+- `biz/mod.rs` の既存 re-export 網羅性: `rg -n "pub use crate::db" src-tauri/src/biz/mod.rs` で `DbConnection` / `PaginatedResult` / `Department` / `Supplier` 等 13 行を確認したが `DbError` / `AppSetting` / `OperationLog` は含まれない → 本 PR で 2 行追加する必要がある（Scope 記載）
 - `db_err` 使用箇所の内訳: `rg -n "map_err\(db_err\)" src-tauri/src/cmd/settings_cmd.rs` で 7 箇所を実測。うち `get_settings`(166) / `update_setting`(180) / `list_logs`(203) / `list_log_operation_types`(213) の 4 箇所が settings/log 系（除去対象）、`get_backup_dir`(62) / `create_backup`(228) / `check_auto_backup`(245) の 3 箇所が backup 系（Non-scope、維持）
 - `AppSetting` / `OperationLog` の specta 生成への影響: `src-tauri/src/db/system_repo.rs` で両型とも `#[derive(Debug, serde::Serialize, specta::Type)]` 済みであることを確認した。specta はモジュールパスではなく型自体の derive で bindings を生成するため、呼び出し元が CMD から BIZ 経由に変わっても生成される TypeScript 型は変化しない → bindings.ts diff ゼロの前提が成立する
 - `save_receipt_image` の配置先: `31-biz-inventory-service.md` §12.9 が既に「returns domain（`receipt_image_path` は返品記録の要素）」と明記済みのため、`biz/inventory_service/returns.rs`（既存 `create_return` を含むモジュール）への追加が設計と整合する
@@ -268,7 +268,7 @@ Contract ID: SPEC-CMD11-D2, D3, D5（design PR で凍結、本 PR で実装） +
 - SPEC-CMD11-D5（実装）: `38-biz-system-service.md` 新設 + map 登録、`31` §12.9 契約追記、production CMD test 規範化、`bindings.ts` diff ゼロ、`LAYER_EXCEPTIONS` 2 entry 削除を本 PR で完了する
 - SPEC-CMD11-IMPL-D1: `biz/mod.rs` へ `DbError` / `AppSetting` / `OperationLog` を既存 re-export pattern で追加する
 - SPEC-CMD11-IMPL-D2: `db_err` の使用箇所を backup 系 3 箇所（`get_backup_dir` / `create_backup` / `check_auto_backup`）に限定し、settings/log 4 箇所からは除去する
-- SPEC-CMD11-IMPL-D3: `ARCHITECTURE.md` / `43-cmd-settings-log.md` / `cmd-task-specs.md` / `biz-task-specs.md` / `31-biz-inventory-service.md` の計 7 箇所に残る「順12 実装 PR」未来形注記を、本 PR 完了後の現在形へ更新する
+- SPEC-CMD11-IMPL-D3: `ARCHITECTURE.md` / `43-cmd-settings-log.md` / `cmd-task-specs.md` / `biz-task-specs.md` / `31-biz-inventory-service.md` の計 8 箇所に残る「順12 実装 PR」未来形注記を、本 PR 完了後の現在形へ更新する
 
 ## Trace Matrix
 
@@ -296,3 +296,10 @@ Contract ID: SPEC-CMD11-D2, D3, D5（design PR で凍結、本 PR で実装） +
 ## Review Response
 
 - Findings Freeze: not yet frozen; post-freeze exceptions: none.
+
+### Plan Review round 1（independent Claude subagent, Sonnet 5, fresh context）
+
+- 凍結契約 SPEC-CMD11-D1〜D5 の写像・db_err 7→3 裁定・LAYER_EXCEPTIONS の import 行 match 機構・biz/mod.rs 再輸出欠落は実コードと一致確認。Matrix の mutation 注入計画・R3 構造も充足、構造欠陥なし
+- P2（未来形注記 baseline 7→8、43 §43.12:269 の列挙漏れ）: **accept**。Coordinator 実測（計 8 = 1+1+4+1+1）で確認し 6 箇所を是正
+- P3（biz/mod.rs 再輸出 11→13 行）: **accept**。Coordinator 実測 13 で確認し是正
+- 判定: 軽微修正後 plan-approved 進行可 → 是正適用済み、**P1/P2 = 0**
