@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: design
+- Phase: plan-gate
 - Risk: R3
 - Execution Mode: dual-vendor-no-fable
 - Plan Commit: 1ef0336bab42cd5f816a3e661b08338c82845ca7
@@ -22,6 +22,7 @@ Narrative (append-only):
 - 2026-08-01 Plan Review round 1: external Claude Sonnet 5 report -> `P1=0 / P2=2 / P3=1`。P2-1（explicit dispatch failure/cancel が trigger table の recovery row から漏れる）と P2-2（4 state に対して mutation が already-successful 1 state のみ）を accept。recovery row を automatic / explicit 共通へ広げ、M2a〜M2d を state ごとに追加した。P3 の HEAD SHA concurrency 案は「未比較」を accept して D-063 Alternatives / Revisit へ記録したが、現行 PR-number key の cross-HEAD cancellation を失い sequential duplicate も防げないため YAML change は reject/defer。Phase は plan-gate のまま fresh re-review を要求する。
 - 2026-08-01 Plan Review closure: external Claude Sonnet 5 re-reviewed correction HEAD `753317f179cb89d4340356686ff0fccdfcc7ac3c` and reported `P1=0 / P2=0 / P3=0`。P2-1 / P2-2 closure と P3 concurrency 裁定を妥当と確認し、新規 finding なし。plan-first commit `1ef0336bab42cd5f816a3e661b08338c82845ca7` が implementation より前に存在するため、この state-only commit で plan-gate -> plan-approved -> implementing を materialize する。
 - 2026-08-01 implementation wiring probe: `rg -n 'ci-workflow.test.sh' scripts/local-ci.sh .github/workflows/ci.yml scripts` -> registration は `scripts/local-ci.sh:214` のみで、hosted docs job は `ci-workflow.test.sh` を実行しないと判明。Packet の「既存 hosted routing を再利用」は事実誤認のため、implementation を停止して state-backtrack implementing -> design。owner は current change を L1 local guard に限定し、`doc-consistency-check.sh` への hosted 統合（C案）は別 R3 follow-up とすることを決定した。TDD途中差分は commit せず一時退避した。
+- 2026-08-01 wiring correction -> plan-draft -> plan-gate: Registration / Main Wiring / Matrix / D-063 を実配線へ訂正した。current guard は `scripts/tests/ci-workflow.test.sh` を `scripts/local-ci.sh full` から実行する L1 local-only 契約であり、hosted docs job はこの check を実行しない。hosted 側の docs contract 実防御が必要になった場合は `scripts/doc-consistency-check.sh` へ統合する別 R3 change を起票する。訂正内容を external Claude Sonnet 5 の fresh re-Plan Review に戻す。
 
 ## Owner Effort Budget
 
@@ -29,7 +30,7 @@ Narrative (append-only):
 - 実働時間上限: 30分
 - relay 往復上限: 2
 
-規範値確認: `sed -n '269,272p' docs/DEV_WORKFLOW.md` -> `interventions ≤3, hands-on time ≤30 minutes, relay round-trips ≤2`。現時点の owner 介入は kickoff / scope 承認の 1 回。
+規範値確認: `sed -n '269,272p' docs/DEV_WORKFLOW.md` -> `interventions ≤3, hands-on time ≤30 minutes, relay round-trips ≤2`。現時点の owner 介入は kickoff / scope 承認と wiring correction 方針（current local-only / C案は別R3）決定の 2 回。
 
 ## Consultation Relay
 
@@ -41,7 +42,7 @@ Narrative (append-only):
 Risk: R3
 
 Reason:
-`docs/ci.md` / `docs/DEV_WORKFLOW.md` の hosted merge evidence 契約と、その drift を hosted/local gate で検出する `scripts/tests/ci-workflow.test.sh` を変更する workflow gate change。product code、DB、wire、operator UI は変更しないため R4 ではない。workflow gate change なので independent Plan Review と Final Double Audit を必須とする。
+`docs/ci.md` / `docs/DEV_WORKFLOW.md` の hosted merge evidence 契約と、その drift を L1 local gate で検出する `scripts/tests/ci-workflow.test.sh` を変更する workflow gate change。hosted docs job はこの guard を実行しない。product code、DB、wire、operator UI は変更しないため R4 ではない。workflow gate change なので independent Plan Review と Final Double Audit を必須とする。
 
 ## Goal
 
@@ -87,6 +88,8 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 - product / frontend / Rust / DB / Tauri config
 - GitHub repository settings の mutation
 - Actions run の cancel / rerun / dispatch
+- `.github/workflows/*.yml` の変更
+- `scripts/doc-consistency-check.sh` への CI-PUBLIC-D1 / CI-TRIGGER-D1 guard 統合（hosted 実防御が必要になった場合の別 R3 follow-up）
 
 ## Acceptance Criteria
 
@@ -121,12 +124,12 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 
 ## Registration / Generation Obligations
 
-新規 source / workflow doc は作らない。既存 `scripts/tests/ci-workflow.test.sh` に test case を追加するため、`scripts/local-ci.sh` / hosted `ci.yml` の test registration は既存配線を再利用し、新規登録は不要。active Plan Packet は `Plans.md` `次の行動` から link する。
+新規 source / workflow doc は作らない。`scripts/tests/ci-workflow.test.sh` の contract drift guard は L1 local（`scripts/local-ci.sh full`）限定で、既存 `scripts/local-ci.sh:214` の配線を再利用する。hosted `ci.yml` の docs job はこの check を実行しない。hosted 側で docs contract の実防御が必要になった場合の `scripts/doc-consistency-check.sh` 統合は、別 R3 change として起票する。active Plan Packet は `Plans.md` `次の行動` から link する。
 
 | 新規追加物 | 登録・生成義務 |
 |---|---|
 | D-063 | `docs/ci.md` / `docs/DEV_WORKFLOW.md` / `Plans.md` / `docs/PROJECT_HANDOFF.md` の current contract 同期 |
-| CI docs drift fixture | 既存 `scripts/tests/ci-workflow.test.sh` 内に追加し、既存 local/full + hosted routing を維持 |
+| CI docs drift fixture | 既存 `scripts/tests/ci-workflow.test.sh` 内に追加し、`scripts/local-ci.sh full` の L1 local routing を維持。hosted registration は行わない |
 
 ## Design Intent Trace
 
@@ -136,14 +139,14 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 | SPEC-WF-CI-TRIGGER-D1 | `docs/ci.md` Final Trigger Selection | D-063-D2 | trigger intent を HEAD state ごとに一意化。棄却: YAML 単独で future event intent を推測する / HEAD SHA concurrency 単独化（cross-HEAD cancellation を失い sequential duplicate は残る） | live CI docs | `validate_public_actions_doc_contract` / M2a〜M2d |
 | SPEC-WF-CI-AVAIL-D1 | `docs/ci.md` Public Standard-Runner Policy | D-063-D3 | billing-free と service availability を分離し closed exception を維持 | live CI docs | `validate_public_actions_doc_contract` / M3 |
 | SPEC-WF-CI-HISTORY-D1 | `docs/decision-log.md` D-033 / D-063 | D-063-D4 | historical rationale は非遡及。current instructions だけ guard | validator file allowlist | M4 |
-| SPEC-WF-CI-YAML-D1 | `.github/workflows/ci.yml` | D-063-D5 | observed duplicates は運用順で説明可能。YAML/job graph は不変 | none | existing `validate_workflow_contract` + zero diff |
+| SPEC-WF-CI-YAML-D1 | `.github/workflows/ci.yml` | D-063-D5 | observed duplicates は運用順で説明可能。YAML/job graph は不変。current docs guard は L1 local-only、hosted 統合は別 R3 | `scripts/tests/ci-workflow.test.sh`（L1 only） | existing `validate_workflow_contract` + zero diff |
 
 ## Design Intent Audit
 
 - Source docs can answer what is being built and why without chat history or archived Plan Packets: yes; `docs/ci.md` と D-063 が current contract と rationale を所有する。
 - Plan-only durable decisions found and promoted to source docs / decision-log / ADR: yes; D-063 に昇格。
 - Assumptions and constraints: public visibility / runner class / billing contract は Contract Probe 済み。future billing / runner-class change は Revisit trigger。
-- Deferred design gaps, risk, and follow-up target: required checks は path-filter compatibility の別 R3、scheduled npm dogfood は 2026-08-03 JST、dependency change B は 2026-08-05 以降。
+- Deferred design gaps, risk, and follow-up target: hosted docs contract 実防御が必要になった場合の `doc-consistency-check.sh` 統合、required checks の path-filter compatibility はそれぞれ別 R3。scheduled npm dogfood は 2026-08-03 JST、dependency change B は 2026-08-05 以降。
 - Test Design Matrix can cite design decision IDs or source doc sections: yes; companion Matrix が D-063-D1..D5 を参照。
 - Absolute guarantee / escape hatch self-check completed, with every exception checked and compatibility stated: `1 HEAD 1 final` は normal path の運用 invariant。service failure recovery と closed not-required route を明示し、重複が絶対発生しないという YAML 保証は主張しない。
 
@@ -165,7 +168,7 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 
 - Existing design docs are sufficient because: `docs/ci.md` が trigger / evidence / availability / cache / required-check boundary を所有する。
 - Source docs updated in this PR: `docs/ci.md`, `docs/DEV_WORKFLOW.md`, `docs/decision-log.md`, `Plans.md`, `docs/PROJECT_HANDOFF.md`。
-- Design gaps intentionally deferred: required checks / merge queue、runner topology、dependency change B。
+- Design gaps intentionally deferred: hosted docs contract guard の `doc-consistency-check.sh` 統合、required checks / merge queue、runner topology、dependency change B。
 - Durable decisions discovered in this plan and promoted to source docs: D-063。
 
 Minimum design checks:
@@ -188,6 +191,7 @@ Minimum design checks:
 - required-check premise: `gh api repos/kosei-w90607/inventory-system-public/branches/main/protection` -> HTTP `404 Branch not protected`; `gh api repos/kosei-w90607/inventory-system-public/rulesets` -> `[]`。
 - capacity sample: `gh run view 30636788316 --job 91176335558 --log` -> root available `87G` before / `82G` after、`target` `5.3G`、test profile `2m18s`。単一 sample のため一般的 capacity 保証には使わず、即時再統合 / self-hosted を支持しない反証としてだけ扱う。
 - npm monitor: `gh run list --workflow npm-security-monitor.yml` -> manual run `30482903914` success。cron `0 21 * * 0` の次回 scheduled dogfood は 2026-08-03 JST、dependency change B は 2026-08-05 以降の別 change。
+- docs guard wiring: `rg -n 'ci-workflow.test.sh' scripts/local-ci.sh .github/workflows/ci.yml scripts` -> registration は `scripts/local-ci.sh:214` のみ。`ci-workflow.test.sh` は L1 `local-ci.sh full` で実行され、hosted `ci.yml` docs job は実行しない。
 
 ## Contract Coverage Ledger
 
@@ -197,7 +201,7 @@ Minimum design checks:
 | D-063-D2 / CI-TRIGGER-D1 | `docs/ci.md` trigger table + DEV_WORKFLOW summary | validator, M2a〜M2d | owner Ready/dispatch remains Human Gate |
 | D-063-D3 / Actions unavailable | `docs/ci.md` closed routes | validator, M3 | actual outage disposition remains Human Gate |
 | D-063-D4 / history boundary | validator live-doc allowlist | M4 | archive non-scope |
-| D-063-D5 / YAML unchanged | no workflow YAML implementation | existing `validate_workflow_contract`, workflow zero diff | required checks / job topology non-scope |
+| D-063-D5 / YAML unchanged | `ci-workflow.test.sh` local-only guard、workflow YAML implementation なし | existing `validate_workflow_contract`, workflow zero diff | hosted `doc-consistency-check.sh` 統合 / required checks / job topology は別 R3 または non-scope |
 
 Adjacent-contract sweep: touched `docs/ci.md` sections Hosted Trigger Model / Risk Routing / Public Standard-Runner Policy / Stale Green Prevention / Cache Policy / Required Check Impact / Re-evaluation を全確認し、exact-HEAD、skip restrictions、Actions-unavailable、cache、required-check defer を Ledger または Non-scope に分類した。
 
@@ -209,7 +213,7 @@ Test Design Matrix: [test-matrices/2026-08-01-public-actions-ci-contract.md](tes
 - negative tests: M1 private quota wording、M2a event-eligible pre-emptive dispatch、M2b event-filtered zero-run prerequisite removal、M2c automatic / explicit recovery weakening、M2d already-successful no-op removal、M3 availability route removal。
 - compatibility checks: existing workflow trigger/job/cache validator; workflow YAML zero diff; M4 archive wording non-input。
 - data safety checks: `git status --short`; `.local/` / gh cache / run log 非追跡。
-- main wiring/integration checks: `bash scripts/local-ci.sh full` before Final Review / Ready; hosted exact-HEAD final after owner authorization。
+- main wiring/integration checks: `bash scripts/local-ci.sh full` が `scripts/local-ci.sh:214` 経由で docs guard を実行することを Final Review / Ready 前に確認する。hosted exact-HEAD final は他の L2 gate evidence であり、この local-only guard の実行証拠とは扱わない。
 
 ## Boundary / Wire Contract
 
@@ -222,6 +226,7 @@ Test Design Matrix: [test-matrices/2026-08-01-public-actions-ci-contract.md](tes
 - CI-TRIGGER-D1 の 4 状態が排他的かつ recovery を塞がず、duplicate successful final を normal path から除けるか。
 - workflow YAML 無変更が実測に対して十分か。文書契約では防げない具体的 failure mode がある場合だけ amendment 候補として示すこと。
 - static guard が archive / historical decision を誤って current instruction と判定しないか、mutation が production validator と同じ source を循環参照していないか。
+- `ci-workflow.test.sh` guard を hosted 実行と誤記せず、L1 local-only の現行境界と `doc-consistency-check.sh` 統合の別 R3 follow-up が Packet / Matrix / source docs で一致しているか。
 - required checks / self-hosted / Rust topology / npm change B が scope creep していないか。
 
 ## Spec Contract
@@ -232,6 +237,7 @@ Contract ID: SPEC-WF-CI-PUBLIC-D1
 - CI-TRIGGER-D1 の HEAD state table から 1 trigger path を選び、successful / in-progress の同一 HEAD に pre-emptive dispatch を重ねない。
 - billing-free は availability-free を意味しない。Actions unavailable closed route と product/gate failure blocker を維持する。
 - historical D-033 / archive は保存し、live docs だけを current drift guard の対象にする。
+- current drift guard は `scripts/local-ci.sh full` から実行する L1 local-only。hosted docs job での実防御が必要になった場合は `scripts/doc-consistency-check.sh` へ統合する別 R3 change を起票する。
 - workflow YAML / job graph / cache keys / required-check settings は不変。
 
 ## Trace Matrix
@@ -253,7 +259,7 @@ Contract ID: SPEC-WF-CI-PUBLIC-D1
 
 ## Implementation Results
 
-Plan Gate 前のため未実装。source contract draft と Plan / Matrix のみ。
+TDD途中の `scripts/tests/ci-workflow.test.sh` 差分は wiring 誤認の発見時に commit せず一時退避した。current Packet correction の fresh re-Plan Gate を通過するまで復元・継続しない。
 
 ## Review Response
 

@@ -21,6 +21,7 @@ Risk: R3
 - Actions unavailable route または product/gate failure blocker が free-minute 文言と一緒に消える。
 - validator が archive の historical wording を current drift と誤判定する。
 - docs-only intent なのに workflow YAML / job graph が変更される。
+- `ci-workflow.test.sh` の guard を hosted docs job でも実行されると誤記し、実在しない L2 防御を前提にする。
 
 ## Test Matrix
 
@@ -105,6 +106,8 @@ Risk: R3
 - output reaches manifest/report: `PASS: ci-workflow` only after baseline + mutations。
 - effective config reaches runtime: workflow YAML is unchanged and existing validator still parses actual file。
 - CLI arg reaches implementation: validator accepts explicit temp doc paths for mutations and defaults to real live docs。
+- registration boundary: `scripts/local-ci.sh:214` が `ci-workflow.test.sh` を呼ぶため guard は L1 `local-ci.sh full` で実行される。hosted `ci.yml` docs job はこの check を実行しない。
+- deferred hosted wiring: hosted 側で docs contract の実防御が必要になった場合は、CI-PUBLIC-D1 / CI-TRIGGER-D1 guard を `scripts/doc-consistency-check.sh` へ統合する別 R3 change を起票する。
 
 ## Mutation-style Adequacy Questions
 
@@ -125,3 +128,4 @@ Risk: R3
 - Documentation cannot technically prevent a user from dispatching before Ready. The contract makes the correct choice reviewable; Actions run history remains the operational detector。
 - HEAD SHA-only concurrency can cancel overlapping same-HEAD runs but would lose current PR-number grouping's cross-HEAD superseded-run cancellation and cannot stop sequential duplicates. Revisit only with a dispatch-to-PR mapping design if CI-TRIGGER-D1 dogfood still shows overlap-driven duplicates。
 - required-check Pending behavior is not tested because required checks / rulesets are currently absent and out of scope。
+- `ci-workflow.test.sh` の contract drift guard は L1 local-only で、hosted final 自体はこの guard の実行証拠にならない。hosted 実防御が必要になった時点で `doc-consistency-check.sh` 統合を別 R3 として設計・検証する。
