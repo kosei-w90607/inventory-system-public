@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: human-confirm
+- Phase: archive
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: f328692716c5f1ffcc0cfdae8a4ba457e019e153
@@ -14,7 +14,13 @@
 - Reviewed Content HEAD: d7e1088d3784238532f3fa917ed638c44ef35ede
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
-- Human Gate: pending items = hosted workflow_dispatch 指示（docs-only のため event filter 対象外）+ merge approval。L3 なし
+- Human Gate: none（完了: owner 委任「回して、マージまで頼む」に基づき Coordinator が dispatch + Ready + squash merge を実行）
+
+### 遷移圧縮記録（human-confirm -> ready-hosted-final -> merge -> archive、archive commit で実体化）
+
+- human-confirm -> ready-hosted-final: 最終 local full = HEAD `05addb0` で RESULT=PASS / CLEAN / MERGE_EVIDENCE_VALID=true（初回 run の ProductListPage flake 1 件は単独 5/5 pass 実測で負荷依存 timing flake と判定、記録付き retry 1 回で green — 顛末は PR #50 body）。hosted final = workflow_dispatch run 30617147529 success（headSha `05addb0` exact-HEAD 一致、初回 green）
+- ready-hosted-final -> merge: owner 委任（2026-07-31）に基づき PR #50 を Ready 化し squash merge `610eff9`
+- merge -> archive: 本 commit で packet / Matrix を archive へ移動、Plans.md 完了転記・flake backlog 昇格を実施
 
 ## Owner Effort Budget
 
