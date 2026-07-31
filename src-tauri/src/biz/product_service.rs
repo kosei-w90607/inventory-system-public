@@ -1578,7 +1578,7 @@ mod tests {
     }
 
     #[test]
-    fn test_product_update_request_ordinary_fields_omitted_null_value() {
+    fn test_product_update_request_req102_ordinary_fields_omitted_null_value() {
         // REQ-102 / PRODUCT-PATCH-D1: 通常7 fieldは omitted/null=no update、value=set。
         let req: ProductUpdateRequest = serde_json::from_str("{}").unwrap();
         assert_eq!(req.name, None);

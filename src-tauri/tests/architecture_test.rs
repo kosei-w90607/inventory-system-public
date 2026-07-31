@@ -18,12 +18,7 @@ struct LayerRule {
 }
 
 /// レイヤー依存ルールの例外
-///
-/// CMD-11 設定・ログ・画像コマンド（settings_cmd.rs）は業務ロジックを持たない
-/// インフラ操作のため、BIZ層を経由せず DB層（system_repo）/ IO層（image_manager）を
-/// 直接呼ぶ。architecture/cmd-task-specs.md CMD-11 + FUNCTION_DESIGN.md §43 に基づく設計判断。
-const LAYER_EXCEPTIONS: &[(&str, &str)] =
-    &[("cmd/settings_cmd.rs", "db"), ("cmd/settings_cmd.rs", "io")];
+const LAYER_EXCEPTIONS: &[(&str, &str)] = &[];
 
 /// ARCHITECTURE.md に基づくレイヤー依存ルール
 ///

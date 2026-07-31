@@ -12,13 +12,13 @@ src-tauri/src/
     settings_cmd.rs    -- 設定・ログ・バックアップ・画像コマンド（本セクション）
     integrity_cmd.rs   -- 既存（CMD-11の整合性チェック部分）
   biz/
-    system_service.rs  -- BIZ-09 設定・操作ログロジック（順12 実装 PR で新設、38-biz-system-service.md）
+    system_service.rs  -- BIZ-09 設定・操作ログロジック（38-biz-system-service.md）
   lib.rs               -- invoke_handler に8コマンドを追加
 ```
 
 **層経路（D-060）**: 層経路の正本は `ARCHITECTURE.md`「レイヤー間の呼び出し原則」。設定・操作ログ系 4 command は `biz::system_service`（BIZ-09）経由の標準経路、backup/restore 系 5 command は CMD→MNT 正規経路（DB 接続所有権の交換を要する保守 orchestration 限定）、画像保存は base64 decode（CMD の wire 型変換）+ BIZ validation で構成する。
 
-**実装追随注記**: 本 doc の BIZ-09 経由記述は D-060 設計確定形であり、コードの追随は順12 実装 PR で行う（それまでの現行実装は移行前の直呼び形。packet: 2026-07-31-settings-service-boundary-design）。
+**実装状態**: D-060 に基づき、設定・操作ログ系 4 command は BIZ-09 経由、画像保存は BIZ-02 経由で実装されている（packet: 2026-07-31-settings-service-boundary-design）。
 
 ---
 
@@ -82,7 +82,7 @@ struct SaveImageResponse {
 fn get_settings(state: State<AppState>) -> Result<Vec<AppSetting>, CmdError>
 ```
 
-**処理**: `biz::system_service::get_all_settings(conn)` を呼び出して返す（D-060 (b)。関数契約は 38-biz-system-service.md — 順12 実装 PR で新設）。
+**処理**: `biz::system_service::get_all_settings(conn)` を呼び出して返す（D-060 (b)。関数契約は 38-biz-system-service.md）。
 
 ---
 
@@ -266,19 +266,19 @@ PR #164で`list_log_operation_types`を含む10コマンドすべてを `#[spect
 
 CMD層のテストは主にBizError → CmdError変換とパラメータの受け渡しを検証する。
 
-**production CMD test 規範への追随（D-060 / SPEC-CMD11-D5 (iii)）**: 順12 実装 PR で、settings_cmd の既存 test を production CMD test 規範（`tauri::test::mock_builder` + `AppState` + 実 `#[tauri::command]` 関数呼び出し。順5 = PR #22 で確立）へ書き換える。validation 条件の単体検証（日付形式・実在暦日・範囲順序・拡張子）は BIZ 層 test（38-biz-system-service.md / 31-biz-inventory-service.md）へ移し、CMD test は変換と受け渡しの検証に戻す。下表の test 名はこの書き換えで実体が更新される。
+**production CMD test 規範（D-060 / SPEC-CMD11-D5 (iii)）**: settings_cmd の test は production CMD test 規範（`tauri::test::mock_builder` + `AppState` + 実 command の production path。順5 = PR #22 で確立）に従う。validation 条件の単体検証（日付形式・実在暦日・範囲順序・拡張子）は BIZ 層 test（38-biz-system-service.md / 31-biz-inventory-service.md）が所有し、CMD test は変換と受け渡しを検証する。
 
 | テスト名 | 検証内容 | REQ |
 |---------|---------|---|
-| `test_get_settings_cmd11` | 設定一覧が取得できる | REQ-905 |
-| `test_update_setting_cmd11` | 設定値の更新と読み戻し | REQ-905 |
+| `test_get_settings_req905_cmd11` | 設定一覧が取得できる | REQ-905 |
+| `test_update_setting_req905_cmd11` | 設定値の更新と読み戻し | REQ-905 |
 | `test_list_logs_req902_pagination` | ページングパラメータの受け渡し | REQ-902（是正済み、§43.12.1） |
 | `test_list_logs_req902_filter` | operation_typeフィルタの受け渡し（日付両方省略） | REQ-902（是正済み、§43.12.1） |
 | `test_list_logs_req902_invalid_page_to_cmderror` | 不正pageのCmdError変換 | REQ-902（是正済み、§43.12.1） |
 | `test_create_backup_cmd11` | バックアップ作成とBackupResult返却 | REQ-905 |
 | `test_list_backups_cmd11` | バックアップ一覧の返却 | REQ-905 |
-| `test_save_receipt_image_cmd11_valid` | 正常なBase64画像の保存と相対パス返却 | REQ-906 |
-| `test_save_receipt_image_cmd11_invalid_base64` | 不正Base64でvalidationエラー | REQ-906 |
+| `test_save_receipt_image_req906_cmd11_valid` | 正常なBase64画像の保存と相対パス返却 | REQ-906 |
+| `test_save_receipt_image_req906_cmd11_invalid_base64` | 不正Base64でvalidationエラー | REQ-906 |
 
 UI-11c 実装 PR で追加・確認した実テスト（結合testはbranchごとのassertionを保持。Test Design Matrix参照）:
 

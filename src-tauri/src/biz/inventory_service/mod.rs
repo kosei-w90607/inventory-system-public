@@ -30,7 +30,7 @@ pub(crate) use common::apply_stock_change;
 pub use receiving::{create_receiving, ReceivingCreateRequest, ReceivingCreateResult};
 
 // 返品
-pub use returns::{create_return, ReturnCreateRequest, ReturnCreateResult};
+pub use returns::{create_return, save_receipt_image, ReturnCreateRequest, ReturnCreateResult};
 
 // 手動販売
 pub use manual_sale::{create_manual_sale, ManualSaleCreateRequest, ManualSaleCreateResult};

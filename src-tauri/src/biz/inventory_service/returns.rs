@@ -6,10 +6,41 @@ use crate::db::product_repo;
 use crate::db::return_repo;
 use crate::db::system_repo;
 use crate::db::{DbConnection, DbError};
+use crate::io::image_manager;
 
 use std::collections::BTreeMap;
+use std::path::Path;
 
 use super::common::{apply_stock_change, compute_fingerprint, IDEMPOTENCY_KEY_MAX_LEN};
+
+const ALLOWED_RECEIPT_IMAGE_EXTENSIONS: &[&str] = &["jpg", "jpeg", "png", "gif", "webp"];
+
+/// 領収書画像を保存して相対パスを返す。
+///
+/// 31-biz-inventory-service.md §12.9
+pub fn save_receipt_image(
+    app_data_dir: &Path,
+    image_bytes: &[u8],
+    extension: &str,
+) -> Result<String, BizError> {
+    let ext_lower = extension.to_lowercase();
+    if !ALLOWED_RECEIPT_IMAGE_EXTENSIONS.contains(&ext_lower.as_str()) {
+        return Err(BizError::ValidationFailedAt {
+            message: format!(
+                "不正な画像拡張子: {}（許可: {}）",
+                extension,
+                ALLOWED_RECEIPT_IMAGE_EXTENSIONS.join(", ")
+            ),
+            field: "extension".to_string(),
+        });
+    }
+
+    image_manager::save_receipt_image(app_data_dir, image_bytes, extension).map_err(|error| {
+        BizError::DatabaseError(DbError::QueryFailed(format!(
+            "画像の保存でエラーが発生しました: {error}"
+        )))
+    })
+}
 
 /// 返品・交換記録リクエスト（31-biz-inventory-service.md §12.4）
 #[derive(Debug, Clone, serde::Deserialize, specta::Type)]
@@ -272,6 +303,10 @@ mod tests {
     use super::super::test_support::*;
     use super::*;
     use crate::db::product_repo;
+    use std::fs;
+
+    const LEGACY_INVALID_EXTENSION_TEST_NAME: &str =
+        "test_save_receipt_image_req905_invalid_extension_to_validation";
 
     fn make_return_req(key: &str, items: Vec<ReturnItemInput>) -> ReturnCreateRequest {
         ReturnCreateRequest {
@@ -291,6 +326,49 @@ mod tests {
             direction: direction.to_string(),
             quantity: qty,
         }
+    }
+
+    #[test]
+    fn test_save_receipt_image_req906_accepts_supported_extensions() {
+        // REQ-906 / SPEC-CMD11-D3: BIZ が許可集合を所有し、IO 保存へ委譲する。
+        for extension in ["jpg", "jpeg", "png", "gif", "webp", "JPG"] {
+            let dir = tempfile::tempdir().unwrap();
+
+            let relative_path = save_receipt_image(dir.path(), b"image", extension).unwrap();
+
+            assert!(relative_path.starts_with("images/receipts/"));
+            assert!(dir.path().join(relative_path).exists());
+        }
+    }
+
+    #[test]
+    fn test_save_receipt_image_req906_invalid_extension_to_validation() {
+        // REQ-906 / SPEC-CMD11-D3: message と field を独立転記で固定する。
+        let dir = tempfile::tempdir().unwrap();
+
+        let result = save_receipt_image(dir.path(), b"image", "bmp");
+
+        assert!(
+            matches!(
+                result,
+                Err(BizError::ValidationFailedAt { ref message, ref field })
+                    if message == "不正な画像拡張子: bmp（許可: jpg, jpeg, png, gif, webp）"
+                        && field == "extension"
+            ),
+            "{LEGACY_INVALID_EXTENSION_TEST_NAME} から移設した wire 契約"
+        );
+    }
+
+    #[test]
+    fn test_save_receipt_image_req906_wraps_filesystem_failure() {
+        // REQ-906 / SPEC-CMD11-D3: filesystem error は DatabaseError へ伝搬する。
+        let dir = tempfile::tempdir().unwrap();
+        let not_a_directory = dir.path().join("file");
+        fs::write(&not_a_directory, b"block directory creation").unwrap();
+
+        let result = save_receipt_image(&not_a_directory, b"image", "jpg");
+
+        assert!(matches!(result, Err(BizError::DatabaseError(_))));
     }
 
     #[test]

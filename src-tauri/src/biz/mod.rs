@@ -11,6 +11,7 @@ pub mod plu_export_service;
 pub mod product_service;
 pub mod sales_service;
 pub mod stocktake_service;
+pub mod system_service;
 
 // CMD層がBIZ経由で使用するDB型の re-export（CMD→db直接依存を避けるため、UI層未実装のため一部はまだ未使用）
 #[allow(unused_imports)]
@@ -24,7 +25,11 @@ pub use crate::db::stocktake_repo::{
     LastStocktakeSummary, Stocktake, StocktakeItemDetail, StocktakeProgress,
 };
 #[allow(unused_imports)]
+pub use crate::db::system_repo::{AppSetting, OperationLog};
+#[allow(unused_imports)]
 pub use crate::db::DbConnection;
+#[allow(unused_imports)]
+pub use crate::db::DbError;
 #[allow(unused_imports)]
 pub use crate::db::PaginatedResult;
 // CMD-02〜05 用 re-export
@@ -39,7 +44,6 @@ pub use crate::db::return_repo::{ReturnRecordDetail, ReturnRecordSummary};
 pub use crate::db::inventory_repo::{MovementQuery, MovementRecord};
 pub use crate::db::product_repo::StockDetail;
 
-use crate::db::DbError;
 use std::fmt;
 
 /// BIZ層のエラー型

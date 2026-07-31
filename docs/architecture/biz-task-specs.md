@@ -520,7 +520,7 @@
 
 ### BIZ-09: システム設定・操作ログロジック
 
-**タスク要求**: 設定 CRUD と操作ログ検索の BIZ 境界を提供する（順12 = D-060。実装は順12 実装 PR、関数契約の正本は 38-biz-system-service.md をその PR で新設）
+**タスク要求**: 設定 CRUD と操作ログ検索の BIZ 境界を提供する（順12 = D-060。関数契約の正本は 38-biz-system-service.md）
 
 **理由**: 旧 CMD-11 は `settings_cmd` から `system_repo`（IO-01）を直接呼び、操作ログの日付 validation まで CMD が所有していた（監査 P2-1）。層境界の標準経路（CMD → BIZ → IO）へ復帰し、業務 validation の単一所有層（ARCH-VAL-D1）を回復する
 

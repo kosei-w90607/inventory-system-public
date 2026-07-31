@@ -3,9 +3,10 @@
 //! docs/function-design/43-cmd-settings-log.md に基づく実装。
 //! 整合性チェック（run_integrity_check, fix_integrity）は integrity_cmd.rs に実装済み。
 
+use crate::biz::{
+    self, AppSetting, BizError, DbConnection, DbError, OperationLog, PaginatedResult,
+};
 use crate::cmd::{AppState, CmdError};
-use crate::db::{self, system_repo, DbConnection, PaginatedResult};
-use crate::io::image_manager;
 use crate::mnt::backup;
 use base64::{engine::general_purpose, Engine as _};
 use std::path::PathBuf;
@@ -63,7 +64,7 @@ fn get_backup_dir<R: tauri::Runtime>(
 }
 
 /// DbError → CmdError::internal 変換ヘルパー
-fn db_err(e: db::DbError) -> CmdError {
+fn db_err(e: DbError) -> CmdError {
     CmdError::internal("データベース処理でエラーが発生しました", e)
 }
 
@@ -93,7 +94,7 @@ fn handle_restore_failure(
     match error {
         backup::RestoreError::Recovered(error) => {
             // NO_CREATE 再接続のみ許可し、空DBを生成しない。
-            match db::open_existing_database(db_path.to_str().unwrap_or("")) {
+            match backup::open_existing_database(db_path.to_str().unwrap_or("")) {
                 Ok(recovered) => {
                     *guard = recovered;
                     CmdError::restore_failed_recovered(&format!(
@@ -115,42 +116,6 @@ fn handle_restore_failure(
     }
 }
 
-fn validate_log_date_range(
-    start_date: Option<&str>,
-    end_date: Option<&str>,
-) -> Result<(), CmdError> {
-    let parse = |value: &str| {
-        let bytes = value.as_bytes();
-        let has_strict_ymd_shape = bytes.len() == 10
-            && bytes[4] == b'-'
-            && bytes[7] == b'-'
-            && [0, 1, 2, 3, 5, 6, 8, 9]
-                .iter()
-                .all(|index| bytes[*index].is_ascii_digit());
-        if !has_strict_ymd_shape {
-            return Err(());
-        }
-        chrono::NaiveDate::parse_from_str(value, "%Y-%m-%d").map_err(|_| ())
-    };
-    let invalid = || CmdError {
-        kind: "validation".to_string(),
-        message: "開始日・終了日はYYYY-MM-DD形式で入力してください".to_string(),
-        field: None,
-        error_id: None,
-    };
-    let start = start_date.map(parse).transpose().map_err(|_| invalid())?;
-    let end = end_date.map(parse).transpose().map_err(|_| invalid())?;
-    if matches!((start, end), (Some(start), Some(end)) if start > end) {
-        return Err(CmdError {
-            kind: "validation".to_string(),
-            message: "開始日は終了日と同じ日か、それより前の日付にしてください".to_string(),
-            field: None,
-            error_id: None,
-        });
-    }
-    Ok(())
-}
-
 // ---------------------------------------------------------------------------
 // コマンド
 // ---------------------------------------------------------------------------
@@ -158,12 +123,12 @@ fn validate_log_date_range(
 /// 全設定を取得する（§43.3）
 #[tauri::command]
 #[specta::specta]
-pub fn get_settings(state: State<AppState>) -> Result<Vec<system_repo::AppSetting>, CmdError> {
+pub fn get_settings(state: State<AppState>) -> Result<Vec<AppSetting>, CmdError> {
     let conn = state
         .db
         .lock()
         .map_err(|error| CmdError::internal("DB接続エラー", error))?;
-    system_repo::get_all_settings(&conn).map_err(db_err)
+    Ok(biz::system_service::get_all_settings(&conn)?)
 }
 
 /// 設定値を更新する（§43.4）
@@ -177,7 +142,8 @@ pub fn update_setting(
         .db
         .lock()
         .map_err(|error| CmdError::internal("DB接続エラー", error))?;
-    system_repo::upsert_setting(&conn, &request.key, &request.value).map_err(db_err)
+    biz::system_service::upsert_setting(&conn, &request.key, &request.value)?;
+    Ok(())
 }
 
 /// 操作ログ一覧を取得する（§43.5）
@@ -186,21 +152,19 @@ pub fn update_setting(
 pub fn list_logs(
     state: State<AppState>,
     query: LogQuery,
-) -> Result<PaginatedResult<system_repo::OperationLog>, CmdError> {
-    validate_log_date_range(query.start_date.as_deref(), query.end_date.as_deref())?;
+) -> Result<PaginatedResult<OperationLog>, CmdError> {
     let conn = state
         .db
         .lock()
         .map_err(|error| CmdError::internal("DB接続エラー", error))?;
-    system_repo::list_operation_logs(
+    Ok(biz::system_service::list_operation_logs(
         &conn,
         query.page,
         query.per_page,
         query.operation_type.as_deref(),
         query.start_date.as_deref(),
         query.end_date.as_deref(),
-    )
-    .map_err(db_err)
+    )?)
 }
 
 #[tauri::command]
@@ -210,7 +174,7 @@ pub fn list_log_operation_types(state: State<AppState>) -> Result<Vec<String>, C
         .db
         .lock()
         .map_err(|error| CmdError::internal("DB接続エラー", error))?;
-    system_repo::find_distinct_operation_types(&conn).map_err(db_err)
+    Ok(biz::system_service::list_distinct_operation_types(&conn)?)
 }
 
 /// バックアップを作成する（§43.6）
@@ -333,6 +297,13 @@ pub fn save_receipt_image(
     app_handle: tauri::AppHandle,
     request: SaveImageRequest,
 ) -> Result<SaveImageResponse, CmdError> {
+    save_receipt_image_with_runtime(app_handle, request)
+}
+
+fn save_receipt_image_with_runtime<R: tauri::Runtime>(
+    app_handle: tauri::AppHandle<R>,
+    request: SaveImageRequest,
+) -> Result<SaveImageResponse, CmdError> {
     // 1. Base64デコード
     let image_bytes = general_purpose::STANDARD
         .decode(&request.image_base64)
@@ -351,21 +322,13 @@ pub fn save_receipt_image(
 
     // 3. 画像保存
     let relative_path =
-        image_manager::save_receipt_image(&app_data, &image_bytes, &request.extension).map_err(
-            |e| {
-                if e.kind() == std::io::ErrorKind::InvalidInput {
-                    // 拡張子不正は利用者入力起因 → validation
-                    CmdError {
-                        kind: "validation".to_string(),
-                        message: format!("{}", e),
-                        field: Some("extension".to_string()),
-                        error_id: None,
-                    }
-                } else {
-                    CmdError::internal("画像の保存でエラーが発生しました", e)
+        biz::inventory_service::save_receipt_image(&app_data, &image_bytes, &request.extension)
+            .map_err(|error| match error {
+                BizError::DatabaseError(detail) => {
+                    CmdError::internal("画像の保存でエラーが発生しました", detail)
                 }
-            },
-        )?;
+                other => CmdError::from(other),
+            })?;
 
     Ok(SaveImageResponse { relative_path })
 }
@@ -378,13 +341,25 @@ pub fn save_receipt_image(
 mod tests {
     use super::*;
     use crate::db;
+    use crate::db::system_repo;
     use crate::mnt::backup as mnt_backup;
+    use std::collections::HashMap;
+    use std::sync::Mutex;
+    use tauri::Manager;
 
     fn setup_test_db() -> (tempfile::TempDir, db::DbConnection) {
         let dir = tempfile::tempdir().unwrap();
         let db_path = dir.path().join("test.db");
         let conn = db::init_database(db_path.to_str().unwrap()).unwrap();
         (dir, conn)
+    }
+
+    fn app_state_for_test(conn: db::DbConnection) -> AppState {
+        AppState {
+            db: Mutex::new(conn),
+            preview_cache: Mutex::new(HashMap::new()),
+            daily_report_preview_cache: Mutex::new(HashMap::new()),
+        }
     }
 
     #[test]
@@ -405,57 +380,17 @@ mod tests {
     }
 
     #[test]
-    fn test_list_logs_req902_date_validation_contract() {
-        // REQ-902 / UI-11c-D2 / D-036 / D-037
-        assert!(validate_log_date_range(Some("2026-07-10"), Some("2026-07-10")).is_ok());
-        for (field, invalid_date) in [
-            ("start_date", "2026-7-01"),
-            ("start_date", "2026-07-01x"),
-            ("start_date", "2026/07/01"),
-            ("start_date", "2026-07-01 "),
-            ("start_date", "2026-02-30"),
-            ("start_date", "２０２６-０７-０１"),
-            ("end_date", "2026-7-01"),
-            ("end_date", "2026-07-01x"),
-            ("end_date", "2026/07/01"),
-            ("end_date", "2026-07-01 "),
-            ("end_date", "2026-02-30"),
-            ("end_date", "２０２６-０７-０１"),
-        ] {
-            let result = match field {
-                "start_date" => validate_log_date_range(Some(invalid_date), None),
-                "end_date" => validate_log_date_range(None, Some(invalid_date)),
-                _ => unreachable!(),
-            };
-            let error = result.unwrap_err();
-            assert_eq!(
-                error.kind, "validation",
-                "{field}={invalid_date} must be rejected"
-            );
-            assert_eq!(
-                error.message, "開始日・終了日はYYYY-MM-DD形式で入力してください",
-                "{field}={invalid_date} must use the format validation message"
-            );
-        }
-        let reversed = validate_log_date_range(Some("2026-07-11"), Some("2026-07-10")).unwrap_err();
-        assert_eq!(reversed.kind, "validation");
-        assert_eq!(
-            reversed.message,
-            "開始日は終了日と同じ日か、それより前の日付にしてください"
-        );
-    }
-
-    #[test]
-    fn test_get_settings_req905() {
-        // REQ-905: 設定管理（設定CRUD/エラー変換）
-        // Task: CMD-11
-        // CMD-11: get_all_settings で初期設定が返る
+    fn test_get_settings_req905_cmd11() {
+        // REQ-905 / CMD-11: 実 command が BIZ 経由で初期設定を返す。
         let (_dir, conn) = setup_test_db();
+        let app = tauri::test::mock_builder()
+            .manage(app_state_for_test(conn))
+            .build(tauri::test::mock_context(tauri::test::noop_assets()))
+            .unwrap();
 
-        let settings = system_repo::get_all_settings(&conn).unwrap();
+        let settings = get_settings(app.state::<AppState>()).unwrap();
+
         assert!(!settings.is_empty(), "初期設定が1件以上存在するべき");
-
-        // 初期データに含まれるキーを確認
         let keys: Vec<&str> = settings.iter().map(|s| s.key.as_str()).collect();
         assert!(
             keys.contains(&"backup_enabled"),
@@ -464,18 +399,31 @@ mod tests {
     }
 
     #[test]
-    fn test_update_setting_req905() {
-        // REQ-905: 設定管理（設定CRUD/エラー変換）
-        // Task: CMD-11
-        // CMD-11: upsert → get で読み戻し
+    fn test_update_setting_req905_cmd11() {
+        // REQ-905 / CMD-11: 実 command の upsert を実 command で読み戻す。
         let (_dir, conn) = setup_test_db();
+        let app = tauri::test::mock_builder()
+            .manage(app_state_for_test(conn))
+            .build(tauri::test::mock_context(tauri::test::noop_assets()))
+            .unwrap();
 
-        system_repo::upsert_setting(&conn, "stock_low_threshold", "5").unwrap();
+        update_setting(
+            app.state::<AppState>(),
+            UpdateSettingRequest {
+                key: "stock_low_threshold".to_string(),
+                value: "5".to_string(),
+            },
+        )
+        .unwrap();
+        let settings = get_settings(app.state::<AppState>()).unwrap();
 
-        let value = system_repo::get_setting(&conn, "stock_low_threshold")
-            .unwrap()
-            .expect("設定値が存在するべき");
-        assert_eq!(value, "5", "更新した値が読み戻せるべき");
+        assert_eq!(
+            settings
+                .iter()
+                .find(|setting| setting.key == "stock_low_threshold")
+                .map(|setting| setting.value.as_str()),
+            Some("5")
+        );
     }
 
     #[test]
@@ -497,8 +445,22 @@ mod tests {
             )
             .unwrap();
         }
+        let app = tauri::test::mock_builder()
+            .manage(app_state_for_test(conn))
+            .build(tauri::test::mock_context(tauri::test::noop_assets()))
+            .unwrap();
 
-        let result = system_repo::list_operation_logs(&conn, 1, 2, None, None, None).unwrap();
+        let result = list_logs(
+            app.state::<AppState>(),
+            LogQuery {
+                page: 1,
+                per_page: 2,
+                operation_type: None,
+                start_date: None,
+                end_date: None,
+            },
+        )
+        .unwrap();
         assert_eq!(result.per_page, 2, "per_page=2");
         assert_eq!(result.page, 1, "page=1");
         assert!(result.items.len() <= 2, "1ページあたり2件以下");
@@ -533,10 +495,22 @@ mod tests {
             },
         )
         .unwrap();
+        let app = tauri::test::mock_builder()
+            .manage(app_state_for_test(conn))
+            .build(tauri::test::mock_context(tauri::test::noop_assets()))
+            .unwrap();
 
-        let result =
-            system_repo::list_operation_logs(&conn, 1, 100, Some("backup_create"), None, None)
-                .unwrap();
+        let result = list_logs(
+            app.state::<AppState>(),
+            LogQuery {
+                page: 1,
+                per_page: 100,
+                operation_type: Some("backup_create".to_string()),
+                start_date: None,
+                end_date: None,
+            },
+        )
+        .unwrap();
         assert!(
             result
                 .items
@@ -545,6 +519,34 @@ mod tests {
             "フィルタされた結果のみ返されるべき"
         );
         assert!(result.total_count >= 1, "1件以上ヒット");
+    }
+
+    #[test]
+    fn test_list_log_operation_types_req902_cmd_calls_command() {
+        // REQ-902 / UI-11c-D4 / CMD-11: 実 command が全ログ由来の候補を返す。
+        let (_dir, conn) = setup_test_db();
+        for operation_type in ["z_unknown", "backup_create", "z_unknown"] {
+            system_repo::insert_operation_log(
+                &conn,
+                &db::NewOperationLog {
+                    operation_type: operation_type.to_string(),
+                    summary: "test".to_string(),
+                    detail_json: None,
+                },
+            )
+            .unwrap();
+        }
+        let app = tauri::test::mock_builder()
+            .manage(app_state_for_test(conn))
+            .build(tauri::test::mock_context(tauri::test::noop_assets()))
+            .unwrap();
+
+        let result = list_log_operation_types(app.state::<AppState>()).unwrap();
+
+        assert_eq!(
+            result,
+            vec!["backup_create".to_string(), "z_unknown".to_string()]
+        );
     }
 
     #[test]
@@ -583,35 +585,54 @@ mod tests {
     }
 
     #[test]
-    fn test_save_receipt_image_req905_valid() {
-        // REQ-905: 設定管理（設定CRUD/エラー変換）
-        // Task: CMD-11
-        // CMD-11: Base64デコード → 画像保存 → 相対パス
-        let dir = tempfile::tempdir().unwrap();
+    fn test_save_receipt_image_req906_cmd11_valid() {
+        // REQ-906 / CMD-11: 実 command が decode 後の画像を BIZ 経由で保存する。
+        let data_dir = tempfile::tempdir().unwrap();
         let image_data = b"fake-image-data";
         let encoded = general_purpose::STANDARD.encode(image_data);
+        let mut context = tauri::test::mock_context(tauri::test::noop_assets());
+        context.config_mut().identifier = data_dir.path().to_string_lossy().to_string();
+        let app = tauri::test::mock_builder().build(context).unwrap();
 
-        // Base64デコード検証
-        let decoded = general_purpose::STANDARD.decode(&encoded).unwrap();
-        assert_eq!(decoded, image_data);
+        let response = save_receipt_image_with_runtime(
+            app.handle().clone(),
+            SaveImageRequest {
+                image_base64: encoded,
+                extension: "jpg".to_string(),
+            },
+        )
+        .unwrap();
 
-        // 画像保存検証
-        let relative_path = image_manager::save_receipt_image(dir.path(), &decoded, "jpg").unwrap();
         assert!(
-            relative_path.starts_with("images/receipts/"),
+            response.relative_path.starts_with("images/receipts/"),
             "相対パスが正しい形式: {}",
-            relative_path
+            response.relative_path
         );
+        let app_data_dir = app.path().app_data_dir().unwrap();
+        assert!(app_data_dir.starts_with(data_dir.path()));
+        let saved_image = std::fs::read(app_data_dir.join(response.relative_path)).unwrap();
+        assert_eq!(saved_image, image_data);
     }
 
     #[test]
-    fn test_save_receipt_image_req905_invalid_base64() {
-        // REQ-905: 設定管理（設定CRUD/エラー変換）
-        // Task: CMD-11
-        // CMD-11: 不正Base64でデコードエラー
-        let invalid = "!!!not-valid-base64!!!";
-        let result = general_purpose::STANDARD.decode(invalid);
-        assert!(result.is_err(), "不正なBase64はデコード失敗するべき");
+    fn test_save_receipt_image_req906_cmd11_invalid_base64() {
+        // REQ-906 / CMD-11: 実 command の wire decode エラー契約を固定する。
+        let app = tauri::test::mock_builder()
+            .build(tauri::test::mock_context(tauri::test::noop_assets()))
+            .unwrap();
+
+        let error = save_receipt_image_with_runtime(
+            app.handle().clone(),
+            SaveImageRequest {
+                image_base64: "!!!not-valid-base64!!!".to_string(),
+                extension: "jpg".to_string(),
+            },
+        )
+        .unwrap_err();
+
+        assert_eq!(error.kind, "validation");
+        assert_eq!(error.message, "画像データが不正です");
+        assert_eq!(error.field, None);
     }
 
     #[test]
@@ -666,31 +687,27 @@ mod tests {
     }
 
     #[test]
-    fn test_save_receipt_image_req905_invalid_extension_to_validation() {
-        // REQ-905: 設定管理（設定CRUD/エラー変換）
-        // Task: CMD-11
-        // CMD-11: InvalidInput(拡張子不正) → CmdError{kind:"validation", field:"extension"}
-        let dir = tempfile::tempdir().unwrap();
-        let image_data = b"fake-image";
+    fn test_save_receipt_image_req906_cmd11_invalid_extension_to_validation() {
+        // REQ-906 / SPEC-CMD11-D3: 実 command が BIZ の validation triple を保持する。
+        let app = tauri::test::mock_builder()
+            .build(tauri::test::mock_context(tauri::test::noop_assets()))
+            .unwrap();
+        let encoded = general_purpose::STANDARD.encode(b"fake-image");
 
-        let result = image_manager::save_receipt_image(dir.path(), image_data, "bmp");
-        assert!(result.is_err());
+        let cmd_err = save_receipt_image_with_runtime(
+            app.handle().clone(),
+            SaveImageRequest {
+                image_base64: encoded,
+                extension: "bmp".to_string(),
+            },
+        )
+        .unwrap_err();
 
-        let io_err = result.unwrap_err();
-        assert_eq!(io_err.kind(), std::io::ErrorKind::InvalidInput);
-
-        // CMD層の変換ロジックを直接検証
-        let cmd_err = if io_err.kind() == std::io::ErrorKind::InvalidInput {
-            CmdError {
-                kind: "validation".to_string(),
-                message: format!("{}", io_err),
-                field: Some("extension".to_string()),
-                error_id: None,
-            }
-        } else {
-            CmdError::internal("画像の保存でエラーが発生しました", io_err)
-        };
-        assert_eq!(cmd_err.kind, "validation", "拡張子不正は validation");
+        assert_eq!(cmd_err.kind, "validation");
+        assert_eq!(
+            cmd_err.message,
+            "不正な画像拡張子: bmp（許可: jpg, jpeg, png, gif, webp）"
+        );
         assert_eq!(
             cmd_err.field.as_deref(),
             Some("extension"),
@@ -699,19 +716,45 @@ mod tests {
     }
 
     #[test]
+    fn test_save_receipt_image_req906_command_wrapper_delegates_to_runtime_core() {
+        // REQ-906 / SPEC-CMD11-D5 (iii): MockRuntime で直接型付けできない Wry command の
+        // production wrapper が、テスト対象の runtime-generic core へ委譲する配線を固定する。
+        let source = include_str!("settings_cmd.rs");
+        let wrapper = source
+            .split("pub fn save_receipt_image(")
+            .nth(1)
+            .and_then(|rest| rest.split("fn save_receipt_image_with_runtime").next())
+            .expect("save_receipt_image command wrapper must exist");
+
+        assert!(wrapper.contains("save_receipt_image_with_runtime(app_handle, request)"));
+    }
+
+    #[test]
     fn test_list_logs_req902_invalid_page_to_cmderror() {
-        // REQ-902: ログ管理（操作ログ記録/一覧/自動削除）
-        // Task: CMD-11
-        // CMD-11: page=0 で DbError::QueryFailed → CmdError::internal 変換
+        // REQ-902 / CMD-11 / SPEC-CMD11-IMPL-D4
         let (_dir, conn) = setup_test_db();
+        let app = tauri::test::mock_builder()
+            .manage(app_state_for_test(conn))
+            .build(tauri::test::mock_context(tauri::test::noop_assets()))
+            .unwrap();
 
-        let result = system_repo::list_operation_logs(&conn, 0, 10, None, None, None);
-        assert!(result.is_err(), "page=0 はエラーであるべき");
+        let cmd_err = list_logs(
+            app.state::<AppState>(),
+            LogQuery {
+                page: 0,
+                per_page: 10,
+                operation_type: None,
+                start_date: None,
+                end_date: None,
+            },
+        )
+        .unwrap_err();
 
-        // DbError → CmdError 変換を検証
-        let cmd_err = super::db_err(result.unwrap_err());
-        assert_eq!(cmd_err.kind, "internal", "DbError は internal に変換");
-        assert_eq!(cmd_err.message, "データベース処理でエラーが発生しました");
+        assert_eq!(cmd_err.kind, "internal");
+        assert_eq!(
+            cmd_err.message,
+            "データベースエラーが発生しました。もう一度お試しください"
+        );
         assert!(!cmd_err.message.contains("page"));
         assert!(cmd_err.error_id.is_some());
     }
