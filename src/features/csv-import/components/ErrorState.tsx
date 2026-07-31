@@ -5,7 +5,7 @@
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { CMD_ERROR_KIND, type InvokeError } from "@/lib/invoke";
+import { CMD_ERROR_KIND, type CmdErrorKind, type InvokeError } from "@/lib/invoke";
 import type { ErrorRecoverTo } from "../types";
 
 export interface ErrorStateProps {
@@ -18,7 +18,7 @@ export interface ErrorStateProps {
 /// - import_error → 「プレビューが利用できません」
 /// - validation → 「入力に問題があります」
 /// - その他 (internal / not_found 等) → 「エラーが発生しました」
-function titleForKind(kind: string): string {
+function titleForKind(kind: CmdErrorKind): string {
   switch (kind) {
     case CMD_ERROR_KIND.IMPORT_ERROR:
       return "プレビューが利用できません";

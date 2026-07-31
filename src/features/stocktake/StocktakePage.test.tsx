@@ -10,7 +10,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { makeMockProductWithRelations } from "@/features/products/lib/test-fixtures";
 import { commands } from "@/lib/bindings";
-import type { Department, Stocktake, StocktakeItemDetail } from "@/lib/bindings";
+import type { CmdErrorKind, Department, Stocktake, StocktakeItemDetail } from "@/lib/bindings";
 import { d052InvalidationOracle, expectExactInvalidations } from "@/test/invalidation-oracle";
 
 import { StocktakePage } from "./StocktakePage";
@@ -48,7 +48,7 @@ function ok<T>(data: T) {
   return { status: "ok" as const, data };
 }
 
-function cmdError(kind: string, message: string) {
+function cmdError(kind: CmdErrorKind, message: string) {
   return {
     status: "error" as const,
     error: { kind, message, field: null, error_id: null },

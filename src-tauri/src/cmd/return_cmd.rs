@@ -68,7 +68,7 @@ pub fn get_return_record(
 #[cfg(test)]
 mod tests {
     use crate::biz::BizError;
-    use crate::cmd::CmdError;
+    use crate::cmd::{CmdError, CmdErrorKind};
     use crate::db;
 
     fn setup_db() -> db::DbConnection {
@@ -98,6 +98,6 @@ mod tests {
         // REQ-202: 返品・交換
         let biz_err = BizError::NotFound("商品が見つかりません".to_string());
         let cmd_err: CmdError = biz_err.into();
-        assert_eq!(cmd_err.kind, "not_found");
+        assert_eq!(cmd_err.kind, CmdErrorKind::NotFound);
     }
 }

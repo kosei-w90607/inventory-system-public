@@ -12,14 +12,14 @@ src-tauri/src/
 ### 5.2 CMD層のDB接続取得方針
 
 BIZ層の関数が `&mut DbConnection` を要求するため、CMD層では `Mutex<Connection>` を AppState に保持し、
-`.lock()` で可変借用を取得する。poison 時は `CmdError { kind: "internal" }` に変換する（unwrap() は使わない）。
+`.lock()` で可変借用を取得する。poison 時は `CmdError { kind: CmdErrorKind::Internal }` に変換する（unwrap() は使わない）。
 
 ```
 // AppState 内
 db: Mutex<Connection>
 
 // CMD 関数内
-let mut conn = state.db.lock().map_err(|_| CmdError { kind: "internal", message: "DB接続エラー", field: None })?;
+let mut conn = state.db.lock().map_err(|_| CmdError { kind: CmdErrorKind::Internal, message: "DB接続エラー", field: None })?;
 biz::product_service::create_product(&mut conn, req)?;
 ```
 
@@ -36,7 +36,7 @@ struct CmdError {
 }
 ```
 
-**kind の enum 契約（D-061、順14 実装 PR1 で追随。それまでの現行実装は `kind: String`）**: `CmdErrorKind` は `#[derive(serde::Serialize, serde::Deserialize, specta::Type)]` + `#[serde(rename_all = "snake_case")]` の generated enum とし、wire 表現は従来の snake_case 文字列と 1:1 完全一致（値・分岐・error_id 相関は不変）。値は 12 個で現状凍結: `validation` / `duplicate` / `not_found` / `internal` / `import_error` / `export_error` / `idempotency_conflict` / `stocktake_in_progress` / `stocktake_not_in_progress` / `restore_failed_recovered` / `restore_failed_unrecoverable` / `restore_durability_unknown`。frontend は bindings 由来の literal union で分岐し、手動定数・手動 union（55 §55.5 の `CMD_ERROR_KIND` 等）を退役する。
+**kind の enum 契約（D-061）**: `CmdErrorKind` は response 専用のため `#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, specta::Type)]` + `#[serde(rename_all = "snake_case")]` の generated enum とし、`Deserialize` は付与しない。wire 表現は従来の snake_case 文字列と 1:1 完全一致（値・分岐・error_id 相関は不変）。値は 12 個で現状凍結: `validation` / `duplicate` / `not_found` / `internal` / `import_error` / `export_error` / `idempotency_conflict` / `stocktake_in_progress` / `stocktake_not_in_progress` / `restore_failed_recovered` / `restore_failed_unrecoverable` / `restore_durability_unknown`。frontend は bindings 由来の literal union で分岐し、`CMD_ERROR_KIND` は生成 union に対する exhaustive 検査付きの定数 map とする。独自の手動 union は持たない。
 
 **エラーID契約（CMD-ERR-D1）**: raw な失敗詳細を wire に載せず診断ログ側にのみ記録する kind（`internal` と `restore_failed_recovered` / `restore_failed_unrecoverable` / `restore_durability_unknown`）は、生成時に `error_id`（形式 `E-<YYYYMMDD-HHMMSS>-<4hex>`。chrono ローカル時刻 + uuid v4 短縮、新規依存なし）を発行し、response と `tracing::error!` の両方に同一値を載せる。利用者は画面に表示された error_id と診断ログ（[70-mnt-diagnostic-log.md](70-mnt-diagnostic-log.md)）の同一 error_id で事象を突合できる。日次ローテーションのログファイル特定を助けるため時刻併記形式とする。他の kind は None。
 
@@ -46,11 +46,11 @@ struct CmdError {
 - 旧記載の「操作ログID（operation_logs）」による相関は実装と乖離していたため、相関キーは error_id × 診断ログに確定した（D-053）
 
 BizError → CmdError の変換ルール:
-- BizError::ValidationFailed(msg) → CmdError { kind: "validation", message: msg, field: None }
-- BizError::ValidationFailedAt { message, field } → CmdError { kind: "validation", message, field: Some(field) }
-- BizError::DuplicateProductCode(code) → CmdError { kind: "duplicate", message: "この商品コードは既に使用されています: {code}" }
-- BizError::NotFound(msg) → CmdError { kind: "not_found", message: msg }
-- BizError::DatabaseError(_) → CmdError { kind: "internal", message: "データベースエラーが発生しました。もう一度お試しください", error_id: Some(発行) }
+- BizError::ValidationFailed(msg) → CmdError { kind: CmdErrorKind::Validation, message: msg, field: None }
+- BizError::ValidationFailedAt { message, field } → CmdError { kind: CmdErrorKind::Validation, message, field: Some(field) }
+- BizError::DuplicateProductCode(code) → CmdError { kind: CmdErrorKind::Duplicate, message: "この商品コードは既に使用されています: {code}" }
+- BizError::NotFound(msg) → CmdError { kind: CmdErrorKind::NotFound, message: msg }
+- BizError::DatabaseError(_) → CmdError { kind: CmdErrorKind::Internal, message: "データベースエラーが発生しました。もう一度お試しください", error_id: Some(発行) }
 - POS連携追加分（ImportError / IdempotencyConflict / ExportError）は 41-cmd-pos.md 17.4 を参照
 
 ### 5.4 各コマンドの関数仕様
@@ -145,4 +145,4 @@ fn list_suppliers(state: State<AppState>) -> Result<Vec<Supplier>, CmdError>
 
 #### get_product コマンド
 
-**処理ステップ**: product_repo::find_by_product_code()を呼ぶ。None → CmdError { kind: "not_found" }
+**処理ステップ**: product_repo::find_by_product_code()を呼ぶ。None → CmdError { kind: CmdErrorKind::NotFound }

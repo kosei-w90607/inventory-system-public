@@ -6,7 +6,7 @@
 use crate::biz::csv_import_service::{
     self, CachedPreview, CommitRequest, CsvParseAndValidateRequest, PreviewData,
 };
-use crate::cmd::{AppState, CmdError};
+use crate::cmd::{AppState, CmdError, CmdErrorKind};
 use crate::constants;
 use std::time::Instant;
 use tauri::State;
@@ -41,7 +41,7 @@ pub fn parse_and_validate_csv(
     // 1. サイズチェック（防御的。BIZ層にも同じチェックあり）
     if file_bytes.len() > constants::CSV_IMPORT_FILE_SIZE_LIMIT {
         return Err(CmdError {
-            kind: "validation".to_string(),
+            kind: CmdErrorKind::Validation,
             message: "ファイルサイズが上限(20MB)を超えています".to_string(),
             field: None,
             error_id: None,
@@ -112,7 +112,7 @@ pub fn commit_csv_import(
     // 1. UUID形式バリデーション
     if uuid::Uuid::parse_str(&preview_token).is_err() {
         return Err(CmdError {
-            kind: "validation".to_string(),
+            kind: CmdErrorKind::Validation,
             message: "不正なプレビュートークンです".to_string(),
             field: None,
             error_id: None,
@@ -129,7 +129,7 @@ pub fn commit_csv_import(
         match cache.get(&preview_token) {
             None => {
                 return Err(CmdError {
-                    kind: "import_error".to_string(),
+                    kind: CmdErrorKind::ImportError,
                     message: "プレビューが見つかりません。再度ファイルを選択してください"
                         .to_string(),
                     field: None,
@@ -147,7 +147,7 @@ pub fn commit_csv_import(
                         .map_err(|error| CmdError::internal("キャッシュ取得エラー", error))?;
                     cache.remove(&preview_token);
                     return Err(CmdError {
-                        kind: "import_error".to_string(),
+                        kind: CmdErrorKind::ImportError,
                         message:
                             "プレビューの有効期限が切れました（30分）。再度ファイルを選択してください"
                                 .to_string(),

@@ -4,7 +4,7 @@
 
 use crate::biz::product_service::{self, ImportRow};
 use crate::biz::{Department, PaginatedResult, ProductSearchQuery, ProductWithRelations, Supplier};
-use crate::cmd::{AppState, CmdError};
+use crate::cmd::{AppState, CmdError, CmdErrorKind};
 use crate::constants;
 use tauri::State;
 
@@ -122,7 +122,7 @@ pub fn preview_import(
 ) -> Result<product_service::ImportPreview, CmdError> {
     if file_bytes.len() > constants::CSV_IMPORT_FILE_SIZE_LIMIT {
         return Err(CmdError {
-            kind: "validation".to_string(),
+            kind: CmdErrorKind::Validation,
             message: "ファイルサイズが上限(20MB)を超えています".to_string(),
             field: None,
             error_id: None,
@@ -179,7 +179,7 @@ mod tests {
 
         let err = preview_import(app.state::<AppState>(), vec![]).unwrap_err();
 
-        assert_eq!(err.kind, "validation");
+        assert_eq!(err.kind, CmdErrorKind::Validation);
         assert_eq!(err.message, "ファイルが空です");
         assert_eq!(err.field, None);
     }
@@ -213,7 +213,7 @@ mod tests {
             vec![0; crate::constants::CSV_IMPORT_FILE_SIZE_LIMIT + 1],
         )
         .unwrap_err();
-        assert_eq!(err.kind, "validation");
+        assert_eq!(err.kind, CmdErrorKind::Validation);
         assert_eq!(err.message, "ファイルサイズが上限(20MB)を超えています");
         assert_eq!(err.field, None);
     }

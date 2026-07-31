@@ -8,7 +8,7 @@ use crate::biz::daily_report_import_service::{
     ListDailyReportImportsQuery,
 };
 use crate::biz::PaginatedResult;
-use crate::cmd::{AppState, CmdError};
+use crate::cmd::{AppState, CmdError, CmdErrorKind};
 use crate::constants;
 use std::collections::HashMap;
 use tauri::State;
@@ -88,7 +88,7 @@ fn commit_daily_report_import_with_state(
             .map_err(|error| CmdError::internal("キャッシュ取得エラー", error))?;
         let Some(cached) = cache.get(&preview_token) else {
             return Err(CmdError {
-                kind: "import_error".to_string(),
+                kind: CmdErrorKind::ImportError,
                 message: "プレビューが見つかりません。再度ファイルを選択してください".to_string(),
                 field: None,
                 error_id: None,
@@ -97,7 +97,7 @@ fn commit_daily_report_import_with_state(
         if cached.created_at.elapsed().as_secs() > constants::PREVIEW_CACHE_TTL_SECS {
             cache.remove(&preview_token);
             return Err(CmdError {
-                kind: "import_error".to_string(),
+                kind: CmdErrorKind::ImportError,
                 message: "プレビューの有効期限が切れました（30分）。再度ファイルを選択してください"
                     .to_string(),
                 field: None,
@@ -172,7 +172,7 @@ pub fn list_daily_report_imports(
 fn validate_daily_report_files(files: &[DailyReportSourceFileRequest]) -> Result<(), CmdError> {
     if files.len() != 3 {
         return Err(CmdError {
-            kind: "validation".to_string(),
+            kind: CmdErrorKind::Validation,
             message: "Z001/Z002/Z005の3ファイルを選択してください".to_string(),
             field: None,
             error_id: None,
@@ -183,7 +183,7 @@ fn validate_daily_report_files(files: &[DailyReportSourceFileRequest]) -> Result
         .any(|file| file.file_bytes.len() > constants::CSV_IMPORT_FILE_SIZE_LIMIT)
     {
         return Err(CmdError {
-            kind: "validation".to_string(),
+            kind: CmdErrorKind::Validation,
             message: "ファイルサイズが上限(20MB)を超えています".to_string(),
             field: None,
             error_id: None,
@@ -195,7 +195,7 @@ fn validate_daily_report_files(files: &[DailyReportSourceFileRequest]) -> Result
 fn validate_preview_token(preview_token: &str) -> Result<(), CmdError> {
     if uuid::Uuid::parse_str(preview_token).is_err() {
         return Err(CmdError {
-            kind: "validation".to_string(),
+            kind: CmdErrorKind::Validation,
             message: "不正なプレビュートークンです".to_string(),
             field: None,
             error_id: None,
@@ -285,7 +285,7 @@ mod tests {
     #[test]
     fn test_daily_report_cmd_req401_validates_three_files() {
         let err = validate_daily_report_files(&[request("Z001.csv", 1)]).unwrap_err();
-        assert_eq!(err.kind, "validation");
+        assert_eq!(err.kind, CmdErrorKind::Validation);
 
         let ok = validate_daily_report_files(&[
             request("Z001.csv", 1),
@@ -304,7 +304,7 @@ mod tests {
         ])
         .unwrap_err();
 
-        assert_eq!(err.kind, "validation");
+        assert_eq!(err.kind, CmdErrorKind::Validation);
     }
 
     #[test]
@@ -320,7 +320,7 @@ mod tests {
         let missing_token = uuid::Uuid::new_v4().to_string();
         let missing = commit_daily_report_import_with_state(&state, missing_token, false)
             .expect_err("cache miss should fail");
-        assert_eq!(missing.kind, "import_error");
+        assert_eq!(missing.kind, CmdErrorKind::ImportError);
 
         let expired_token = uuid::Uuid::new_v4().to_string();
         state.daily_report_preview_cache.lock().unwrap().insert(
@@ -329,7 +329,7 @@ mod tests {
         );
         let expired = commit_daily_report_import_with_state(&state, expired_token.clone(), false)
             .expect_err("expired cache should fail");
-        assert_eq!(expired.kind, "import_error");
+        assert_eq!(expired.kind, CmdErrorKind::ImportError);
         assert!(!state
             .daily_report_preview_cache
             .lock()
@@ -363,7 +363,7 @@ mod tests {
 
         let failed = commit_daily_report_import_with_state(&state, failure_token.clone(), false)
             .expect_err("BIZ failure should keep cache");
-        assert_eq!(failed.kind, "idempotency_conflict");
+        assert_eq!(failed.kind, CmdErrorKind::IdempotencyConflict);
         assert!(state
             .daily_report_preview_cache
             .lock()

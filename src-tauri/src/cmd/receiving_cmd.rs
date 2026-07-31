@@ -69,7 +69,7 @@ pub fn get_receiving_record(
 #[cfg(test)]
 mod tests {
     use crate::biz::BizError;
-    use crate::cmd::CmdError;
+    use crate::cmd::{CmdError, CmdErrorKind};
     use crate::db;
 
     fn setup_db() -> db::DbConnection {
@@ -100,7 +100,7 @@ mod tests {
         // REQ-201: 入庫記録
         let biz_err = BizError::ValidationFailed("ページパラメータが不正です".to_string());
         let cmd_err: CmdError = biz_err.into();
-        assert_eq!(cmd_err.kind, "validation");
+        assert_eq!(cmd_err.kind, CmdErrorKind::Validation);
         assert!(cmd_err.message.contains("ページパラメータ"));
     }
 }

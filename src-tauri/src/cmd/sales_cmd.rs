@@ -3,7 +3,7 @@
 //! docs/function-design/42-cmd-sales-stocktake.md §22.4 に基づく実装。
 
 use crate::biz::sales_service::{self, SalesMode, SalesReportType};
-use crate::cmd::{AppState, CmdError};
+use crate::cmd::{AppState, CmdError, CmdErrorKind};
 use base64::{engine::general_purpose, Engine as _};
 use tauri::State;
 
@@ -59,7 +59,7 @@ pub fn get_monthly_sales(
         "by_department" => SalesMode::ByDepartment,
         _ => {
             return Err(CmdError {
-                kind: "validation".to_string(),
+                kind: CmdErrorKind::Validation,
                 message: "不正な集計モードです".to_string(),
                 field: Some("mode".to_string()),
                 error_id: None,
@@ -151,7 +151,7 @@ mod tests {
             )
             .unwrap_err();
 
-            assert_eq!(err.kind, "validation");
+            assert_eq!(err.kind, CmdErrorKind::Validation);
             assert_eq!(err.message, "不正な集計モードです");
             assert_eq!(err.field.as_deref(), Some("mode"));
         }
@@ -404,7 +404,7 @@ mod tests {
             .map(|_| ())
             .map_err(|error| CmdError::internal("DB接続エラー", error));
         let err = result.unwrap_err();
-        assert_eq!(err.kind, "internal");
+        assert_eq!(err.kind, CmdErrorKind::Internal);
         assert_eq!(err.message, "DB接続エラー");
     }
 }

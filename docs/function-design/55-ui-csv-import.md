@@ -274,7 +274,7 @@ Phase 2 closeout で `typedInvoke` fallback / baseline 監視は撤去済み。C
 
 `recoverTo` の決定は hook 側で kind から導出する: `import_error` → `"idle"` 固定、それ以外は `state.status` で分岐（parsing 由来なら `"idle"`、importing 由来なら `"preview"`）。
 
-**enum 契約化（D-061）**: `src/lib/invoke.ts` の `CMD_ERROR_KIND` 定数 + `CmdErrorKind` 手動型は D-061 でこれらの手動定義は bindings 由来の generated union へ置換される（順14 実装 PR1。export_error 欠落の非対称も解消）。上記マトリクスの値・表示・recoverTo 分岐は不変。
+**enum 契約化（D-061）**: `CmdErrorKind` は bindings 由来の generated union であり、`src/lib/invoke.ts` の `CMD_ERROR_KIND` はその 12 値に対する exhaustive 検査付き定数 map である。移行前は `export_error` と restore 3 値の計 4 値が定数 map に欠落していたが、現在は全 12 値を収録する。上記マトリクスの値・表示・recoverTo 分岐は不変。
 
 #### `ErrorState.tsx` の描画ロジック
 
@@ -416,7 +416,7 @@ network test（Phase 1 7-7 Vitest 着手後）で 9 action × 6 state = 54 組�
 
 #### `CMD_ERROR_KIND` 型安全分岐
 
-`src/lib/invoke.ts` の `CMD_ERROR_KIND` const は `IMPORT_ERROR: "import_error"` を含む（PR #48 commit `c5f3786` で導入済）。`useCsvImportFlow` 内で kind 別の `recoverTo` 決定を以下の形で書く:
+`src/lib/invoke.ts` の `CMD_ERROR_KIND` const は generated `CmdErrorKind` の全 12 値を収録し、`IMPORT_ERROR: "import_error"` を含む。`useCsvImportFlow` 内で kind 別の `recoverTo` 決定を以下の形で書く:
 
 ```ts
 function decideRecoverTo(error: InvokeError, currentStatus: CsvImportState["status"]): "idle" | "preview" {
@@ -426,11 +426,11 @@ function decideRecoverTo(error: InvokeError, currentStatus: CsvImportState["stat
 }
 ```
 
-直書き `if (error.kind === "import_error")` を禁止する根拠: タイポによる分岐漏れを防ぐ。`CmdErrorKind` 型（`(typeof CMD_ERROR_KIND)[keyof typeof CMD_ERROR_KIND]`）で TypeScript が静的検査する。
+直書き `if (error.kind === "import_error")` を禁止する根拠: タイポによる分岐漏れを防ぐ。bindings 由来の `CmdErrorKind` と exhaustive 検査付き `CMD_ERROR_KIND` で TypeScript が静的検査する。
 
 #### preview キャッシュ期限切れの UX
 
-BIZ-03 §15.9 で preview キャッシュは 30 分有効。30 分超過後の commit は `BizError::ImportError("プレビューの有効期限が切れました（30 分）。再度ファイルを選択してください")` → CMD-07 で `CmdError { kind: "import_error", message: "..." }` に変換 → UI で `recoverTo: "idle"` → 「最初に戻る」CTA で idle に戻る。
+BIZ-03 §15.9 で preview キャッシュは 30 分有効。30 分超過後の commit は `BizError::ImportError("プレビューの有効期限が切れました（30 分）。再度ファイルを選択してください")` → CMD-07 で `CmdError { kind: CmdErrorKind::ImportError, message: "..." }` に変換 → UI で `recoverTo: "idle"` → 「最初に戻る」CTA で idle に戻る。
 
 #### rollback 失敗の UX
 

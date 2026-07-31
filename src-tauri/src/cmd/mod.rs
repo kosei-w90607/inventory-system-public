@@ -44,15 +44,33 @@ pub struct AppState {
 // CmdError
 // ---------------------------------------------------------------------------
 
+/// UI向けエラー分類
+///
+/// docs/function-design/40-cmd-product.md §5.3 + 41-cmd-pos.md §17.4
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, specta::Type)]
+#[serde(rename_all = "snake_case")]
+pub enum CmdErrorKind {
+    Validation,
+    Duplicate,
+    NotFound,
+    Internal,
+    ImportError,
+    ExportError,
+    IdempotencyConflict,
+    StocktakeInProgress,
+    StocktakeNotInProgress,
+    RestoreFailedRecovered,
+    RestoreFailedUnrecoverable,
+    RestoreDurabilityUnknown,
+}
+
 /// UI向け構造化エラー
 ///
 /// docs/function-design/40-cmd-product.md §5.3 + 41-cmd-pos.md §17.4
 #[derive(Debug, serde::Serialize, specta::Type)]
 pub struct CmdError {
-    /// エラー分類: validation / duplicate / not_found / internal / import_error /
-    /// idempotency_conflict / stocktake_* / restore_failed_recovered /
-    /// restore_failed_unrecoverable / restore_durability_unknown
-    pub kind: String,
+    /// エラー分類（`CmdErrorKind` の12値）
+    pub kind: CmdErrorKind,
     /// 利用者向け日本語メッセージ
     pub message: String,
     /// バリデーションエラー時のフィールド名
@@ -66,38 +84,38 @@ impl CmdError {
     ///
     /// §70.7.1: CmdError::internal で直接生成するケースも ERROR ログを出力する。
     fn internal(message: &str, detail: impl std::fmt::Display) -> Self {
-        Self::correlated("internal", message, detail)
+        Self::correlated(CmdErrorKind::Internal, message, detail)
     }
 
     pub(crate) fn restore_failed_recovered(message: &str) -> Self {
-        Self::restore("restore_failed_recovered", message)
+        Self::restore(CmdErrorKind::RestoreFailedRecovered, message)
     }
 
     pub(crate) fn restore_failed_unrecoverable(message: &str, detail: &str) -> Self {
-        Self::restore_with_detail("restore_failed_unrecoverable", message, detail)
+        Self::restore_with_detail(CmdErrorKind::RestoreFailedUnrecoverable, message, detail)
     }
 
     pub(crate) fn restore_durability_unknown(message: &str, detail: &str) -> Self {
-        Self::restore_with_detail("restore_durability_unknown", message, detail)
+        Self::restore_with_detail(CmdErrorKind::RestoreDurabilityUnknown, message, detail)
     }
 
-    fn restore(kind: &str, message: &str) -> Self {
+    fn restore(kind: CmdErrorKind, message: &str) -> Self {
         Self::restore_with_detail(kind, message, message)
     }
 
-    fn restore_with_detail(kind: &str, message: &str, detail: &str) -> Self {
+    fn restore_with_detail(kind: CmdErrorKind, message: &str, detail: &str) -> Self {
         Self::correlated(kind, message, detail)
     }
 
-    fn correlated(kind: &str, message: &str, detail: impl std::fmt::Display) -> Self {
+    fn correlated(kind: CmdErrorKind, message: &str, detail: impl std::fmt::Display) -> Self {
         let error_id = format!(
             "E-{}-{}",
             chrono::Local::now().format("%Y%m%d-%H%M%S"),
             &uuid::Uuid::new_v4().simple().to_string()[..4]
         );
-        tracing::error!(kind, error_id, detail = %detail, "CMD層相関エラー");
+        tracing::error!(kind = ?kind, error_id, detail = %detail, "CMD層相関エラー");
         Self {
-            kind: kind.to_string(),
+            kind,
             message: message.to_string(),
             field: None,
             error_id: Some(error_id),
@@ -120,56 +138,56 @@ impl From<BizError> for CmdError {
         tracing::error!(error = %err, "CMD層エラー");
         match err {
             BizError::ValidationFailed(msg) => CmdError {
-                kind: "validation".to_string(),
+                kind: CmdErrorKind::Validation,
                 message: msg,
                 field: None,
                 error_id: None,
             },
             BizError::ValidationFailedAt { message, field } => CmdError {
-                kind: "validation".to_string(),
+                kind: CmdErrorKind::Validation,
                 message,
                 field: Some(field),
                 error_id: None,
             },
             BizError::NotFound(msg) => CmdError {
-                kind: "not_found".to_string(),
+                kind: CmdErrorKind::NotFound,
                 message: msg,
                 field: None,
                 error_id: None,
             },
             BizError::DuplicateProductCode(code) => CmdError {
-                kind: "duplicate".to_string(),
+                kind: CmdErrorKind::Duplicate,
                 message: format!("この商品コードは既に使用されています: {}", code),
                 field: None,
                 error_id: None,
             },
             BizError::DatabaseError(_) => unreachable!("handled before generic logging"),
             BizError::ImportError(msg) => CmdError {
-                kind: "import_error".to_string(),
+                kind: CmdErrorKind::ImportError,
                 message: msg,
                 field: None,
                 error_id: None,
             },
             BizError::ExportError(msg) => CmdError {
-                kind: "export_error".to_string(),
+                kind: CmdErrorKind::ExportError,
                 message: msg,
                 field: None,
                 error_id: None,
             },
             BizError::IdempotencyConflict(msg) => CmdError {
-                kind: "idempotency_conflict".to_string(),
+                kind: CmdErrorKind::IdempotencyConflict,
                 message: msg,
                 field: None,
                 error_id: None,
             },
             BizError::StocktakeInProgress(msg) => CmdError {
-                kind: "stocktake_in_progress".to_string(),
+                kind: CmdErrorKind::StocktakeInProgress,
                 message: msg,
                 field: None,
                 error_id: None,
             },
             BizError::StocktakeNotInProgress(msg) => CmdError {
-                kind: "stocktake_not_in_progress".to_string(),
+                kind: CmdErrorKind::StocktakeNotInProgress,
                 message: msg,
                 field: None,
                 error_id: None,
@@ -193,7 +211,7 @@ mod tests {
         // REQ-905: 設定管理（設定CRUD/エラー変換）
         let biz_err = BizError::ImportError("テストエラー".to_string());
         let cmd_err: CmdError = biz_err.into();
-        assert_eq!(cmd_err.kind, "import_error");
+        assert_eq!(cmd_err.kind, CmdErrorKind::ImportError);
         assert_eq!(cmd_err.message, "テストエラー");
         assert!(cmd_err.field.is_none());
     }
@@ -203,7 +221,7 @@ mod tests {
         // REQ-905: 設定管理（設定CRUD/エラー変換）
         let biz_err = BizError::ValidationFailed("入力エラー".to_string());
         let cmd_err: CmdError = biz_err.into();
-        assert_eq!(cmd_err.kind, "validation");
+        assert_eq!(cmd_err.kind, CmdErrorKind::Validation);
         assert_eq!(cmd_err.message, "入力エラー");
     }
 
@@ -216,7 +234,7 @@ mod tests {
         };
         let cmd_err: CmdError = biz_err.into();
 
-        assert_eq!(cmd_err.kind, "validation");
+        assert_eq!(cmd_err.kind, CmdErrorKind::Validation);
         assert_eq!(cmd_err.message, "ページ番号は1以上で指定してください");
         assert_eq!(cmd_err.field.as_deref(), Some("page"));
     }
@@ -226,7 +244,7 @@ mod tests {
         // REQ-905: 設定管理（設定CRUD/エラー変換）
         let biz_err = BizError::NotFound("見つかりません".to_string());
         let cmd_err: CmdError = biz_err.into();
-        assert_eq!(cmd_err.kind, "not_found");
+        assert_eq!(cmd_err.kind, CmdErrorKind::NotFound);
     }
 
     #[test]
@@ -235,7 +253,7 @@ mod tests {
         let db_err = DbError::QueryFailed("test".to_string());
         let biz_err = BizError::DatabaseError(db_err);
         let cmd_err: CmdError = biz_err.into();
-        assert_eq!(cmd_err.kind, "internal");
+        assert_eq!(cmd_err.kind, CmdErrorKind::Internal);
         assert!(cmd_err.message.contains("データベースエラー"));
         assert!(cmd_err.error_id.is_some());
     }
@@ -245,7 +263,7 @@ mod tests {
         // REQ-905: 設定管理（設定CRUD/エラー変換）
         let biz_err = BizError::DuplicateProductCode("TEST-001".to_string());
         let cmd_err: CmdError = biz_err.into();
-        assert_eq!(cmd_err.kind, "duplicate");
+        assert_eq!(cmd_err.kind, CmdErrorKind::Duplicate);
         assert!(cmd_err.message.contains("TEST-001"));
     }
 
@@ -254,15 +272,15 @@ mod tests {
         // REQ-905 / MNT-01-D4 / Matrix F1
         assert_eq!(
             CmdError::restore_failed_recovered("recovered").kind,
-            "restore_failed_recovered"
+            CmdErrorKind::RestoreFailedRecovered
         );
         assert_eq!(
             CmdError::restore_failed_unrecoverable("fatal", "detail").kind,
-            "restore_failed_unrecoverable"
+            CmdErrorKind::RestoreFailedUnrecoverable
         );
         assert_eq!(
             CmdError::restore_durability_unknown("unknown", "detail").kind,
-            "restore_durability_unknown"
+            CmdErrorKind::RestoreDurabilityUnknown
         );
     }
 
@@ -323,7 +341,7 @@ mod tests {
         // REQ-402 / BIZ-04-D2: PLU 書出し失敗は import_error と分離する。
         let cmd_err: CmdError = BizError::ExportError("PLU生成失敗".to_string()).into();
 
-        assert_eq!(cmd_err.kind, "export_error");
+        assert_eq!(cmd_err.kind, CmdErrorKind::ExportError);
         assert_eq!(cmd_err.message, "PLU生成失敗");
         assert!(cmd_err.error_id.is_none());
     }
@@ -333,6 +351,6 @@ mod tests {
         // REQ-905: 設定管理（設定CRUD/エラー変換）
         let biz_err = BizError::IdempotencyConflict("競合".to_string());
         let cmd_err: CmdError = biz_err.into();
-        assert_eq!(cmd_err.kind, "idempotency_conflict");
+        assert_eq!(cmd_err.kind, CmdErrorKind::IdempotencyConflict);
     }
 }

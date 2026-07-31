@@ -9,6 +9,7 @@ import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { commands } from "@/lib/bindings";
+import type { CmdError } from "@/lib/bindings";
 import { d052InvalidationOracle, expectExactInvalidations } from "@/test/invalidation-oracle";
 
 import { ThresholdSettingsPage } from "./ThresholdSettingsPage";
@@ -31,7 +32,7 @@ function ok<T>(data: T) {
   return { status: "ok" as const, data };
 }
 
-function cmdError(message: string) {
+function cmdError(message: string): { status: "error"; error: CmdError } {
   return {
     status: "error" as const,
     error: { kind: "internal", message, field: null, error_id: null },

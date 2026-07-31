@@ -60,7 +60,7 @@ pub fn list_movements(
 #[cfg(test)]
 mod tests {
     use crate::biz::BizError;
-    use crate::cmd::CmdError;
+    use crate::cmd::{CmdError, CmdErrorKind};
     use crate::db;
 
     fn setup_db() -> db::DbConnection {
@@ -76,7 +76,7 @@ mod tests {
         let conn = setup_db();
         let err = crate::biz::product_service::get_stock_detail(&conn, "NONEXISTENT").unwrap_err();
         let cmd_err: CmdError = err.into();
-        assert_eq!(cmd_err.kind, "not_found");
+        assert_eq!(cmd_err.kind, CmdErrorKind::NotFound);
     }
 
     /// list_low_stock: デフォルト閾値で空テーブル → 空Vec

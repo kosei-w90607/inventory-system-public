@@ -42,7 +42,7 @@ pub fn get_manual_sale_record(
 #[cfg(test)]
 mod tests {
     use crate::biz::BizError;
-    use crate::cmd::CmdError;
+    use crate::cmd::{CmdError, CmdErrorKind};
     use crate::db::DbError;
 
     /// BizError::DatabaseError → CmdError { kind: "internal" }
@@ -52,7 +52,7 @@ mod tests {
         let db_err = DbError::QueryFailed("test".to_string());
         let biz_err = BizError::DatabaseError(db_err);
         let cmd_err: CmdError = biz_err.into();
-        assert_eq!(cmd_err.kind, "internal");
+        assert_eq!(cmd_err.kind, CmdErrorKind::Internal);
         assert!(cmd_err.message.contains("データベースエラー"));
     }
 }

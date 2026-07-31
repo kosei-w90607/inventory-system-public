@@ -85,7 +85,7 @@ pub fn get_disposal_record(
 #[cfg(test)]
 mod tests {
     use crate::biz::BizError;
-    use crate::cmd::CmdError;
+    use crate::cmd::{CmdError, CmdErrorKind};
     use crate::db;
 
     fn setup_db() -> db::DbConnection {
@@ -115,6 +115,6 @@ mod tests {
         // REQ-204: 廃棄・破損
         let biz_err = BizError::IdempotencyConflict("競合".to_string());
         let cmd_err: CmdError = biz_err.into();
-        assert_eq!(cmd_err.kind, "idempotency_conflict");
+        assert_eq!(cmd_err.kind, CmdErrorKind::IdempotencyConflict);
     }
 }
