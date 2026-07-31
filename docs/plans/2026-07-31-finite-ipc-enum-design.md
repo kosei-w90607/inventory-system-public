@@ -69,7 +69,7 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 - CmdError.kind 値集合の正本 4 箇所の改訂: `40-cmd-product.md` §5.3（`kind: String` → generated enum `CmdErrorKind` 前提へ。「順14 で扱う」自己指名の消化）、`41-cmd-pos.md` §17.4（POS 3 値の継承記述）、`68-ui-backup-restore.md` §68.7（restore 3 値は値・分岐不変で型強化される旨の注記）、`71-mnt-backup.md` §71.7（MNT-01-D4 の「見直し契機: 順 8…」該当行の消化注記 — **意味論変更なしの最小注記に限定**）
 - `42-cmd-sales-stocktake.md` §22.5 CMD-09-CONV-D1 の改訂: `SalesMode` request 側 String 据え置き（H-1）の解消判断を確定し、`SalesReportType` A 案を全 family の標準形として昇格
 - domain family の境界 doc 改訂: `44-cmd-inventory.md` §23.5-23.7（wire 型注記）+ 同 list_movements 節（movement_type / reference_type の enum 露出 — round 1 P1-1）、`31-biz-inventory-service.md` §12.4/§12.6（返品・廃棄・reason の enum 所有）、`33-biz-plu-export-service.md` §16.2 + `41-cmd-pos.md` §17.6（ExportMode 境界露出、`parse_export_mode` 廃止）、`32-biz-csv-import-service.md` §15（error_type 4 値 wire enum の合成新設と status — round 1 P1-2 機序訂正を反映）、`30-biz-product-service.md` の tax_rate / stock_unit validation 節（wire 経路は enum 置換・file 由来経路の guard として維持の二層化 — round 2 P1）
-- frontend 手動 union の置換方針の正本化: `55-ui-csv-import.md` §55.5（`CMD_ERROR_KIND` wrapper を bindings 由来へ）、`62-ui-manual-sale.md` §62.4、`67-ui-plu-export.md` §67.8、`56-ui-daily-sales.md` §56.2 + `53-ui-home.md` D-10 行（**D-10 解消**）、`57-ui-monthly-sales.md`（SalesMode 手動 union 置換）
+- frontend 手動 union の置換方針の正本化: `55-ui-csv-import.md` §55.5（`CMD_ERROR_KIND` wrapper を bindings 由来へ）、`62-ui-manual-sale.md` §62.4、`67-ui-plu-export.md` §67.8、`56-ui-daily-sales.md` §56.2 + `53-ui-home.md` D-10 行（**D-10 解消**）、`57-ui-monthly-sales.md`（SalesMode 手動 union 置換）、`51-ui-product-form.md`（tax_rate / stock_unit の frontend 値集合正本 §147-148 相当 — 手書き集合を generated union 由来へ置換する方針の注記。UI 入力バリデーション（select guard・日本語文言）は不変 — round 3 P1）
 - `docs/DB_DESIGN.md` CHECK 制約方針への接続注記（DB CHECK は enum 化後も防御として維持、IPC enum との対応関係 1 行）
 - `Plans.md` の active packet link 追加（PK4）と D-10 backlog 表記の更新
 - 実装 PR 群への義務の凍結（SPEC-P41-D5）
@@ -96,7 +96,7 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 
 - Requirements / spec: `docs/research/audit-2026-07/report.md` 順14 / `findings/p4-type-contracts.md` P4-1
 - Architecture: `docs/ARCHITECTURE.md`（D-060 改訂後の呼び出し原則、wire 型変換の CMD 境界拒否規定）
-- Function / command / DTO: 40 §5.3 / 41 §17.4・§17.6 / 42 §22.5 / 44 §23 / 31 §12.4・§12.6 / 33 §16.2 / 32 §15 / 23（ParseErrorType）/ 34（SalesMode/SalesReportType 定義）/ 68 §68.7 / 71 §71.7 / 55 §55.5 / 56 §56.2 / 57 / 62 §62.4 / 67 §67.8 / 53（D-10 行）
+- Function / command / DTO: 40 §5.3 / 41 §17.4・§17.6 / 42 §22.5 / 44 §23 / 31 §12.4・§12.6 / 33 §16.2 / 32 §15 / 30（tax_rate / stock_unit validation — round 2 P1）/ 23（ParseErrorType）/ 34（SalesMode/SalesReportType 定義）/ 68 §68.7 / 71 §71.7 / 55 §55.5 / 56 §56.2 / 57 / 62 §62.4 / 67 §67.8 / 53（D-10 行）/ 51（frontend 値集合正本 — round 3 P1）
 - DB: `docs/DB_DESIGN.md` CHECK 制約方針、`docs/db-design/transaction-tables.md` / `pos-tables.md`（値集合の理由所有元 — 値は不変のため参照のみ）
 - Screen / UI: 上記 UI doc 群（文言・表示分岐は不変）
 - Decision log / ADR: D-053（error_id 相関）、D-054（cross-language 定数 SSOT の先例）、D-060（順12）、D-061（本 PR で新設）
@@ -106,8 +106,8 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 
 | Area touched by upcoming work | Required source doc / artifact | Status |
 |---|---|---|
-| Backend function / command / repository / validation / error | 40 / 41 / 42 / 44 / 31 / 33 / 32 / 68 / 71 の対象 § | updated in this PR（値集合の正本と自己指名箇所） |
-| Command / DTO / generated binding / wire shape | 同上 + 55 / 56 / 57 / 62 / 67 / 53 | updated in this PR（正常値 wire 表現は不変、型のみ強化） |
+| Backend function / command / repository / validation / error | 40 / 41 / 42 / 44 / 31 / 33 / 32 / 30 / 68 / 71 の対象 § | updated in this PR（値集合の正本と自己指名箇所） |
+| Command / DTO / generated binding / wire shape | 同上 + 55 / 56 / 57 / 62 / 67 / 53 / 51 | updated in this PR（正常値 wire 表現は不変、型のみ強化） |
 | 反復言及 doc（45 / 30 / 58 / 74 / 73 / 24 / 21 / architecture task-specs の kind 単発言及） | 実装 PR 追随 | intentionally deferred — 値集合を定義せず参照するのみの箇所。実装 PR の drift sweep（rg 全箇所）で一括追随（SPEC-P41-D5 (iv)） |
 | DB / transaction / audit / rollback / migration | DB_DESIGN.md（接続注記のみ、schema 不変） | updated in this PR |
 | CSV / TSV / report / import / export format | 変更なし（ファイル format 不変） | existing sufficient |
@@ -169,7 +169,7 @@ Minimum design checks for business-app work:
 |---|---|---|---|
 | D-061 (a) 共通 pattern（derive + snake_case、SalesReportType 標準形） | decision-log / 42 §22.5 | Matrix N2（token） | 実装は follow-up PR |
 | D-061 (b) 不正値経路の精密化（正常値 wire 不変 + serde 拒否統一 + 手動 parse 廃止） | decision-log / 41 §17.6 / 42 §22.5 | Matrix N4, N5（token） | 実装 PR1 probe で shape 実測 |
-| D-061 (c) 境界規則（IPC+BIZ まで、DB TEXT+CHECK 維持、変換失敗は明示 internal） | decision-log / DB_DESIGN 注記 / 31 / 32 | Matrix N6（token） | 実装は follow-up PR |
+| D-061 (c) 境界規則（IPC+BIZ まで、DB TEXT+CHECK 維持、変換失敗は明示 internal） | decision-log / DB_DESIGN 注記 / 30 / 31 / 32 | Matrix N6（token） | 実装は follow-up PR |
 | D-061 (d) CmdErrorKind 12 値（値・分岐・error_id・restore 意味論不変、frontend 手動定数置換） | 40 §5.3 / 41 §17.4 / 68 §68.7 / 71 §71.7 注記 / 55 §55.5 | Matrix N3, N7（token） | 実装は follow-up PR |
 | D-061 (e) D-10 吸収（source の union 化を family へ） | 56 §56.2 / 53 D-10 行 | Matrix N8（token） | 実装は follow-up PR |
 | family 一覧の完全性（CmdErrorKind / return_type / direction / disposal_type / reason / source / CsvImportResult.status / ErrorRow.error_type / ExportMode / SalesMode / movement_type / reference_type / tax_rate / stock_unit の 14 family、対象外 = StocktakeProgressBiz.status・26-io error_type・operation_type とその理由 + (11)(12) の P4-2 界面除外 + (13)(14) の file 由来経路 guard 維持） | 本 packet + D-061 | Matrix N9（レビュー: inventory 調査との突合）+ N11（token） | — |
@@ -254,3 +254,10 @@ Contract ID: SPEC-P41-D1〜D5
 - P1（`tax_rate` / `stock_unit` の family 漏れ — schema_v1.rs 全 CHECK 列挙で検出）: **accept**。family (13)(14) を追加。CSV 一括インポートの file 由来経路が同じ BIZ validation を通るため「wire 経路は enum 置換・file 経路の guard は維持」の二層化を特記（他 family の手動 parse 廃止と扱いが異なる）。frontend 手動 union `ProductTaxRate` も置換対象に追加
 - P2（PR2 range が (2)〜(10) のまま）: **accept**。(2)〜(14) へ更新
 - P3（nullable request filter の probe 明示）: **accept**。SPEC-P41-D5 (v) へ追記
+
+### Plan Review round 3（independent Claude subagent, Sonnet 5, fresh context）
+
+- round 2 是正の検証: family (13)(14) の値・露出箇所・二層化（wire 463-466 / file 692-699 の別 site 実在）・`ProductTaxRate` 実在をすべて Reviewer 実測で確認
+- 全数突合: schema_v1.rs の CHECK 12 件全列挙で 11 件が family 対応・1 件（stocktake.status）が対象外明記と一致、frontend union sweep でも漏れなしを確認（14 family で網羅確定）
+- P1（51-ui-product-form.md の Scope 欠落）: **accept**。値集合の frontend 正本（§147-148 相当の `"10"|"8"|"0"` / `"pcs"|"cm"` 手書き集合と select validation 文言）が実在することを Writer も実読確認（型名 `ProductTaxRate` 自体は 51 に不在で、正本は値集合と文言）。Scope / Design Sources / Required Design Artifacts / Matrix N12 へ水平展開。UI 入力バリデーションの意味論は不変と明記
+- P2（30 の他節未展開）: **accept**。Design Sources / Required Design Artifacts / Ledger D-061 (c) へ展開。round 2 に続く sweep 不完全の再発のため、round 4 では「Scope 追加 doc の全節出現」を機械的に突合する観点を Reviewer へ明示依頼する
