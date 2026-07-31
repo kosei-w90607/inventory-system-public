@@ -417,7 +417,7 @@ struct DisposalCreateResult {
 
 **処理ステップ**: create_receiving と同パターン
 
-**enum 契約化（D-061）**: 本節群（§23.5〜§23.7）の `return_type` / `direction` / `disposal_type` / `reason` の各 field は D-061 により generated enum 型へ置換される。値・wire 表現・分岐意味論は不変（順14 実装 PR2 で追随。それまでの現行実装は移行前の String 形）。
+**enum 契約化（D-061）**: 本節群（§23.5〜§23.7）のうち D-061 の enum 化対象は `return_type` / `direction` / `disposal_type` と、§23.6 手動販売の `manual_sales.reason`（family (5)、CHECK 制約付き 2 値）である。値・wire 表現・分岐意味論は不変（順14 実装 PR2 で追随。それまでの現行実装は移行前の String 形）。**§23.7 廃棄の `reason`（`DisposalItemInput.reason` 等）は CHECK 制約なしの自由記述 field であり D-061 の対象外** — 値集合が存在しないため enum 化してはならない（Final Review P1 で明示化）。
 
 ---
 
