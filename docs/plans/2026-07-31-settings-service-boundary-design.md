@@ -250,6 +250,8 @@ Contract ID: SPEC-CMD11-D1〜D5
 
 ## Review Response
 
+- Findings Freeze: not yet frozen; post-freeze exceptions: none.
+
 ### Plan Review round 1（independent Claude subagent, Sonnet 5）
 
 - P1-1（M4 が vacuous oracle）: **accept**。anchor `validate_log_date_range` は改訂前 43 に 0 hit（コード上の関数名を doc anchor に流用した誤り）。実在 literal `まずASCII strict`（baseline 1 実測）へ差し替え、`system_repo::`（baseline 4 実測）の消滅 oracle M12 を追加。AC / Matrix 双方修正済み
@@ -263,5 +265,3 @@ Contract ID: SPEC-CMD11-D1〜D5
 - P2（ARCHITECTURE.md §5-9 mapping table の `BIZ-01〜BIZ-08` 未整合）: **accept**。§5-9 更新 + biz-task-specs.md BIZ-09 節新設を Scope / SPEC-CMD11-D1 (v) / Ledger / AC / Matrix M14, M16 に追加
 - P3（43 §43.5 エラーハンドリング小節の扱い不明記）: **accept**。「wire contract として存続 + 所有表現書き換え（削除ではない）、M11 委譲」を Ledger に明記
 - round 2 self-audit（Writer 側の同型 premise 全体 sweep で発見、P1 相当）: `cmd-task-specs.md` CMD-11 節が `architecture_test.rs` の `LAYER_EXCEPTIONS` allowlist を根拠に system_repo/image_manager 直呼びを「許可済み例外」として正本化していた（baseline 4 hit）。D-060 (b) と正面矛盾するため cmd-task-specs.md 改訂を Scope へ、allowlist 2 entry 削除を SPEC-CMD11-D5 (vi) へ追加。機械 enforcement の存在は設計にとって好材料（実装 PR 完了後は layer test が D-060 (b) を恒久保証する）
-
-- Findings Freeze: not yet frozen; post-freeze exceptions: none.
