@@ -6,7 +6,7 @@
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: 0fd8551f5566000df0ef2c85791eb48d9feb2d27
-- Amendments: e83e24a（AMD1: internal 文言統一の裁定 — SPEC-CMD11-IMPL-D4）
+- Amendments: e83e24a（AMD1: internal 文言統一の裁定 — SPEC-CMD11-IMPL-D4）, 550502f（AMD2: restore_support 不採用・mnt lane 移設 — SPEC-CMD11-IMPL-D5）
 - Coordinator: Claude (Fable 5, main session)
 - Writer: Codex (GPT-5.6, owner relay)
 - Plan Reviewer: independent Claude subagent (Sonnet 5)
