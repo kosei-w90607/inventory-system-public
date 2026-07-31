@@ -8,7 +8,7 @@ Risk: R3
 
 - C1: `AGENTS.md` Working Rules と `.agents/skills/test-design/SKILL.md` Rules の両方に、数値主張は実測コマンド+出力併記か `未実測` タグの二択である旨の規則が同趣旨で存在する（D-062-D1）
 - C2: `docs/templates/plan-packet.md` の Impact Review Lenses table に「環境・再現性」行が追加され、既存 8 行と同じ 3 列構造を保つ（D-062-D2）
-- C3: `docs/DEV_WORKFLOW.md` Review Rules に、Writer が Codex の packet では Plan Reviewer が別 vendor 必須である旨、かつ `codex-only` Execution Mode でも免除されない旨が明記され、既存 `Writer ≠ Plan Reviewer`（AGENT_OPERATING_MANUAL.md）と矛盾しない（D-062-D3）
+- C3: `docs/DEV_WORKFLOW.md` Review Rules に、Writer が Codex の packet では Plan Reviewer が別 vendor 必須である旨、かつ `codex-only` Execution Mode でも免除されない旨が明記され、既存 `Writer ≠ Plan Reviewer`（AGENT_OPERATING_MANUAL.md）と矛盾しない。non-Codex Plan Reviewer が実在しない場合は AGENT_OPERATING_MANUAL.md §3.3 Capacity-degraded に従い pending 化する旨も明記される（D-062-D3、round 1 P1 是正）
 - C4（任意）: `scripts/doc-consistency-check.sh` の PK6 heuristic が、Contract Probe / Review Response 内の数値+単位トークンのうち実測 evidence（backtick span または `未実測` タグ）を伴わないものを WARN し、exit code に影響しない（D-062-D4）
 - C5: `docs/decision-log.md` に D-062 が新設され、既存 D-034〜D-061 と矛盾しない
 
@@ -16,7 +16,7 @@ Risk: R3
 
 - F1: AGENTS.md 側と test-design skill 側の文言が乖離し、規則の実効範囲（Test Design Matrix の数値行を含むか）が曖昧になる、または一方にしか追加されない
 - F2: Impact Review Lens 行が table 構造を壊す（列数不一致、セクション外への挿入、既存行フォーマットからの逸脱）
-- F3: (c) の新規則が既存 `Writer ≠ Plan Reviewer` と重複・矛盾する記述になる、または `codex-only` 免除の除外文が欠落して「codex-only では適用外」と誤読される
+- F3: (c) の新規則が既存 `Writer ≠ Plan Reviewer` と重複・矛盾する記述になる、または `codex-only` 免除の除外文が欠落して「codex-only では適用外」と誤読される、または non-Codex Plan Reviewer 不在時の pending fallback（AGENT_OPERATING_MANUAL.md §3.3 Capacity-degraded）への参照が欠落し「vendor 制約ごと免除される」と誤読される
 - F4: PK6 が既存 PK1/PK2/PK4 の ERROR 契約や PK3 の WARN 契約を壊す、または exit code に影響する
 - F5: PK6 の検出パターンが歴史的 red/green を弁別できない（red 文言で WARN が出ない、または green 文言で WARN が誤検出される）
 - F6: D-062 が既存 D-034/D-035/D-038/D-050/D-055/D-056/D-058/D-059 のいずれかと矛盾する記述になる
@@ -30,7 +30,7 @@ Risk: R3
 |---|---|---|---|---|---|
 | C1 | F1 | doc anchor | `rg -c "実測コマンドとその出力を併記" AGENTS.md` → `1` かつ `rg -c "未実測" .agents/skills/test-design/SKILL.md` → `1`+（baseline 両方 0 実測） | 一方にのみ規則が追加され他方が旧文言のまま残る | M1: `AGENTS.md` の新規 bullet を一時削除し、AC の `rg -c` 実測が `1` から `0` に落ちることを確認 |
 | C2 | F2 | doc anchor + 構造確認 | `rg -n "^\| 環境・再現性 " docs/templates/plan-packet.md` が 1 行ヒットし、同行の `\|` 出現数が既存行（例 `\| Replacement path \|  \|  \|`）と同数であることを `rg -o '\|'` の件数比較で確認 | 行の列数が既存 7 行と不一致、またはテーブル外（節の外）に挿入される | M2: 追加行を一時削除し、AC のヒット数が `1` から `0` に落ちることを確認 |
-| C3 | F3 | doc anchor + 独立レビュー | `rg -c "must be a different vendor than Codex" docs/DEV_WORKFLOW.md` → `1`（baseline 0 実測）+ 独立レビューで `AGENT_OPERATING_MANUAL.md` の `Writer ≠ Plan Reviewer`（既存記述）との非矛盾と、`codex-only` 免除文が存在することを確認 | 新規則が既存独立性制約と矛盾する文言になる、または `codex-only` 免除の除外文が欠落する | M3a: 新規 bullet を一時削除し AC が `0` になることを確認。M3b（review-only）: 「even when Execution Mode is codex-only」相当の除外文を一時削除し、独立レビューが「codex-only では適用外」と誤読しないかを確認する |
+| C3 | F3 | doc anchor + 独立レビュー | `rg -c "must be a different vendor than Codex" docs/DEV_WORKFLOW.md` → `1`（baseline 0 実測）+ `rg -c "Capacity-degraded" docs/DEV_WORKFLOW.md` → `1`+（baseline 0 実測）+ 独立レビューで `AGENT_OPERATING_MANUAL.md` の `Writer ≠ Plan Reviewer`（既存記述）との非矛盾、`codex-only` 免除文の存在、non-Codex Plan Reviewer 不在時に AGENT_OPERATING_MANUAL.md §3.3 Capacity-degraded の pending fallback へ委譲する記述の存在を確認 | 新規則が既存独立性制約と矛盾する文言になる、`codex-only` 免除の除外文が欠落する、または pending fallback への参照が欠落する | M3a: 新規 bullet を一時削除し AC が `0` になることを確認。M3b（review-only）: 「even when Execution Mode is codex-only」相当の除外文を一時削除し、独立レビューが「codex-only では適用外」と誤読しないかを確認する。M3c（review-only）: pending fallback（Capacity-degraded 参照）の一文を一時削除し、独立レビューが「vendor 制約ごと免除される」と誤読しないかを確認する |
 | C4（任意） | F4, F5, F7 | unit（bash）+ red/green fixture | `scripts/tests/doc-consistency-plan-packet.test.sh` の新規 fixture group（synthetic packet の Contract Probe へ D-059 round1 相当文言を注入して PK6 WARN 発火を確認、round2 相当文言で WARN 非発火を確認、セクション欠落 packet で ERROR/WARN いずれも出ないことを確認）+ `bash scripts/doc-consistency-check.sh` の exit code が `0` のまま | PK6 が ERROR 相当になる、red/green 判定が逆転する、またはセクション欠落時に誤検出する | X1: red fixture（`outer 30秒より短い内部20秒 + kill-after 2秒deadline` 相当、backtick なし）で PK6 WARN が発火することを確認（Contract Probe で実測済み、パターンレベルの red 確認は済）。X2: green fixture（`` `scripts/doc-consistency-check.sh` fullは33.53 / 33.70 / 33.64秒 `` 相当、backtick あり）で PK6 WARN が非発火であることを確認（同、green 確認は済）。X3: green fixture から backtick span のみを除去した変種で PK6 WARN が発火することを確認（Contract Probe でパターンレベル実測済み、実装後にスクリプト経由で再現） |
 | C5 | F6 | doc anchor + 独立レビュー | `rg -c "^## D-062" docs/decision-log.md` → `1`（baseline 0 実測、次番号は `D-061`〈473 行〉であることを実測済み）+ 独立レビューで既存 D-034/D-035/D-038/D-050/D-055/D-056/D-058/D-059 との非矛盾を確認 | D-062 が既存決定と矛盾する記述になる、または番号が重複する | 該当なし（review-only。番号重複は `rg -c "^## D-062"` が `1` を超えることで機械検知される） |
 
@@ -52,6 +52,7 @@ not applicable — 本 PR は docs / skill / チェッカーの静的規律追�
 - missing input: Contract Probe / Review Response セクション自体が無い packet に対して PK6 は skip し、ERROR にも WARN にもしない（PK1/PK2 の必須セクション欠落 ERROR とは別契約であることを明示）
 - invalid input: バージョン番号（`2.1.220`）や exit code（`0/2`）など、数値+単位トークンのパターンに一致しない表現は誤検出しない（パターンは `秒|分|回|件|%` サフィックス必須のため構造的に除外される）
 - duplicate/ambiguous input: 同一行に複数の数値+単位トークンがある場合（例: 「30秒/20秒/2秒」）、行単位で 1 回だけ WARN する（トークン単位で重複 WARN を出さない）
+- false positive（実プローズ型・evidence-backed だが backtick なし）: 例えば「17 件を独立実注入で全 kill 再現」のような、実際には実測・実証済みの主張であっても同一行に backtick span も `未実測` タグも無い文は PK6 の検出パターンに一致し WARN が発火する。これは PK6 が構文的シグナルのみを見る WARN-only heuristic であるための既知の偽陽性であり、許容する（ERROR 化しない）。実装時に既存 active packet 群 + 直近 archive packet 群へ `bash scripts/doc-consistency-check.sh --target plan` を一度実行し、この種の偽陽性を含む WARN 発火件数（noise 量）を実測して PR の Review Response で報告する（round 1 P2 是正）
 - unknown reference: 該当なし
 - dependency missing: 該当なし（`rg` 依存は既存 checker が既に前提としている）
 - permission/write failure: 該当なし（read-only checker）
@@ -73,7 +74,7 @@ not applicable — 本 PR は docs / skill / チェッカーの静的規律追�
 
 ## Compatibility Checks
 
-- old schema/input: 既存 archived packet（`docs/archive/plans/**`）に対する `bash scripts/doc-consistency-check.sh --target plan` 実行結果（ERROR 0 件）は本 PR 前後で不変
+- old schema/input: `iter_active_dated_plans()`（`scripts/doc-consistency-check.sh` 797-805 行）は `find "$PLAN_DIR" -maxdepth 1 -name "*.md"` で `docs/archive/plans/**` を元々スキャン対象外にしている（実測確認済み: `rg -n 'find "\$PLAN_DIR" -maxdepth 1' scripts/doc-consistency-check.sh` → 804 行）。したがって既存 archived packet（`docs/archive/plans/**`）に対する `bash scripts/doc-consistency-check.sh --target plan` 実行結果（ERROR 0 件）は PK6 導入前後で不変（round 1 P3 是正）
 - new schema/input: 該当なし（新規 field 追加なし）
 - output order: PK6 の WARN 出力順は既存 PK3 と同様、file → セクション内出現順
 - optional field behavior: 該当なし
@@ -101,6 +102,7 @@ not applicable — 本 PR は docs / skill / チェッカーの静的規律追�
 - 既存 PK3 の Trace Matrix / Acceptance Criteria 検査対象行と PK6 の Contract Probe / Review Response 検査対象行が重複せず、二重 WARN を出さないか（セクション排他性の確認）
 - `docs/templates/plan-packet.md` の Impact Review Lenses 新規行を一時的に列数が異なる形（例: 2 列）に改変したとき、独立レビューまたは目視確認でテーブル崩れを検知できるか（機械 gate ではなく review-only である点を明示）
 - (c) の免除除外文（`even when Execution Mode is codex-only`）を一時削除したとき、独立レビューが「codex-only では別 vendor 不要」という誤読可能性を指摘できるか（M3b、review-only）
+- (c) の pending fallback（AGENT_OPERATING_MANUAL.md §3.3 Capacity-degraded 参照）を一時削除したとき、独立レビューが「non-Codex Plan Reviewer 不在時は制約ごと免除される」という誤読可能性を指摘できるか（M3c、review-only、round 1 P1 是正）
 
 ## Residual Test Gaps
 

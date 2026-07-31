@@ -83,7 +83,7 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。AC や�
 - `AGENTS.md` Working Rules 節（現行 29-42 行）へ 1 bullet 追加: 「Plan Packet 内で数値（期間・回数・割合等）を主張するときは、実測コマンドとその出力を併記するか、`未実測` と明示タグ付けする二択のみを使う（D-062、D-059 の内部 deadline 仮置きの教訓）。」
 - `.agents/skills/test-design/SKILL.md` の `## Rules` 節（現行 47-54 行）へ同趣旨の 1 bullet 追加: Test Design Matrix の数値クレーム（duration / count / percentage / threshold）は測定コマンドと出力を併記するか、明示的に `未実測` とタグ付けする（D-062、AGENTS.md の数値主張規則と同一趣旨）。
 - `docs/templates/plan-packet.md` の `## Impact Review Lenses` table（現行 139-148 行、8 行）へ「環境・再現性」行を追加: 新設の環境依存（toolchain / CI runner / OS 差異等）は repo-pinned config で強制するか、明示的に defer するかを記録する。Node 24 `.node-version` single-owner pin の教訓（`docs/archive/plans/2026-07-30-node24-toolchain-alignment.md`）を注記として引用する。
-- `docs/DEV_WORKFLOW.md` の `## Review Rules` 節へ、R3 review-only sub-agent default の記述（現行 338 行）の直後に新規 bullet を追加: 「Writer が Codex（発注書駆動の実装者）である packet の Plan Reviewer は、Writer と同一 vendor であってはならない。同一 vendor の fresh context はこの独立性を満たさない（D-062）。この vendor 単位の制約は `Execution Mode` が `codex-only` であっても免除されない — `codex-only` は Coordinator/Writer の slot 可用性を記録するラベル（AGENT_OPERATING_MANUAL.md §3.2）であり、cross-vendor Plan Gate review の免除ではない。」既存の `Writer ≠ Plan Reviewer`（AGENT_OPERATING_MANUAL.md、role 独立性の記述箇所）を vendor 粒度へ拡張する形で明記し、矛盾する記述にしない。
+- `docs/DEV_WORKFLOW.md` の `## Review Rules` 節へ、R3 review-only sub-agent default の記述（現行 338 行）の直後に新規 bullet を追加: 「Writer が Codex（発注書駆動の実装者）である packet の Plan Reviewer は、Writer と同一 vendor であってはならない。同一 vendor の fresh context はこの独立性を満たさない（D-062）。この vendor 単位の制約は `Execution Mode` が `codex-only`（AGENT_OPERATING_MANUAL.md §3.2）であっても免除されない。non-Codex の Plan Reviewer が実在しない場合は、免除するのではなく AGENT_OPERATING_MANUAL.md §3.3 Capacity-degraded に従って Plan Reviewer を pending 化し、Phase を前進させない。」既存の `Writer ≠ Plan Reviewer`（AGENT_OPERATING_MANUAL.md、role 独立性の記述箇所）を vendor 粒度へ拡張する形で明記し、矛盾する記述にしない（Plan Review round 1 P1 是正、AGENT_OPERATING_MANUAL.md:58 の `codex-only` 期間定義を言い換えて重複させない）。
 - `docs/decision-log.md` へ D-062 を新設: 上記 3 対策 (a)(b)(c) の durable decision（Decision / Status / Why / Impact / Alternatives considered / Rollback / Revisit の既存フォーマット）。Why には順12/14 実測と D-059 の内部 deadline 仮置き事例を実証根拠として引用する。
 - （任意、PK heuristic）`scripts/doc-consistency-check.sh` の `check_plan_packet_heuristic_warnings`（PK3、1163-1221 行）に隣接する新規関数として PK6 を追加する:
   - 対象セクション: `Contract Probe` と `Review Response`（後者は `### 見出し` を含むため `extract_markdown_h2_section` を使う。前者は現行 `extract_markdown_section` で足りるが一貫性のため同ヘルパーに統一してもよい）
@@ -109,6 +109,7 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。AC や�
 - `rg -c "未実測" .agents/skills/test-design/SKILL.md` → `1`+ （baseline 0 実測）
 - `rg -n "^\| 環境・再現性 " docs/templates/plan-packet.md` → 1 行ヒット、かつ同行の `|` 区切り数が既存 Impact Review Lenses 行（例: `| Replacement path |  |  |`）と同数（3 列 = `|` 4 個）
 - `rg -c "must be a different vendor than Codex" docs/DEV_WORKFLOW.md` → `1`（baseline 0 実測）
+- `rg -c "Capacity-degraded" docs/DEV_WORKFLOW.md` → `1`+（baseline 0 実測。round 1 P1 是正で追加した non-Codex Plan Reviewer 不在時の pending fallback 参照）
 - `rg -c "^## D-062" docs/decision-log.md` → `1`（baseline 0 実測。次番号であることを `rg -n "^## D-0[0-9]+" docs/decision-log.md \| tail -1` の実測 `D-061`（473 行）で確認済み）
 - （任意 PK）`bash scripts/tests/doc-consistency-plan-packet.test.sh` が新規 fixture group を含めて exit code 0
 - `bash scripts/doc-consistency-check.sh` が exit code 0（既存 PASS 維持、PK6 導入時は WARN 増加を許容するが ERROR は 0 のまま）
@@ -149,7 +150,7 @@ Plan Packets are not durable design source of truth.
 |---|---|---|---|---|---|
 | SPEC-WF-CPHG | AGENTS.md Working Rules / test-design SKILL.md Rules | D-062-D1 | 数値主張の実測 or 未実測タグ二択。棄却: AGENTS.md のみへの追加（Test Design Matrix 側の数値行が主要発生源のため test-design skill 側も必須）/ 強制 ERROR 化（既存 PK1-5 と同格の WARN 運用に留め、過剰な gate 化を避ける） | AGENTS.md / test-design/SKILL.md | Matrix C1, PK6 fixture |
 | SPEC-WF-CPHG | plan-packet.md Impact Review Lenses | D-062-D2 | 環境・再現性 lens の追加。棄却: 新設セクションとして独立させる案（既存 Impact Review Lenses と趣旨が重複するため 1 行追加に留める） | docs/templates/plan-packet.md | Matrix C2 |
-| SPEC-WF-CPHG | DEV_WORKFLOW.md Review Rules | D-062-D3 | Codex 起草 packet の Plan Reviewer 別 vendor 必須。棄却: AGENT_OPERATING_MANUAL.md 側のみへの追記（Review Rules が Plan Reviewer 独立性の実務規定を持つため DEV_WORKFLOW 側に置く。Plans.md 契約の正本指定どおり）/ `codex-only` を規則の適用除外にする案（self-closure gap を再発させるため却下） | docs/DEV_WORKFLOW.md | Matrix C3 |
+| SPEC-WF-CPHG | DEV_WORKFLOW.md Review Rules | D-062-D3 | Codex 起草 packet の Plan Reviewer 別 vendor 必須。棄却: AGENT_OPERATING_MANUAL.md 側のみへの追記（Review Rules が Plan Reviewer 独立性の実務規定を持つため DEV_WORKFLOW 側に置く。Plans.md 契約の正本指定どおり）/ `codex-only` を規則の適用除外にする案（self-closure gap を再発させるため却下）/ `codex-only` の既存定義（AGENT_OPERATING_MANUAL.md:58、期間定義）を条文内で言い換えて免除根拠にする案（round 1 P1 是正で却下、定義の複製は正本を分散させる）。non-Codex Plan Reviewer 不在時は免除ではなく AGENT_OPERATING_MANUAL.md §3.3 Capacity-degraded の pending 化フローに委ねる | docs/DEV_WORKFLOW.md | Matrix C3 |
 | SPEC-WF-CPHG | scripts/doc-consistency-check.sh PK3 (heuristic warnings) | D-062-D4（任意） | 数値×実測 token の PK6 heuristic。棄却: ERROR 化（過剰な gate 化、既存 PK3 と非対称になる）/ 独立スクリプト新設（既存 checker との二重実装を避ける） | scripts/doc-consistency-check.sh | Matrix C4 |
 
 ## Design Intent Audit
@@ -225,7 +226,7 @@ not applicable — JSON API、browser state、CSV、config、manifest、cache sc
 
 ## Review Focus
 
-- (c) の新規則が既存 `Writer ≠ Plan Reviewer`（AGENT_OPERATING_MANUAL.md）と矛盾しないか、`codex-only` Execution Mode 下での適用除外と誤読されない文言か
+- (c) の新規則が既存 `Writer ≠ Plan Reviewer`（AGENT_OPERATING_MANUAL.md）と矛盾しないか、`codex-only` Execution Mode 下での適用除外と誤読されない文言か。non-Codex Plan Reviewer が実在しない場合に AGENT_OPERATING_MANUAL.md §3.3 Capacity-degraded の pending fallback へ正しく委譲しているか（免除ではなく前進禁止であることが明記されているか）
 - PK6（任意実装時）が既存 PK1-5 の exit code 契約（ERROR は PK1/PK2/PK4 のみ、PK3/PK6 は WARN のみ）を壊していないか
 - D-062 が既存 D-034/D-035/D-038/D-050/D-055/D-056/D-058/D-059 と矛盾する記述になっていないか
 - (a) の規則が AGENTS.md と test-design skill の両方で同趣旨になっているか（一方だけの追加で終わっていないか）
@@ -236,7 +237,7 @@ Contract ID: SPEC-WF-CPHG
 
 - D-062-D1: Plan Packet / Test Design Matrix 内の数値主張（期間・回数・割合等）は、実測コマンドとその出力を併記するか、`未実測` と明示タグ付けする二択のみを使う。AGENTS.md と test-design/SKILL.md の両方に同趣旨で存在する。
 - D-062-D2: `docs/templates/plan-packet.md` の Impact Review Lenses table は「環境・再現性」lens を持ち、新設の環境依存は repo-pinned config 強制 or 明示 defer のいずれかを記録する。
-- D-062-D3: Writer が Codex である packet の Plan Reviewer は、Writer と別 vendor でなければならない。この制約は `Execution Mode` が `codex-only` であっても免除されない。
+- D-062-D3: Writer が Codex である packet の Plan Reviewer は、Writer と別 vendor でなければならない。この制約は `Execution Mode` が `codex-only` であっても免除されない。non-Codex Plan Reviewer が実在しない場合は、免除するのではなく AGENT_OPERATING_MANUAL.md §3.3 Capacity-degraded に従って pending 化し前進しない。
 - D-062-D4（任意）: `scripts/doc-consistency-check.sh` の PK6 heuristic は、Plan Packet の Contract Probe / Review Response 内の数値+単位トークンのうち、同一行に backtick span も `未実測` タグも無いものを WARN する。exit code には影響しない。
 
 ## Trace Matrix
@@ -245,7 +246,7 @@ Contract ID: SPEC-WF-CPHG
 |---|---|---|---|---|
 | SPEC-WF-CPHG/D1 | AGENTS.md + test-design SKILL.md 改訂 | `rg -c "実測コマンドとその出力を併記" AGENTS.md` / `rg -c "未実測" .agents/skills/test-design/SKILL.md` | 両方に同趣旨で存在するか | AC 1,2 |
 | SPEC-WF-CPHG/D2 | plan-packet.md Impact Review Lenses 改訂 | `rg -n "^\| 環境・再現性 " docs/templates/plan-packet.md` | table 構造が既存行と整合するか | AC 3 |
-| SPEC-WF-CPHG/D3 | DEV_WORKFLOW.md Review Rules 改訂 | `rg -c "must be a different vendor than Codex" docs/DEV_WORKFLOW.md` + 独立レビュー | 既存 Writer≠Plan Reviewer との整合、codex-only 免除の誤読なし | AC 4, review |
+| SPEC-WF-CPHG/D3 | DEV_WORKFLOW.md Review Rules 改訂 | `rg -c "must be a different vendor than Codex" docs/DEV_WORKFLOW.md` + `rg -c "Capacity-degraded" docs/DEV_WORKFLOW.md` + 独立レビュー | 既存 Writer≠Plan Reviewer との整合、codex-only 免除の誤読なし、non-Codex Plan Reviewer 不在時の pending fallback（§3.3）明記 | AC 4, AC 4b, review |
 | SPEC-WF-CPHG/D4（任意） | doc-consistency-check.sh PK6 追加 | `scripts/tests/doc-consistency-plan-packet.test.sh` 新規 fixture | red/green/mutation 感度、exit code 非影響 | Matrix C4 |
 | D-062 decision-log | decision-log.md 新設 | `rg -c "^## D-062" docs/decision-log.md` | 既存決定との非矛盾 | AC 5 |
 
@@ -262,4 +263,12 @@ Fill after implementation.
 ## Review Response
 
 Fill after review.
+
+Plan Review round 1（Coordinator 裁定 = 全 accept、修正案どおり）:
+
+- P1: (c) の DEV_WORKFLOW 新規 bullet 案が `codex-only` の既存定義（AGENT_OPERATING_MANUAL.md:58、期間定義）を言い換えて免除根拠にしていた点を accept。言い換えを削除し、「non-Codex Plan Reviewer が実在しない場合は AGENT_OPERATING_MANUAL.md §3.3 Capacity-degraded に従い pending 化し前進しない」の fallback を条文（Scope）へ明記した上で、Spec Contract / Design Intent Trace / Review Focus / Trace Matrix / Acceptance Criteria / Test Design Matrix（C3, F3, Test Matrix 行, Mutation-style Adequacy）を全節 sweep して同旨記述を追随させた。
+- P2: PK6 heuristic が実プローズ型・evidence-backed だが backtick なしの文（例:「17 件を独立実注入で全 kill 再現」）を偽陽性として WARN しうる点を accept。Test Design Matrix の Negative Paths に当該 fixture を追加し、WARN 発火は許容（ERROR 化しない）、実装時に既存 active packet 群 + 直近 archive packet 群への noise 量を一度実測して PR の Review Response で報告することを期待動作として明記した。
+- P3: Compatibility Checks の archive 不変検査が機序を明記していなかった点を accept。`iter_active_dated_plans()` は `-maxdepth 1` で `docs/archive/plans/**` を元々スキャン対象外にしていることを実測確認済みの記述へ是正した（`scripts/doc-consistency-check.sh:804`）。
+- 是正後: P1/P2 = 0（round 1 是正で解消、Coordinator 裁定）。
+
 - Findings Freeze: not yet frozen; post-freeze exceptions: none.
