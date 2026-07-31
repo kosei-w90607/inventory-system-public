@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: human-confirm
+- Phase: archive
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: 686ca2ad095a2bb61ea02272da75cd789e78c3d0
@@ -308,6 +308,12 @@ Contract ID: D-061 (a), (d)（design PR で凍結、本 PR で実装） + SPEC-P
 | X7 | fatal restore title 分岐条件を入替 | BackupRestorePage test | 既存表示 test が RED |
 
 全 mutation を復元後、`git diff --exit-code` clean、Rust build + restore kind 単体 test、TypeScript typecheck、BackupRestorePage test の GREEN を再確認した。survivor 0。
+
+## 遷移圧縮記録（human-confirm -> ready-hosted-final -> merge -> archive、archive commit で実体化）
+
+- ready-hosted-final: 最終 local full = HEAD `59938c7` PASS / CLEAN / MERGE_EVIDENCE_VALID=true。hosted = run 30629496134 success（exact-HEAD 一致、初回 green）
+- merge: owner 委任に基づき Coordinator が Ready + squash merge `2a1777e`
+- archive: 本 commit で packet / Matrix を archive へ移動、Plans.md 転記
 
 ## Review Response
 
