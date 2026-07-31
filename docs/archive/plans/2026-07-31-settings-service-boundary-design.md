@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: human-confirm
+- Phase: archive
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: 2114c722e2a75bcc0fc61975e2f11e86940a04d8
@@ -14,7 +14,13 @@
 - Reviewed Content HEAD: 65f12f29a31df6d3f9a2869454b53a9ba2f0f568
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
-- Human Gate: pending items = hosted workflow_dispatch 指示（docs-only のため event filter 対象外）+ merge approval。L3 なし
+- Human Gate: none（完了: owner 指示の workflow_dispatch + Ready/merge 承認）
+
+### 遷移圧縮記録（human-confirm -> ready-hosted-final -> merge -> archive、archive commit で実体化）
+
+- human-confirm -> ready-hosted-final: 直前の local full 再実行 = HEAD `2cea4fd` で RESULT=PASS / END_TREE_STATE=CLEAN / MERGE_EVIDENCE_VALID=true。hosted final = workflow_dispatch run 30610691171 success（headSha `2cea4fd` exact-HEAD 一致、owner 指示）。初回 run の frontend flake 1 件（ProductListPage department 読込み test、docs-only で src 無変更を機械確認済み）は failed job re-run で green、顛末は PR #49 comment に記録
+- ready-hosted-final -> merge: owner が PR #49 を Ready 化し squash merge `43a038d`（2026-07-31）
+- merge -> archive: 本 commit で packet / Matrix を archive へ移動、Plans.md 完了転記・backlog 転記（ARCH §2 CMD-11 行の MNT-02 表記 cleanup / hosted flake）を実施
 
 ## Owner Effort Budget
 
