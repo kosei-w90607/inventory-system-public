@@ -311,4 +311,15 @@ Contract ID: D-061 (a), (d)（design PR で凍結、本 PR で実装） + SPEC-P
 
 ## Review Response
 
-- Findings Freeze: pending
+- Findings Freeze: frozen after Broad Audit; post-freeze exceptions: none.
+
+### Plan Review round 1（independent Claude subagent, Sonnet 5, fresh context）
+
+- P2-1（test 比較 site 36→39、内訳 25→28）/ P2-2（family (11) probe の PR2 引継ぎ）: accept・是正済み。P2-2 の引継ぎ義務: **D5 (v) の family (11) nullable filter probe は PR2 packet の Contract Probe / Ledger へ必ず転記する**
+- P3-1: Coordinator の Display 所見は reviewer 反証（二重 SSOT drift）を採って却下、Debug 案維持 / P3-2: PR1-D1 の根拠 = decision-log「先例は方向別（response 直出し = SalesMode）」/ P3-3: variant 削除は型システムで担保、X8 不要 / P3-4: Plans.md link 現状同期済み
+- 是正後 P1/P2 = 0、plan-approved
+
+### Final Review（independent Claude subagent, Sonnet 5。audited = f3f9413..b29740b）
+
+- mutation X1〜X7 を独立実注入で 7/7 kill 再現（Writer 表と完全一致、survivor 0）。wire 互換（bindings 再生成 diff = 型強化のみ）・restore 意味論不変（接続所有権パターン無変更 + X7 で機能不変を実証）・AC 全件実測一致・test 弱体化なし・全 gate green。**P1/P2 = 0 確定**
+- P3-1（Writer 逸脱記録の packet 未転記）: accept — 逸脱転記: (i) local Node 25 → mise exec (Node 24) へ切替再検証 (ii) X6 は指定行へ正確再注入で RED 確認 (iii) GitHub connector 403 のため gh で Draft PR 作成 (iv) Workflow State 未編集・Implementation Results のみ追記
