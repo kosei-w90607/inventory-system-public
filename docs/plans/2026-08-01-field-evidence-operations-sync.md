@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: implementing
+- Phase: human-confirm
 - Risk: R3
 - Execution Mode: dual-vendor-no-fable
 - Plan Commit: 2902177341b455833a5193bfa9519a6565ad41c1
@@ -11,10 +11,10 @@
 - Writer: Codex GPT-5.6 (main session)
 - Plan Reviewer: independent Claude Sonnet 5
 - Final Reviewer: independent Claude Sonnet 5
-- Reviewed Content HEAD: pending
+- Reviewed Content HEAD: 657c3cc56a93613d7562d447e910c67277284dd8
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
-- Human Gate: pending Final Review, Ready, merge
+- Human Gate: pending Ready, merge
 
 ## Owner Effort Budget
 
@@ -233,3 +233,6 @@ runtime wire変更なし。
 - P2-1 accepted same-change: `自動` の任意挿入、`引落し` / `増減`、`使えるか` から `評価` までの表現差を吸収するregexへ改訂した。`main`の実在variantを検出し、現行active source docsではno matches（rg exit 1）を確認。correction HEADのclosure確認はpending。
 - Plan Review Closure（2026-08-01、Reviewed Content HEAD `657c3cc56a93613d7562d447e910c67277284dd8`）: P3-1 / P2-1はCLOSED、新規P1/P2/P3は0。Plan GateのP1/P2=0条件を満たした。
 - State Transition（2026-08-01）: plan-first commit `2902177341b455833a5193bfa9519a6565ad41c1` とPlan Review closureがimplementationより前に揃ったため、このstate-only commitでplan-gate -> plan-approved -> implementingをmaterializeする。pre-approval correctionは`7100d345f22a4a44d5bc19eba46ed6d38b55353d` / `657c3cc56a93613d7562d447e910c67277284dd8`で、`Amendments: none`を維持する。
+- Final Contract Audit（2026-08-01、exact live HEAD `a5ae3f0aa83a73396707a084c8de7666a7812780`）: independent Claude Sonnet 5がContract Coverage Ledger、negative space、adapter/core境界、reporting semantics、operator workflow、current/future境界、manual verification、data safety、stale wording guard、state/evidence separationを監査し、P1/P2/P3=0。Findings Freezeをfrozenとする。
+- Reviewed Content HEAD adjudication（2026-08-01）: reviewerはL1 evidence HEADとの一致を理由に`a5ae3f0aa83a73396707a084c8de7666a7812780`を推奨したが、同commitはstate-onlyであり、D-035はこのfieldを監査済みcontent-bearing commitと定義し、final L1 evidenceから分離する。したがって対象source docsの最終content commit `657c3cc56a93613d7562d447e910c67277284dd8`を記録し、L1 full CLEAN/PASSの`a5ae3f0aa83a73396707a084c8de7666a7812780`はPR body evidenceとして扱う。
+- State Transition（2026-08-01）: content candidate `657c3cc56a93613d7562d447e910c67277284dd8`、exact live HEAD `a5ae3f0aa83a73396707a084c8de7666a7812780`のL1 full CLEAN/PASS、Final Contract Audit P1/P2=0がこのcommitより前に揃ったため、implementing -> local-verified -> independent-review -> human-confirmをmaterializeする。
