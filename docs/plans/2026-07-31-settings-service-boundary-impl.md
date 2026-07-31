@@ -329,6 +329,7 @@ Contract ID: SPEC-CMD11-D2, D3, D5（design PR で凍結、本 PR で実装） +
 - Test移設後、`generate_traceability -- --check` がT1 driftとなり、pre-push req-number gateも新CMD test名を拒否した。機械gateを迂回せず test名へREQを付与し、生成正本 `90-traceability.md` を再生成したため、Packetの「再生成不要」という事前予測からは逸脱した。あわせて既存 `test_product_update_request_ordinary_fields_omitted_null_value` のREQ欠落を `req102` 付きへrenameした（assertion/挙動不変）。
 - restore本文を一文字も変えず productionの直接DB importを0にするため、`biz::restore_support` は `open_existing_database` 1 symbolだけのprivate re-exportとした。wrapper/BizError変換/BIZ処理は追加せず、runtime呼出先とrestore本文は不変。review-onlyで具体的runtime/contract harmなしとしてP2 dispositionをclosure済み。
 - AMD1の狭いinternal文言例外はCoordinator gated Packetを本実装の上位契約として適用した。凍結済み `decision-log` / task-spec契約本文の同期はWriter権限外かつNon-scopeのため変更していない。43 §43.5の旧 `list_operation_logs(conn, &query)` 表現も同じく凍結本文として残し、実signatureの正本は新規38 docとした。
+- AMD2 により上記 `biz::restore_support` の disposition は supersede された。facade を削除し、no-create 再接続 symbol は D-060 (a) の正規 lane である `mnt::backup` から再輸出して CMD が参照する形へ是正した。restore の分岐・文言・接続差し替え・kind 3値は変更していない。
 
 ## Review Response
 

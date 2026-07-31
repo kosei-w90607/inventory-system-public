@@ -13,11 +13,6 @@ pub mod sales_service;
 pub mod stocktake_service;
 pub mod system_service;
 
-/// CMD-11 restore orchestration が既存の no-create 再接続を維持するための限定 facade。
-pub(crate) mod restore_support {
-    pub(crate) use crate::db::open_existing_database;
-}
-
 // CMD層がBIZ経由で使用するDB型の re-export（CMD→db直接依存を避けるため、UI層未実装のため一部はまだ未使用）
 #[allow(unused_imports)]
 pub use crate::db::product_repo::{Department, Supplier};

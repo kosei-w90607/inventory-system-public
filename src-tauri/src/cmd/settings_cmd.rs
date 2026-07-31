@@ -3,7 +3,6 @@
 //! docs/function-design/43-cmd-settings-log.md に基づく実装。
 //! 整合性チェック（run_integrity_check, fix_integrity）は integrity_cmd.rs に実装済み。
 
-use crate::biz::restore_support as db;
 use crate::biz::{
     self, AppSetting, BizError, DbConnection, DbError, OperationLog, PaginatedResult,
 };
@@ -95,7 +94,7 @@ fn handle_restore_failure(
     match error {
         backup::RestoreError::Recovered(error) => {
             // NO_CREATE 再接続のみ許可し、空DBを生成しない。
-            match db::open_existing_database(db_path.to_str().unwrap_or("")) {
+            match backup::open_existing_database(db_path.to_str().unwrap_or("")) {
                 Ok(recovered) => {
                     *guard = recovered;
                     CmdError::restore_failed_recovered(&format!(

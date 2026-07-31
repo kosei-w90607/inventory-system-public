@@ -7,6 +7,8 @@
 use crate::db::{self, DbConnection, DbError, NewOperationLog};
 use std::path::{Path, PathBuf};
 
+pub(crate) use crate::db::open_existing_database;
+
 #[cfg(test)]
 thread_local! {
     static SETTING_READ_FAILURE: std::cell::RefCell<Option<String>> = const { std::cell::RefCell::new(None) };
@@ -491,6 +493,12 @@ mod tests {
         let db_path = dir.path().join("test.db");
         let conn = db::init_database(db_path.to_str().unwrap()).unwrap();
         (dir, conn)
+    }
+
+    #[test]
+    fn test_backup_module_req901_exposes_no_create_restore_reconnect() {
+        // REQ-901 / MNT-01 / SPEC-CMD11-IMPL-D5
+        let _: fn(&str) -> Result<DbConnection, DbError> = open_existing_database;
     }
 
     fn write_backup_days_old(backup_dir: &Path, days: i64) -> PathBuf {
