@@ -281,7 +281,7 @@ shadcn `Tooltip` を本 PR commit 0 で導入済（`src/components/ui/tooltip.ts
 | 8-6 Ctrl+/ ショートカット一覧ダイアログ | UI-00 マージ後の別 PR で実装（Q-3） | [UI-shortcuts](54-ui-shortcuts.md) |
 | pending route の新設実装 | 大ボタンは aria-disabled + Tooltip のみ (D-2、HTML disabled 不採用) | UI-01a (Phase 3) / UI-02〜10 (Phase 3-4) |
 | ダッシュボードの詳細化（チャート / トレンド表示） | サマリは「朝一の状況把握」に限定 | 月次売上 (UI-09b) / 日次売上 (UI-09a) |
-| `DailySaleItem.source` 等の enum 化 | D-10、本 PR スコープ外 | Phase 3 UI-09a 着手時に判断（specta 化対象拡張と同タイミング） |
+| `DailySaleItem.source` 等の enum 化 | D-061 (e) に吸収（順14 実装 PR2） | 56-ui-daily-sales.md §56.2 |
 | UI-08 PLU 書出し本体 | 通知バーから遷移ボタンのみ、本体は Phase 4 | UI-08 (Phase 4 10-3) |
 | ユーザー認証 / ログイン | 単一店舗 1 利用者前提、認証層なし | プロジェクトスコープ外（CLAUDE.md） |
 

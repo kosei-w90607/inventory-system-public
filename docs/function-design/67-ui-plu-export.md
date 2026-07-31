@@ -87,6 +87,8 @@ function PluExportPage(): JSX.Element
 
 `target_product_codes` はprepare時のexact setである。confirm時にUIが現在の差分一覧から再計算しない。
 
+**enum 契約化（D-061）**: `preparePluExport({ mode })` の `"diff"` / `"full"` frontend literal（`ExportMode`）は D-061 で bindings 由来 generated union へ置換される（順14 実装 PR2）。値・wire 表現は不変。
+
 ### 67.8.1 Browser Recovery Contract
 
 保存済み未確認状態は `localStorage` key `inventory:plu-export:pending:v1` に置く。これは履歴・監査ではなく、画面離脱やアプリ再起動後に同じ保存済みPLUファイルを未反映解除するための復帰状態である。

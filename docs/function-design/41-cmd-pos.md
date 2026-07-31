@@ -94,6 +94,8 @@ let result = biz::some_function(&mut conn, ...);
 
 **export_error を新設した理由（BIZ-04-D2、監査是正 順8 / P7b-3）**: `import_error` は取込み画面の recovery 分岐（プレビューキャッシュ消失 → ファイル再選択）と結びついた種別であり、PLU書出し（export）失敗を `import_error` で返すと、取込み向け recovery 文言・分岐へ誤誘導する。書出し系の失敗（PluFormatError 由来等）は `export_error` として分離し、取込み語彙を書出し経路に持ち込まない。
 
+**enum 契約化（D-061）**: `import_error` / `export_error` / `idempotency_conflict` の3値は D-061 (d) により `CmdErrorKind` の variant となる（40 §5.3 参照）。値・分岐・文言は不変。
+
 ---
 
 ### 17.5 CMD-07 コマンド
@@ -443,7 +445,7 @@ struct PluExcludedProductResponse {
 5. Ok → PluExportPreparedResult を PluExportPrepareResponse に変換（bytes → base64エンコード）して返す
 6. Err(BizError) → CmdError に変換して返す
 
-**設計判断 — mode の型**: フロントエンドからはJSON文字列で受け取り、CMD層で列挙型に変換する。Tauriのシリアライズ/デシリアライズで列挙型を直接使うと、フロントエンド側の型定義が複雑になるため、文字列→列挙型の変換はCMD層の責務とする。
+**設計判断 — mode の型（D-061 で改訂）**: `ExportMode` を generated enum で直受けする（D-061）。旧手動変換（文字列 → `ExportMode` の CMD 層変換、および無効値時の `validation` エラー返却）は「順14 実装 PR2 で廃止」し、不正値は serde deserialize 拒否へ統一する（UI は固定 toggle からのみ呼び出されるため到達不能）。正常値の wire 表現（`"full"` / `"diff"`）と利用者可視の挙動は不変。
 
 **入力例**:
 ```json

@@ -76,7 +76,7 @@ UI-00 ホーム同型の「簡潔版 = useState + useQuery + 純関数」を採�
 
 - Rust 側 BIZ-05 DTO（`DailySaleItem` / `DailySalesReport` / `DeptSubtotal` / `GrandTotal`）は specta-typescript のデフォルト設定で **snake_case のまま** `src/lib/bindings.ts` 経由で TypeScript 側に flow する（serde rename 等は未付与）。camelCase 変換が必要になったら別 PR で specta 設定を検討
 - `bindings.ts:94-102` `DailySaleItem` の 7 field（`product_code` / `name` / `department_name` / `department_id` / `quantity` / `amount` / `source`）は specta 出力の現状仕様で、**snake_case + `source: string`** のまま、本 PR では型変動なし
-- `source` field は Rust 側で `String` 型のため bindings.ts では `source: string` として出力される。`"auto" | "manual"` literal union は **使われていない** (将来 specta side で `#[serde(tag/rename)]` 等で literal 化する場合は別 PR、Backlog D-10)
+- `source` field は Rust 側で `String` 型のため bindings.ts では `source: string` として出力される。`"auto" | "manual"` literal union は **使われていない**（D-061 (e) に吸収済み、順14 実装 PR2 で literal union 化（if-else 分岐は switch + never 網羅性チェックへ））
 
 **`SearchParams` 型 export**（`src/routes/reports/daily.tsx`）:
 
@@ -87,10 +87,10 @@ export type SearchParams = z.output<typeof searchSchema>;
 - `z.output` を使うのは zod 4 で `.optional()` + `.catch()` の挙動が input/output で差異あるため、TanStack Router の `Route.useSearch()` の型推論と整合させる
 - 各 component / hook で `SearchParams` を import せず、`Route.useSearch()` 経由で型推論を受ける（DRY、本 repo 初の validateSearch 採用パターン）
 
-**source enum 化（将来 D-10）**:
+**source enum 化（D-061 (e) に吸収、順14 実装 PR2）**:
 
 - 現状 `source: string` (literal union 化されていない)、`computeSalesLineSummary` 内で `if (item.source === "auto") ... else if (item.source === "manual") ...` の防御的 if-else で集計、未知 source は total に含むが auto/manual 内訳には含めない設計
-- 第 3 値追加（例: `"adjustment"`）が必要になった場合は本関数の if-else 分岐を追加するか、specta 側で `#[serde(tag)]` 等で literal union 化して `switch` + `never` 戻り型による網羅性チェックに切り替える方針（Backlog D-10、別 PR）
+- 第 3 値追加（例: `"adjustment"`）が必要になった場合の対応は D-061 (e) に吸収済み、順14 実装 PR2 で specta 側 literal union 化を行い、本関数の if-else 分岐は `switch` + `never` 戻り型による網羅性チェックへ切り替える方針
 
 ---
 

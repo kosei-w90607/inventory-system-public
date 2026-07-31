@@ -90,6 +90,8 @@ UI-04 実装 PR では以下を generated binding に出す。
 }
 ```
 
+**enum 契約化（D-061）**: `reason: "plu_unregistered" | "other"` の frontend literal union は D-061 で bindings 由来 generated union へ置換される（順14 実装 PR2）。値・表示文言は不変。
+
 `createManualSale` result:
 
 ```text

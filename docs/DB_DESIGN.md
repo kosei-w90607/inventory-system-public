@@ -87,7 +87,7 @@
 - `operation_logs` は監査・保守ログであり、業務記録や在庫変動履歴の正本にはしない。
 
 ### CHECK制約方針（指摘#17対応）
-以下の列挙値カラムにCHECK制約を設定する:
+以下の列挙値カラムにCHECK制約を設定する。有限集合の IPC 露出値は D-061（順14）により Rust の generated enum を SSOT とする literal union 契約へ寄せるが、本 CHECK 制約は enum 化後も**同一の値集合を防御として二重化したまま維持する**（DB 層は TEXT のまま schema 不変。DB CHECK と wire enum の対応関係の正本は decision-log D-061 と packet の family 一覧）:
 - products.tax_rate: CHECK(tax_rate IN ('10','8','0'))
 - products.stock_unit: CHECK(stock_unit IN ('pcs','cm'))
 - sale_records.source: CHECK(source IN ('auto','manual'))

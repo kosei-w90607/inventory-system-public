@@ -274,6 +274,8 @@ Phase 2 closeout で `typedInvoke` fallback / baseline 監視は撤去済み。C
 
 `recoverTo` の決定は hook 側で kind から導出する: `import_error` → `"idle"` 固定、それ以外は `state.status` で分岐（parsing 由来なら `"idle"`、importing 由来なら `"preview"`）。
 
+**enum 契約化（D-061）**: `src/lib/invoke.ts` の `CMD_ERROR_KIND` 定数 + `CmdErrorKind` 手動型は D-061 でこれらの手動定義は bindings 由来の generated union へ置換される（順14 実装 PR1。export_error 欠落の非対称も解消）。上記マトリクスの値・表示・recoverTo 分岐は不変。
+
 #### `ErrorState.tsx` の描画ロジック
 
 shadcn `<Alert variant="destructive">` でアイコン + タイトル + 本文 + ボタン。タイトルは kind 別固定文言（「プレビューが利用できません」/「入力に問題があります」/「エラーが発生しました」）、本文は `error.message` をそのまま表示。

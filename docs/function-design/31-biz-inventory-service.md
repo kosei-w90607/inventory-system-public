@@ -160,6 +160,8 @@ fn create_return(conn: &mut DbConnection, req: ReturnCreateRequest) -> Result<Re
 - 交換（exchange）は「戻った商品」と「渡した商品」の対を記録するため、"in" と "out" の両方を少なくとも1件ずつ要求する。片側だけなら返品または別の出庫種別として扱う
 - UI-03 は保存前に日本語エラーを出すが、generated command はUI以外からも呼べるため、最終防御は BIZ-02 が持つ
 
+**enum 契約化（D-061）**: `return_type` / `direction` の文字列比較 validation は D-061 で enum 型に置換される。値・文言は不変、DB CHECK 防御は維持する。
+
 ---
 
 ### 12.5 create_manual_sale（手動販売出庫）
@@ -261,6 +263,8 @@ fn create_disposal(conn: &mut DbConnection, req: DisposalCreateRequest) -> Resul
 6. 各item: insert_disposal_item + apply_stock_change(-quantity, Disposal, DisposalRecord, record_id)
 7. **操作ログ**(operation_type="disposal_create")
 8. **COMMIT**
+
+**enum 契約化（D-061）**: `disposal_type` の文字列比較 validation は D-061 で enum 型に置換される。値・文言は不変、DB CHECK 防御は維持する。
 
 ---
 
