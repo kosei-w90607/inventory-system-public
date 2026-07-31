@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: ready-hosted-final
+- Phase: archive
 - Risk: R3
 - Execution Mode: dual-vendor-no-fable
 - Plan Commit: 1ef0336bab42cd5f816a3e661b08338c82845ca7
@@ -14,7 +14,7 @@
 - Reviewed Content HEAD: cff8a7eb1f566acd7ea4e7214d48ce6f1835e5f4
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
-- Human Gate: merge approval (pending; Ready authorization completed at owner intervention 3/3)
+- Human Gate: resolved Ready / merge（Ready authorization は owner intervention 3/3、merge / closeout は 2026-08-01 に別途 owner 承認）
 
 Narrative (append-only):
 
@@ -27,6 +27,7 @@ Narrative (append-only):
 - 2026-08-01 implementation evidence-ownership correction: `Reviewed Content HEAD` は Plan Review HEAD ではなく Final Reviewer が監査した実装 content HEAD を後続 state-only commit で記録する field のため、Plan Review の `297066b` は上記 Narrative に保持し、field は `pending` へ戻した。
 - 2026-08-01 Final Double Audit initial result: Pass 1 / Pass 2 統合で `P1=0 / P2=1 / P3=2`。P2 は accept。`e7fe55a` が Plan Review HEAD を `Reviewed Content HEAD` へ誤記し、`cff8a7e` が通常 content commit で `pending` へ戻したため、DEV_WORKFLOW の「Final Reviewer 後の state-only transition commit だけがこの field を書く」契約に二重に違反した。履歴上の違反を隠さず本記録で受理し、field は `pending` のまま維持する。closure と owner Ready authorization が揃うまで forward state commit を増やさず、その後 `implementing -> local-verified -> independent-review -> human-confirm -> ready-hosted-final` を残る 1 state-only commit へ圧縮し、そこで初めて audited content HEAD を記録する。
 - 2026-08-01 Final Double Audit closure -> Ready authorization: closure target `9bfca81` に対して external Claude Sonnet 5 が `P1=0 / P2=0 / P3=2`、P2-1 CLOSED、P3 二件は non-blocking residual と確認した。Findings Freeze は initial Broad Audit の Pass 1 + Pass 2 完了時点で発効済みであり、closure は後続 confirmation として扱う。実装 candidate `cff8a7eb1f566acd7ea4e7214d48ce6f1835e5f4` の exact clean L1 full、Final Double Audit と closure、owner intervention 3/3 の Ready authorization がすべて本 commit 前に揃ったため、`implementing -> local-verified -> independent-review -> human-confirm -> ready-hosted-final` を残る 1 state-only commit へ圧縮し、`Reviewed Content HEAD` を同 candidate に初めて正規記録する。Draft PR #54 の resulting HEAD で L1 full を再実行して PR body をrefreshし、CI-TRIGGER-D1 の event-eligible routeとしてReadyにする。予防的dispatchは行わない。
+- 2026-08-01 merge -> archive: resulting Ready HEAD `01a4f9c3e3f44cc47ac52541d93ccb10b4a79536` で L1 full、PR body、hosted CI run `30654559831` の三点一致と全 required job success を確認し、予防的 dispatch を行わず PR #54 を squash merge `2a1f81cda41e29b48de96b875cb0f660b5cb7b42`。owner の merge / closeout 承認後、Packet / Matrix を archive し、Plans / PROJECT_HANDOFF / WER を同期した。
 
 ## Owner Effort Budget
 
@@ -278,4 +279,4 @@ Contract ID: SPEC-WF-CI-PUBLIC-D1
 - P2-1 accepted / corrected: CI-TRIGGER-D1 recovery row は event-eligible auto run 限定をやめ、required final の automatic run / explicit dispatch の missing / failed / cancelled を共通収容する。
 - P2-2 accepted / corrected: single M2 を M2a〜M2d に分割し、4 state の各弱体化を独立 mutation で検出する。
 - P3 problem claim accepted, proposed YAML fix rejected/deferred: HEAD SHA concurrency 案を D-063 Alternatives / Revisit で比較した。cross-HEAD cancellation 退行と sequential duplicate 非解消のため本 change では YAML を変えない。
-- Re-review: pending Claude Sonnet 5 fresh-context closure; implementation remains blocked until `P1/P2=0`。
+- Re-review / Final Double Audit closure: Claude Sonnet 5 fresh-context Plan Review と Final Double Audit closure はともに `P1/P2=0`。P2-1 は CLOSED、P3 二件は non-blocking residual として WER の deferred follow-up に引き継いだ。
