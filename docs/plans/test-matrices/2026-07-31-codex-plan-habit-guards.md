@@ -93,7 +93,7 @@ not applicable — 本 PR は docs / skill / チェッカーの静的規律追�
 - output reaches manifest/report: not applicable
 - effective config reaches runtime: not applicable
 - CLI arg reaches implementation: not applicable
-- 新規 test file 登録: 該当なし（既存 `scripts/tests/doc-consistency-plan-packet.test.sh` への追記のみで、`local-ci.sh` / hosted CI static test は既にこの file を呼んでいる前提。実装時に `rg -n "doc-consistency-plan-packet.test.sh" scripts/local-ci.sh scripts/tests/*.sh` で呼び出し実在を再確認する）
+- 新規 test file 登録: 該当なし（既存 `scripts/tests/doc-consistency-plan-packet.test.sh` への追記のみで、`scripts/local-ci.sh:211` のみが本 file を呼ぶ — hosted CI docs job は doc-consistency-check.sh 直接実行で PK6 自体は機能する。実測: ci.yml に本 file 参照 0 hit（Final Review P2 是正、既存 gap で本 PR の退行ではない））
 
 ## Mutation-style Adequacy Questions
 
