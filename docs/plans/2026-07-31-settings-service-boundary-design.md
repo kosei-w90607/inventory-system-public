@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: plan-gate
+- Phase: plan-approved
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: 2114c722e2a75bcc0fc61975e2f11e86940a04d8
