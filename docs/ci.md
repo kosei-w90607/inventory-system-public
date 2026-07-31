@@ -1,15 +1,13 @@
 # CI
 
-この文書は CI / merge evidence の source of truth。判断理由は `docs/decision-log.md` D-026 / D-033 / D-043、PR ごとの証跡は Plan Packet と PR 本文に置く。
+この文書は CI / merge evidence の source of truth。判断理由は `docs/decision-log.md` D-026 / D-033 / D-043 / D-063、PR ごとの証跡は Plan Packet と PR 本文に置く。
 
 ## 移行状態
 
 - 2026-07-10 に PR #160（merge SHA `25e945b9a32243d6cff6b49f6188d68f4b14c09e`）を merge 後、owner が GitHub Web UI 上の `CI` workflow を Enable 済み。
 - 初回の `main` manual dispatch は run 29091831468 (private archive Actions evidence 29091831468) として実行され、head SHA `25e945b9a32243d6cff6b49f6188d68f4b14c09e` で success になった。これにより Disable 状態からの workflow runtime 検証を完了した。
-- PR #160 自体では、Disable 状態のため hosted PR run は発生していない。Draft push / Ready event の実運用は、最初のR3 dogfoodで確認する。
+- Public PR #2 以降で Draft `synchronize` の runner 0、Ready / `synchronize` の exact-HEAD final、local / hosted / PR HEAD の三点一致を dogfood 済み。
 - GitHub settings、branch protection、retention、cache 削除、支払方法は repository から変更しない。
-
-このcloseout自体はdocs-onlyのR1変更なので、PR本文に `Risk: R1` と `Hosted CI: skip` を記載し、hosted runは0件とする。
 
 ## Verification Ladder
 
@@ -36,6 +34,19 @@ L0 green は PR 全差分 green を意味しない。merge evidence は L1 `full
 
 PR 本文の `Hosted CI: skip` は R0/R1 で hosted runner を不要とする明示 token。workflow が skip を受理するのは、本文に `Risk: R0` または `Risk: R1` があり、repository owner 自身が Ready event を発生させた場合だけである。token 単独、owner 以外の Ready 化、R2+ の Risk 表記では CI を実行する。R2+、workflow、release、DB、CMD/wire、migration、backup/restore、operator workflow では使用しない。`workflow_dispatch` は分類結果に関係なく全 area を `true` として full gate を実行する。Risk の正当性は owner review の責務であり、path だけから業務 risk tier を推測しない。
 
+### Final Trigger Selection
+
+CI-TRIGGER-D1: completed HEAD ごとに normal path の successful final は 1 run とし、次の表から該当する 1 経路だけを選ぶ。Ready / `synchronize` の自動対象に対して予防的な `workflow_dispatch` を重ねない。
+
+| HEAD の状態 | 選ぶ trigger | dispatch 前の確認 |
+|---|---|---|
+| non-doc を含む event-eligible change | owner が Draft から Ready にする。Ready のまま更新された例外経路は `synchronize` | dispatch しない |
+| `paths-ignore` 対象だが hosted-required の workflow / release contract docs-only change | owner が Ready にした後、自動 run が作られていないことを確認して `workflow_dispatch` | 同一 HEAD の run が 0 件であること |
+| required final の自動 run または explicit dispatch が作成されない、失敗、または cancel | 原因を確認・是正した後の recovery として `workflow_dispatch` | 同一 HEAD に successful / in-progress run がないこと |
+| 同一 HEAD に successful final が既にある | 既存 run を evidence に使う | Ready の再操作も dispatch も行わない |
+
+確認例は [Stale Green Prevention](#stale-green-prevention) の exact-HEAD query を使う。別 event の run が同時進行中なら、完了または cancel を確認してから recovery の要否を判断する。
+
 ## Risk Routing
 
 | Risk / change | Local gate | Hosted final |
@@ -48,19 +59,17 @@ PR 本文の `Hosted CI: skip` は R0/R1 で hosted runner を不要とする明
 
 `Hosted CI Requirement: not-required`は成功runをmerge evidenceとして要求しないだけで、Ready eventや失敗シグナルを無視するtokenではない。incidental runがproduct/test/gate failureを返した場合はDraftへ戻して原因を修正し、新HEADでlocal/full/reviewを再実行する。infrastructure failureまたはcancelだけは、routeが`not-required`ならL1 evidenceを維持したままownerが残存リスクとして受理できる。結果・分類・owner dispositionをPR bodyへ記録する。`required` routeは原因分類にかかわらずsuccessful exact-HEAD runがmerge条件である。
 
-## Budget Pressure
+## Public Standard-Runner Policy
 
-月次 Actions 予算の使用率は owner が GitHub Billing で確認する。
+CI-PUBLIC-D1: この repository は public で、現行 workflow は standard GitHub-hosted runner のみを使う。[GitHub Actions billing](https://docs.github.com/en/billing/concepts/product-billing/github-actions) と [job execution time](https://docs.github.com/en/actions/how-tos/monitor-workflows/view-job-execution-time) の公式 contract 上、この組み合わせでは Actions の billable execution minutes は発生しないため、private repository 時代の月間 minute 使用率や reset 日を hosted gate の判断条件にしない。larger runner を将来導入する場合は public repository でも課金対象になるため、別の R3 change で費用・security boundary・routing を再設計する。
 
-- 75% 未満: 通常の final-only 運用。
-- 75% 以上 90% 未満: 1 change 1 hosted run を厳守。失敗原因を local で修正してから 1 回だけ再実行する。R2 は local full を既定とする。
-- 90% 以上、または Actions 利用不能: release / R4 の緊急 gate を除き hosted を停止する。`local-ci.sh full` + review-only を暫定 evidence とし、PR 本文に例外、HEAD SHA、未実行 hosted gate を記録する。枠 reset 後に必要な HEAD / main を dispatch で backfill する。
+free minutes と無関係に、runner / Actions service の障害、concurrency、cache、重複実行には運用コストがある。CI-TRIGGER-D1 の 1 HEAD 1 final、L1 での事前検証、失敗原因を直してからの recovery を維持する。
 
-pure docs-only（workflow / release contract 非接触）は予算状態にかかわらず 0 hosted run とする。workflow / release contract の docs-only change は原則として owner Ready 後に explicit dispatch を 1 run するが、Actions 利用不能かつ次の閉じた経路へ完全一致する場合だけ `not-required` にできる。
+GitHub-hosted runner が利用不能な場合、pure docs-only（workflow / release contract 非接触）は従来どおり 0 hosted run とする。workflow / release contract の docs-only change は原則として owner Ready 後に explicit dispatch を 1 run するが、Actions 利用不能かつ次の閉じた経路へ完全一致する場合だけ `not-required` にできる。
 
 Actions 利用不能時の `Hosted CI Requirement` 例外は次の閉じた 2 経路だけとする。
 
-1. **non-release R2/R3 Budget Pressure**: migration design doc を含むが、実際の R4 mutation や release を行わない変更は `not-required` にできる。exact-HEAD `local-ci.sh full`、risk-tier の独立 review、PR body の未実行 hosted gate/availability 理由、owner residual-risk disposition をすべて要求し、利用可能になった後に必要な HEAD/main を backfill する。
+1. **non-release R2/R3 Actions unavailable**: migration design doc を含むが、実際の R4 mutation や release を行わない変更は `not-required` にできる。exact-HEAD `local-ci.sh full`、risk-tier の独立 review、PR body の未実行 hosted gate/availability 理由、owner residual-risk disposition をすべて要求し、利用可能になった後に必要な HEAD/main を backfill する。
 2. **public repository Phase B bootstrap R4**: active control PR の source Actions allocation が利用不能で、かつ destination Actions を安全上 push 前から無効にする Phase B に限り `not-required` にできる。固定 final-root fresh clone の local full、privacy/public-surface gate、R4 Double Audit/closure、PR body の例外、owner disposition を compensating evidence とする。destination Actions は後続の CI 再設計 R3 まで有効化しない。
 
 上記以外の release、R4、workflow executable change は `required` のまま。`not-required` でも観測済み product/test/gate failure は blocker であり、infrastructure/cancel/availability 以外を owner disposition してはならない。この例外の追加自体を行う PR は workflow gate change として Double Audit を必須とし、owner disposition が得られなければ merge しない。
@@ -130,7 +139,7 @@ HEAD_SHA="$(git rev-parse HEAD)"
 gh run list --workflow ci.yml --commit "$HEAD_SHA" --status success
 ```
 
-Ready 直作成は `opened` event で、Draft からの Ready 化は `ready_for_review` event で検出する。Ready PR の head 更新は `synchronize` event で検出するが、通常経路では先に Draft へ戻す。Ready PRをclose後にreopenしても`reopened` eventでは自動実行しないため、HEADに対応するfinal runがなければ`workflow_dispatch`を使う。自動 run が存在しない、失敗した、cancel された場合も同様とする。
+Ready 直作成は `opened` event で、Draft からの Ready 化は `ready_for_review` event で検出する。Ready PR の head 更新は `synchronize` event で検出するが、通常経路では先に Draft へ戻す。Ready PRをclose後にreopenしても`reopened` eventでは自動実行しないため、HEADに対応するfinal runがなければ`workflow_dispatch`を使う。自動 run が存在しない、失敗した、cancel された場合も、CI-TRIGGER-D1 に従って同一 HEAD の successful / in-progress run を先に確認し、必要な場合だけ recovery dispatch を使う。
 
 ## Cache Policy
 
@@ -160,18 +169,16 @@ workflow syntax / event / job graph は Ruby YAML parser、Prettier、repo-owned
 
 ## 2026-08-01 Re-evaluation
 
-- 月間 billed minutes と 1 change あたり run 数
-- final run の wall time と Rust 3 job の disk telemetry
-- cache entry 数 / 合計容量 / eviction の有無
-- Rust 3 job 再統合の可否
-- aggregate job 維持の必要性
-- self-hosted runner の費用・security boundary
-- weekly npm monitor の検知遅延と手動 dispatch 回数
-- Ready push block / HEAD SHA 突合の bypass・誤検知・運用漏れ
-- public / Pro 化による required checks 再設計要否
+- repository visibility は `PUBLIC`、`ci.yml` と `npm-security-monitor.yml` の runner は standard `ubuntu-latest` のみ。GitHub 公式 billing contract により、月間 billed-minute 閾値は現行運用から退役させた。
+- 同一 HEAD に `workflow_dispatch` と `pull_request` の successful full run が重複する実例を確認した。YAML の trigger / concurrency は維持し、CI-TRIGGER-D1 で trigger 選択を一意化する。
+- recent successful run と Rust test job の disk telemetry は、現時点で Rust job 再統合や self-hosted runner 導入を必要とする capacity failure を示していない。aggregate job は check 名互換のため維持する。
+- cache は repository 既定上限内。依存 download cache のみに限定する現行方針を維持し、容量や eviction が再び問題になった場合だけ key / entry を再調査する。
+- branch protection / ruleset は未設定。required checks は `paths-ignore` / skip route との互換設計が必要なため、この再評価では有効化しない。
+- weekly npm security monitor の manual dogfood は成功済み。scheduled dogfood は 2026-08-03 JST、cooldown 後の dependency change B は 2026-08-05 以降の別 change として扱う。
+- 実測 command / output / run URL は active Plan Packet の Contract Probe に置き、volatile evidence をこの source doc へ複製しない。
 
 ## Related Records
 
 - Workflow index: `docs/DEV_WORKFLOW.md`
-- Decisions: `docs/decision-log.md` D-026 / D-030 / D-033 / D-043
+- Decisions: `docs/decision-log.md` D-026 / D-030 / D-033 / D-043 / D-063
 - Previous CI evidence: `docs/archive/plans/2026-07-01-ci-gate-optimization.md`
