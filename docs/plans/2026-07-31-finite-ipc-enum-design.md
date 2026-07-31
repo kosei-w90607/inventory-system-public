@@ -6,7 +6,7 @@
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: f328692716c5f1ffcc0cfdae8a4ba457e019e153
-- Amendments: none
+- Amendments: f4070ee（AMD1: daily report 系対象外追補 + N9 突合方法強化。Writer self-audit 起因、family 一覧・契約本体の変更なし）
 - Coordinator: Claude (Fable 5, main session)
 - Writer: Claude (Fable 5, main session)
 - Plan Reviewer: independent Claude subagent (Sonnet 5)
