@@ -54,7 +54,10 @@ fn validate_log_date_range(
         if !has_strict_ymd_shape {
             return Err(());
         }
-        chrono::NaiveDate::parse_from_str(value, "%Y-%m-%d").map_err(|_| ())
+        let year = value[0..4].parse().map_err(|_| ())?;
+        let month = value[5..7].parse().map_err(|_| ())?;
+        let day = value[8..10].parse().map_err(|_| ())?;
+        chrono::NaiveDate::from_ymd_opt(year, month, day).ok_or(())
     };
     let start = start_date
         .map(parse)
