@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: plan-gate
+- Phase: plan-approved
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: f328692716c5f1ffcc0cfdae8a4ba457e019e153
@@ -271,3 +271,10 @@ Contract ID: SPEC-P41-D1〜D5
 - 全 doc×全節の機械突合を実施（依頼した欠陥 class 特化観点）。round 3 是正の反映と、Non-scope の「30」表記が別箇所（§381 の単発 kind 言及 = deferred / tax_rate 節 = in-scope）を指す整合であることを確認
 - P1（33 / 62 / 67 / 57 が Ledger・Matrix に皆無）: **accept**。Ledger へ派生 3 行を追加し、Matrix N13（33+67）/ N14（62）/ N15（57）の presence anchor（`D-061`、各 baseline 0 実測済み）を新設
 - P2（Plans.md の Scope 項目が未検証）: **accept**。Required Design Artifacts へ Process 行を追加し、Matrix N16（`rg -cF "D-061 (e) に吸収" docs/Plans.md`、fixed-string、baseline 0）を新設
+
+### Plan Review round 5（independent Claude subagent, Sonnet 5, fresh context）
+
+- round 4 是正の検証: Ledger 派生行と N13〜N16 の対応・全 baseline 0・実行タイミング反映をすべて実測確認
+- 全 doc×全節突合の再実行: 20 doc 中 19 が 3 系統に出現、欠落なし
+- **新規 P1/P2 = 0。plan-approved 判定**
+- P3-1（Plans.md が Design Sources に不在）: **Coordinator 裁定で解消扱い（doc 変更なし）**。Design Sources は設計判断の情報源のカテゴリであり、Plans.md は本 packet が書き込む process 追跡物で性質が異なる。検証は Required Design Artifacts の Process 行 + Ledger D-061 (e) 行 + Matrix N16（機械）が担保しており機能的欠落はない
