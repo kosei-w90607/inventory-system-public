@@ -344,7 +344,15 @@ Contract ID: SPEC-CMD11-D2, D3, D5（design PR で凍結、本 PR で実装） +
 - test 追随: 旧 message を固定する `test_list_logs_req902_invalid_page_to_cmderror` は標準文言の完全一致 assert へ更新する（弱体化ではなく新契約の同等固定）
 - Final Review 必須観点: message 変更の波及が上記 4 command の DatabaseError 経路のみであること（validation 文言・他 command・restore 系に変化がないこと）を diff で確認する
 
-### Plan Review round 1（independent Claude subagent, Sonnet 5, fresh context）
+### Amendment AMD2（gated、Coordinator 裁定 2026-07-31 — Final Review 論点 3）
+
+**`biz::restore_support` facade の不採用と mnt lane への移設（SPEC-CMD11-IMPL-D5 として追加）**:
+
+- Writer が事後開示した `biz::restore_support`（CMD→BIZ→DB の re-export 導管）は**不採用**とする。D-060 (a) が接続所有権交換の正規 exception lane と定めるのは CMD→MNT のみであり、凍結 SPEC に無い未審査経路を P2-1 是正 PR 自身が持ち込むことは Goal Invariant に反する
+- 是正: `mnt/backup.rs` に `pub(crate) use crate::db::open_existing_database;`（または同等の薄い no-create open 窓口）を置き、`settings_cmd.rs` は `mnt::backup` 経由で参照する。`biz::restore_support` は削除。restore の意味論（71 §71.7 pattern、no-create、kind 3 値）は不変。call site の token 変更（`db::` → `backup::` 等）は機械的で許容（「1 文字も変更しない」は意味論不変の趣旨であり、import 経路の追随はその範囲内と裁定）
+- doc 精密化: `cmd-task-specs.md` の「機械検査する」記述に「検査対象は `use crate::db` / `use crate::io` の直接 import 行であり、re-export 経由の間接依存は対象外（検出強化は backlog）」の 1 文を追加する
+- backlog 起票（closeout で Plans.md へ）: architecture_test の re-export 洗浄検出（cmd が biz 経由で db symbol を消費する class）の強化検討
+- 再検証: 是正後に architecture_test / cargo test / bindings diff ゼロを再実行し、Final Reviewer が narrow re-check（shim 移設 diff + restore 本文不変 + gate green）を行う
 
 - 凍結契約 SPEC-CMD11-D1〜D5 の写像・db_err 7→3 裁定・LAYER_EXCEPTIONS の import 行 match 機構・biz/mod.rs 再輸出欠落は実コードと一致確認。Matrix の mutation 注入計画・R3 構造も充足、構造欠陥なし
 - P2（未来形注記 baseline 7→8、43 §43.12:269 の列挙漏れ）: **accept**。Coordinator 実測（計 8 = 1+1+4+1+1）で確認し 6 箇所を是正
