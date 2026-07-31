@@ -39,6 +39,7 @@ When the task touches this project, read in this order:
 - Use `docs/DEV_WORKFLOW.md` `Commit / PR Messages` for commit subjects, PR bodies, and review comments.
 - Agent operating details live in `docs/AGENT_OPERATING_MANUAL.md`.
 - Before Docker tasks, verify `docker info` succeeds in WSL.
+- Plan Packet 内で数値（期間・回数・割合等）を主張するときは、実測コマンドとその出力を併記するか、`未実測` と明示タグ付けする二択のみを使う（D-062、D-059 の内部 deadline 仮置きの教訓）。
 
 ## Decision and Approval Boundaries
 

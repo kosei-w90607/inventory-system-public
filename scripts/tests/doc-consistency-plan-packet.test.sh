@@ -305,6 +305,8 @@ reset_packet_defaults() {
     PKT_INCLUDE_FINDINGS_FREEZE=1
     PKT_INCLUDE_GOAL_INVARIANT=1
     PKT_TRACE_TEST_CELL='`bash` fixture test'
+    PKT_CONTRACT_PROBE_LINE="- fixture premise: verified via fixture experiment -> result ok"
+    PKT_REVIEW_RESPONSE_EXTRA=""
 }
 
 write_packet() {
@@ -397,13 +399,17 @@ write_packet() {
         if [ "$PKT_INCLUDE_CONTRACT_PROBE" = "1" ]; then
             echo "## Contract Probe"
             echo ""
-            echo "- fixture premise: verified via fixture experiment -> result ok"
+            echo "$PKT_CONTRACT_PROBE_LINE"
             echo ""
         fi
         echo "## Review Response"
         echo ""
         if [ "$PKT_INCLUDE_FINDINGS_FREEZE" = "1" ]; then
             echo "- Findings Freeze: frozen after fixture Broad Audit"
+        fi
+        if [ -n "${PKT_REVIEW_RESPONSE_EXTRA:-}" ]; then
+            echo ""
+            echo "$PKT_REVIEW_RESPONSE_EXTRA"
         fi
     } > "$path"
 }
@@ -799,5 +805,68 @@ if ! (cd "$SOURCE_ROOT" && bash scripts/doc-consistency-check.sh > "$tmp/self-pa
     cat "$tmp/self-pass.log" >&2
     fail "実 repository の doc-consistency-check.sh が ERROR"
 fi
+
+# --- 20. D-062 PK6: 数値主張の実測 evidence heuristic（X1 red / X2 green / X3 mutation） ---
+# D-059 round1（未実測、commit 4c4284f）/ round2（実測併記、commit 863c25b）の実文言を
+# Contract Probe へ注入し、Contract Probe の Test Design Matrix X1/X2/X3 と同一実証を
+# スクリプト経由で再現する。
+
+# X1: red fixture（round1 相当、backtick なし）は WARN が発火する
+setup_repo_dirs
+reset_packet_defaults
+PKT_CONTRACT_PROBE_LINE="- P2-1 problem claimをaccept。strict mode + trapによるscript-controlled非0の2正規化と、outer 30秒より短い内部20秒 + kill-after 2秒deadlineを契約・AC・Matrixへ追加した。"
+write_packet "$repo/docs/plans/2026-01-20-pk6-red.md"
+write_plans_md_linking "2026-01-20-pk6-red.md"
+if ! run_check "docs/plans/2026-01-20-pk6-red.md"; then
+    cat "$out" >&2
+    fail "PK6 red fixture が exit code に影響した（WARN-only のはず）"
+fi
+assert_contains "$out" "PK6: docs/plans/2026-01-20-pk6-red.md (R3) の Contract Probe/Review Response に実測 evidence のない数値主張があります"
+
+# X2: green fixture（round2 相当、backtick でコマンド参照あり）は WARN が発火しない
+setup_repo_dirs
+reset_packet_defaults
+PKT_CONTRACT_PROBE_LINE='- checker runtime（同一WSL2 warm state）: `scripts/doc-consistency-check.sh` fullは33.53 / 33.70 / 33.64秒、`--target plan`は20.73 / 20.01秒。'
+write_packet "$repo/docs/plans/2026-01-20-pk6-green.md"
+write_plans_md_linking "2026-01-20-pk6-green.md"
+if ! run_check "docs/plans/2026-01-20-pk6-green.md"; then
+    cat "$out" >&2
+    fail "PK6 green fixture が exit code に影響した"
+fi
+assert_not_contains "$out" "PK6: docs/plans/2026-01-20-pk6-green.md"
+assert_contains "$out" "PK6: 数値主張の実測 evidence 欠落 OK"
+
+# X3: green fixture から backtick span のみを除去した mutant は WARN が発火する（red 化）
+setup_repo_dirs
+reset_packet_defaults
+PKT_CONTRACT_PROBE_LINE="- checker runtime（同一WSL2 warm state）: scripts/doc-consistency-check.sh fullは33.53 / 33.70 / 33.64秒、--target planは20.73 / 20.01秒。"
+write_packet "$repo/docs/plans/2026-01-20-pk6-mutant.md"
+write_plans_md_linking "2026-01-20-pk6-mutant.md"
+if ! run_check "docs/plans/2026-01-20-pk6-mutant.md"; then
+    cat "$out" >&2
+    fail "PK6 mutant fixture が exit code に影響した"
+fi
+assert_contains "$out" "PK6: docs/plans/2026-01-20-pk6-mutant.md (R3) の Contract Probe/Review Response に実測 evidence のない数値主張があります"
+
+# Negative path: Contract Probe セクション自体が無い packet（R2、既存 test #10 と同じ構成 —
+# Contract Probe は R3+ でのみ必須のため R2 では section 自体が欠落しても PK1 拡張は発火しない）
+# は PK6 が skip し、ERROR にも WARN にもならないこと
+setup_repo_dirs
+reset_packet_defaults
+PKT_PHASE="plan-draft"
+PKT_WS_RISK="R2"
+PKT_PLAN_COMMIT="pending"
+PKT_RISK_SECTION="R2"
+PKT_INCLUDE_R3_SECTIONS=0
+PKT_INCLUDE_CONTRACT_PROBE=0
+PKT_INCLUDE_FINDINGS_FREEZE=0
+write_packet "$repo/docs/plans/2026-01-20-pk6-no-section.md"
+write_plans_md_linking "2026-01-20-pk6-no-section.md"
+if ! run_check "docs/plans/2026-01-20-pk6-no-section.md"; then
+    cat "$out" >&2
+    fail "Contract Probe 欠落 packet が PK6 で誤って ERROR/WARN になった"
+fi
+assert_not_contains "$out" "PK6: docs/plans/2026-01-20-pk6-no-section.md"
+assert_contains "$out" "PK6: 数値主張の実測 evidence 欠落 OK"
 
 echo "PASS: doc-consistency-plan-packet"

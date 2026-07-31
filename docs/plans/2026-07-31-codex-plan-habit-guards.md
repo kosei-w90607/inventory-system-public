@@ -258,7 +258,49 @@ Contract ID: SPEC-WF-CPHG
 
 ## Implementation Results
 
-Fill after implementation.
+- `AGENTS.md`（Working Rules に (a) 数値主張二択規則 1 bullet 追加）: `rg -c "実測コマンドとその出力を併記" AGENTS.md` → `1`。
+- `.agents/skills/test-design/SKILL.md`（Rules 節に同趣旨 1 bullet 追加）: `rg -c "未実測" .agents/skills/test-design/SKILL.md` → `1`。
+- `docs/templates/plan-packet.md`（Impact Review Lenses table へ「環境・再現性」行 + Node 24 precedent 引用の注記 1 文を追加）: `rg -n "^\| 環境・再現性 " docs/templates/plan-packet.md` → 149 行ヒット、列数（`|` 4 個）は既存行と同数。
+- `docs/DEV_WORKFLOW.md`（Review Rules へ (c) 条文 1 bullet 追加、R3 review-only default 行の直後）: `rg -c "must be a different vendor than Codex" docs/DEV_WORKFLOW.md` → `1`、`rg -c "Capacity-degraded" docs/DEV_WORKFLOW.md` → `1`。
+- `docs/decision-log.md`（D-062 新設、Decision/Status/Why/Impact/Alternatives considered/Rollback/Revisit の既存フォーマット踏襲）: `rg -c "^## D-062" docs/decision-log.md` → `1`。既存 D-034/D-035/D-038/D-050/D-055/D-056/D-058/D-059 との文言非矛盾を目視確認済み（独立レビューでの再確認は Final Reviewer に委ねる）。
+- `scripts/doc-consistency-check.sh`（`check_plan_packet_numeric_evidence_warnings` を PK3 に隣接する新規関数として追加し、`check_plan_packet_heuristic_warnings` の両呼び出し箇所（`--target plan` モード / 通常 docs チェックモード）に相乗り。WARN-only、`WARNINGS` カウンタのみ加算、exit code 契約は変更なし）。
+- `scripts/tests/doc-consistency-plan-packet.test.sh`（新規 fixture group #20 を追加。X1 red / X2 green / X3 mutation を synthetic packet 経由で再現し、加えて R2 packet での Contract Probe 欠落時の skip 挙動を確認）。`PKT_CONTRACT_PROBE_LINE` / `PKT_REVIEW_RESPONSE_EXTRA` を `reset_packet_defaults` / `write_packet` へ追加（既定値は既存の "fixture premise..." 文言のまま、既存 fixture 群への副作用なし）。
+
+Contract Probe 実証（パターンレベル + スクリプト経由の両方で確認済み）:
+
+- 歴史的 red（D-059 round1、commit `4c4284f`、「outer 30秒より短い内部20秒 + kill-after 2秒deadline」相当、backtick なし）: `rg`によるパターンレベル実測で数値+単位トークン 3 件検出・backtick/未実測なし（Contract Probe 記載どおり）。synthetic packet へ同文言を注入し `bash scripts/doc-consistency-check.sh --target plan` を実行 -> PK6 WARN 発火を確認（exit code 0 のまま）。
+- 歴史的 green（D-059 round2、commit `863c25b`、「checker runtime...33.64秒...20.01秒...」相当、backtick でコマンド参照あり）: パターンレベルで数値+単位トークン 5 件検出・backtick span 2 件あり。synthetic packet へ同文言を注入し実行 -> PK6 WARN 非発火（`PK6: 数値主張の実測 evidence 欠落 OK`）を確認。
+- mutation（green から backtick span のみ除去、数値+単位トークンは維持）: パターンレベル・スクリプト経由の両方で WARN が再発火することを確認（実測コマンド参照を除去すると red 化する mutation 感度が成立）。
+
+Noise 実測（現 active packet 本 packet 自身 + 直近 archive 5 packet、`bash scripts/doc-consistency-check.sh --target plan <file>` を個別実行、各 exit code 0）:
+
+| Packet | PK6 WARN 件数 |
+|---|---|
+| `docs/plans/2026-07-31-codex-plan-habit-guards.md`（本 packet、active） | 2 |
+| `docs/archive/plans/2026-07-31-finite-ipc-enum-impl-pr1.md` | 0 |
+| `docs/archive/plans/2026-07-31-settings-service-boundary-impl.md` | 1 |
+| `docs/archive/plans/2026-07-31-finite-ipc-enum-design.md` | 1 |
+| `docs/archive/plans/2026-07-31-settings-service-boundary-design.md` | 0 |
+| `docs/archive/plans/2026-07-31-claude-hook-contract-audit.md` | 1 |
+| 合計 | 5（6 packet 中） |
+
+全 5 件は Negative Paths に明記済みの既知偽陽性クラス（evidence-backed だが同一行に backtick/未実測 が無いプローズ、例: `settings-service-boundary-impl.md` の「17 件を独立実注入で全 kill 再現」）に一致し、ERROR は 0 件のまま。
+
+Mutation 実注入（Matrix M1/M2/M3a、機械 oracle。各実施後に revert し `git diff --stat` で元通りであることを確認済み）:
+
+| Mutation | 対象 | 実施前 AC | 実施後 AC | 判定 |
+|---|---|---|---|---|
+| M1 | `AGENTS.md` の新規 bullet を一時削除 | `rg -c "実測コマンドとその出力を併記" AGENTS.md` = 1 | 0 | red 化を確認、revert 済み |
+| M2 | `plan-packet.md` の「環境・再現性」行を一時削除 | `rg -n "^\| 環境・再現性 "` = 1 hit | 0 hit | red 化を確認、revert 済み |
+| M3a | `DEV_WORKFLOW.md` の (c) bullet を一時削除 | `must be a different vendor than Codex` = 1、`Capacity-degraded` = 1 | 両方 0 | red 化を確認、revert 済み |
+| M3b/M3c | (c) の `codex-only` 免除除外文 / Capacity-degraded pending fallback の一時削除誤読可能性 | review-only（Matrix 記載どおり） | — | Plan Review round 1 P1 で既に同種の懸念を is accept/是正済み。独立 Plan Reviewer による再確認は Final Reviewer フェーズへ委譲 |
+
+Gate 結果:
+
+- `bash scripts/doc-consistency-check.sh`（full）: exit 0（WARN 2 件、PK6 の既知偽陽性、ERROR 0 件）。
+- `bash scripts/doc-consistency-check.sh --target plan`: exit 0（WARN 2 件、同上、ERROR 0 件）。
+- `bash scripts/tests/doc-consistency-plan-packet.test.sh`: PASS（新規 PK6 fixture group #20 含む全 20 groups）。
+- `mise exec -- bash scripts/local-ci.sh full`: `RESULT=PASS` / `EXIT_CODE=0`（npm-audit の既存 warn-only advisory 5 件は本 PR 非接触の既存 pre-existing dependency 事項、`GATE_EXIT_CODE=1`/`WARN_ONLY_GATE=npm-audit` として PASS に含まれる既定挙動）。
 
 ## Review Response
 

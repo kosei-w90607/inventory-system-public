@@ -1220,6 +1220,46 @@ check_plan_packet_heuristic_warnings() {
     fi
 }
 
+# PK6: Contract Probe / Review Response 内の数値主張に実測 evidence があるかの
+# 構文的 heuristic（D-062）。WARN-only、exit code に影響しない。PK3 の
+# has_acceptance_observable_token と同じ「任意 backtick span で足りる」寛容基準を踏襲する。
+check_plan_packet_numeric_evidence_warnings() {
+    header "PK6: 数値主張の実測 evidence 欠落"
+
+    local before=$WARNINGS
+    local file valid_risk level
+
+    while IFS= read -r file; do
+        [ -n "$file" ] || continue
+        valid_risk=$(get_valid_plan_risk "$file")
+        [ -z "$valid_risk" ] && continue
+        level="${valid_risk#R}"
+
+        local sec
+        for sec in "Contract Probe" "Review Response"; do
+            local section_text
+            section_text=$(extract_markdown_h2_section "$file" "$sec")
+            [ -z "$section_text" ] && continue
+
+            local hits
+            hits=$(printf '%s\n' "$section_text" | grep -nE '[0-9]+(\.[0-9]+)?[[:space:]]*(秒|分|回|件|%)' || true)
+            [ -z "$hits" ] && continue
+
+            while IFS= read -r line; do
+                local content="${line#*:}"
+                if printf '%s' "$content" | grep -qE '`[^`]+`|未実測'; then
+                    continue
+                fi
+                warn "PK6: $file (R${level}) の Contract Probe/Review Response に実測 evidence のない数値主張があります -> $line"
+            done <<< "$hits"
+        done
+    done < <(iter_plan_packet_targets "$@")
+
+    if [ "$WARNINGS" -eq "$before" ]; then
+        info "PK6: 数値主張の実測 evidence 欠落 OK"
+    fi
+}
+
 # --- PK4: Workflow State machine 整合（DEV_WORKFLOW.md Workflow State 節の機械強制） ---
 
 WORKFLOW_STATE_PHASES="kickoff spec-check design plan-draft plan-gate plan-approved implementing local-verified independent-review human-confirm ready-hosted-final merge archive"
@@ -1903,6 +1943,7 @@ if [ "$TARGET_MODE" = "plan" ]; then
     check_plan_packet_sections "${PLAN_FILES[@]}"
     check_plan_packet_substance "${PLAN_FILES[@]}"
     check_plan_packet_heuristic_warnings "${PLAN_FILES[@]}"
+    check_plan_packet_numeric_evidence_warnings "${PLAN_FILES[@]}"
     check_plan_packet_workflow_state "${PLAN_FILES[@]}"
     check_active_plan_goal_invariant
     check_new_wer_retired_rules
@@ -1957,6 +1998,7 @@ else
     check_plan_packet_sections
     check_plan_packet_substance
     check_plan_packet_heuristic_warnings
+    check_plan_packet_numeric_evidence_warnings
     check_plan_packet_workflow_state
     check_active_plan_goal_invariant
     check_new_wer_retired_rules
