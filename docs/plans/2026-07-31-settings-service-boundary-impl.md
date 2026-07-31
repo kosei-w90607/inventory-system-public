@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: implementing
+- Phase: human-confirm
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: 0fd8551f5566000df0ef2c85791eb48d9feb2d27
@@ -11,7 +11,7 @@
 - Writer: Codex (GPT-5.6, owner relay)
 - Plan Reviewer: independent Claude subagent (Sonnet 5)
 - Final Reviewer: independent Claude subagent (Sonnet 5)
-- Reviewed Content HEAD: pending
+- Reviewed Content HEAD: 6b1d0fe82d0ac948c6f6738e3306b26ac6efa59f
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
 - Human Gate: hosted workflow_dispatch + merge 承認（pending）
@@ -333,7 +333,7 @@ Contract ID: SPEC-CMD11-D2, D3, D5（design PR で凍結、本 PR で実装） +
 
 ## Review Response
 
-- Findings Freeze: not yet frozen; post-freeze exceptions: none.
+- Findings Freeze: frozen after Broad Audit; post-freeze exceptions: none.
 
 ### Amendment AMD1（gated、Coordinator 裁定 2026-07-31）
 
@@ -344,6 +344,12 @@ Contract ID: SPEC-CMD11-D2, D3, D5（design PR で凍結、本 PR で実装） +
 - 「文言不変」条項の精密化: **validation 文言（条件・field 込み）は逐語不変**のまま維持。internal 系の汎用文言のみ、対象 4 command の DB 失敗経路に限り標準文言へ統一される
 - test 追随: 旧 message を固定する `test_list_logs_req902_invalid_page_to_cmderror` は標準文言の完全一致 assert へ更新する（弱体化ではなく新契約の同等固定）
 - Final Review 必須観点: message 変更の波及が上記 4 command の DatabaseError 経路のみであること（validation 文言・他 command・restore 系に変化がないこと）を diff で確認する
+
+### Final Review（independent Claude subagent, Sonnet 5。audited = 6b1d0fe）
+
+- mutation X1〜X12 のコード注入型 17 件を独立実注入で全 kill 再現（Writer 表と食い違いなし）。restore 系 6 関数の本文 byte 不変を brace-matching で実証。AMD1 の message 変更は対象 4 command の internal 経路のみを確認
+- 論点 3（biz::restore_support）: Coordinator 裁定 = 不採用（AMD2）。Codex 是正 6b1d0fe を narrow re-check し、mnt lane 移設・意味論不変・gate 全 green・bindings hash 不変を確認、**P1/P2 = 0 確定**
+- reviewer の一時 mutation 注入による stale IDE 診断が発生したが git status clean を一次確認済み（実害なし）
 
 ### Amendment AMD2（gated、Coordinator 裁定 2026-07-31 — Final Review 論点 3）
 
