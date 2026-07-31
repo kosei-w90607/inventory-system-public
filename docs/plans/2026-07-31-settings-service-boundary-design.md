@@ -265,3 +265,10 @@ Contract ID: SPEC-CMD11-D1〜D5
 - P2（ARCHITECTURE.md §5-9 mapping table の `BIZ-01〜BIZ-08` 未整合）: **accept**。§5-9 更新 + biz-task-specs.md BIZ-09 節新設を Scope / SPEC-CMD11-D1 (v) / Ledger / AC / Matrix M14, M16 に追加
 - P3（43 §43.5 エラーハンドリング小節の扱い不明記）: **accept**。「wire contract として存続 + 所有表現書き換え（削除ではない）、M11 委譲」を Ledger に明記
 - round 2 self-audit（Writer 側の同型 premise 全体 sweep で発見、P1 相当）: `cmd-task-specs.md` CMD-11 節が `architecture_test.rs` の `LAYER_EXCEPTIONS` allowlist を根拠に system_repo/image_manager 直呼びを「許可済み例外」として正本化していた（baseline 4 hit）。D-060 (b) と正面矛盾するため cmd-task-specs.md 改訂を Scope へ、allowlist 2 entry 削除を SPEC-CMD11-D5 (vi) へ追加。機械 enforcement の存在は設計にとって好材料（実装 PR 完了後は layer test が D-060 (b) を恒久保証する）
+
+### Plan Review round 3（independent Claude subagent, Sonnet 5, fresh context）
+
+- round 2 是正 + self-audit 反映を全項目実測で確認（M14/M15/M16 baseline 一致、LAYER_EXCEPTIONS 2 entry の文字列表記一致、packet 内数値不一致なし）
+- 同型矛盾の横断走査: io/mnt/ui task-specs と FUNCTION_DESIGN.md 索引に同型記述なし（0 hit）。`LAYER_RULES` の cmd→mnt 無制限は Ledger の D-060 (a) non-scope 宣言と整合（機械 enforcement 拡張は本 change の主張に含まれない）。90-traceability.md は task-specs を入力に含まず再生成不要を実証
+- 新規 P1/P2 = 0。**plan-approved 進行可の判定**
+- P3（Plans.md の `0-2.` 番号が repo 前例なし）: **accept**。リナンバーの参照波及を避け、項目 0 内の継続段落へ統合する形で解消
