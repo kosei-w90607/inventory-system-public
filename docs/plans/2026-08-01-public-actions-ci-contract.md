@@ -25,6 +25,7 @@ Narrative (append-only):
 - 2026-08-01 wiring correction -> plan-draft -> plan-gate: Registration / Main Wiring / Matrix / D-063 を実配線へ訂正した。current guard は `scripts/tests/ci-workflow.test.sh` を `scripts/local-ci.sh full` から実行する L1 local-only 契約であり、hosted docs job はこの check を実行しない。hosted 側の docs contract 実防御が必要になった場合は `scripts/doc-consistency-check.sh` へ統合する別 R3 change を起票する。訂正内容を external Claude Sonnet 5 の fresh re-Plan Review に戻す。
 - 2026-08-01 fresh re-Plan Review closure: external Claude Sonnet 5 reviewed exact content HEAD `297066b` and reported `P1=0 / P2=0 / P3=0`。L1 local-only registration、hosted未配線、別R3の `doc-consistency-check.sh` 統合、hosted finalをguard実行証拠と扱わない境界、workflow YAML zero-diff、state-backtrack / `Amendments: none` の妥当性を独立再確認した。plan-gate -> plan-approved -> implementing をこの state-only commit で materialize し、退避中のTDD実装を復元して再開する。
 - 2026-08-01 implementation evidence-ownership correction: `Reviewed Content HEAD` は Plan Review HEAD ではなく Final Reviewer が監査した実装 content HEAD を後続 state-only commit で記録する field のため、Plan Review の `297066b` は上記 Narrative に保持し、field は `pending` へ戻した。
+- 2026-08-01 Final Double Audit initial result: Pass 1 / Pass 2 統合で `P1=0 / P2=1 / P3=2`。P2 は accept。`e7fe55a` が Plan Review HEAD を `Reviewed Content HEAD` へ誤記し、`cff8a7e` が通常 content commit で `pending` へ戻したため、DEV_WORKFLOW の「Final Reviewer 後の state-only transition commit だけがこの field を書く」契約に二重に違反した。履歴上の違反を隠さず本記録で受理し、field は `pending` のまま維持する。closure と owner Ready authorization が揃うまで forward state commit を増やさず、その後 `implementing -> local-verified -> independent-review -> human-confirm -> ready-hosted-final` を残る 1 state-only commit へ圧縮し、そこで初めて audited content HEAD を記録する。
 
 ## Owner Effort Budget
 
@@ -268,7 +269,10 @@ Contract ID: SPEC-WF-CI-PUBLIC-D1
 
 ## Review Response
 
-- Findings Freeze: not yet frozen; post-freeze exceptions: none.
+- Findings Freeze: pending P2 closure; post-freeze exceptions: none.
+- P2-1 `Reviewed Content HEAD` write mechanism violation: accepted。現在値 `pending` は正しいが、`e7fe55a` / `cff8a7e` の書込み経路違反は事実。本 append-only audit record、closure再確認、次回の正規 state-only transition まで field 非変更を最小是正とする。
+- P3-1 M4 evidence wording: accepted as non-blocking residual。M4 は archiveを意味解析して識別する能力ではなく、validatorが明示された5 live-doc pathだけを入力とし archiveを走査しない構造を確認する test と位置づける。実装変更は行わない。
+- P3-2 lexical guard paraphrase gap: accepted as non-blocking residual。有限の禁止語彙 guard は意味的な言い換えを完全検出しない。source-doc review / Contract Auditを残し、絶対保証とは扱わない。実装変更は行わない。
 - Plan Review round 1: external Claude Sonnet 5 -> `P1=0 / P2=2 / P3=1`。
 - P2-1 accepted / corrected: CI-TRIGGER-D1 recovery row は event-eligible auto run 限定をやめ、required final の automatic run / explicit dispatch の missing / failed / cancelled を共通収容する。
 - P2-2 accepted / corrected: single M2 を M2a〜M2d に分割し、4 state の各弱体化を独立 mutation で検出する。

@@ -114,7 +114,7 @@
 
 ## 次の行動
 
-- **並行中: CI public Actions contract 実装候補の検証** — [active Packet](plans/2026-08-01-public-actions-ci-contract.md) / [Matrix](plans/test-matrices/2026-08-01-public-actions-ci-contract.md)。L1 local-only static / mutation guardを実装し、Node 24.18.0 pinでL1 full pass。実装commit後のexact clean HEADでL1を再実行し、Sonnet 5 Final Double Auditへ渡す。workflow YAML、required checks、self-hosted、2026-08-05以降のnpm change Bは別change。
+- **並行中: CI public Actions contract Final Double Audit closure** — [active Packet](plans/2026-08-01-public-actions-ci-contract.md) / [Matrix](plans/test-matrices/2026-08-01-public-actions-ci-contract.md)。実装candidate `cff8a7e` はexact clean L1 full pass。Double Audit統合結果P1=0/P2=1/P3=2のうち、`Reviewed Content HEAD` write mechanism P2をacceptしてappend-only受理記録を追加、P3二件はnon-blocking residual。closure P1/P2=0とowner Ready承認後、残る1 state-only commitへpost-implementation遷移を圧縮する。workflow YAML、required checks、self-hosted、2026-08-05以降のnpm change Bは別change。
 - **follow-up（別R3）: hosted CI docs contract guard** — hosted側で実防御が必要になった時点で、CI-PUBLIC-D1 / CI-TRIGGER-D1 guard を `scripts/doc-consistency-check.sh` へ統合する。今回の `ci-workflow.test.sh` guard は L1 `local-ci.sh full` 限定。
 
 0. **次: 順14 実装 PR2（domain family (2)〜(14)、Codex 発注、監査是正の最終単位）**: PR1 は **PR #52 squash merge `2a1777e`（2026-07-31）で完了**（[archived Packet](archive/plans/2026-07-31-finite-ipc-enum-impl-pr1.md) / [Matrix](archive/plans/test-matrices/2026-07-31-finite-ipc-enum-impl-pr1.md)）。**PR2 packet 起草時の必須引継ぎ = SPEC-P41-D5 (v) の family (11) nullable filter probe を Contract Probe / Ledger へ転記（PR1 rally round 1 P2-2 で凍結）**。
