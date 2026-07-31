@@ -174,6 +174,7 @@ pub fn complete_stocktake(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::cmd::CmdErrorKind;
     use crate::db::test_support::{seed_product, setup_test_db};
     use std::collections::HashMap;
     use std::sync::Mutex;
@@ -220,7 +221,7 @@ mod tests {
 
             let err = update_count(app.state::<AppState>(), item_id, count).unwrap_err();
 
-            assert_eq!(err.kind, "validation");
+            assert_eq!(err.kind, CmdErrorKind::Validation);
             assert_eq!(err.message, "カウント数は0以上で入力してください");
             assert_eq!(err.field, None);
         }
@@ -253,7 +254,7 @@ mod tests {
         let err = get_stocktake_items(app.state::<AppState>(), stocktake_id, None, None, 0, 50)
             .unwrap_err();
 
-        assert_eq!(err.kind, "validation");
+        assert_eq!(err.kind, CmdErrorKind::Validation);
         assert_eq!(err.message, "ページ番号は1以上で指定してください");
         assert_eq!(err.field.as_deref(), Some("page"));
     }
@@ -270,7 +271,7 @@ mod tests {
         let err = get_stocktake_items(app.state::<AppState>(), stocktake_id, None, None, 1, 0)
             .unwrap_err();
 
-        assert_eq!(err.kind, "validation");
+        assert_eq!(err.kind, CmdErrorKind::Validation);
         assert_eq!(err.message, "1ページあたりの件数は1以上で指定してください");
         assert_eq!(err.field.as_deref(), Some("per_page"));
     }

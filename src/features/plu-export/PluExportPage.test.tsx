@@ -450,7 +450,7 @@ describe("PluExportPage (UI-08 / REQ-402)", () => {
     mockPreparePluExport.mockResolvedValue({
       status: "error",
       error: {
-        kind: "ValidationFailed",
+        kind: "validation",
         message: "スキャニングPLU上限の4,784件を超えています",
         field: null,
         error_id: null,

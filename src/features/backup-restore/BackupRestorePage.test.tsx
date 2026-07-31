@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { commands } from "@/lib/bindings";
+import type { CmdErrorKind } from "@/lib/bindings";
 import { open } from "@tauri-apps/plugin-dialog";
 import { BackupRestorePage } from "./BackupRestorePage";
 
@@ -47,7 +48,7 @@ function ok<T>(data: T) {
   return { status: "ok" as const, data };
 }
 
-function cmdError(message: string, kind = "internal", errorId: string | null = null) {
+function cmdError(message: string, kind: CmdErrorKind = "internal", errorId: string | null = null) {
   return {
     status: "error" as const,
     error: { kind, message, field: null, error_id: errorId },
@@ -223,19 +224,22 @@ describe("BackupRestorePage (UI-11b / QR-05 / REQ-905)", () => {
     ],
     ["restore_failed_unrecoverable", "再起動が必要です"],
     ["restore_durability_unknown", "復元結果を確認できませんでした"],
-  ])("REQ-700 68 §68.7 shows error_id for %s as a separate element", async (kind, text) => {
-    const user = userEvent.setup();
-    mockRestoreBackup.mockResolvedValueOnce(
-      cmdError("synthetic restore detail", kind, "E-20260726-153021-a1b2"),
-    );
+  ] as const)(
+    "REQ-700 68 §68.7 shows error_id for %s as a separate element",
+    async (kind, text) => {
+      const user = userEvent.setup();
+      mockRestoreBackup.mockResolvedValueOnce(
+        cmdError("synthetic restore detail", kind, "E-20260726-153021-a1b2"),
+      );
 
-    renderWithClient(<BackupRestorePage />);
-    await startRestoreConfirmation(user);
-    await user.click(screen.getByRole("button", { name: "7月3日 21:00 の控えに戻す" }));
+      renderWithClient(<BackupRestorePage />);
+      await startRestoreConfirmation(user);
+      await user.click(screen.getByRole("button", { name: "7月3日 21:00 の控えに戻す" }));
 
-    expect(await screen.findByText(text)).toBeInTheDocument();
-    expect(screen.getByText("（エラーID: E-20260726-153021-a1b2）")).toBeInTheDocument();
-  });
+      expect(await screen.findByText(text)).toBeInTheDocument();
+      expect(screen.getByText("（エラーID: E-20260726-153021-a1b2）")).toBeInTheDocument();
+    },
+  );
 
   it("QR-05 REQ-905 shows restart guidance and disables operations on double failure", async () => {
     const user = userEvent.setup();

@@ -3,7 +3,11 @@
 // tauri-specta 経路（src/lib/bindings.ts の commands.*）向けエラー helper。
 // ADR-004 §2.1。Phase 2 closeout で fallback 経路は撤去済み。
 
-import type { CmdError } from "./bindings";
+import type { CmdError, CmdErrorKind } from "./bindings";
+
+type CmdErrorKindMap = {
+  [Kind in CmdErrorKind as Uppercase<Kind>]: Kind;
+};
 
 export const CMD_ERROR_KIND = {
   VALIDATION: "validation",
@@ -11,12 +15,16 @@ export const CMD_ERROR_KIND = {
   DUPLICATE: "duplicate",
   INTERNAL: "internal",
   IMPORT_ERROR: "import_error",
+  EXPORT_ERROR: "export_error",
   IDEMPOTENCY_CONFLICT: "idempotency_conflict",
   STOCKTAKE_IN_PROGRESS: "stocktake_in_progress",
   STOCKTAKE_NOT_IN_PROGRESS: "stocktake_not_in_progress",
-} as const;
+  RESTORE_FAILED_RECOVERED: "restore_failed_recovered",
+  RESTORE_FAILED_UNRECOVERABLE: "restore_failed_unrecoverable",
+  RESTORE_DURABILITY_UNKNOWN: "restore_durability_unknown",
+} as const satisfies CmdErrorKindMap;
 
-export type CmdErrorKind = (typeof CMD_ERROR_KIND)[keyof typeof CMD_ERROR_KIND];
+export type { CmdErrorKind } from "./bindings";
 
 export type InvokeSource = "commands";
 

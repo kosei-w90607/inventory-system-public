@@ -46,6 +46,7 @@ pub fn fix_integrity(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::cmd::CmdErrorKind;
     use crate::db::test_support::setup_test_db;
     use std::collections::HashMap;
     use std::sync::Mutex;
@@ -70,7 +71,7 @@ mod tests {
 
         let err = fix_integrity(app.state::<AppState>(), vec![]).unwrap_err();
 
-        assert_eq!(err.kind, "validation");
+        assert_eq!(err.kind, CmdErrorKind::Validation);
         assert_eq!(err.message, "補正対象の商品が指定されていません");
         assert_eq!(err.field, None);
     }

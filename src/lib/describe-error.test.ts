@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { CmdError } from "./bindings";
+import type { CmdError, CmdErrorKind } from "./bindings";
 import { describeError } from "./describe-error";
 import { InvokeError } from "./invoke";
 
@@ -35,7 +35,7 @@ describe("describeError (REQ-700 / UI-ERR-D1)", () => {
     );
   });
 
-  it.each(["validation", "export_error", "unknown_kind"])(
+  it.each(["validation", "export_error"] as const satisfies readonly CmdErrorKind[])(
     "passes through the message for %s",
     (kind) => {
       const error = invokeError({
@@ -48,6 +48,17 @@ describe("describeError (REQ-700 / UI-ERR-D1)", () => {
       expect(describeError(error)).toBe("独立転記した利用者向けメッセージ");
     },
   );
+
+  it("passes through the message for a legacy unknown kind payload", () => {
+    const error = invokeError({
+      kind: "unknown_kind",
+      message: "独立転記した利用者向けメッセージ",
+      field: null,
+      error_id: null,
+    } as unknown as CmdError);
+
+    expect(describeError(error)).toBe("独立転記した利用者向けメッセージ");
+  });
 
   it("uses the caller fallback for a non-command error", () => {
     expect(describeError(new Error("raw browser detail"), "処理を完了できませんでした")).toBe(

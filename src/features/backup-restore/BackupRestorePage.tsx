@@ -38,7 +38,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { commands, type AppSetting, type BackupInfo, type BackupResult } from "@/lib/bindings";
+import {
+  commands,
+  type AppSetting,
+  type BackupInfo,
+  type BackupResult,
+  type CmdErrorKind,
+} from "@/lib/bindings";
 import { describeError } from "@/lib/describe-error";
 import { isInvokeError, unwrapResult } from "@/lib/invoke";
 import { queryKeys } from "@/lib/query-keys";
@@ -69,7 +75,7 @@ function formatBackupSize(sizeBytes: number): string {
   return `${(sizeBytes / 1_000_000).toFixed(1)} MB`;
 }
 
-function restoreErrorKind(error: unknown): string | null {
+function restoreErrorKind(error: unknown): CmdErrorKind | null {
   return isInvokeError(error) ? error.cmdError.kind : null;
 }
 
@@ -103,9 +109,10 @@ export function BackupRestorePage() {
   const [isUpdatingSetting, setIsUpdatingSetting] = useState(false);
   const [isRunningPreBackup, setIsRunningPreBackup] = useState(false);
   const [isRestoring, setIsRestoring] = useState(false);
-  const [fatalRestoreKind, setFatalRestoreKind] = useState<
-    "restore_failed_unrecoverable" | "restore_durability_unknown" | null
-  >(null);
+  const [fatalRestoreKind, setFatalRestoreKind] = useState<Extract<
+    CmdErrorKind,
+    "restore_failed_unrecoverable" | "restore_durability_unknown"
+  > | null>(null);
 
   const settingsQuery = useQuery({
     queryKey: queryKeys.backupRestore.settings(),

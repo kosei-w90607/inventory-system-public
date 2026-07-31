@@ -6,7 +6,7 @@
 use crate::biz::{
     self, AppSetting, BizError, DbConnection, DbError, OperationLog, PaginatedResult,
 };
-use crate::cmd::{AppState, CmdError};
+use crate::cmd::{AppState, CmdError, CmdErrorKind};
 use crate::mnt::backup;
 use base64::{engine::general_purpose, Engine as _};
 use std::path::PathBuf;
@@ -308,7 +308,7 @@ fn save_receipt_image_with_runtime<R: tauri::Runtime>(
     let image_bytes = general_purpose::STANDARD
         .decode(&request.image_base64)
         .map_err(|_| CmdError {
-            kind: "validation".to_string(),
+            kind: CmdErrorKind::Validation,
             message: "画像データが不正です".to_string(),
             field: None,
             error_id: None,
@@ -373,7 +373,7 @@ mod tests {
 
         let error = get_backup_dir(&conn, app.handle()).unwrap_err();
 
-        assert_eq!(error.kind, "internal");
+        assert_eq!(error.kind, CmdErrorKind::Internal);
         assert_eq!(error.message, "データベース処理でエラーが発生しました");
         assert!(!error.message.contains("backup_path"));
         assert!(error.error_id.is_some());
@@ -630,7 +630,7 @@ mod tests {
         )
         .unwrap_err();
 
-        assert_eq!(error.kind, "validation");
+        assert_eq!(error.kind, CmdErrorKind::Validation);
         assert_eq!(error.message, "画像データが不正です");
         assert_eq!(error.field, None);
     }
@@ -703,7 +703,7 @@ mod tests {
         )
         .unwrap_err();
 
-        assert_eq!(cmd_err.kind, "validation");
+        assert_eq!(cmd_err.kind, CmdErrorKind::Validation);
         assert_eq!(
             cmd_err.message,
             "不正な画像拡張子: bmp（許可: jpg, jpeg, png, gif, webp）"
@@ -750,7 +750,7 @@ mod tests {
         )
         .unwrap_err();
 
-        assert_eq!(cmd_err.kind, "internal");
+        assert_eq!(cmd_err.kind, CmdErrorKind::Internal);
         assert_eq!(
             cmd_err.message,
             "データベースエラーが発生しました。もう一度お試しください"
@@ -767,7 +767,7 @@ mod tests {
         // 実際の init_database 失敗は再現困難なため、エラーメッセージの構築を直接テスト
         let cmd_err =
             terminal_restore_error(backup::RestoreError::Unrecoverable("fixture".to_string()));
-        assert_eq!(cmd_err.kind, "restore_failed_unrecoverable");
+        assert_eq!(cmd_err.kind, CmdErrorKind::RestoreFailedUnrecoverable);
         assert!(
             cmd_err.message.contains("再起動"),
             "再起動メッセージが含まれるべき: {}",
@@ -786,9 +786,9 @@ mod tests {
         let unknown = terminal_restore_error(backup::RestoreError::DurabilityUnknown(
             "same message".to_string(),
         ));
-        assert_eq!(recovered.kind, "restore_failed_recovered");
-        assert_eq!(fatal.kind, "restore_failed_unrecoverable");
-        assert_eq!(unknown.kind, "restore_durability_unknown");
+        assert_eq!(recovered.kind, CmdErrorKind::RestoreFailedRecovered);
+        assert_eq!(fatal.kind, CmdErrorKind::RestoreFailedUnrecoverable);
+        assert_eq!(unknown.kind, CmdErrorKind::RestoreDurabilityUnknown);
         assert_eq!(
             unknown.message,
             "復元が完了したか確定できませんでした。アプリを再起動してください。"
@@ -806,7 +806,7 @@ mod tests {
             &missing,
             backup::RestoreError::Recovered("injected rollback result".to_string()),
         );
-        assert_eq!(error.kind, "restore_failed_unrecoverable");
+        assert_eq!(error.kind, CmdErrorKind::RestoreFailedUnrecoverable);
         assert!(error.message.contains("再起動"));
         assert!(!missing.exists(), "CMD recovery must use NO_CREATE open");
     }
@@ -828,7 +828,8 @@ mod tests {
         let test_err = db::DbError::QueryFailed("テストエラー".to_string());
         let cmd_err = super::db_err(test_err);
         assert_eq!(
-            cmd_err.kind, "internal",
+            cmd_err.kind,
+            CmdErrorKind::Internal,
             "DbError は internal に変換されるべき"
         );
         assert_eq!(cmd_err.message, "データベース処理でエラーが発生しました");

@@ -5,7 +5,7 @@
 use crate::biz::plu_export_service::{
     self, ExportMode, PluExcludedReason, PluExportConfirmRequest, PluExportPrepareRequest,
 };
-use crate::cmd::{AppState, CmdError};
+use crate::cmd::{AppState, CmdError, CmdErrorKind};
 use base64::{engine::general_purpose, Engine as _};
 use tauri::State;
 
@@ -75,7 +75,7 @@ fn parse_export_mode(mode: &str) -> Result<ExportMode, CmdError> {
         "full" => Ok(ExportMode::Full),
         "diff" => Ok(ExportMode::Diff),
         _ => Err(CmdError {
-            kind: "validation".to_string(),
+            kind: CmdErrorKind::Validation,
             message: "書出しモードは 'full' または 'diff' を指定してください".to_string(),
             field: Some("mode".to_string()),
             error_id: None,
