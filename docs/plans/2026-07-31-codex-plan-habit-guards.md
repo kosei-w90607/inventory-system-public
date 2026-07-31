@@ -2,10 +2,10 @@
 
 ## Workflow State
 
-- Phase: plan-draft
+- Phase: plan-gate
 - Risk: R3
 - Execution Mode: fable-window（未確認 — 本 Packet は drafting subagent が起票したもので live vendor slot 可用性を独立確認できない。Plan Gate 時に Coordinator が実確認して確定する。これは本 Packet 自身が導入する「数値・状態主張は実測か明示未確認タグの二択」規律のドッグフーディングでもある）
-- Plan Commit: pending
+- Plan Commit: c437897744ac445c1aa2069cbbd90a025b7b6256
 - Amendments: none
 - Coordinator: Claude (Fable 5 相当、main session。実際の起票は Sonnet 5 drafting subagent、Coordinator 裁定は発注元)
 - Writer: Claude subagent (Sonnet 5)
