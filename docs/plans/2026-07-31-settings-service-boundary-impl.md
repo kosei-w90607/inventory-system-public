@@ -297,6 +297,16 @@ Contract ID: SPEC-CMD11-D2, D3, D5（design PR で凍結、本 PR で実装） +
 
 - Findings Freeze: not yet frozen; post-freeze exceptions: none.
 
+### Amendment AMD1（gated、Coordinator 裁定 2026-07-31）
+
+**契約衝突の解消（SPEC-CMD11-IMPL-D4 として追加）**: Writer（Codex）が fail-closed 停止で報告した衝突 — settings/log 4 command を `From<BizError>` 一元変換へ復帰させると、DB 失敗経路の internal message が旧 `db_err` の「データベース処理でエラーが発生しました」から標準の「データベースエラーが発生しました。もう一度お試しください」へ変わり、「kind/message/field 文言不変」と両立しない — を次のとおり裁定する:
+
+- **`From<BizError>` を優先**し、settings/log 4 command の DatabaseError（internal）経路の message は標準文言へ統一されることを本 Amendment で明示的に許可する
+- 根拠: (i) 専用変換の温存は D-060 が排除した独自変換経路（監査 P2-1）の再導入で本是正の目的に反する、(ii) message は分岐契約ではない（順8 / D-053 で frontend の message 分岐は禁止済み、分岐は kind のみ。bindings diff ゼロ契約に影響なし）、(iii) 変更後は他 command と同一の標準 DB 失敗文言になり operator 表示は app 全体で一貫する
+- 「文言不変」条項の精密化: **validation 文言（条件・field 込み）は逐語不変**のまま維持。internal 系の汎用文言のみ、対象 4 command の DB 失敗経路に限り標準文言へ統一される
+- test 追随: 旧 message を固定する `test_list_logs_req902_invalid_page_to_cmderror` は標準文言の完全一致 assert へ更新する（弱体化ではなく新契約の同等固定）
+- Final Review 必須観点: message 変更の波及が上記 4 command の DatabaseError 経路のみであること（validation 文言・他 command・restore 系に変化がないこと）を diff で確認する
+
 ### Plan Review round 1（independent Claude subagent, Sonnet 5, fresh context）
 
 - 凍結契約 SPEC-CMD11-D1〜D5 の写像・db_err 7→3 裁定・LAYER_EXCEPTIONS の import 行 match 機構・biz/mod.rs 再輸出欠落は実コードと一致確認。Matrix の mutation 注入計画・R3 構造も充足、構造欠陥なし
