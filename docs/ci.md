@@ -42,7 +42,7 @@ CI-TRIGGER-D1: completed HEAD ごとに normal path の successful final は 1 r
 |---|---|---|
 | non-doc を含む event-eligible change | owner が Draft から Ready にする。Ready のまま更新された例外経路は `synchronize` | dispatch しない |
 | `paths-ignore` 対象だが hosted-required の workflow / release contract docs-only change | owner が Ready にした後、自動 run が作られていないことを確認して `workflow_dispatch` | 同一 HEAD の run が 0 件であること |
-| event-eligible だが自動 run が作成されない、失敗、または cancel | 原因を確認・是正した後の recovery として `workflow_dispatch` | 同一 HEAD に successful run がないこと |
+| required final の自動 run または explicit dispatch が作成されない、失敗、または cancel | 原因を確認・是正した後の recovery として `workflow_dispatch` | 同一 HEAD に successful / in-progress run がないこと |
 | 同一 HEAD に successful final が既にある | 既存 run を evidence に使う | Ready の再操作も dispatch も行わない |
 
 確認例は [Stale Green Prevention](#stale-green-prevention) の exact-HEAD query を使う。別 event の run が同時進行中なら、完了または cancel を確認してから recovery の要否を判断する。

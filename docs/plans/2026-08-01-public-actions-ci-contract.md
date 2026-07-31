@@ -19,6 +19,7 @@
 Narrative (append-only):
 
 - 2026-08-01 kickoff -> spec-check -> design -> plan-draft -> plan-gate: owner は CI reality audit と現状に沿わない source-doc 記述の一括是正を承認した。GitHub 公式 contract、repository visibility、workflow runner class、recent run history、cache usage、branch protection / ruleset を read-only 実測し、D-063 / CI-PUBLIC-D1 / CI-TRIGGER-D1 を source docs に起草した。implementation は Plan Review 後の static / mutation regression test 追加だけで、workflow YAML は変更しない。
+- 2026-08-01 Plan Review round 1: external Claude Sonnet 5 report -> `P1=0 / P2=2 / P3=1`。P2-1（explicit dispatch failure/cancel が trigger table の recovery row から漏れる）と P2-2（4 state に対して mutation が already-successful 1 state のみ）を accept。recovery row を automatic / explicit 共通へ広げ、M2a〜M2d を state ごとに追加した。P3 の HEAD SHA concurrency 案は「未比較」を accept して D-063 Alternatives / Revisit へ記録したが、現行 PR-number key の cross-HEAD cancellation を失い sequential duplicate も防げないため YAML change は reject/defer。Phase は plan-gate のまま fresh re-review を要求する。
 
 ## Owner Effort Budget
 
@@ -90,7 +91,7 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 - `rg -n 'CI-PUBLIC-D1|CI-TRIGGER-D1' docs/ci.md docs/DEV_WORKFLOW.md docs/decision-log.md` が live source contract の参照を返す。
 - `rg -n '75%|90%|月間 billed minutes|枠 reset' docs/ci.md docs/DEV_WORKFLOW.md Plans.md docs/PROJECT_HANDOFF.md` が 0 hit。
 - `bash scripts/tests/ci-workflow.test.sh` が baseline と public-doc mutation fixtures を含めて `PASS: ci-workflow` / exit 0。
-- private quota 文言の再導入、trigger table の required row 除去、Actions-unavailable route の除去を行う synthetic mutation `M1` / `M2` / `M3` がそれぞれ validator で non-zero。
+- private quota 文言の再導入、trigger table 4 state の個別弱体化、Actions-unavailable route の除去を行う synthetic mutation `M1` / `M2a`〜`M2d` / `M3` がそれぞれ validator で non-zero。
 - archive に private-era wording が残っていても validator の `M4 archive exclusion` は pass する。
 - `git diff -- .github/workflows/ci.yml .github/workflows/npm-security-monitor.yml` が empty。
 - `bash scripts/doc-consistency-check.sh --target plan docs/plans/2026-08-01-public-actions-ci-contract.md` と `bash scripts/doc-consistency-check.sh` が exit 0。
@@ -130,7 +131,7 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 | Spec / requirement ID | Source design doc section | Decision ID | Why / rejected alternatives | Implementation target | Test target |
 |---|---|---|---|---|---|
 | SPEC-WF-CI-PUBLIC-D1 | `docs/ci.md` Public Standard-Runner Policy | D-063-D1 | public standard runner に private quota gate を残さない。棄却: self-hosted / larger runner は費用・security boundary を増やす | live CI docs | `validate_public_actions_doc_contract` / M1 |
-| SPEC-WF-CI-TRIGGER-D1 | `docs/ci.md` Final Trigger Selection | D-063-D2 | trigger intent を HEAD state ごとに一意化。棄却: YAML 単独で future event intent を推測する | live CI docs | `validate_public_actions_doc_contract` / M2 |
+| SPEC-WF-CI-TRIGGER-D1 | `docs/ci.md` Final Trigger Selection | D-063-D2 | trigger intent を HEAD state ごとに一意化。棄却: YAML 単独で future event intent を推測する / HEAD SHA concurrency 単独化（cross-HEAD cancellation を失い sequential duplicate は残る） | live CI docs | `validate_public_actions_doc_contract` / M2a〜M2d |
 | SPEC-WF-CI-AVAIL-D1 | `docs/ci.md` Public Standard-Runner Policy | D-063-D3 | billing-free と service availability を分離し closed exception を維持 | live CI docs | `validate_public_actions_doc_contract` / M3 |
 | SPEC-WF-CI-HISTORY-D1 | `docs/decision-log.md` D-033 / D-063 | D-063-D4 | historical rationale は非遡及。current instructions だけ guard | validator file allowlist | M4 |
 | SPEC-WF-CI-YAML-D1 | `.github/workflows/ci.yml` | D-063-D5 | observed duplicates は運用順で説明可能。YAML/job graph は不変 | none | existing `validate_workflow_contract` + zero diff |
@@ -172,7 +173,7 @@ Minimum design checks:
 - Command / DTO / data contract: 該当なし。
 - Persistence / transaction / audit impact: 該当なし。
 - Operator workflow / Japanese UI wording: product UI 非接触。repository owner の trigger workflow のみ。
-- Error, empty, retry, and recovery behavior: missing / failed / cancelled auto run の recovery と already-successful no-op を CI-TRIGGER-D1 に定義。
+- Error, empty, retry, and recovery behavior: missing / failed / cancelled の automatic run と explicit dispatch を同じ recovery state に収容し、already-successful no-op と in-progress wait を CI-TRIGGER-D1 に定義。
 - Testability and traceability IDs: SPEC-WF-CI-PUBLIC-D1 / TRIGGER-D1 / AVAIL-D1 / HISTORY-D1 / YAML-D1。
 
 ## Contract Probe
@@ -191,7 +192,7 @@ Minimum design checks:
 | Design contract / decision ID | Implementation target | Automated test | L3 or non-scope |
 |---|---|---|---|
 | D-063-D1 / CI-PUBLIC-D1 | `docs/ci.md`, `docs/DEV_WORKFLOW.md`, dashboard / handoff | `validate_public_actions_doc_contract`, M1 | L3 not applicable |
-| D-063-D2 / CI-TRIGGER-D1 | `docs/ci.md` trigger table + DEV_WORKFLOW summary | validator, M2 | owner Ready/dispatch remains Human Gate |
+| D-063-D2 / CI-TRIGGER-D1 | `docs/ci.md` trigger table + DEV_WORKFLOW summary | validator, M2a〜M2d | owner Ready/dispatch remains Human Gate |
 | D-063-D3 / Actions unavailable | `docs/ci.md` closed routes | validator, M3 | actual outage disposition remains Human Gate |
 | D-063-D4 / history boundary | validator live-doc allowlist | M4 | archive non-scope |
 | D-063-D5 / YAML unchanged | no workflow YAML implementation | existing `validate_workflow_contract`, workflow zero diff | required checks / job topology non-scope |
@@ -203,7 +204,7 @@ Adjacent-contract sweep: touched `docs/ci.md` sections Hosted Trigger Model / Ri
 Test Design Matrix: [test-matrices/2026-08-01-public-actions-ci-contract.md](test-matrices/2026-08-01-public-actions-ci-contract.md)
 
 - targeted tests: `bash scripts/tests/ci-workflow.test.sh`; `bash scripts/doc-consistency-check.sh --target plan docs/plans/2026-08-01-public-actions-ci-contract.md`。
-- negative tests: M1 private quota wording、M2 trigger row removal、M3 availability route removal。
+- negative tests: M1 private quota wording、M2a event-eligible pre-emptive dispatch、M2b event-filtered zero-run prerequisite removal、M2c automatic / explicit recovery weakening、M2d already-successful no-op removal、M3 availability route removal。
 - compatibility checks: existing workflow trigger/job/cache validator; workflow YAML zero diff; M4 archive wording non-input。
 - data safety checks: `git status --short`; `.local/` / gh cache / run log 非追跡。
 - main wiring/integration checks: `bash scripts/local-ci.sh full` before Final Review / Ready; hosted exact-HEAD final after owner authorization。
@@ -236,7 +237,7 @@ Contract ID: SPEC-WF-CI-PUBLIC-D1
 | Spec ID | Plan Step | Test | Review Focus | Evidence |
 |---|---|---|---|---|
 | SPEC-WF-CI-PUBLIC-D1 | live docs + D-063 | validator / M1 | billing fact / larger-runner exception | official docs + visibility / runs-on probe |
-| SPEC-WF-CI-TRIGGER-D1 | trigger table | validator / M2 | state exclusivity / recovery | duplicate-run probe |
+| SPEC-WF-CI-TRIGGER-D1 | trigger table | validator / M2a〜M2d | state exclusivity / automatic+explicit recovery | duplicate-run probe |
 | SPEC-WF-CI-AVAIL-D1 | closed routes | validator / M3 | fail-closed preservation | source diff + test output |
 | SPEC-WF-CI-HISTORY-D1 | validator allowlist | M4 | archive non-retroactivity | mutation fixture |
 | SPEC-WF-CI-YAML-D1 | no YAML edit | existing workflow tests | no unsupported scope | zero diff + full gate |
@@ -255,4 +256,8 @@ Plan Gate 前のため未実装。source contract draft と Plan / Matrix のみ
 ## Review Response
 
 - Findings Freeze: not yet frozen; post-freeze exceptions: none.
-- Plan Review: pending Claude Sonnet 5 fresh-context review。
+- Plan Review round 1: external Claude Sonnet 5 -> `P1=0 / P2=2 / P3=1`。
+- P2-1 accepted / corrected: CI-TRIGGER-D1 recovery row は event-eligible auto run 限定をやめ、required final の automatic run / explicit dispatch の missing / failed / cancelled を共通収容する。
+- P2-2 accepted / corrected: single M2 を M2a〜M2d に分割し、4 state の各弱体化を独立 mutation で検出する。
+- P3 problem claim accepted, proposed YAML fix rejected/deferred: HEAD SHA concurrency 案を D-063 Alternatives / Revisit で比較した。cross-HEAD cancellation 退行と sequential duplicate 非解消のため本 change では YAML を変えない。
+- Re-review: pending Claude Sonnet 5 fresh-context closure; implementation remains blocked until `P1/P2=0`。

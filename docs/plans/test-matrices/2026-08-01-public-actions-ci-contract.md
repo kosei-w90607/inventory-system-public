@@ -16,6 +16,7 @@ Risk: R3
 
 - live docs に private quota threshold が current instruction として再導入される。
 - event-eligible change に Ready と pre-emptive dispatch の両方が許される。
+- hosted-required docs-only の explicit dispatch が missing / failed / cancelled になった後、recovery state に入れない。
 - successful / in-progress の同一 HEAD に recovery dispatch を重ねる。
 - Actions unavailable route または product/gate failure blocker が free-minute 文言と一緒に消える。
 - validator が archive の historical wording を current drift と誤判定する。
@@ -30,7 +31,10 @@ Risk: R3
 | D-063-D1 | private threshold returns | regression | `validate_public_actions_doc_contract` baseline | live `ci.md` / `DEV_WORKFLOW.md` に forbidden current wording がある |
 | D-063-D1 | validator is insensitive | mutation | M1 private-quota injection | synthetic live doc に forbidden phrase を追加しても pass する |
 | D-063-D2 | trigger states incomplete | regression | trigger anchor/table validation | CI-TRIGGER-D1 または required state row が欠ける |
-| D-063-D2 | row-removal survives | mutation | M2 trigger-row removal | already-successful no-op rowを除去しても pass する |
+| D-063-D2 | event-eligible pre-emptive dispatch returns | mutation | M2a event-eligible dispatch injection | event-eligible row の `dispatch しない` を dispatch 許容へ変えても pass する |
+| D-063-D2 | event-filtered dispatch loses zero-run check | mutation | M2b zero-run prerequisite removal | hosted-required docs-only row から同一 HEAD run 0 件確認を除去しても pass する |
+| D-063-D2 | explicit-dispatch failure becomes orphaned | mutation | M2c recovery narrowing | recovery row を event-eligible auto run 限定へ戻す、または in-progress wait を除去しても pass する |
+| D-063-D2 | already-successful no-op disappears | mutation | M2d successful-row removal | already-successful no-op rowを除去しても pass する |
 | D-063-D3 | availability exception weakened | mutation | M3 availability-route removal | Actions unavailable markerを除去しても pass する |
 | D-063-D4 | history incorrectly scanned | compatibility | M4 archive exclusion | synthetic archiveに private-era phrase があって validator が fail する |
 | D-063-D5 | existing YAML contract drifts | regression | `validate_workflow_contract` / `validate_job_graph` | trigger set、Draft guard、job graph、cache contract が変わる |
@@ -60,7 +64,7 @@ Risk: R3
 
 - missing input: validator receives missing live-doc path -> non-zero。
 - invalid input: private quota wording or missing required anchor -> non-zero。
-- duplicate/ambiguous input: trigger table allows Ready + dispatch on event-eligible path -> M2/anchor failure or Plan Review finding。
+- duplicate/ambiguous input: trigger table allows Ready + dispatch on event-eligible path -> M2a failure。event-filtered dispatch が run 0 件確認を失う -> M2b failure。
 - unknown reference: D-063 / CI-PUBLIC-D1 / CI-TRIGGER-D1 missing -> non-zero。
 - dependency missing: existing script dependencies (`bash`, `ruby`, `grep`) follow current fail-fast behavior。
 - permission/write failure: tests use `mktemp -d`; creation failure is non-zero。
@@ -72,7 +76,7 @@ Risk: R3
 - null/default: missing contract anchor is fail-closed。
 - empty/non-empty: empty trigger table / missing route fails。
 - min/max: normal path chooses one final trigger; service recovery remains available。
-- status/policy enum: event-eligible / event-filtered / recovery / already-successful states。
+- status/policy enum: event-eligible / event-filtered / automatic-or-explicit recovery / already-successful states。
 - wire type: not applicable。
 - internal type: not applicable。
 - producer/consumer: `docs/ci.md` produces current policy; DEV_WORKFLOW / owner workflow / validator consume it。
@@ -105,7 +109,10 @@ Risk: R3
 ## Mutation-style Adequacy Questions
 
 - If `CI-PUBLIC-D1` remains but private quota prose returns elsewhere in live docs, M1 forbidden-wording assertion fails。
-- If the already-successful row is removed while the heading remains, M2 row-removal mutation fails。
+- If event-eligible row permits preventive dispatch, M2a fails。
+- If event-filtered hosted-required row drops the zero-run prerequisite, M2b fails。
+- If recovery is narrowed back to automatic event only or stops waiting for in-progress runs, M2c fails。
+- If the already-successful row is removed while the heading remains, M2d fails。
 - If Actions-unavailable route is deleted while billing prose stays correct, M3 fails independently。
 - If validator scans the whole repo and starts rejecting archive history, M4 detects the false positive。
 - If workflow triggers / Draft guard / job graph change without docs change, existing YAML mutations still fail。
@@ -116,4 +123,5 @@ Risk: R3
 
 - GitHub billing policy can change outside the repository; static tests prove current docs consistency, not future official policy. D-063 Revisit requires a fresh official-doc probe。
 - Documentation cannot technically prevent a user from dispatching before Ready. The contract makes the correct choice reviewable; Actions run history remains the operational detector。
+- HEAD SHA-only concurrency can cancel overlapping same-HEAD runs but would lose current PR-number grouping's cross-HEAD superseded-run cancellation and cannot stop sequential duplicates. Revisit only with a dispatch-to-PR mapping design if CI-TRIGGER-D1 dogfood still shows overlap-driven duplicates。
 - required-check Pending behavior is not tested because required checks / rulesets are currently absent and out of scope。
