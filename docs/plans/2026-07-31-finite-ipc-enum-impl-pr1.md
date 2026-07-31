@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: plan-gate
+- Phase: implementing
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: 686ca2ad095a2bb61ea02272da75cd789e78c3d0
@@ -19,9 +19,9 @@
 Narrative（append-only）:
 
 - 2026-07-31 kickoff -> plan-draft: design PR（D-061、packet `2026-07-31-finite-ipc-enum-design`、archive 済み）が凍結した SPEC-P41-D1〜D5 のうち、実装は 2 PR 分割（PR1 = `CmdErrorKind` 横断・機械的、PR2 = domain family (2)〜(14)）。既定順序は 順12 実装（D-060、PR #51 `b1c5f55` で完了）→ 順14 PR1 → PR2。本 Packet は PR1 の plan-draft であり、production 実装は未着手。Coordinator が read-only 実測を行い、以下を確認した:
-  - Rust 側 `kind` 構築サイト: production struct-literal `kind: "..."` が `src-tauri/src/cmd/*.rs` に 22 箇所（doc comment 中の同型記述 5 箇所は除外。`mod.rs` 9 + `daily_report_import_cmd.rs` 5 + `csv_import_cmd.rs` 4 + `settings_cmd.rs`/`sales_cmd.rs`/`plu_export_cmd.rs`/`product_cmd.rs` 各 1）。加えて `mod.rs` の helper 関数本体（`correlated`/`restore`/`restore_with_detail`）に kind literal 引数サイトが 4 箇所（`internal`/`restore_failed_recovered`/`restore_failed_unrecoverable`/`restore_durability_unknown`）。test assertion（`assert_eq!(x.kind, "...")` 系）は `cmd/*.rs` 12 file に計 36 箇所
+  - Rust 側 `kind` 構築サイト: production struct-literal `kind: "..."` が `src-tauri/src/cmd/*.rs` に 22 箇所（doc comment 中の同型記述 5 箇所は除外。`mod.rs` 9 + `daily_report_import_cmd.rs` 5 + `csv_import_cmd.rs` 4 + `settings_cmd.rs`/`sales_cmd.rs`/`plu_export_cmd.rs`/`product_cmd.rs` 各 1）。加えて `mod.rs` の helper 関数本体（`correlated`/`restore`/`restore_with_detail`）に kind literal 引数サイトが 4 箇所（`internal`/`restore_failed_recovered`/`restore_failed_unrecoverable`/`restore_durability_unknown`）。test assertion（`assert_eq!(x.kind, "...")` 系）は `cmd/*.rs` 12 file に計 39 箇所（Plan Review round 1 P2-1 で 36→39 に実測是正: 機械式 rg は単一行前提で `mod.rs:256,260,264` の複数行形 3 箇所を見逃す。真の内訳 = mod.rs 11 + 他 11 file 28。移行漏れ 3 箇所は型不一致の compile error でも捕捉される）
   - frontend 側依存: `src/lib/invoke.ts` の `CMD_ERROR_KIND` const は 8 key のみ（`VALIDATION`/`NOT_FOUND`/`DUPLICATE`/`INTERNAL`/`IMPORT_ERROR`/`IDEMPOTENCY_CONFLICT`/`STOCKTAKE_IN_PROGRESS`/`STOCKTAKE_NOT_IN_PROGRESS`）。設計 doc（40 §5.3 / 55 §55.5）は「`export_error` 欠落の非対称」とのみ言及するが実測では **4 値欠落**（`export_error` に加え `restore_failed_recovered` / `restore_failed_unrecoverable` / `restore_durability_unknown` の restore 3 値も未収録）。同ファイルのローカル `type CmdErrorKind = (typeof CMD_ERROR_KIND)[keyof typeof CMD_ERROR_KIND]` は外部 import 消費者 0（宣言のみ、退役の副作用リスクなし）。`src/features/backup-restore/BackupRestorePage.tsx` は `fatalRestoreKind` を独自の inline literal union `"restore_failed_unrecoverable" | "restore_durability_unknown" | null` として保持し、`restoreErrorKind()` ヘルパーは `string | null` を返す（生成 union に対する narrowing なし）。`src/features/plu-export/PluExportPage.test.tsx:453` に mock `kind: "ValidationFailed"`（PascalCase drift、wire 実値は `"validation"`）を 1 箇所確認 — `kind` が `string` 型のため現状は型検査で捕捉されない
-  - `CmdError` は response 専用（Rust 側で command 引数として受け取られることは皆無、production コードに `.kind ==` 比較も 0 件）と実測確認。既存先例 `SalesMode`（response 直出し）の derive は `#[derive(Debug, Clone, serde::Serialize, specta::Type)]`（Deserialize なし、PartialEq/Eq/Copy もなし）。一方 `CmdError.kind` は test で 36 箇所の値比較があるため `SalesMode` そのままの複製では `assert_eq!` が要求する `PartialEq` を満たせない。この差異は design PR 未検討事項であり、本 Packet で Contract Probe として明記する
+  - `CmdError` は response 専用（Rust 側で command 引数として受け取られることは皆無、production コードに `.kind ==` 比較も 0 件）と実測確認。既存先例 `SalesMode`（response 直出し）の derive は `#[derive(Debug, Clone, serde::Serialize, specta::Type)]`（Deserialize なし、PartialEq/Eq/Copy もなし）。一方 `CmdError.kind` は test で 39 箇所の値比較があるため `SalesMode` そのままの複製では `assert_eq!` が要求する `PartialEq` を満たせない。この差異は design PR 未検討事項であり、本 Packet で Contract Probe として明記する
   - `src/lib/bindings.ts:366` の現行型は `kind: string`（コメントに 12 値の列挙のみ）。enum 化後は `SalesMode`（`export type SalesMode = "by_product" | "by_department";`）と同型の `export type CmdErrorKind = "validation" | ... ;` が生成され、`CmdError.kind: CmdErrorKind` へ変わる想定
   - `mod.rs` の `correlated()` は現在 `tracing::error!(kind, error_id, detail = %detail, ...)` と bare identifier shorthand で `kind: &str` を渡している。`kind` が `CmdErrorKind`（`tracing::Value` 非実装）になると同シンタックスはコンパイルエラーになるため `kind = ?kind`（Debug format）への書き換えが必要になる。これは診断ログの表示文字列を snake_case からRust Debug形式（PascalCase、例: `Internal`)へ変える副作用を伴うが、`docs/function-design/70-mnt-diagnostic-log.md` は `kind` の log 文字列形式を契約化しておらず（実測 0 hit）、既存 test も `logs.contains(error_id)` / `logs.contains(raw_detail)` のみを検査し `kind` 文字列内容は検査していない（実測確認済み）。よって本変化は非契約の副作用として許容する
 
@@ -59,7 +59,7 @@ Goal Invariant: `CmdError.kind` が Rust 側 generated enum `CmdErrorKind`（12 
 
 - `src-tauri/src/cmd/mod.rs` に `CmdErrorKind`（12 variant）が定義され、`CmdError.kind: CmdErrorKind`
 - production の全 kind 構築サイト（struct-literal 22 + helper-literal 4 = 26）が `CmdErrorKind::Variant` 経由に統一され、`kind: "..."` の生文字列構築が cmd 層に残らない
-- 36 箇所の test assertion が `CmdErrorKind::Variant` 比較へ移行し、`cargo test`（src-tauri 全体）が pass する
+- 39 箇所の test assertion が `CmdErrorKind::Variant` 比較へ移行し、`cargo test`（src-tauri 全体）が pass する
 - `bindings.ts` 再生成後 `CmdErrorKind` literal union（12 値）が生成され、diff が「型強化のみ」（wire 文字列・値集合・他型は不変）である
 - `src/lib/invoke.ts` の `CMD_ERROR_KIND` が 12 key（`export_error` + restore 3 値を含む）へ拡張され、bindings 由来 `CmdErrorKind` に対して exhaustive に型検査される
 - `PluExportPage.test.tsx` の PascalCase drift が是正され、同種の drift が型検査で機械的に阻止される状態になる
@@ -77,7 +77,7 @@ Goal Invariant: `CmdError.kind` が Rust 側 generated enum `CmdErrorKind`（12 
 - domain family (2)〜(14) のコード変更（PR2 の scope）
 - restore orchestration の意味論・接続所有権交換パターンの変更（`mem::replace` / `handle_restore_failure` 等は現状維持）
 - `docs/function-design/70-mnt-diagnostic-log.md` への新規契約追加（kind の log 表示形式は非契約のまま維持する。過剰文書化を避ける）
-- `Plans.md` の active packet link 追加（Coordinator が Plan Gate 後に実施。本 packet 起草時点では未実施）
+- `Plans.md` の active packet link 追加（Coordinator が plan-first commit で実施済み — P3-4 で現状同期）
 - `41-cmd-pos.md` §17.4 の変更（実測により「CmdErrorKind の variant となる」という現在形記述に pending 注記が無く、sweep 不要と確認済み）
 
 Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
@@ -94,7 +94,7 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
   - `impl From<BizError> for CmdError` の 9 match-arm struct literal（`kind: "validation".to_string()` 等）を `CmdErrorKind::Variant` へ置換
   - `mod.rs` 内 test module の 11 箇所（assert 8 + `"restore_..."` 文字列比較 3）を `CmdErrorKind::Variant` 比較へ移行
 - `daily_report_import_cmd.rs`（5 箇所）/ `csv_import_cmd.rs`（4 箇所）/ `settings_cmd.rs`（1 箇所、L311 base64 decode validation）/ `sales_cmd.rs`（1 箇所、L61-62 mode validation）/ `plu_export_cmd.rs`（1 箇所、L77-78 `parse_export_mode`）/ `product_cmd.rs`（1 箇所、L124-125）の計 13 箇所の manual `CmdError { kind: "...".to_string(), .. }` を `CmdErrorKind::Variant` へ置換
-- 上記 7 file 中、test assertion が存在する `daily_report_import_cmd.rs`（5）/ `stocktake_cmd.rs`（3）/ `sales_cmd.rs`（2）/ `return_cmd.rs`（1）/ `receiving_cmd.rs`（1）/ `product_cmd.rs`（2）/ `settings_cmd.rs`（10）/ `manual_sale_cmd.rs`（1）/ `inventory_cmd.rs`（1）/ `integrity_cmd.rs`（1）/ `disposal_cmd.rs`（1）の計 25 箇所（`mod.rs` の 11 を含めた総計 36）を `CmdErrorKind::Variant` 比較へ移行
+- 上記 7 file 中、test assertion が存在する `daily_report_import_cmd.rs`（5）/ `stocktake_cmd.rs`（3）/ `sales_cmd.rs`（2）/ `return_cmd.rs`（1）/ `receiving_cmd.rs`（1）/ `product_cmd.rs`（2）/ `settings_cmd.rs`（10）/ `manual_sale_cmd.rs`（1）/ `inventory_cmd.rs`（1）/ `integrity_cmd.rs`（1）/ `disposal_cmd.rs`（1）の計 28 箇所（`mod.rs` の 11 を含めた総計 39。round 1 P2-1 で内訳算 25→28 を是正）を `CmdErrorKind::Variant` 比較へ移行。`mod.rs` の複数行形 3 箇所（:256,260,264）は rg 機械式の対象外のため、移行完了は cargo build の型検査 + 全 test pass で確認する
 - `bindings.ts` 再生成（`cd src-tauri && cargo run --bin generate_bindings`）で `CmdErrorKind` literal union の出現と、diff が型強化のみであることを確認する
 
 ### Frontend
@@ -120,7 +120,7 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 - `rg -c "enum CmdErrorKind" src-tauri/src/cmd/mod.rs` → `1`（baseline 0 実測）
 - `rg -c "pub kind: String" src-tauri/src/cmd/mod.rs` → `0`（baseline 1 実測）/ `rg -c "pub kind: CmdErrorKind" src-tauri/src/cmd/mod.rs` → `1`
 - `rg -n 'kind: "' src-tauri/src/cmd/*.rs | rg -v '///' | wc -l` → `0`（baseline 22 実測、doc comment 中の同型記述 5 件は対象外）
-- `rg -c '\.kind,\s*"' src-tauri/src/cmd/*.rs | awk -F: '{s+=$2} END{print s}'` → `0`（baseline 36 実測）
+- `rg -c '\.kind,\s*"' src-tauri/src/cmd/*.rs | awk -F: '{s+=$2} END{print s}'` → `0`（baseline は単一行形のみで 36。複数行形 3 を加えた真値 39 — P2-1 参照。oracle は単一行形の 0 化 + compile 成功の組で判定）
 - `cargo build`（src-tauri）exit 0
 - `cargo test`（src-tauri 全体）PASS、既存 test 件数以上（削除・skip なし）
 - `cargo fmt --check` / `cargo clippy --all-targets --all-features -- -D warnings` PASS
@@ -169,7 +169,7 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 | Spec / requirement ID | Source design doc section | Decision ID | Why / rejected alternatives | Implementation target | Test target |
 |---|---|---|---|---|---|
 | 監査 P4-1（型二重定義、CmdErrorKind） | 40 §5.3 | D-061 (a)/(d) | `CmdError.kind` を generated enum 化。String 維持案は P4-1 の中核（型検査欠落）を残すため却下 | `cmd/mod.rs` + 全 cmd/*.rs | Matrix C1, C2 |
-| 実装固有（本 PR で新規発見） | `biz/sales_service.rs`（`SalesMode` derive 先例） | SPEC-P41-PR1-D1 | `CmdError` は response 専用（production `.kind ==` 比較 0 件を実測）。`SalesMode` 先例（`Debug, Clone, Serialize, specta::Type`、Deserialize なし）を踏襲しつつ、既存 36 箇所の test assertion（`assert_eq!`）を満たすため `PartialEq, Eq, Copy` を追加する。Deserialize 追加案は wire 方向に存在しない round-trip を偽装するため却下 | `cmd/mod.rs` の `CmdErrorKind` derive | Matrix C1 |
+| 実装固有（本 PR で新規発見） | `biz/sales_service.rs`（`SalesMode` derive 先例） | SPEC-P41-PR1-D1 | `CmdError` は response 専用（production `.kind ==` 比較 0 件を実測）。`SalesMode` 先例（`Debug, Clone, Serialize, specta::Type`、Deserialize なし）を踏襲しつつ、既存 39 箇所の test assertion（`assert_eq!`）を満たすため `PartialEq, Eq, Copy` を追加する。Deserialize 追加案は wire 方向に存在しない round-trip を偽装するため却下 | `cmd/mod.rs` の `CmdErrorKind` derive | Matrix C1 |
 | 実装固有（本 PR で新規発見） | `cmd/mod.rs` の `correlated()` | SPEC-P41-PR1-D3 | `tracing::error!(kind, ...)` の bare identifier shorthand は `CmdErrorKind`（`tracing::Value` 非実装）でコンパイル不能になるため `kind = ?kind`（Debug format）へ変更する。診断ログの表示形式が snake_case から PascalCase Debug 形式へ変わるが `70-mnt-diagnostic-log.md` は log 文字列形式を契約化せず（実測 0 hit）、既存 test も `kind` 文字列内容を検査しない（実測確認済み）ため非契約の許容変化とする。独自 `Display` 実装で snake_case を維持する案は serde rename との二重 SSOT になり drift リスクを増やすため却下 | `cmd/mod.rs` `correlated()` | Matrix C8 |
 | D-061 (d) frontend 側置換 | 55 §55.5 | SPEC-P41-PR1-D4 | `CMD_ERROR_KIND` を 12 key へ拡張し、生成 `CmdErrorKind` union に対する exhaustive 型注釈で網羅性を機械検査する。const を撤去し全呼び出し元を生 literal 比較へ書き換える案は 4 箇所の consumer（ErrorState.tsx / useCsvImportFlow.ts / useProductImportFlow.ts / useDailyReportImportFlow.ts）を不要に変更するため却下 | `src/lib/invoke.ts` | Matrix C5, C6 |
 | 実装固有（本 PR で新規発見） | `BackupRestorePage.tsx` | SPEC-P41-PR1-D4 派生 | `fatalRestoreKind` の独自 union を `Extract<CmdErrorKind, ...>` へ派生させ、生成 union からの独立性（drift リスク）を解消する | `BackupRestorePage.tsx` | Matrix C7 |
@@ -208,7 +208,7 @@ Minimum design checks for business-app work:
 ## Contract Probe
 
 - `CmdError` の response-only 性: `rg -rn '\.kind,\s*"' src-tauri/src/biz src-tauri/src/mnt src-tauri/src/db` で 0 hit を実測。production Rust コードが `kind` を再消費（分岐・比較）する箇所は存在しない → Deserialize 不要（SPEC-P41-PR1-D1）
-- `SalesMode` derive 先例: `src-tauri/src/biz/sales_service.rs` で `#[derive(Debug, Clone, serde::Serialize, specta::Type)]`（PartialEq なし）を実読確認。`CmdErrorKind` は既存 36 箇所の `assert_eq!` を満たすため `PartialEq, Eq, Copy` を追加した独自 derive セットとする（`SalesMode` の完全複製ではない、本 PR の新規判断）
+- `SalesMode` derive 先例: `src-tauri/src/biz/sales_service.rs` で `#[derive(Debug, Clone, serde::Serialize, specta::Type)]`（PartialEq なし）を実読確認。`CmdErrorKind` は既存 39 箇所の `assert_eq!` を満たすため `PartialEq, Eq, Copy` を追加した独自 derive セットとする（`SalesMode` の完全複製ではない、本 PR の新規判断）
 - 診断ログ副作用: `tracing::error!(kind, ...)` の bare identifier shorthand は `kind: &str` 前提（`&str` は built-in `tracing::Value` 実装を持つ）。`CmdErrorKind`（独自 enum、`tracing::Value` 非実装）へ変更するとコンパイル不能になるため `kind = ?kind` への書き換えが必須と実測確認。`docs/function-design/70-mnt-diagnostic-log.md` に `kind` の文字列一覧 0 hit（契約化されていない）、`mod.rs` の既存 log-capture test も `error_id`/`raw_detail` のみを検査し `kind` 文字列内容を検査しないことを実測確認 → 非契約の許容副作用と判定
 - frontend `CMD_ERROR_KIND` の欠落実態: 設計 doc（40 §5.3 / 55 §55.5）は「`export_error` 欠落の非対称」とのみ記載するが、`src/lib/invoke.ts` を実読すると 8 key中に `export_error` に加え restore 3 値も存在せず、**4 値欠落**であることを実測確認。本 Packet はこの精度差を Scope/AC に反映する（55 の wording sweep で訂正記述を追加）
 - `bindings.ts` の現行 `CmdError` 型: `kind: string`（L366、コメントに 12 値の自由記述のみ）であることを実測確認。`SalesMode` の生成形（`export type SalesMode = "by_product" | "by_department";`）を precedent として `CmdErrorKind` も同型の literal union で生成される見込み
@@ -232,7 +232,7 @@ Minimum design checks for business-app work:
 Test Design Matrix: [test-matrices/2026-07-31-finite-ipc-enum-impl-pr1.md](test-matrices/2026-07-31-finite-ipc-enum-impl-pr1.md)
 
 - targeted tests: Matrix C1〜C8（機械 token + mutation 感度検証）
-- negative tests: C3（既存 test 36 箇所の regression）、C7（restore 意味論 negative diff）
+- negative tests: C3（既存 test 39 箇所の regression）、C7（restore 意味論 negative diff）
 - compatibility checks: C4（bindings.ts diff = 型強化のみ）
 - data safety checks: 実 artifact なし。restore 系コードパスは無変更のため既存 synthetic test で回帰確認
 - main wiring/integration checks: `cargo test` + `cargo test --test architecture_test` + `cargo test --test design_compliance_test` + `npx tsc --noEmit` + `npm test` + `bash scripts/local-ci.sh full`
@@ -252,7 +252,7 @@ Test Design Matrix: [test-matrices/2026-07-31-finite-ipc-enum-impl-pr1.md](test-
 
 - `CmdErrorKind` の 12 variant 名が `rename_all = "snake_case"` を通じて現行 wire 文字列（12 個）と厳密に 1:1 一致するか（variant 名のタイプミスが即 wire drift になる、Rust コンパイラでは検出できない唯一のリスク面）
 - production の全 kind 構築サイト（22 struct-literal + 4 helper-literal = 26）が漏れなく `CmdErrorKind::Variant` へ移行しているか（`rg 'kind: "'` の baseline 22 → 0 で機械確認）
-- 36 箇所の test assertion が弱体化（`assert_eq!` → `assert!(true)` 等）されずに移行されているか
+- 39 箇所の test assertion が弱体化（`assert_eq!` → `assert!(true)` 等）されずに移行されているか
 - `tracing::error!(kind = ?kind, ...)` への変更が既存 log-capture test（`error_id`/`raw_detail` 検査）を壊さないか
 - frontend `CMD_ERROR_KIND` の exhaustive 型注釈が実際に機能するか（Final Review で 1 key を一時削除し `tsc` が red になることを実注入確認）
 - `BackupRestorePage.tsx` の `fatalRestoreKind` 派生型変更後も restore 3 値の表示文言・分岐が bit-for-bit 不変か
