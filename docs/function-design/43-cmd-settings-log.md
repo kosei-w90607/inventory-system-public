@@ -11,8 +11,14 @@ src-tauri/src/
     mod.rs             -- pub mod settings_cmd を追加
     settings_cmd.rs    -- 設定・ログ・バックアップ・画像コマンド（本セクション）
     integrity_cmd.rs   -- 既存（CMD-11の整合性チェック部分）
+  biz/
+    system_service.rs  -- BIZ-09 設定・操作ログロジック（順12 実装 PR で新設、38-biz-system-service.md）
   lib.rs               -- invoke_handler に8コマンドを追加
 ```
+
+**層経路（D-060）**: 層経路の正本は `ARCHITECTURE.md`「レイヤー間の呼び出し原則」。設定・操作ログ系 4 command は `biz::system_service`（BIZ-09）経由の標準経路、backup/restore 系 5 command は CMD→MNT 正規経路（DB 接続所有権の交換を要する保守 orchestration 限定）、画像保存は base64 decode（CMD の wire 型変換）+ BIZ validation で構成する。
+
+**実装追随注記**: 本 doc の BIZ-09 経由記述は D-060 設計確定形であり、コードの追随は順12 実装 PR で行う（それまでの現行実装は移行前の直呼び形。packet: 2026-07-31-settings-service-boundary-design）。
 
 ---
 
@@ -53,7 +59,7 @@ struct SaveImageRequest {
 }
 ```
 
-注意: `extension` は generated binding 上も `string` として出る。許可拡張子の UI 側候補は `jpg|jpeg|png|gif|webp` に絞るが、CMD/IO の最終 validation は `String` 値を検証して validation error を返す。
+注意: `extension` は generated binding 上も `string` として出る。許可拡張子の UI 側候補は `jpg|jpeg|png|gif|webp` に絞るが、最終 validation は BIZ 層（`biz::inventory_service`、D-060 (c)、[31-biz-inventory-service.md](31-biz-inventory-service.md)）が `String` 値を検証して validation error を返す。IO 層の拡張子 check は防御として維持する（DB CHECK 制約と同型、正常系で到達しない）。
 
 #### レスポンス型
 
@@ -76,7 +82,7 @@ struct SaveImageResponse {
 fn get_settings(state: State<AppState>) -> Result<Vec<AppSetting>, CmdError>
 ```
 
-**処理**: `system_repo::get_all_settings(conn)`を呼び出して返す。
+**処理**: `biz::system_service::get_all_settings(conn)` を呼び出して返す（D-060 (b)。関数契約は 38-biz-system-service.md — 順12 実装 PR で新設）。
 
 ---
 
@@ -88,7 +94,7 @@ fn get_settings(state: State<AppState>) -> Result<Vec<AppSetting>, CmdError>
 fn update_setting(state: State<AppState>, request: UpdateSettingRequest) -> Result<(), CmdError>
 ```
 
-**処理**: `system_repo::upsert_setting(conn, &request.key, &request.value)` を呼び出す。
+**処理**: `biz::system_service::upsert_setting(conn, &request.key, &request.value)` を呼び出す（D-060 (b)）。
 
 ---
 
@@ -100,10 +106,10 @@ fn update_setting(state: State<AppState>, request: UpdateSettingRequest) -> Resu
 fn list_logs(state: State<AppState>, query: LogQuery) -> Result<PaginatedResult<OperationLog>, CmdError>
 ```
 
-**処理**: `query.start_date` / `query.end_date` が `Some` の場合、まずASCII strict `YYYY-MM-DD`（長さ10、4/7文字目`-`、年4・月2・日2がASCII digit）を検証し、次にchronoで実在暦日を検証する。両方 `Some` かつ `start_date > end_date` なら早期にvalidation errorを返す（[74-ui-operation-logs.md](74-ui-operation-logs.md) §74.4.2）。検証を通過したら `system_repo::list_operation_logs(conn, query.page, query.per_page, query.operation_type.as_deref(), query.start_date.as_deref(), query.end_date.as_deref())` を呼び出す。per_page の上限クランプ（200）は IO 層（system_repo）が D-031 の `PAGINATION_MAX_PER_PAGE = 200` で実行し、レスポンスの per_page もクランプ後の値を返す。
+**処理**: CMD は `LogQuery` の型変換のみを行い、`biz::system_service::list_operation_logs(conn, &query)` を呼び出す（D-060 (b)/(c)）。日付 validation（ASCII strict 形式・実在暦日・範囲順序。[74-ui-operation-logs.md](74-ui-operation-logs.md) §74.4.2）は BIZ 層（BIZ-09）が所有し、条件・文言・field は移動前と不変とする。per_page の上限クランプ（200）は従来どおり IO 層（system_repo）が D-031 の `PAGINATION_MAX_PER_PAGE = 200` で実行し、レスポンスの per_page もクランプ後の値を返す。
 
-**エラーハンドリング（追加分、UI-11c-D2/D3）**:
-- `start_date` / `end_date` がASCII strict `YYYY-MM-DD`形式でない、または実在しない暦日 → `CmdError { kind: "validation", message: "開始日・終了日はYYYY-MM-DD形式で入力してください" }`
+**エラーハンドリング（追加分、UI-11c-D2/D3）**: validation は BIZ 層（BIZ-09）が所有し、`BizError::ValidationFailed` を CMD が `From<BizError>` で変換して返す（D-060 (c)）。wire 契約（kind / message / field）は移動前と不変:
+- `start_date` / `end_date` が strict `YYYY-MM-DD` 形式でない、または実在しない暦日 → `CmdError { kind: "validation", message: "開始日・終了日はYYYY-MM-DD形式で入力してください" }`
 - 両方 `Some` かつ `start_date > end_date` → `CmdError { kind: "validation", message: "開始日は終了日と同じ日か、それより前の日付にしてください" }`
 - 両方 `None` の場合は既存動作を完全維持する（既存呼び出し元・既存テストへの影響なし）。
 
@@ -117,7 +123,7 @@ fn list_logs(state: State<AppState>, query: LogQuery) -> Result<PaginatedResult<
 fn list_log_operation_types(state: State<AppState>) -> Result<Vec<String>, CmdError>
 ```
 
-**処理**: `system_repo::find_distinct_operation_types(conn)` を呼び出して返す薄いラッパー。フィルタ・ページングを持たない。
+**処理**: `biz::system_service::list_distinct_operation_types(conn)` を呼び出して返す薄いラッパー（D-060 (b)）。フィルタ・ページングを持たない。
 
 **目的**: [74-ui-operation-logs.md](74-ui-operation-logs.md) §74.5 の operation_type filter 候補は、現在ページや現在の filter 済み結果から生成してはならない（Missing UI item 4）。保持中の operation_logs 全体から distinct な operation_type を返すことで、canonical registry（frontend 日本語ラベル辞書）と突き合わせる際の実在値ソースにする。
 
@@ -201,13 +207,10 @@ fn restore_backup(
 2. `db_path = app_data_dir.join("inventory.db")`（ファイルパス。ディレクトリではない）
 3. DB Mutexのロックを取得
 4. `std::mem::replace` で現在の `DbConnection` を取り出す（一時的にin-memory接続を入れる）
-5. `match mnt::backup::restore_backup(old_conn, &backup_path, &db_path)` で分岐:
-   - `Ok(new_conn)` → `*guard = new_conn`
-   - `Err(e)` → 復旧再接続は 71 §71.7 MNT-01-D4 の契約に従う: 「退避復元済み」の場合のみ **create 能力のない open** で再接続して `*guard` に入れ、recoverable な `CmdError` を返す。「状態不明/未復旧」または no-create 再接続失敗は再接続を試みず unrecoverable（再起動誘導文言）を返す。**create 能力のある `db::init_database` を復旧再接続に使ってはならない**（main 不在時に空 DB を作り recoverable に偽装する）
-   - **実装 PR1 確定 wire**: `RestoreError::Recovered` → `CmdError.kind = "restore_failed_recovered"`、`Unrecoverable` → `"restore_failed_unrecoverable"`、`DurabilityUnknown` → `"restore_durability_unknown"`。`message` は表示専用で分岐に使わない
-6. **`?`で早期returnしてはならない**（Mutex内のdummy接続が残るため）
+5. `match mnt::backup::restore_backup(old_conn, &backup_path, &db_path)` で分岐する。`Ok` / `Err` の処理・復旧再接続（no-create open）・kind 3 値 wire（`restore_failed_recovered` / `restore_failed_unrecoverable` / `restore_durability_unknown`）は本 doc で再規定しない — 復旧規則・分類の正本は 71-mnt-backup.md §71.7（MNT-01-D1/D4/D5、「CMD層での呼び出しパターン」）であり、CMD は同 § の呼び出しパターンを実行するのみで独自の規則を定義しない（D-060 (a)/(d)）
+6. **`?`で早期returnしてはならない**（Mutex内のdummy接続が残るため。71 §71.7「重要: 失敗時の契約」参照）
 
-**注意**: リストア中は他のコマンドがブロックされる（Mutexロック中）。単一ユーザーアプリのため問題なし。
+**注意**: リストア中は他のコマンドがブロックされる（Mutexロック中）。単一ユーザーアプリのため問題なし。本 command の CMD→MNT 直接呼び出しは D-060 (a) の正規経路（DB 接続所有権の交換を要する保守 orchestration に該当）。
 
 ---
 
@@ -223,16 +226,16 @@ fn save_receipt_image(
 ```
 
 **処理ステップ**:
-1. `request.image_base64` をBase64デコード → バイト列に変換
+1. `request.image_base64` をBase64デコード → バイト列に変換（wire 型変換として CMD 残留。D-060 (c)、ARCHITECTURE.md「wire型変換の失敗…はCMD境界で拒否してよい」に整合）
    - デコード失敗 → `CmdError { kind: "validation", message: "画像データが不正です" }`
 2. `app_handle.path().app_data_dir()` でapp_data_dirを取得
-3. `io::image_manager::save_receipt_image(&app_data_dir, &image_bytes, &request.extension)` を呼び出す
+3. `biz::inventory_service::save_receipt_image(&app_data_dir, &image_bytes, &request.extension)` を呼び出す（D-060 (b)/(c)。拡張子 validation は BIZ 所有 — [31-biz-inventory-service.md](31-biz-inventory-service.md)。BIZ が `io::image_manager` を呼ぶ）
 4. 返された相対パスを `SaveImageResponse` に格納して返す
 
 **エラーハンドリング**:
-- Base64デコード失敗 → validation エラー
-- 拡張子不正（`InvalidInput`）→ validation エラー（利用者入力起因のため）
-- その他IO::Error → internal エラー
+- Base64デコード失敗 → validation エラー（CMD の wire 型変換失敗）
+- 拡張子不正 → BIZ の `BizError::ValidationFailed` を `From<BizError>` で変換 → validation エラー（利用者入力起因のため。wire 契約は移動前と不変）
+- その他IO::Error → BIZ 経由で internal エラー
 
 ---
 
@@ -261,7 +264,9 @@ PR #164で`list_log_operation_types`を含む10コマンドすべてを `#[spect
 
 ### 43.12 テスト方針
 
-CMD層のテストは主にBizError/DbError → CmdError変換とパラメータの受け渡しを検証する。
+CMD層のテストは主にBizError → CmdError変換とパラメータの受け渡しを検証する。
+
+**production CMD test 規範への追随（D-060 / SPEC-CMD11-D5 (iii)）**: 順12 実装 PR で、settings_cmd の既存 test を production CMD test 規範（`tauri::test::mock_builder` + `AppState` + 実 `#[tauri::command]` 関数呼び出し。順5 = PR #22 で確立）へ書き換える。validation 条件の単体検証（日付形式・実在暦日・範囲順序・拡張子）は BIZ 層 test（38-biz-system-service.md / 31-biz-inventory-service.md）へ移し、CMD test は変換と受け渡しの検証に戻す。下表の test 名はこの書き換えで実体が更新される。
 
 | テスト名 | 検証内容 | REQ |
 |---------|---------|---|

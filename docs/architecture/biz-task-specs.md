@@ -517,3 +517,30 @@
 - チェックタイミング: CSV取込み完了時（自動）、棚卸し確定時（自動）、設定画面から手動実行
 - 自動上書きはしない。必ず利用者確認を挟む
 - チェック中の他の操作は制限しない（読み取り専用クエリのため）
+
+### BIZ-09: システム設定・操作ログロジック
+
+**タスク要求**: 設定 CRUD と操作ログ検索の BIZ 境界を提供する（順12 = D-060。実装は順12 実装 PR、関数契約の正本は 38-biz-system-service.md をその PR で新設）
+
+**理由**: 旧 CMD-11 は `settings_cmd` から `system_repo`（IO-01）を直接呼び、操作ログの日付 validation まで CMD が所有していた（監査 P2-1）。層境界の標準経路（CMD → BIZ → IO）へ復帰し、業務 validation の単一所有層（ARCH-VAL-D1）を回復する
+
+**【前提条件】**
+- 対応 command は get_settings / update_setting / list_logs / list_log_operation_types の 4 系（CMD-11）
+- wire 契約（kind / message / field、レスポンス型）は移行前と不変。CMD は `From<BizError>` の一元変換に復帰する
+
+**【データ構造】**
+
+入力データ: 設定 key/value、LogQuery（page, per_page, operation_type?, start_date?, end_date?）
+
+出力データ: AppSetting 一覧、PaginatedResult<OperationLog>、operation_type distinct 一覧
+
+内部で扱うテーブル: settings, operation_logs（いずれも system_repo = IO-01 経由）
+
+**【処理構造】**
+1. 設定一覧取得・設定 upsert・操作ログ検索・operation_type 一覧を system_repo 経由で提供する
+2. 操作ログ検索の日付 validation（strict YYYY-MM-DD 形式・実在暦日・start>end 早期拒否。function-design 43 §43.5 の条件・文言・field を維持）を本タスクが所有し、`BizError::ValidationFailed`（field 付き）で返す
+3. per_page の上限クランプ（200）は従来どおり IO 層（D-031 共有定数）が実行する
+
+**【制御構造】**
+- トランザクション制御は不要（単発の read / upsert のみ）
+- backup/restore・領収書画像は本タスクの対象外（backup/restore は CMD → MNT-01 正規経路、画像拡張子 validation は BIZ-02 所有 — D-060）
