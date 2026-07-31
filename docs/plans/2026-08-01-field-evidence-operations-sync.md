@@ -87,7 +87,7 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 
 - `rg -n "PLU別売上レポート|日報ファイル群|バインダー" docs/plu-export-and-real-csv-verification.md docs/project-memory.md` が新しい事実境界を返す。
 - `rg -n "導入前受入|紙.*代替|バインダー" docs/function-design/56-ui-daily-sales.md docs/function-design/57-ui-monthly-sales.md` が日次・月次の受入保留を返す。
-- `rg -n "Z004.*在庫.*候補|在庫.*接続.*未実装|Z004.*使えるか.*再評価" docs/ Plans.md --glob '!docs/archive/**'` のstale表現を0件にする。
+- `rg -n 'Z004.*(在庫引落し候補|在庫増減候補|使えるか.*再評価)|在庫.*接続.*未実装' docs/ --glob '!docs/archive/**' --glob '!docs/plans/**'` のstale表現を0件にする。active Plan Packetは棄却語彙と検査式自体を記録するため走査対象外とする。
 - `git diff --name-only origin/main...HEAD -- .github/workflows src src-tauri` が0行。
 - `bash scripts/doc-consistency-check.sh --target plan` exit 0。
 - `bash scripts/local-ci.sh full` が最終candidateでCLEAN/PASS。
@@ -227,3 +227,5 @@ runtime wire変更なし。
 ## Review Response
 
 - Findings Freeze: not yet frozen; post-freeze exceptions: none.
+- Plan Review（2026-08-01、Reviewed Content HEAD `2902177341b455833a5193bfa9519a6565ad41c1`）: P1=0 / P2=0 / P3=1。Plan GateのP1/P2=0条件は満たした。
+- P3-1 accepted same-change: stale-grepが自身の検査式・棄却説明・正常なgo-live準備候補へ自己一致した。active plan/archiveを除外し、検出語彙を過去の誤記へ限定した改訂ACを実行してno matches（rg exit 1）を確認。correction HEADのclosure確認はpending。
