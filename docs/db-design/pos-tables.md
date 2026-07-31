@@ -215,7 +215,7 @@ Z005由来の部門別売上を保存する。日次・月次レポートの部�
 - adapterはファイル名・内容からsourceを判定し、欠損、重複、未知sourceをPreview前にエラーにする。
 - CV17 1.1.1のZ001/Z002/Z005は、ツール内部ディレクトリ常在ファイルの layout A（7行プリアンブル、1行ヘッダ、4列データ行）と、エクスポート機能出力の layout B（先頭メタフィールド、ヘッダ、4列反復の連結）を両方サポートする。adapterはどちらも `record_code, label, quantity_or_count, amount` 系の4列行へ正規化してから内部行へ変換する。
 - 日付はsource/layoutにより `YYYY/M/D` または `YYYY-MM-DD` で出力されるため、IO-07で `YYYY-MM-DD` に正規化してからBIZ-08へ渡す。
-- Excel帳票はsource of truthではない。PCツール / SDカードから得たZ001/Z002/Z005が日報取込み元であり、Excelは印刷用containerとして扱う。sanitized版のExcelは数値突合に使わず、列構成・ラベル・行の並びの参照に限定する。
+- Excel帳票はsource of truthでも日別archiveでもない。SDからCV17へ取り込み、PC側`EcrDatas`から選択するZ001/Z002/Z005を同じExcelファイル群へ毎日ほぼそのまま貼り付けて上書きするため、日別履歴は印刷・バインダーだけに残る。layout A/Bの受理はadapter互換性であってoperatorの選択肢ではない。sanitized版のExcelは数値突合に使わず、列構成・ラベル・行の並びの参照に限定する。
 - PCツール上には `Z006`（グループ）、`Z009`（時間帯別）、`Z011`（担当者）も存在するが、個人店の初期日報に必要な業務用途が未確認のため、初期DBモデルには保存しない。必要性が確認された場合は adapter 入力とDB保存先を別設計で追加する。
 
 **Stage 1: Parse bundle（IO-07に委譲）**
@@ -257,7 +257,7 @@ COMMIT後に:
 5. `sale_records` / `inventory_movements` / `products.stock_quantity` は変更しない。
 
 ### Z004との関係
-- Z004はPLU登録後の商品別売上・在庫自動引落し候補として既存B-1仕様を維持する。
+- Z004はPLU登録後の商品別売上として既存B-1仕様を維持し、BIZ-03 commitは`pos_stock_sync=true`の商品に在庫変動を作成する。店舗採取layout AがIO-02未対応であることはDB契約を変更しない。
 - Z001/Z002/Z005日報取込みの完了は、Z004取込み完了を意味しない。
 - 商品別ランキング、商品別在庫自動引落し、返品のSKU単位反映はZ004または手動販売出庫が根拠になる。
 

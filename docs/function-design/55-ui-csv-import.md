@@ -3,7 +3,7 @@
 
 ## 55. UI-07: 売上データ取込み画面
 
-> **2026-06-30 redesign note**: UI-07 は「売上データ取込み」画面として再設計する。current operation の主動線は Z001/Z002/Z005 日報取込みであり、既存の Z004 CSV import UI 契約はPLU登録後の商品別売上・在庫引落しトラックとして残す。日報取込みは [37-biz-daily-report-import-service.md](37-biz-daily-report-import-service.md) / [45-cmd-daily-report-import.md](45-cmd-daily-report-import.md) を呼び、`sale_records` / `inventory_movements` を作らない。
+> **2026-08-01 evidence sync**: UI-07 は「売上データ取込み」画面として、current operation の主動線を Z001/Z002/Z005 日報取込みに置く。既存の Z004 CSV import UI はPLU登録後の商品別売上・`pos_stock_sync`在庫増減・rollbackを実装済みの別トラックとして残すが、2026-07-06店舗採取layout AはIO-02未対応である。日報取込みは [37-biz-daily-report-import-service.md](37-biz-daily-report-import-service.md) / [45-cmd-daily-report-import.md](45-cmd-daily-report-import.md) を呼び、`sale_records` / `inventory_movements` を作らない。
 
 ### 55.0 REQ-401再設計ターゲット
 
@@ -12,12 +12,12 @@
 | 取込みトラック | 既定 | CMD | 保存先 | 用途 |
 |---|---|---|---|---|
 | 日報取込み | 既定 | CMD-12 `parseAndValidateDailyReport` / `commitDailyReportImport` / `rollbackDailyReportImport` | `daily_report_imports`, `daily_report_*_lines` | 公式日報サマリ、支払集計、部門別売上 |
-| 商品別CSV取込み（Z004） | PLU運用後の別トラック | CMD-07 `parseAndValidateCsv` / `commitCsvImport` / `rollbackCsvImport` | `csv_imports`, `csv_import_errors`, `sale_records`, `inventory_movements` | 商品別売上、在庫自動引落し候補 |
+| 商品別CSV取込み（Z004） | PLU運用後の別トラック | CMD-07 `parseAndValidateCsv` / `commitCsvImport` / `rollbackCsvImport` | `csv_imports`, `csv_import_errors`, `sale_records`, `inventory_movements` | 商品別売上、`pos_stock_sync`在庫増減・rollbackは実装済み。店舗採取layout AはIO-02未対応 |
 
 #### 日報取込みの利用者フロー
 
 1. 画面タイトルは「売上データ取込み」。既定タブは「日報取込み」。
-2. 利用者は native file dialog で PCツール / SDカードから取得した Z001/Z002/Z005 の3ファイルを同時に選ぶ。
+2. 店舗の標準手順では、利用者はSDからCV17へデータを取り込んだ後、native file dialogでPC側`EcrDatas`の Z001/Z002/Z005 の3ファイルを同時に選ぶ。layout A/Bの互換対応はparser責務であり、通常画面で採取元やlayoutを選ばせない。`XZ_BKUP`直接参照やCV17の明示書出しは復旧・調査手順に限定する。
    - 3ファイル以外の選択、読み取り失敗、サイズ超過は toast に加え、ファイル選択ボタン直下に destructive 系テキスト + アイコンで1スロット表示する。上部 Alert 帯は取込み済み / 上書き確認などデータ安全系の状態専用とし、選択操作の入力エラーとは混ぜない。
 3. プレビューに対象日、3ファイル名、総売上/純売上、支払集計、部門別集計、部門未対応warningを表示する。
 4. 同一bundle取込み済みはブロック。同一日別bundleは上書き確認を出す。
@@ -35,6 +35,7 @@
 - `UI-07-D9`: 日報取込みとZ004商品別取込みを同一テーブル/同一結果として表示しない。理由は、Z001/Z002/Z005は集計日報であり商品別明細や在庫引落しを復元できないため。
 - `UI-07-D10`: 日報取込みでは部門未対応をwarningとして表示し、取込み自体は可能にする。理由は、日報の正本性を優先し、部門マスタ修正を後続作業にできるようにするため。
 - `UI-07-D11`: Z004取込みはPLU運用後の商品別・在庫連動トラックとして分ける。理由は、レジ変更時に日報主入力と商品別在庫連動のadapter差し替え点を分離するため。
+- `UI-07-D12`: 日報取込みの標準入力元はCV17取込み後のPC側`EcrDatas`に固定する。layout A/B対応はparserの互換性であり、operator向けに複数の通常手順を提示しない。初回は手順書で所定フォルダへ案内し、2回目以降は既存の前回選択フォルダ記憶を使う。SDバックアップと明示書出しは復旧・調査経路とする。
 
 ### 本書のテンプレ判定（業務ロジックあり版、共通 6 項目）
 

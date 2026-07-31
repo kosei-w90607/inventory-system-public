@@ -65,7 +65,7 @@
 - 不整合が起きた場合は操作ログに記録して警告
 
 ### POS日報と商品別売上のデータ境界（D-025 / 2026-06-30）
-- `daily_report_imports` と配下の `daily_report_*_lines` は、CASIO PCツール / SDカードから取得する `Z001` / `Z002` / `Z005` の日報集計を、アプリ内部の日報モデルに変換して保存する。
+- `daily_report_imports` と配下の `daily_report_*_lines` は、SDからCASIO PCツールへ取り込み、PC側 `EcrDatas` から選択する `Z001` / `Z002` / `Z005` の日報集計を、アプリ内部の日報モデルに変換して保存する。別layoutの受理はadapter互換性であり、通常のoperator手順は増やさない。
 - `sale_records` は、Z004または手動販売出庫から得られる商品別売上の正本である。Z001/Z002/Z005は商品コード・JAN単位の明細ではないため、`sale_records` や `inventory_movements` へ擬似展開しない。
 - 日報取込みの rollback は日報取込みレコードを `rolled_back` にする論理取消に限定する。在庫変動を作らないため、在庫補正や movement void は発生しない。
 - レジ依存のファイル名、列名、文字コード、改行、PCツール手順は POS adapter の責務とし、DBには app core が使う report_date / section / label / amount / quantity / count / department mapping だけを保存する。

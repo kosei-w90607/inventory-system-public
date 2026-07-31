@@ -204,13 +204,13 @@ UI層の仕様は画面設計書（SCREEN_DESIGN.md）とモックアップ（sc
 3. 部門未対応warningは取り込めるが、商品別・在庫引落しには使われないことを表示する
 4. 重複チェック結果（同一bundle取込み済み→ブロック、同日別bundle→上書き確認）
 5. 「取り込む」で確定 → 実行中はボタンdisabled → 結果サマリ
-6. PLU登録後に商品別売上・在庫自動引落しを使う場合は「商品別CSV取込み（Z004）」トラックを選ぶ
+6. PLU登録後の商品別売上・`pos_stock_sync`在庫増減は「商品別CSV取込み（Z004）」トラックを使う。店舗採取layout Aの選択はIO-02対応後に可能になる
 
 **【制御構造】**
 - Preview開始〜Commit完了/キャンセルまでimport_in_progress=true。この間「取り込む」ボタンdisabled
 - importing 中の他画面遷移: `useBlocker` で常時 block（確認ダイアログなし）+ 画面上に状態バナー「取込み完了まで他画面に移れません」表示。完了/エラー/idle で unblock
 - 状態管理: useReducer + discriminated union（Zustand 不採用、Phase 2 8-2 確定）。IPC channel 不採用（indeterminate spinner + 状態文言、commit 単一 TX のため partial progress は誤認源）
-- 日報取込みは sale_records / inventory_movements を作らない。Z004商品別CSV取込みだけが商品別売上と在庫引落し候補を作る
+- 日報取込みは sale_records / inventory_movements を作らない。Z004商品別CSV取込みだけが商品別売上を作り、`pos_stock_sync=true`の商品にinventory_movementsを作る（店舗採取layout AはIO-02未対応）
 
 **【設計判断の出典】**
 - 状態管理・IPC channel 不採用判定、6 variant 詳細化、useBlocker 常時 block 設計: [docs/archive/plans/2026-05-13-phase-2-ui-07.md](../archive/plans/2026-05-13-phase-2-ui-07.md) §2 確定済の前提
