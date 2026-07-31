@@ -53,6 +53,8 @@ wire型変換の失敗と、source designが明示するresource-safetyの早期
 ### レイヤー間の呼び出し原則
 - UI → CMD → BIZ → IO の一方向のみ。上位層が下位層を呼ぶ
 - **UIがIOを直接呼ぶことは禁止**。一括インポートもUI→CMD→BIZ-01→IO-03の順で呼ぶ
+- **CMD が IO 層を直接呼ぶことは禁止**（BIZ 経由のみ。`src-tauri/tests/architecture_test.rs` の layer 依存 test が機械検査する。D-060）
+- **CMD → MNT の直接呼び出しは、DB 接続所有権の交換を要する保守 orchestration（MNT-01 バックアップ/復元系）に限り正規経路とする**。`AppState.db` Mutex は CMD 層の所有物であり、接続の取り出し・差し替えは CMD にしか実行できないことが根拠。復旧規則・分類の正本は `function-design/71-mnt-backup.md` §71.7 が所有し、CMD は同 § の呼び出しパターンを実行するのみで独自の規則を定義しない（D-060）
 - BIZ層同士の呼び出しは許可（例: BIZ-01の商品登録がBIZ-06の棚卸しアイテム追加を呼ぶ）
 - IO層同士の呼び出しは許可（例: IO-01のリポジトリをIO-02のパーサーが使うことはないが、MNT-03がIO-01を呼ぶ）
 
@@ -148,7 +150,7 @@ REQ-403（POS 部門別売上照合）は UI-13 / REQ-904 の在庫整合性と�
 | CMD-08 | PLU書出しコマンド群 | BIZ-04 | PLUファイル生成の入口 |
 | CMD-09 | 売上集計コマンド群 | BIZ-05 | 日次・月次集計データ取得の入口 |
 | CMD-10 | 棚卸しコマンド群 | BIZ-06 | 棚卸し操作の入口 |
-| CMD-11 | 設定・ログコマンド群 | MNT-01, MNT-02 | 設定CRUD、ログ取得の入口 |
+| CMD-11 | 設定・ログコマンド群 | BIZ-09, BIZ-02, MNT-01, MNT-02 | 設定CRUD、ログ取得、バックアップ/復元、領収書画像保存の入口（D-060） |
 | CMD-12 | 日報取込みコマンド群 | BIZ-08 | Z001/Z002/Z005 bundle preview/commit/rollback/listの入口 |
 
 ### BIZ層（ビジネスロジック）
@@ -163,6 +165,7 @@ REQ-403（POS 部門別売上照合）は UI-13 / REQ-904 の在庫整合性と�
 | BIZ-06 | 棚卸しロジック | REQ-205 | 棚卸し開始（全商品のstocktake_items生成）・カウント入力・確定（total_cost計算、valuation_cost_price記録、差異補正のinventory_movements記録）。進行中は1件まで制約。新規商品登録時の自動追加 |
 | BIZ-07 | 整合性チェックロジック | QR系 | stock_quantity突合（SUM(inventory_movements) vs products.stock_quantity）。差異発見時の利用者確認フロー |
 | BIZ-08 | 日報取込みロジック | REQ-401 | Z001/Z002/Z005 bundleのParse→Validate→Preview→Commit、日報テーブル保存、論理rollback。sale_records/inventory_movementsへ擬似展開しない |
+| BIZ-09 | システム設定・操作ログロジック | REQ-902, 905 | 設定一覧取得・設定upsert・操作ログ検索（日付validation所有）・operation_type一覧。system_repoを呼ぶBIZ境界（D-060。実装は順12 実装 PR、仕様詳細は38-biz-system-service.md新設時に確定） |
 
 ### IO層（ファイルI/O・DB）
 
@@ -279,7 +282,7 @@ REQ-403（POS 部門別売上照合）は UI-13 / REQ-904 の在庫整合性と�
 
 | レイヤー | ファイル | タスク |
 |---------|---------|--------|
-| BIZ層 | [architecture/biz-task-specs.md](architecture/biz-task-specs.md) | BIZ-01〜BIZ-08 |
+| BIZ層 | [architecture/biz-task-specs.md](architecture/biz-task-specs.md) | BIZ-01〜BIZ-09 |
 | IO層 | [architecture/io-task-specs.md](architecture/io-task-specs.md) | IO-01〜IO-07 |
 | MNT層 | [architecture/mnt-task-specs.md](architecture/mnt-task-specs.md) | MNT-01〜MNT-04 |
 | CMD層 | [architecture/cmd-task-specs.md](architecture/cmd-task-specs.md) | CMD-01〜CMD-12 |

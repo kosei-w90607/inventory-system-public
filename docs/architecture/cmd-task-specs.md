@@ -106,15 +106,17 @@ CMD層は薄いラッパーのため、各コマンドの仕様は「どのBIZ�
 
 | コマンド名 | 入力 | 呼び出すBIZ/MNT/IO | 出力 |
 |-----------|------|-----------|------|
-| get_settings | なし | IO-01経由（許可済み例外） | AppSettings（全設定値） |
-| update_setting | key, value | IO-01経由（許可済み例外） | Result（success） |
-| list_logs | LogQuery（page, per_page, operation_type?） | IO-01経由（許可済み例外） | LogList（items[], total_count） |
+| get_settings | なし | BIZ-09 | AppSettings（全設定値） |
+| update_setting | key, value | BIZ-09 | Result（success） |
+| list_logs | LogQuery（page, per_page, operation_type?, start_date?, end_date?） | BIZ-09（日付validation所有） | LogList（items[], total_count） |
+| list_log_operation_types | なし | BIZ-09 | operation_type一覧（distinct） |
 | create_backup | なし | MNT-01 | Result（backup_path） |
 | list_backups | なし | MNT-01 | BackupList（items[]{filename, created_at, size}） |
+| get_effective_backup_dir | なし | MNT-01（backup::resolve_backup_dir） | 実効バックアップ保存先（文字列） |
 | restore_backup | backup_path | MNT-01 | Result（success） |
 | run_integrity_check | なし | BIZ-07 | IntegrityResult（mismatches[]） |
 | fix_integrity | product_codes[] | BIZ-07 補正 | Result（fixed_count） |
 | check_auto_backup | なし | MNT-01（backup::check_auto_backup） | Result（bool） |
-| save_receipt_image | SaveImageRequest | IO-06（image_manager::save_receipt_image） | Result（relative_path） |
+| save_receipt_image | SaveImageRequest | BIZ-02（拡張子validation所有、BIZがIO-06 image_managerを呼ぶ） | Result（relative_path） |
 
-CMD-11 の `get_settings` / `update_setting` / `list_logs` は、業務ロジックを持たない設定・ログ参照として `settings_cmd` から `system_repo` を直接呼ぶ。これは `src-tauri/tests/architecture_test.rs` の allowlist と function-design §43 に基づく許可済み例外であり、他の CMD は UI -> CMD -> BIZ -> IO/MNT 境界を保つ。
+CMD-11 の層経路は D-060 で正本化した（`ARCHITECTURE.md`「レイヤー間の呼び出し原則」参照）: 設定・操作ログ系は BIZ-09（`biz::system_service`）経由の標準経路、backup/restore 系は DB 接続所有権の交換を要する保守 orchestration として CMD → MNT-01 の正規経路（復旧規則の正本は function-design 71 §71.7）、領収書画像は base64 decode（CMD の wire 型変換）+ BIZ-02 の拡張子 validation。CMD から IO 層への直接呼び出しは禁止で、`src-tauri/tests/architecture_test.rs` の layer 依存 test が機械検査する（旧 allowlist の settings_cmd 例外 2 entry は順12 実装 PR で削除する。コードの追随も同 PR — それまでの現行実装は移行前の直呼び形）。

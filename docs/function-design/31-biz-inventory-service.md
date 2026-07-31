@@ -330,3 +330,14 @@ enum BizError {
 - bool: "true" / "false"
 - 日付: YYYY-MM-DD（10文字固定）。時刻部分があれば切り捨て
 - 文字列: UTF-8そのまま
+
+---
+
+### 12.9 領収書画像保存の validation 所有（D-060 (c)、順12）
+
+領収書画像の拡張子 validation は BIZ 層（inventory_service）が所有する（D-060）。`receipt_image_path` は返品記録（§12.4）の要素であり、画像保存は returns domain に属する。
+
+- 責務分担: CMD（`save_receipt_image`、function-design 43 §43.10）は Base64 decode の wire 型変換のみを行い、decode 済みバイト列と拡張子を BIZ へ渡す。BIZ が拡張子（`jpg|jpeg|png|gif|webp`）を検証して `BizError::ValidationFailed` を返し、通過後に `io::image_manager`（IO-06）を呼ぶ
+- IO 層（28-io-image-manager.md）の拡張子 check は防御として現状維持する（DB CHECK 制約と同型。正常系で到達しない。ARCH-VAL-D1 は CMD/BIZ 間の二重判定禁止であり、IO 防御は対象外）
+- wire 契約（kind / message / field）は移行前と不変
+- 関数契約（シグネチャ・処理ステップ）は順12 実装 PR で本 doc に追記する（packet: 2026-07-31-settings-service-boundary-design の SPEC-CMD11-D5 (ii)）
