@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: implementing
+- Phase: design
 - Risk: R3
 - Execution Mode: dual-vendor-no-fable
 - Plan Commit: 1ef0336bab42cd5f816a3e661b08338c82845ca7
@@ -21,6 +21,7 @@ Narrative (append-only):
 - 2026-08-01 kickoff -> spec-check -> design -> plan-draft -> plan-gate: owner は CI reality audit と現状に沿わない source-doc 記述の一括是正を承認した。GitHub 公式 contract、repository visibility、workflow runner class、recent run history、cache usage、branch protection / ruleset を read-only 実測し、D-063 / CI-PUBLIC-D1 / CI-TRIGGER-D1 を source docs に起草した。implementation は Plan Review 後の static / mutation regression test 追加だけで、workflow YAML は変更しない。
 - 2026-08-01 Plan Review round 1: external Claude Sonnet 5 report -> `P1=0 / P2=2 / P3=1`。P2-1（explicit dispatch failure/cancel が trigger table の recovery row から漏れる）と P2-2（4 state に対して mutation が already-successful 1 state のみ）を accept。recovery row を automatic / explicit 共通へ広げ、M2a〜M2d を state ごとに追加した。P3 の HEAD SHA concurrency 案は「未比較」を accept して D-063 Alternatives / Revisit へ記録したが、現行 PR-number key の cross-HEAD cancellation を失い sequential duplicate も防げないため YAML change は reject/defer。Phase は plan-gate のまま fresh re-review を要求する。
 - 2026-08-01 Plan Review closure: external Claude Sonnet 5 re-reviewed correction HEAD `753317f179cb89d4340356686ff0fccdfcc7ac3c` and reported `P1=0 / P2=0 / P3=0`。P2-1 / P2-2 closure と P3 concurrency 裁定を妥当と確認し、新規 finding なし。plan-first commit `1ef0336bab42cd5f816a3e661b08338c82845ca7` が implementation より前に存在するため、この state-only commit で plan-gate -> plan-approved -> implementing を materialize する。
+- 2026-08-01 implementation wiring probe: `rg -n 'ci-workflow.test.sh' scripts/local-ci.sh .github/workflows/ci.yml scripts` -> registration は `scripts/local-ci.sh:214` のみで、hosted docs job は `ci-workflow.test.sh` を実行しないと判明。Packet の「既存 hosted routing を再利用」は事実誤認のため、implementation を停止して state-backtrack implementing -> design。owner は current change を L1 local guard に限定し、`doc-consistency-check.sh` への hosted 統合（C案）は別 R3 follow-up とすることを決定した。TDD途中差分は commit せず一時退避した。
 
 ## Owner Effort Budget
 
