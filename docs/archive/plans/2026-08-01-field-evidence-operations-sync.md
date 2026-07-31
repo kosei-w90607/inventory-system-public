@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: ready-hosted-final
+- Phase: archive
 - Risk: R3
 - Execution Mode: dual-vendor-no-fable
 - Plan Commit: 2902177341b455833a5193bfa9519a6565ad41c1
@@ -14,7 +14,7 @@
 - Reviewed Content HEAD: 657c3cc56a93613d7562d447e910c67277284dd8
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
-- Human Gate: pending merge
+- Human Gate: complete（owner merge承認済み）
 
 ## Owner Effort Budget
 
@@ -222,11 +222,13 @@ runtime wire変更なし。
 
 ## Implementation Results
 
-（Plan Gate後に記入）
+- PR #55をsquash mergeし、merge commit `53d0d355cbb363817852bd6372ced27582f7aeca` でsource docsへ反映した。
+- Ready exact HEAD `5251cecb4a375ca1cfaa29a31aada24a340dd122` でlocal L1 fullとhosted CI run `30664891332`が成功し、PR HEAD / local evidence / hosted headShaの三点一致を確認した。
+- runtime code、workflow YAML、DB schema、実店舗artifactは変更していない。後続実装はlayout A/B、固定slot / bulk onboarding、EcrDatas lifecycle、紙代替operator受入の各R3として分離した。
 
 ## Review Response
 
-- Findings Freeze: not yet frozen; post-freeze exceptions: none.
+- Findings Freeze: frozen; post-freeze exceptions: none.
 - Plan Review（2026-08-01、Reviewed Content HEAD `2902177341b455833a5193bfa9519a6565ad41c1`）: P1=0 / P2=0 / P3=1。Plan GateのP1/P2=0条件は満たした。
 - P3-1 accepted same-change: stale-grepが自身の検査式・棄却説明・正常なgo-live準備候補へ自己一致した。active plan/archiveを除外し、検出語彙を過去の誤記へ限定した改訂ACを実行してno matches（rg exit 1）を確認。correction HEADのclosure確認はpending。
 - Closure Review（2026-08-01、Reviewed Content HEAD `7100d345f22a4a44d5bc19eba46ed6d38b55353d`）: P3-1はCLOSED。新規P2-1として、限定後のstale-grepが是正前の実在variant `在庫自動引落し候補` を検出しないことをacceptした。Plan Gateは継続する。
@@ -238,3 +240,5 @@ runtime wire変更なし。
 - State Transition（2026-08-01）: content candidate `657c3cc56a93613d7562d447e910c67277284dd8`、exact live HEAD `a5ae3f0aa83a73396707a084c8de7666a7812780`のL1 full CLEAN/PASS、Final Contract Audit P1/P2=0がこのcommitより前に揃ったため、implementing -> local-verified -> independent-review -> human-confirmをmaterializeする。
 - Owner Ready Authorization（2026-08-01）: ownerが介入2/3として「Ready OK」を明示し、Draft PR #55をready-hosted-finalへ進めることを承認した。
 - State Transition（2026-08-01）: owner Ready authorizationを受け、このstate-only commitでhuman-confirm -> ready-hosted-finalをmaterializeする。resulting exact HEADでL1 fullを再実行し、PR bodyを全面更新してからReady化・required hosted finalへ進む。
+- Hosted Final / Merge（2026-08-01）: docs-only Ready eventはCI-TRIGGER-D1のevent-filtered stateとなったため、recovery routeでexact HEAD `5251cecb4a375ca1cfaa29a31aada24a340dd122`へworkflow dispatchを1件だけ実行した。run `30664891332`は成功し、重複runなし・merge-cleanを確認後、owner merge承認を受けてPR #55をsquash mergeした。
+- Post-Merge Closeout（2026-08-01）: Packet / Matrixをarchiveし、Plans / PROJECT_HANDOFF / WERを同期した。
