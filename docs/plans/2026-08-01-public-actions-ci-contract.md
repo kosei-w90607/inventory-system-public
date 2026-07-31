@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: plan-gate
+- Phase: implementing
 - Risk: R3
 - Execution Mode: dual-vendor-no-fable
 - Plan Commit: 1ef0336bab42cd5f816a3e661b08338c82845ca7
@@ -11,7 +11,7 @@
 - Writer: Codex (GPT-5.6, main session)
 - Plan Reviewer: Claude Sonnet 5 (external, fresh context)
 - Final Reviewer: Claude Sonnet 5 (external, fresh context; Double Audit first pass) + independent fresh second pass
-- Reviewed Content HEAD: pending
+- Reviewed Content HEAD: 297066b
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
 - Human Gate: Ready authorization + merge approval (pending)
@@ -23,6 +23,7 @@ Narrative (append-only):
 - 2026-08-01 Plan Review closure: external Claude Sonnet 5 re-reviewed correction HEAD `753317f179cb89d4340356686ff0fccdfcc7ac3c` and reported `P1=0 / P2=0 / P3=0`。P2-1 / P2-2 closure と P3 concurrency 裁定を妥当と確認し、新規 finding なし。plan-first commit `1ef0336bab42cd5f816a3e661b08338c82845ca7` が implementation より前に存在するため、この state-only commit で plan-gate -> plan-approved -> implementing を materialize する。
 - 2026-08-01 implementation wiring probe: `rg -n 'ci-workflow.test.sh' scripts/local-ci.sh .github/workflows/ci.yml scripts` -> registration は `scripts/local-ci.sh:214` のみで、hosted docs job は `ci-workflow.test.sh` を実行しないと判明。Packet の「既存 hosted routing を再利用」は事実誤認のため、implementation を停止して state-backtrack implementing -> design。owner は current change を L1 local guard に限定し、`doc-consistency-check.sh` への hosted 統合（C案）は別 R3 follow-up とすることを決定した。TDD途中差分は commit せず一時退避した。
 - 2026-08-01 wiring correction -> plan-draft -> plan-gate: Registration / Main Wiring / Matrix / D-063 を実配線へ訂正した。current guard は `scripts/tests/ci-workflow.test.sh` を `scripts/local-ci.sh full` から実行する L1 local-only 契約であり、hosted docs job はこの check を実行しない。hosted 側の docs contract 実防御が必要になった場合は `scripts/doc-consistency-check.sh` へ統合する別 R3 change を起票する。訂正内容を external Claude Sonnet 5 の fresh re-Plan Review に戻す。
+- 2026-08-01 fresh re-Plan Review closure: external Claude Sonnet 5 reviewed exact content HEAD `297066b` and reported `P1=0 / P2=0 / P3=0`。L1 local-only registration、hosted未配線、別R3の `doc-consistency-check.sh` 統合、hosted finalをguard実行証拠と扱わない境界、workflow YAML zero-diff、state-backtrack / `Amendments: none` の妥当性を独立再確認した。plan-gate -> plan-approved -> implementing をこの state-only commit で materialize し、退避中のTDD実装を復元して再開する。
 
 ## Owner Effort Budget
 
