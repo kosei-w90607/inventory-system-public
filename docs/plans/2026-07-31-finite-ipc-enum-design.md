@@ -112,6 +112,7 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 | DB / transaction / audit / rollback / migration | DB_DESIGN.md（接続注記のみ、schema 不変） | updated in this PR |
 | CSV / TSV / report / import / export format | 変更なし（ファイル format 不変） | existing sufficient |
 | Durable decision / ADR | decision-log D-061 | updated in this PR |
+| Process（active packet link / D-10 backlog 表記） | Plans.md | updated in this PR（Matrix N16 で機械検証 — round 4 P2） |
 
 ## Registration / Generation Obligations
 
@@ -171,7 +172,10 @@ Minimum design checks for business-app work:
 | D-061 (b) 不正値経路の精密化（正常値 wire 不変 + serde 拒否統一 + 手動 parse 廃止） | decision-log / 41 §17.6 / 42 §22.5 | Matrix N4, N5（token） | 実装 PR1 probe で shape 実測 |
 | D-061 (c) 境界規則（IPC+BIZ まで、DB TEXT+CHECK 維持、変換失敗は明示 internal） | decision-log / DB_DESIGN 注記 / 30 / 31 / 32 | Matrix N6（token） | 実装は follow-up PR |
 | D-061 (d) CmdErrorKind 12 値（値・分岐・error_id・restore 意味論不変、frontend 手動定数置換） | 40 §5.3 / 41 §17.4 / 68 §68.7 / 71 §71.7 注記 / 55 §55.5 | Matrix N3, N7（token） | 実装は follow-up PR |
-| D-061 (e) D-10 吸収（source の union 化を family へ） | 56 §56.2 / 53 D-10 行 | Matrix N8（token） | 実装は follow-up PR |
+| D-061 (e) D-10 吸収（source の union 化を family へ） | 56 §56.2 / 53 D-10 行 / Plans.md D-10 表記（round 4 P2） | Matrix N8, N16（token） | 実装は follow-up PR |
+| D-061 (a)/(b) 派生: ExportMode 境界露出の doc 改訂（33 §16.2 / 67 §67.8。round 4 P1） | 33 / 67 | Matrix N13（token） | 実装は follow-up PR |
+| D-061 (a) 派生: manual sale reason の frontend union 置換方針（62 §62.4。round 4 P1） | 62 | Matrix N14（token） | 実装は follow-up PR |
+| D-061 (a) 派生: SalesMode frontend 手動 union 置換方針（57。round 4 P1） | 57 | Matrix N15（token） | 実装は follow-up PR |
 | family 一覧の完全性（CmdErrorKind / return_type / direction / disposal_type / reason / source / CsvImportResult.status / ErrorRow.error_type / ExportMode / SalesMode / movement_type / reference_type / tax_rate / stock_unit の 14 family、対象外 = StocktakeProgressBiz.status・26-io error_type・operation_type とその理由 + (11)(12) の P4-2 界面除外 + (13)(14) の file 由来経路 guard 維持） | 本 packet + D-061 | Matrix N9（レビュー: inventory 調査との突合）+ N11（token） | — |
 | 順12 実装との直列制約（settings_cmd error 生成箇所 / bindings.ts 干渉）と実装分割（PR1 = CmdErrorKind 横断、PR2 = domain family 群。順序の既定 = 順12 実装 → 順14 PR1 → PR2、owner 裁定で変更可） | 本 packet SPEC-P41-D5 | 実装 PR Plan Gate で突合 | — |
 | 隣接 contract sweep: 各改訂 § の同居契約（40 §5.3 の error_id 契約 / 68 §68.7 の表示文言 / 42 §22.5 の集計意味論 / 55 §55.5 の wrapper 実装例 / 71 §71.7 の D1/D4/D5）は値・意味論不変で型注記のみ追加。除外契約なし | — | 独立レビューで再確認 | — |
@@ -261,3 +265,9 @@ Contract ID: SPEC-P41-D1〜D5
 - 全数突合: schema_v1.rs の CHECK 12 件全列挙で 11 件が family 対応・1 件（stocktake.status）が対象外明記と一致、frontend union sweep でも漏れなしを確認（14 family で網羅確定）
 - P1（51-ui-product-form.md の Scope 欠落）: **accept**。値集合の frontend 正本（§147-148 相当の `"10"|"8"|"0"` / `"pcs"|"cm"` 手書き集合と select validation 文言）が実在することを Writer も実読確認（型名 `ProductTaxRate` 自体は 51 に不在で、正本は値集合と文言）。Scope / Design Sources / Required Design Artifacts / Matrix N12 へ水平展開。UI 入力バリデーションの意味論は不変と明記
 - P2（30 の他節未展開）: **accept**。Design Sources / Required Design Artifacts / Ledger D-061 (c) へ展開。round 2 に続く sweep 不完全の再発のため、round 4 では「Scope 追加 doc の全節出現」を機械的に突合する観点を Reviewer へ明示依頼する
+
+### Plan Review round 4（independent Claude subagent, Sonnet 5, fresh context）
+
+- 全 doc×全節の機械突合を実施（依頼した欠陥 class 特化観点）。round 3 是正の反映と、Non-scope の「30」表記が別箇所（§381 の単発 kind 言及 = deferred / tax_rate 節 = in-scope）を指す整合であることを確認
+- P1（33 / 62 / 67 / 57 が Ledger・Matrix に皆無）: **accept**。Ledger へ派生 3 行を追加し、Matrix N13（33+67）/ N14（62）/ N15（57）の presence anchor（`D-061`、各 baseline 0 実測済み）を新設
+- P2（Plans.md の Scope 項目が未検証）: **accept**。Required Design Artifacts へ Process 行を追加し、Matrix N16（`rg -cF "D-061 (e) に吸収" docs/Plans.md`、fixed-string、baseline 0）を新設
