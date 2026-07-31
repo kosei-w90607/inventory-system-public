@@ -52,3 +52,4 @@ Use `docs/templates/test-design-matrix.md`.
 - Prefer tests that cite spec IDs, design decision IDs, or source doc sections when the touched area has traceability.
 - Every important test should state what broken implementation it catches.
 - For accepted P1/P2 fixes, prefer adding a regression test.
+- Test Design Matrix の数値クレーム（duration / count / percentage / threshold）は測定コマンドと出力を併記するか、明示的に `未実測` とタグ付けする（D-062、AGENTS.md の数値主張規則と同一趣旨）。

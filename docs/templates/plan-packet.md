@@ -146,6 +146,9 @@ Fill this when the task starts from field investigation, real-device confirmatio
 | Data safety / evidence |  |  |
 | Reporting / accounting semantics |  |  |
 | Manual verification |  |  |
+| 環境・再現性 |  |  |
+
+環境・再現性 lens: 新設の環境依存（toolchain / CI runner / OS 差異等）は repo-pinned config で強制するか、明示的に defer するかを記録する。Node 24 `.node-version` single-owner pin の教訓（`docs/archive/plans/2026-07-30-node24-toolchain-alignment.md`）を参照。
 
 ## Design Readiness
 

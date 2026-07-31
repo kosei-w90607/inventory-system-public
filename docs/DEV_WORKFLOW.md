@@ -336,6 +336,7 @@ CI routing:
 - Before an irreversible finding can authorize deletion, recreation, forceful repair, or another destructive mutation, it must state all four items: `actual harm path`, `affected candidate or mutation`, `non-destructive revalidation`, and `blocker reason`. Run the cheapest safe revalidation first; a missing item keeps the finding non-authoritative for destructive action.
 - When the Plan Packet includes `Impact Review Lenses`, pass those lenses into the review-only sub-agent packet and ask the reviewer to use them as prompts for missing design, evidence, tests, manual checks, or replacement-boundary risks.
 - For R3, run review-only sub-agent by default; if skipped, record `Review-only skipped because:` in the Plan Packet or PR body.
+- Writer が Codex（発注書駆動の実装者）である packet の Plan Reviewer は、Writer と同一 vendor であってはならない。同一 vendor の fresh context はこの独立性を満たさない（D-062）。この vendor 単位の制約は `Execution Mode` が `codex-only`（AGENT_OPERATING_MANUAL.md §3.2）であっても免除されない。 non-Codex の Plan Reviewer が実在しない場合は、免除するのではなく AGENT_OPERATING_MANUAL.md §3.3 Capacity-degraded に従って Plan Reviewer を pending 化し、Phase を前進させない。
 - For narrow docs-only PRs where review-only is skipped, the PR body must state why local verification is enough.
 - For R4, review-only sub-agent is required and destructive or irreversible actions need explicit human approval.
 - Sub-agent findings are claims. Verify each finding against files, diffs, specs, and test output before accepting or rejecting it.
