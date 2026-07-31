@@ -291,7 +291,44 @@ Contract ID: SPEC-CMD11-D2, D3, D5（design PR で凍結、本 PR で実装） +
 
 ## Implementation Results
 
-（実装後に記入）
+### 実装・検証結果（Writer, 2026-07-31）
+
+- 実装 commit: `24f69d146384a29857f64f2da18be70b1200e77d`。X4a 初回 survivor の oracle hardening commit: `df02e9c`（strict 形状判定後に年月日を分解して `from_ymd_opt` へ渡し、`bytes.len() == 10` の除去を観測可能にした）。
+- BIZ-09 の 4 関数、returns domain の画像保存、settings/log/image CMD 経路、layer/design gate、38 doc、31 §12.9、5 doc wording sweepを実装した。AMD1 に従い、settings/log DatabaseError は標準 internal 文言、validation triple は逐語不変。
+- 個別 gate: `cargo fmt --check` / `cargo clippy --all-targets --all-features -- -D warnings` / `cargo test`（789件）/ design compliance（1件）/ architecture（1件）/ doc consistency / plan consistency / traceability check が pass。`generate_bindings` 前後の `src/lib/bindings.ts` blob hash はともに `9fae4b34c0572283edbd66a99913e1615e77b9ff`、diff 0。
+- review-only sub-agent の初回 finding を是正・独立再確認し、Findings Freeze 後の closure は P1/P2=0。画像 command は Tauri の Wry/MockRuntime 型境界のため actual attribute wrapperから runtime-generic production core へ委譲し、実 command testに加えて wrapper 配線の静的 oracleを追加した。
+
+### Mutation 実測
+
+全注入は commit 後の clean tree から開始し、各 mutant の red を確認後に復元した。最終 `git diff --exit-code` は clean。C9/X9 と C11/X11 は Matrix が明示する mutation 非対象であり、意図的な変更を注入せず、独立 review / negative diff で確認した。
+
+| Mutant | 注入内容 | red oracle / 結果 | Kill |
+|---|---|---|---|
+| X1 | `get_settings` を `system_repo` 直呼びへ差し戻し | production `system_repo::` count 0 assertion: exit 1 | yes |
+| X2 | `DbError` / `AppSetting` / `OperationLog` re-exportを削除 | `cargo check`: unresolved import/type（exit 101） | yes |
+| X3a | `get_settings` に `map_err(db_err)` を復活 | `map_err(db_err) == 3` assertion: 4件でexit 1 | yes |
+| X3b | `get_backup_dir` から `map_err(db_err)` を除去 | 同 count assertion: 2件でexit 1 | yes |
+| X4a | `bytes.len() == 10` を除去 | 日付契約test: `2026-07-01x` を受理してfail（初回はsurvivor、`df02e9c`後に再注入してkill） | yes |
+| X4b | `start > end` を `start >= end` へ変更 | 日付契約test: 同日許可assertがfail | yes |
+| X4c | 日付形式エラーメッセージを変更 | 日付契約test: 完全一致assertがfail | yes |
+| X5a | BIZ拡張子checkを削除 | BIZ invalid-extension test: `ValidationFailedAt` assertがfail | yes |
+| X5b | `ValidationFailedAt` を fieldなし `ValidationFailed` へ変更 | BIZ/CMD invalid-extension 2 testがfail | yes |
+| X5c | BIZ側へbase64 decodeを注入 | CMD valid-image testがvalidation errorでfail | yes |
+| X6a | get-settings CMD testをrepository直呼びへ戻す | `mock_builder == 10` source assertion: 9件でexit 1 | yes |
+| X6b | image command wrapperのcore委譲を常時errorへ変更 | wrapper delegation testがfail | yes |
+| X7 | productionへ `use crate::db::system_repo;` を再挿入 | architecture test: layer violation 1件でfail | yes |
+| X8a | 38 doc map entryを削除 | design compliance: 未登録doc 1件でfail | yes |
+| X8b | 38 docの「エラー」記述を除去 | doc consistency M2: 必須記述欠落WARNを検出 | yes |
+| X9 | Matrix指定どおりmutationなし | review-onlyで31 §12.9と実装signature/stepsを突合 | n/a |
+| X10 | `save_receipt_image` commandへ引数を一時追加 | bindings再生成後のdiff-zero assertion: exit 1 | yes |
+| X11 | Non-scopeのためMatrix指定どおりmutationなし | backup/restore 5 commandと`get_backup_dir`本文に差分なし、既存regression pass | n/a |
+| X12 | 43 §43.1へ未来形注記を復活 | 5 doc wording count 0 assertion: exit 1 | yes |
+
+### 実装中の判断・逸脱
+
+- Test移設後、`generate_traceability -- --check` がT1 driftとなり、pre-push req-number gateも新CMD test名を拒否した。機械gateを迂回せず test名へREQを付与し、生成正本 `90-traceability.md` を再生成したため、Packetの「再生成不要」という事前予測からは逸脱した。あわせて既存 `test_product_update_request_ordinary_fields_omitted_null_value` のREQ欠落を `req102` 付きへrenameした（assertion/挙動不変）。
+- restore本文を一文字も変えず productionの直接DB importを0にするため、`biz::restore_support` は `open_existing_database` 1 symbolだけのprivate re-exportとした。wrapper/BizError変換/BIZ処理は追加せず、runtime呼出先とrestore本文は不変。review-onlyで具体的runtime/contract harmなしとしてP2 dispositionをclosure済み。
+- AMD1の狭いinternal文言例外はCoordinator gated Packetを本実装の上位契約として適用した。凍結済み `decision-log` / task-spec契約本文の同期はWriter権限外かつNon-scopeのため変更していない。43 §43.5の旧 `list_operation_logs(conn, &query)` 表現も同じく凍結本文として残し、実signatureの正本は新規38 docとした。
 
 ## Review Response
 
