@@ -246,6 +246,7 @@ CSV は UTF-8 BOM 付きとし、既存 report export 方針に合わせる。�
    - `getReceivingRecord(id)` / `getReturnRecord(id)` / `getManualSaleRecord(id)` を追加し、各詳細は read-only で header、明細、業務サマリ、関連 movements、商品別 movement への導線を表示する。
    - UI-02 / UI-03 / UI-04 の recent list には「すべての履歴を見る」と detail 導線を置く。UI-04 は PR #115 時点では保存結果からの detail 導線のみだったが、作業画面間の一貫性のため後続 follow-up で recent list を追加する。履歴検索は `/inventory/records` に集約し、作成画面内に検索・取消・訂正を持ち込まない。
    - 返品・交換 detail の保存済み receipt image は初回横展開では添付有無と相対パス表示までとし、asset 表示・削除は画像添付 slice で扱う。
+4b. CSV取込み詳細: `getCsvImportRecord(id)` と `/csv-import/records/$importId` 詳細画面を追加し、在庫変動履歴「CSV取込み #n」元記録 link の 404（UI-06c-D7 の未実装 route 表示契約により operator へ露出）を解消する。既存4記録種別の詳細画面と同構造・read-only とし、rollback CTA は置かず（取込み画面 UI-07 の責務のまま）、一覧 `/csv-import/records` と `listCsvImportRecords(query)`、棚卸し詳細 route はこのスライスに含めない。backend 設計は [24-io-csv-import-repo.md](24-io-csv-import-repo.md) §14.13a / [32-biz-csv-import-service.md](32-biz-csv-import-service.md) §15.6a / [41-cmd-pos.md](41-cmd-pos.md) §17.5 を正とする。
 5. 取消 / 訂正 command と UI。
 6. CSV出力 / 印刷 / 廃棄・破損画像添付。
 7. 操作ログ UI と業務記録リンク。
@@ -272,3 +273,4 @@ CSV は UTF-8 BOM 付きとし、既存 report export 方針に合わせる。�
 | 2026-06-28 | Manual sale recent follow-up | UI-04 手動販売出庫にも保存直後確認用の recent list と `すべての履歴を見る` / detail 導線を置く方針へ更新。 |
 | 2026-06-30 | UI-03 note visibility follow-up | 返品・交換詳細の備考を独立表示し、入力なしの場合も `備考なし` として確認できる方針を追加。 |
 | 2026-07-11 | UI-11c Design Phase | §65.8.3 に [74-ui-operation-logs.md](74-ui-operation-logs.md) への正典リンクと、関連記録リンクの明示 contract（許可リスト・record_type未対応。record_idはreceiving/disposal/returnsの3 producerが書き込み済み）を追記。 |
+| 2026-08-03 | CSV取込み詳細 Design Phase | §65.10 に slice 4b（CSV取込み詳細 route + `getCsvImportRecord(id)`。PR #57 owner L3 の 404 backlog 起源）を追記。詳細表示項目・route・command 契約は既存 §65.3 / §65.5 / §65.7.1 を変更せず正とする。 |

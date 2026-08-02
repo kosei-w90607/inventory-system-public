@@ -1,0 +1,283 @@
+# Plan Packet: CSV取込み詳細 route + get_csv_import_record（65 slice 4b）
+
+PR #57 owner L3（2026-08-03）で確認された既存不具合の是正: 在庫変動履歴の「CSV取込み #n」元記録 link が 404（`/csv-import/records/$importId` 詳細 route 不在）。UI-06c-D7 の明示契約（未実装 route でも `source.route` を表示）どおりの既存 gap であり、PR #57 の回帰ではない。
+
+## Workflow State
+
+- Phase: plan-draft
+- Risk: R3
+- Execution Mode: fable-window
+- Plan Commit: pending
+- Amendments: none
+- Coordinator: Claude Fable 5 (main session)
+- Writer: Codex (GPT-5.6、発注書駆動)
+- Plan Reviewer: Claude Sonnet 5 (independent fresh context)
+- Final Reviewer: Claude Sonnet 5 (independent fresh context) + Coordinator mutation 独立再実測
+- Reviewed Content HEAD: pending
+- Final Exact-HEAD Evidence: PR body
+- Hosted CI Requirement: required
+- Human Gate: L3 視認確認（在庫変動履歴 → 「CSV取込み #n」click → 詳細表示、synthetic fixture 使用）、Ready 承認
+
+編成注記: 前セッション引き継ぎは「Codex Plan Review」としていたが、本 change の Writer は Codex であり、D-062 (c)「Writer が Codex の packet では Plan Reviewer が Writer と別 vendor でなければならない（codex-only でも免除されない）」により Plan Reviewer を Claude Sonnet 5 独立 context に是正した。引き継ぎ案は batch A（Writer = Sonnet / Reviewer = Codex 鏡像分担）の編成の持ち越しであり、本 packet の編成が D-062 適合形。
+
+## Owner Effort Budget
+
+- 介入回数上限: 3
+- 実働時間上限: 30分
+- relay 往復上限: 2
+
+既定値と超過時の Coordinator 責務は `docs/DEV_WORKFLOW.md` `Owner Effort Budget` 参照。
+承認依頼フォーマット: `この change での介入 N 回目 / 予算 M 回` + `承認すると利用者から見て何が完了するか1文`。
+
+## Consultation Relay
+
+- Review Order Artifact: none
+- Review Order Ref: none
+
+## Risk
+
+Risk: R3
+
+Reason:
+新規 route/search state（`/csv-import/records/$importId` + `returnTo`）、新規 Tauri command DTO + generated bindings（`CsvImportRecordDetail`）、operator workflow（「押せるのに 404」の解消）、D-052 invalidation 契約の集合変更（C9）を含むため。DB schema・CSV format・merge gate は変更しない。
+
+## Goal
+
+Goal Invariant:
+
+### 最小完了条件
+
+- 在庫変動履歴の「CSV取込み #n」元記録 link から、404 ではなく CSV取込み詳細（ヘッダ、sale_records 明細、エラー行、関連 movements、rollback 状態。65 §65.5 CSV取込み列）が表示される。
+
+### 失敗定義
+
+- link が引き続き 404 になる、または詳細画面が 65 §65.5 CSV取込み列の必須項目（記録ID/業務日付/作成日時/状態、明細数、商品情報、数量/単位、金額、関連 movements、rollback 状態）を表示しない。
+- 既存 CSV 取込み flow（parse/commit/rollback/list）または既存 4 記録詳細画面に回帰が出る。
+
+### 非目的
+
+- 一覧 route `/csv-import/records` と `listCsvImportRecords(query)`（後続スライス、65 §65.10 slice 4b に明記）
+- 棚卸し詳細 route
+- rollback CTA の詳細画面への配置（UI-07 取込み画面の責務のまま）
+- 74-ui-operation-logs 許可リストへの `csv_import` 追加（`record_type` producer 0 件のため実データ影響なし。65 §65.8.3 の「一時的に除外」記述が追跡先）
+
+Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。AC や証跡作業が Goal Invariant を前進させない場合は、Goal を置き換えず簡略化・defer・削除する。
+
+## Scope
+
+1. IO: `db::sales_repo` へ `get_csv_import_record_detail` + `list_csv_import_error_rows` 追加（[24-io-csv-import-repo.md](../function-design/24-io-csv-import-repo.md) §14.13a）
+2. BIZ: `biz::csv_import_service::get_csv_import_record` 追加（[32-biz-csv-import-service.md](../function-design/32-biz-csv-import-service.md) §15.6a）。movements の source 補完は `biz::inventory_service` の既存 `resolve_movement_source`（pub(crate)）を共有し、label/route 規則の複製を作らない
+3. CMD: `cmd::csv_import_cmd::get_csv_import_record` 追加 + `#[tauri::command]` / `#[specta::specta]` 属性の対 + `lib.rs` `collect_commands` 登録（[41-cmd-pos.md](../function-design/41-cmd-pos.md) §17.5 / §17.9）
+4. bindings: `cargo run --bin generate_bindings` 再生成（`getCsvImportRecord` / `CsvImportRecordDetail` / `CsvImportErrorType` union）
+5. route: `src/routes/csv-import.records.$importId.tsx` 新設（既存 `receiving.records.$recordId.tsx` の flat dot 記法前例に従う）+ `npm run generate:routes`。`validateSearch` の `returnTo` pattern（`z.string().max(500).optional().catch(undefined)`）を既存 4 詳細 route と同形で踏襲
+6. UI: `src/features/inventory-records/CsvImportRecordDetailPage.tsx` 新設。`ReceivingRecordDetailPage.tsx` を canonical 参照とし、同構造（useQuery + queryKeys + describeError + returnTo 戻り導線）。status は 65 §65.6.1 に従い正規化した日本語 label（completed / completed_partial / rolled_back の 3 値表示）、rolled_back 時は rollback 状態を明示表示
+7. query key: `queryKeys.inventoryRecords.csvImportDetail(importId)` 追加（既存 `*Detail` 4 key と同形）
+8. D-052 契約変更（C9）: `invalidation-contract.ts` の `csvImportRollback` へ本詳細 query を stale 化する key を table.column 導出手順（UI_TECH_STACK §2.5）で追加 + 独立転記 oracle test の追随 + production-only mutation 感度の再実測。`csvImportCommit` への追加要否も同手順で導出し、採否と根拠を PR body に記録（rollback は `csv_imports.status` / `sale_records.is_voided` / `inventory_movements.is_voided` を確定し本 query が全て読むため追加必須。commit は既存 import 行を変更しないため過剰禁止原則との突合が必要）
+9. tests: 実装と同時に作成、`REQ-206` / `REQ-207` token 付与、`cargo run --bin generate_traceability` で 90 再生成
+10. design docs（本 plan-first commit に同乗済み）: 24 §14.13a / 32 §15.6a + 更新履歴 / 41 §17.5 + §17.9 / 65 §65.10 slice 4b + 変更履歴
+
+## Non-scope
+
+- 一覧 route `/csv-import/records` + `listCsvImportRecords(query)`
+- 棚卸し詳細 route `/stocktake/records/$stocktakeId`
+- rollback CTA の詳細画面配置
+- 74-ui-operation-logs 許可リストへの `csv_import` 追加
+- 55-ui-csv-import（取込み画面）recent list からの詳細導線追加（後続判断）
+- CSV 出力 / 印刷（65 §65.10 slice 6）・画像添付
+- `csv_imports` / `sale_records` / `csv_import_errors` の schema 変更（なし）
+- 既存 preview / commit / rollback / list コマンドの wire 変更（なし）
+
+## Acceptance Criteria
+
+- AC1（変更前 canary）: main 時点で `/csv-import/records/$importId` route が存在しない実出力（`rg -c "csv-import/records" src/routeTree.gen.ts` = 0 件、または dev 環境での 404 スクリーンショット）を PR body に収録する
+- AC2: `cd src-tauri && cargo test` green（`get_csv_import_record` 系の IO/BIZ/CMD test を含む）
+- AC3: `npm test` green（`CsvImportRecordDetailPage` test を含む）
+- AC4: `bindings.ts` diff に `getCsvImportRecord` / `CsvImportRecordDetail` が追加され、`cargo run --bin generate_bindings` 再実行で clean diff
+- AC5: `src/routeTree.gen.ts` に `/csv-import/records/$importId` が生成される
+- AC6: 在庫変動履歴画面の「CSV取込み #n」link を `userEvent.click` で押下し、SPA 遷移後に詳細画面の内容が render されることを assert する test（`href` assert のみは不可 — batch A X3 survivor の教訓）
+- AC7: 存在しない import_id で利用者向け日本語 error（「CSV取込み記録が見つかりません」系）が表示される test
+- AC8: rolled_back 取込みの詳細で、正規化状態 label + movements 0 件の正常表示 + 明細の is_voided 表示を assert する test（Matrix T12。`npm test` で実行され green）
+- AC9: invalidation 独立転記 oracle test が `csvImportRollback` の新集合と順序非依存・重複検出付き完全一致
+- AC10: `bash scripts/local-ci.sh full` CLEAN（L1、exact-HEAD evidence は PR body 所管）
+
+## Design Sources
+
+- Requirements / spec: REQ-206（過去記録の検索・詳細表示）、REQ-207 / TRACE-D2（movement → 元記録の相互遷移）
+- Architecture: `docs/ARCHITECTURE.md`（UI → CMD → BIZ → IO 一方向）
+- Function / command / DTO: [65-inventory-record-traceability.md](../function-design/65-inventory-record-traceability.md) §65.3 / §65.5 / §65.7.1 / §65.10 slice 4b、[24-io-csv-import-repo.md](../function-design/24-io-csv-import-repo.md) §14.13a、[32-biz-csv-import-service.md](../function-design/32-biz-csv-import-service.md) §15.6a、[41-cmd-pos.md](../function-design/41-cmd-pos.md) §17.4 / §17.5 / §17.9、[31-biz-inventory-service.md](../function-design/31-biz-inventory-service.md) §12.6a（read-only パターン正本）、[66-ui-stock-movements.md](../function-design/66-ui-stock-movements.md) UI-06c-D7
+- DB: `docs/DB_DESIGN.md` 12 / 12a / 13（csv_imports / csv_import_errors / sale_records。schema 変更なし）
+- Screen / UI: 65 §65.5 / §65.8、`docs/UI_TECH_STACK.md` §2.5（D-052 導出原則）/ §5.4（focus 可視性）、`docs/design-system/README.md` 一式、[59-ui-shared-patterns.md](../function-design/59-ui-shared-patterns.md)
+- Decision log / ADR: D-052（invalidation SSOT。Revisit 条項 = 契約変更時は SSOT / oracle / mutation 再実測を同一 PR）、D-061（有限 IPC 値の generated enum）、D-062（Plan Reviewer 別 vendor）、D-023（POS adapter boundary — 本 change は app-core の import lifecycle 表示のみで adapter 事実に触れない）
+
+## Required Design Artifacts
+
+| Area touched by upcoming work | Required source doc / artifact | Status |
+|---|---|---|
+| Backend function / command / repository / validation / error | 24 §14.13a / 32 §15.6a / 41 §17.5 | updated in this PR（plan-first commit 同乗） |
+| Command / DTO / generated binding / wire shape | 41 §17.5 + 本 packet `Boundary / Wire Contract` | updated in this PR |
+| DB / transaction / audit / rollback / migration | DB_DESIGN 12/12a/13 | existing sufficient（read-only、schema 変更なし） |
+| Screen / UI / route state / Japanese wording | 65 §65.3 / §65.5 / §65.6.1 / §65.10 slice 4b | existing sufficient + slice 4b を updated in this PR |
+| CSV / TSV / report / import / export format | — | 触らない（取込み format 不変） |
+| Durable decision / ADR | D-052 / D-061 / D-062 既存適用 | existing sufficient（新規 durable decision なし） |
+
+## Registration / Generation Obligations
+
+| 新規追加物 | 登録・生成義務 | 対応 |
+|---|---|---|
+| Tauri command `get_csv_import_record` | `lib.rs` collect_commands 登録 / `#[tauri::command]` + `#[specta::specta]` 対 / `generate_bindings` 再生成 | Scope 3 / 4。Ledger 行あり |
+| function-design doc 新設 | — | 該当なし（既存 4 doc への追記。`build_doc_to_modules_map()` の 24/32/41/65 entry は `db::sales_repo` / `biz::csv_import_service` / `cmd::csv_import_cmd` を登録済みで map 変更不要。§14.13a/§15.6a/§17.5 の新関数は実装までは info_unimplemented 扱い） |
+| source / workflow doc 新設・改名 | — | 該当なし |
+| Consultation Relay | — | 不使用 |
+| REQ coverage 追加 | `generate_traceability` で 90 再生成 | Scope 9 |
+| route 新設 | `npm run generate:routes` | Scope 5 |
+| operator 画面新設 | navigation entry | 不要（詳細画面は sidebar 非搭載。既存 4 記録詳細と同輩）。到達導線契約は「movements link click → SPA 遷移」を Ledger 行 + AC6 で担保 |
+
+## Design Intent Trace
+
+| Spec / requirement ID | Source design doc section | Decision ID | Why / rejected alternatives | Implementation target | Test target |
+|---|---|---|---|---|---|
+| REQ-207 / TRACE-D2 | 65 §65.3（route 表 L61）/ §65.10 slice 4b | UI-06c-D7 後続 | 詳細 route 実装を採用。link 非活性化案は 65 完成形（route 表・§65.5・§65.7.1 が既定）からの後退で、backend `resolve_movement_source` が route 文字列を生成済みのため不採用 | route + `CsvImportRecordDetailPage` | AC1 / AC5 / AC6 |
+| REQ-206 | 65 §65.5 CSV取込み列 / §65.6.1 状態正規化 | — | 表示項目は既存契約に従う。金額 yes / 原価 no / 種別 no の列定義どおり | `CsvImportRecordDetailPage` | AC3 / AC8 |
+| REQ-207 | 66 UI-06c-D7 | — | link URL 表示契約は不変。遷移先実装のみ追加 | — | AC6 |
+| D-052 C9 | UI_TECH_STACK §2.5 | D-052 | rollback は `csv_imports.status` / `sale_records.is_voided` / `inventory_movements.is_voided` を確定し、本 query が 3 table を読むため invalidate 追加必須。commit は既存 import 行を変更しないため過剰禁止原則で要導出 | `invalidation-contract.ts` + oracle test | AC9 |
+| D-061 | 32 §15.6a / 24 §14.13a | D-061 | `status` は `CsvImportStatus`、`error_type` は `CsvImportErrorType` の generated enum。IO 層は raw TEXT（enum 所有が BIZ 層のため層方向を守る）、BIZ で変換 | DTO | AC4 |
+| REQ-206 | 65 §65.5（returnTo 戻り） | TRACE-D11 同型 | movements から来た場合の検索条件保持は既存 4 詳細の `returnTo` pattern を踏襲 | route `validateSearch` | Matrix T13 |
+
+## Design Intent Audit
+
+- Source docs can answer what/why without chat history: yes — 65 slice 4b が起点（404 backlog）と非 scope 境界を、24/32/41 が層別設計を記載
+- Plan-only durable decisions promoted: なし（wire DTO の BIZ 所有・ErrorRow 再利用・IO raw TEXT の層判断は 24/32 に記載済み）
+- Assumptions / constraints: SQLite 単一接続、DB CHECK による error_type 4 値保証、既存 flat dot 記法 route の非 nesting 生成（Contract Probe 参照）
+- Deferred design gaps: 一覧 route / 棚卸し詳細 / 74 許可リスト追随（それぞれ 65 §65.10・§65.8.3 が追跡）
+- Test Design Matrix cites decision IDs: yes（Matrix 参照）
+- Absolute guarantee self-check: 「rolled_back 取込みは movements 0 件」は void_movements_by_reference の既存動作に依存 — 例外は「rollback 前に手動補正が同一 reference に movement を作る」経路だが、`csv_import` reference は BIZ-03 のみが書くため成立しない（32 §15.5 正本）。詳細画面は 0 件でも N 件でも表示が壊れない設計とし T12 で固定
+
+## Impact Review Lenses
+
+| Lens | Applicability / finding | Follow-up artifact |
+|---|---|---|
+| Adapter / core boundary | 本 change は app-core の import lifecycle 表示のみ。Z004 layout / CV17 等 adapter 事実に触れない | — |
+| Fact check / design decision split | 404 は owner L3 実測（PR #57、2026-08-03）。起点事実は Plans.md backlog 起票に記録済み | Plans.md |
+| Lifecycle / retry | rollback 後の詳細表示（rolled_back label + movements 0 件 + voided 明細）を State Lifecycle Matrix でカバー | Test Matrix |
+| Operator workflow | 「押せるのに 404」解消。movements → 詳細 → returnTo 戻りの実順序 | Matrix T10/T13 + L3 |
+| Replacement path | not applicable（POS 外部システム非接触） | — |
+| Data safety / evidence | synthetic fixture のみ。実売上データ非 commit | Data Safety 節 |
+| Reporting / accounting semantics | 表示のみで集計意味論不変。金額は sale_records.amount の表示転記 | — |
+| Manual verification | L3 視認 1 項目（synthetic 取込み後の link 遷移・表示確認） | Human Gate |
+| 環境・再現性 | 新設の環境依存なし（既存 toolchain / 既存生成系のみ） | — |
+
+## Design Readiness
+
+- Existing design docs are sufficient because: 65 が route / 表示項目 / command 対 / 状態正規化の完成形を保持し、31 §12.6a が read-only 詳細取得の層パターンを確立済み
+- Source docs updated in this PR: 24 §14.13a / 32 §15.6a / 41 §17.5・§17.9 / 65 §65.10 slice 4b（いずれも plan-first commit 同乗）
+- Design gaps intentionally deferred: 一覧 route、棚卸し詳細、74 許可リスト追随
+- Durable decisions discovered and promoted: なし
+
+Minimum design checks:
+
+- Layer ownership: UI（表示・returnTo）→ CMD（thin wrapper）→ BIZ（NotFound 変換・ErrorRow 写像・source 補完）→ IO（SQL・DTO core）
+- Backend function design: 24 §14.13a / 32 §15.6a / 41 §17.5
+- Command / DTO / data contract: Boundary / Wire Contract 節
+- Persistence / transaction / audit impact: read-only、TX 不要、operation log 記録なし（31 §12.6a と同判断）
+- Operator workflow / Japanese wording: 状態 label 正規化（65 §65.6.1）、error 文言は describeError 経由
+- Error / empty / retry / recovery: NotFound・エラー行 0 件・movements 0 件・DB error の各経路を Matrix でカバー
+- Testability / traceability: REQ-206 / REQ-207 token、90 再生成
+
+## Contract Probe
+
+- TanStack Router flat dot 記法の親 route 共存（`csv-import.tsx` が存在する状態での `csv-import.records.$importId.tsx` 追加）: repo 内前例で検証済み — `receiving.tsx`（`/inventory/receiving`）と `receiving.records.$recordId.tsx`（`/inventory/receiving/records/$recordId`）が `src/routeTree.gen.ts` に独立 route として共存生成されている実例を実確認（routeTree.gen.ts の `/inventory/receiving/records/$recordId` entry）。外部未検証前提なし。実装初手で `npm run generate:routes` を実行し、routeTree diff で `/csv-import` 非 nesting を end-to-end 確認する（是正仮適用）
+
+## Contract Coverage Ledger
+
+| Design contract / decision ID | Implementation target | Automated test | L3 or non-scope |
+|---|---|---|---|
+| 24 §14.13a: ヘッダ不存在 → DbError::NotFound | `sales_repo::get_csv_import_record_detail` | T1 | — |
+| 24 §14.13a: sale_records 明細 JOIN + is_voided 込み全行 + ORDER BY id ASC | 同上 | T2 | — |
+| 24 §14.13a: movements は `csv_import`/`is_voided=0` filter + source=None | 同上 | T3 | — |
+| 24 §14.13a: error rows ORDER BY source_line_no ASC + 0 件は空 Vec | `sales_repo::list_csv_import_error_rows` | T4（0 件 / N 件両 case、非空期待 1 case 以上） | — |
+| 32 §15.6a: NotFound 変換 + 「CSV取込み記録が見つかりません」文言 | `csv_import_service::get_csv_import_record` | T5 | — |
+| 32 §15.6a: ErrorRow 写像（line_no/name mapping + error_type enum 変換 + 想定外値 fail-fast） | 同上 | T6 | — |
+| 32 §15.6a: source 補完は `resolve_movement_source` 共有（label「CSV取込み」/ route `/csv-import/records/{id}`） | 同上 | T7 | — |
+| 32 §15.6a: wire DTO へ file_hash 非搭載 | `CsvImportRecordDetail` 型 | T6（DTO field assert） | — |
+| 41 §17.5: CMD thin wrapper + kind="not_found" 変換 | `csv_import_cmd::get_csv_import_record` | T8（production command 実呼び） | — |
+| 41 §17.9: collect_commands 登録 + specta 対 + bindings 生成 | `lib.rs` / `bindings.ts` | AC4（clean diff） | — |
+| 65 §65.3: route `/csv-import/records/$importId` | route file + generate:routes | AC5 | — |
+| 65 §65.5 CSV列: 表示項目（ID/日付/状態/明細数/商品情報/数量/金額/movements/rollback 状態） | `CsvImportRecordDetailPage` | T9 | L3 視認 |
+| 65 §65.6.1: status 正規化 label 表示 | 同上 | T9 / T12 | L3 視認 |
+| 65 §65.5 / TRACE-D11 同型: returnTo 検索条件保持 + 不正戻り先 fallback | route `validateSearch` + Page | T13 | — |
+| 66 UI-06c-D7: movements link click → SPA 遷移で詳細 render（到達導線契約） | movements link（既存）+ 新 route | T10（userEvent.click、href assert 単独不可） | L3 視認 |
+| D-052 C9: rollback invalidation に本 query 追加 + 独立転記 oracle 完全一致 | `invalidation-contract.ts` + oracle test | T14 | — |
+| D-052: commit への追加要否の導出記録 | PR body | — | 導出根拠を PR body 記録 |
+| query key 直書き禁止（D-4 / 順17 無例外化） | `queryKeys.inventoryRecords.csvImportDetail` | T15（literal sweep 既存 pattern） | — |
+| 既存 flow 回帰なし（parse/commit/rollback/list + 既存 4 詳細） | — | 既存 test suite green（AC2/AC3） | — |
+
+隣接契約 sweep 実施記録: 65 §65.5 の「詳細画面からは在庫照会の商品詳細へ遷移できる」は既存 4 詳細の商品 link pattern を指す — CSV 明細行にも product_code があるため同 pattern を T9 の表示項目に含める（商品 link の有無は canonical の ReceivingRecordDetailPage と同構造とする）。65 §65.9 出力（CSV/印刷）は slice 6 で非 scope。§65.5「取消/訂正 CTA は cancel/correct command 実装済みの場合だけ表示」— CSV は rollback CTA を置かない（非目的）ため表示条件に抵触しない。
+
+## Test Plan
+
+Test Design Matrix: [test-matrices/2026-08-03-csv-import-record-detail.md](test-matrices/2026-08-03-csv-import-record-detail.md)
+
+- targeted tests: IO/BIZ/CMD unit + production command 実呼び、Page RTL、click SPA 遷移、invalidation oracle
+- negative tests: NotFound、エラー行 0 件、movements 0 件、不正 returnTo fallback
+- compatibility checks: 既存 CSV command 4 本の wire 不変（bindings diff が追加のみであること）、既存 4 詳細画面 test green
+- data safety checks: synthetic fixture のみ、実 POS データ非使用
+- main wiring/integration checks: collect_commands 登録 → bindings 生成 → frontend 呼出しの end-to-end（AC4/AC5/AC6）
+- Human Gate に L3 を含むため、Writer 完了条件に `cargo check --release` を含める（CI gate ではない）
+
+## Boundary / Wire Contract
+
+- producer: `cmd::csv_import_cmd::get_csv_import_record`（Rust）
+- consumer: `CsvImportRecordDetailPage`（`commands.getCsvImportRecord(importId)` 経由の useQuery）
+- wire type: `CsvImportRecordDetail`（tauri-specta 生成。field は snake_case、`status: CsvImportStatus`（3 値 union）、`error_rows: ErrorRow[]`（`error_type: CsvImportErrorType` 4 値 union）、`items: CsvImportRecordDetailItem[]`、`movements: MovementRecord[]`（source 補完済み））
+- internal type: IO `CsvImportRecordDetailCore`（header: CsvImport + items + movements）+ `CsvImportErrorRecord`（error_type raw TEXT）。BIZ が wire DTO を構成
+- precision/range: 金額 i64（円整数）、id i64。JS safe integer 内（既存 CsvImport wire と同等）
+- round-trip path: DB → IO DTO → BIZ wire DTO → bindings → UI 表示のみ（書込みなし）
+- invalid input: 存在しない import_id → `CmdError.kind="not_found"` → describeError 経由の利用者向け日本語文言
+- compatibility: 既存 command（parseAndValidateCsv / commitCsvImport / rollbackCsvImport / listCsvImports）の wire 不変。`ErrorRow` 型共有は既存 preview wire に影響しない（型追加参照のみ）。file_hash は wire 非搭載
+
+## Review Focus
+
+- D-052 C9 集合変更の導出の正確さ（欠落と過剰の両方向。commit 側の採否根拠を含む）
+- ErrorRow 再利用の wire 互換と写像の正しさ（line_no/name の field 名差異）
+- click SPA 遷移証明が href assert に退化していないか（batch A X3 survivor の再発防止）
+- エラー行の空集合 oracle 衝突（0 件期待 case だけにならないこと — 順22 X2 の教訓）
+- returnTo の movements 検索条件保持と不正値 fallback
+- IO raw TEXT → BIZ enum 変換の fail-fast が握りつぶしになっていないか
+
+## Spec Contract
+
+Contract ID: SPEC-UI06C-CSV-DETAIL-2026-08-03
+
+- movements の `csv_import` 元記録 link は `/csv-import/records/$importId` に SPA 遷移し、65 §65.5 CSV取込み列の項目を表示する（404 にしない）
+- 詳細は read-only とし、rollback CTA・取消/訂正 CTA を置かない
+- rolled_back 取込みは正規化 label で状態を明示し、movements 0 件・voided 明細を正常表示する
+- rollback mutation 成功時、本詳細 query は D-052 SSOT 経由で invalidate される
+
+## Trace Matrix
+
+| Spec ID | Plan Step | Test | Review Focus | Evidence |
+|---|---|---|---|---|
+| REQ-207 / TRACE-D2 | Scope 5/6（route + Page） | T10 / AC6 | click SPA 遷移証明 | PR body + Matrix |
+| REQ-206 | Scope 6（表示項目） | T9 / AC3 | §65.5 列適合 | PR body |
+| REQ-206（NotFound） | Scope 2/3 | T5 / T8 / AC7 | 変換経路 | PR body |
+| D-052 C9 | Scope 8 | T14 / AC9 | 導出正確さ | PR body（commit 側採否含む） |
+| D-061 | Scope 1/2/4 | T6 / AC4 | enum 変換 | bindings diff |
+| TRACE-D11 同型 | Scope 5 | T13 | returnTo fallback | Matrix |
+
+## Data Safety
+
+- 実 POS CSV、実売上・実原価データ、実 DB ファイルは commit しない
+- test fixture・L3 用データは synthetic のみ（既存 synthetic Z004 系 fixture の慣行に従う）
+- L3 手順は「synthetic Z004 の取込み → 在庫変動履歴 → link click」の再現手順を Ready 依頼と同時に PR body へ記載する（L3 fixture prep の教訓）
+- `.local/ci-evidence/` はローカルのみ
+
+## Implementation Results
+
+Fill after implementation.
+
+Do not transcribe exact-HEAD SHA or test counts here (D-035/D-038 Evidence Ownership). Record a qualitative summary and the PR link only.
+
+## Review Response
+
+Fill after review.
+- Findings Freeze: not yet frozen; post-freeze exceptions: none.
