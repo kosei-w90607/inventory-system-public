@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: plan-gate
+- Phase: design
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: pending
@@ -17,6 +17,8 @@
 - Human Gate: L3 Windows native 目視（filter reset 代表画面 / 在庫照会 pagination）、Ready 承認、merge
 
 遷移記録（append-only）: 本 packet を追加する content commit で `kickoff -> spec-check -> design -> plan-draft -> plan-gate` を材料化する。evidence = task scoped + Risk R3 を本 packet に記録（kickoff→spec-check）、設計正本の更新が必要と識別 — filter-reset の規定が catalog ⑥ に存在せず、58 に pagination 設計がなく、50/58/59 に完了済み共通化を未完扱いする stale 記述が残る（spec-check→design）、design 出力を同一 plan-first change 内で source docs へ反映 — 02-component-catalog ⑥ filter-reset action 規定新設 / 58 pagination 設計新設 + §58.13 stale 2 行整理 / 59 §59.1 採用箇所 sync + §59.3 re-export 文言更新 + FilePicker 適用除外注記 / 50 非目的 stale 行整理 / 02 FilePicker パターン節新設（design→plan-draft）、packet + Test Design Matrix 完成・commit（plan-draft→plan-gate）。
+
+2026-08-03 Codex Plan Review round 1 = FAIL（P1=5 / P2=6 / P3=0、全件 accept、裁定詳細は Review Response 参照）。P1-1（EmptyState 全 site の Adjacent Pattern Audit 未完了 + ProductList の manifest 漏れ）/ P1-2（範囲外 page 挙動の未決定と「50 §50.4 clamp 慣行」の事実誤認）/ P1-3（部門候補 truncate の Non-scope 化が DSR-10 違反を増幅）/ P1-4（SCREEN_DESIGN / UI_TECH_STACK が Required Design Artifacts から欠落）は design 出力の改訂を要するため、最早影響 phase = design へ backtrack する（`plan-gate -> design`）。
 
 ## Owner Effort Budget
 
@@ -281,6 +283,22 @@ Do not transcribe exact-HEAD SHA or test counts here (D-035/D-038 Evidence Owner
 
 ## Review Response
 
-Fill after review.
-If R3 review-only sub-agent is skipped, record an explicit line beginning with `Review-only skipped because:` and the reason.
+### Codex Plan Review round 1（2026-08-03、FAIL P1=5 / P2=6 / P3=0）
+
+Coordinator 裁定（全件、採否前に引用 file:line を実読して裏取り済み）:
+
+| Finding | 裁定 | 裏取りと対処方針 |
+|---|---|---|
+| P1-1 EmptyState 全数監査未完了 + ProductList 漏れ | accept | `ProductListPage` の filter-empty（既存「商品を登録する」action 併存）を実読確認。production 全 site の分類表を plan-first change 内で確定し、ProductList は reset 対象へ追加（登録 action と共存）。分類軸（絞り込み reset 対象 / 期間主キーレポート除外 / 明細 0 行除外 / 真にデータなし除外）を catalog ⑥ の design 出力として規定する |
+| P1-2 範囲外 page 未決定 + clamp 慣行の事実誤認 | accept | 50 §50.4 / `ProductPagination.tsx` に clamp 契約が実在しないことを実読確認（Coordinator の起草時裏取り不足）。58 に UI-11c-D8 同型（範囲外 page = 専用メッセージ +「先頭ページに戻る」）を規定し、Matrix の二択を一意 oracle へ是正 |
+| P1-3 部門候補 truncate の DSR-10 違反増幅 | accept | DSR-10（01:DSR-10 節）と 02 SearchBar/フィルタ節の「listDepartments master 全件」規定を実読確認。候補 query の `listDepartments()` 切替を Scope へ移し、Ledger / Matrix に候補不変契約を追加 |
+| P1-4 SCREEN_DESIGN / UI_TECH_STACK 欠落 | accept | DEV_WORKFLOW Design artifact selection 表の該当行を実読確認。両 doc を Required Design Artifacts へ追加し反映 |
+| P1-5 useProductList の単純 re-export 不成立 | accept | 同一ファイル内で `DepartmentOption[]` を使用することを実読確認。`import type` + `export type` の分離方式をファイル別に明記 |
+| P2-1 reset page 復帰 assert の site 不足 | accept | site 別の全フィルタ tuple + page を Matrix に明記し個別 assert 化 |
+| P2-2 FilePicker 二重記述 | accept | behavior/API 契約は §6.5.4 を正本のまま維持し、02 ⑭ を構造 / トークン / Do-Don't + リンク参照へ縮退（59 §59.1 の既存棲み分けどおり） |
+| P2-3 Plans.md の stale 残存 | accept | 後回し Backlog 節の旧 defer 行を更新（sweep 範囲の指定漏れ = Coordinator 起草責任） |
+| P2-4 採用数の実測説明誤り（D-050） | accept | 数値断定を撤去し、canonical source と正確な検索式の参照へ置換 |
+| P2-5 58 疑似コードの `message=` prop 不一致 | accept | `title=` へ是正（既存 58 記述由来の drift、本 change で解消） |
+| P2-6 Goal「一覧表示に戻れる」の契約不一致 | accept | 「各画面の既定状態へ回復（在庫照会は検索前 placeholder へ戻る）」へ修正 |
+
 - Findings Freeze: not yet frozen; post-freeze exceptions: none.
