@@ -412,3 +412,9 @@ Contract ID: D-061 (a)(b)(c)(e)（design PR で凍結、本 PR で実装） + **
 - P2-2（C-1 是正の要約節への未伝播 — direction 別 oracle / stock_unit 2 境界 / D-064 昇格の旧表現が packet 4 箇所 + Matrix 4 箇所に残存）: **accept**。全 8 箇所を rg 再現の上で統一（D3 trace 行 / Design Intent Audit / Design Readiness / Test Plan / Matrix F2・F11・G4・State Lifecycle）
 - P3-1（Contract Probe 節の test 件数転記が D-038 Evidence Ownership 違反 — 現行 checker では検出されない盲点）: **accept**。件数を削除し成功事実のみ残置
 - Codex が問題なしと確認: 6 enum の db 配置同期 / 新設 9 + 既存 4 の統一 / D-064 条文 4 点の自己完結性（ID 衝突と (2) 誤記を除く）/ Contract Probe 4 点の記録形式 / PLU integration oracle + consumer mutation / F11 structural anchor + 2 境界 regression / D7 canonical 供給と D8 6 class の Trace/Ledger 反映 / `--include-zero` 規約 / diff の 2 file 限定・checker green
+
+### Cross-vendor Review round C-3（Codex GPT-5.6, owner relay — HEAD d4b506f）
+
+- P2-1（Matrix Negative Paths のみ旧 describe-error fallback 経路が残存 — C-2 P2-1 是正の未伝播 1 箇所）: **accept**。Matrix の invalid input 行を実経路（`typedError` → `unwrapResult`/`toCmdError` → internal `InvokeError` + 固定 Alert + F4 unit test）へ統一。是正後、Codex の検出コマンド（`rg -c --include-zero '... 既定 fallback へ合流'`）を Coordinator が再実行し両 file 0 hit を実測
+- Codex が問題なしと確認: HEAD 一致・tree clean / D-064 改番の規範部分 0 残存（履歴記録は除外基準どおり）/ D-064 条文の自己完結性（archive 不読で実装判断可）/ direction 別 oracle・stock_unit 2 境界・D-064 昇格の要約反映 / D-038 準拠 / checker 全通過
+- **Cross-vendor lane 収束**: C-1 P1×3/P2×4/P3×1 → C-2 P1×1/P2×2/P3×1 → C-3 P2×1（機械的未伝播 1 行）と単調収束し、C-3 の残指摘は是正・0 hit 実測済み。relay 予算 3/3 を消化したため、本是正の機械検証（Codex 自身の検出コマンド再実行）をもって Plan Gate の findings 対応を完了とし、owner 承認へ進む
