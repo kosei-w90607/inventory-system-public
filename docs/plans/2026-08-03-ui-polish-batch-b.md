@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: plan-gate
+- Phase: design
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: pending
@@ -25,6 +25,8 @@
 2026-08-03 Codex Plan Review round 2 = FAIL（P1=1 / P2=6 / P3=1、全件 accept、round 1 closure 判定 = closed 6 / not closed 5、裁定詳細は Review Response 参照）。P1-1（UI-06a-D2 が query 宣言のみで hook return / DepartmentFilter props へ未結線 = round 1 P1-3 not closed）は 58 の design 出力改訂を要し、P2-1（stocktake の `page` 実在を分類表・73 が欠落）/ P2-2（daily-sales が reset 軸と除外軸の両方に該当 = 分類軸の排他性欠落）/ P2-4（FilePicker behavior/API 正本の分裂残存 + DSR-14 の将来形記述）も design 出力の改訂を要するため、最早影響 phase = design へ backtrack する（`plan-gate -> design`。直前 backtrack `dc91ed7` とは content commit `bb5857f` を挟み隣接しない）。
 
 2026-08-03 round 2 是正 content commit で `design -> plan-draft -> plan-gate` を再材料化する。evidence = round 2 の design 出力を source docs へ反映（58 = departmentOptions の hook return / canonical props 結線 / 失敗文言 / `queryKeys.stockInquiry.departmentOptions()` 無引数化 target〈現状 `(status, q)` 引数付きを実測確認〉/ SPEC-UIBB-9 の call count・無引数 unit 追記、73 + SCREEN_DESIGN = stocktake reset に page 追加、02 ⑥ = 除外(b) 優先規則 + stocktake page、02 ⑭ = behavior 記述の §6.5.4 移設、UI_TECH_STACK §6.5.4 = 全 props 契約集約 + 暫定例外の完了形化、01 DSR-14 = 完了形化、59 = FilePicker 帰属の visual/behavior 精密化、同一 plan-first change 内 — design→plan-draft）、packet の優先規則・stocktake tuple・SPEC-UIBB-7/9 強化・AC10・Ledger・Boundary・Risk 6 画面化・件数主張撤去と Matrix の 6 site 全数 page assert・call count oracle・無引数 key unit、Plans.md active dashboard 同期を完成・commit（plan-draft→plan-gate）。`doc-consistency-check --target plan` 全チェック通過。
+
+2026-08-03 Codex Plan Review round 3 = FAIL（P1=0 / P2=3 / P3=0、全件 accept、round 2 closure = closed 7 / not closed 1、round 1 持ち越し 5 件 = 全 closed、裁定詳細は Review Response 参照）。P2-1（FilePicker 移行完了宣言と 5 live docs の矛盾 = round 2 P2-4 の ripple 残存）/ P2-2（58 の要約層が 2 useQuery / 4 key のまま = round 2 是正で生じた要約層 closure defect）は design 出力の改訂を要するため、最早影響 phase = design へ backtrack する（`plan-gate -> design`。直前 backtrack `33d9d68` とは content commit `018d6ad` を挟み隣接しない）。P2-3（SPEC-UIBB-9 の loading / error oracle 欠落)は Matrix / Ledger / 58 §58.9 の追補で同時に是正する。
 
 ## Owner Effort Budget
 
@@ -359,3 +361,13 @@ Coordinator 裁定（全件、採否前に引用 file:line を実読して裏取
 | P2-5 Plans.md active dashboard の逆記述 | accept | 「次の行動」行の「5 site」と後回し Backlog の「未実装・いつかまとめて」行を実読確認。現行契約（6 site + 除外 19）へ同期し、backlog 行は batch B 昇格として取り消し線 + active packet link 化。FilePicker backlog 記述も完了記録と同期 |
 | P2-6 数値主張の scope 不一致（Risk 5 画面 / import 8 file） | accept | Risk 節を 6 画面の実態へ更新。「import 8 file」は判断理由が件数に依存しないため件数を削除（D-050 の volatile count 回避） |
 | P3-1 Design Readiness の SPEC 範囲 stale | accept | SPEC-UIBB-1〜9 へ更新 |
+
+### Codex Plan Review round 3（2026-08-03、FAIL P1=0 / P2=3 / P3=0、round 2 closure = closed 7 / not closed 1、round 1 持ち越し = 全 closed）
+
+Coordinator 裁定（全件、採否前に引用箇所を実読して裏取り済み — FUNCTION_DESIGN の「plain file input 暫定例外」2 箇所 / 60 UI-01c-D13 の file input L3 要求 / UI_TECH_STACK §6.7 の `createObjectURL(file)` / 58 冒頭の「2 useQuery」「4 key」を確認）:
+
+| Finding | 裁定 | 裏取りと対処方針 |
+|---|---|---|
+| P2-1 FilePicker 完了宣言と 5 live docs の矛盾 | accept | round 2 是正の sweep 範囲を対象 7 file に限定した Coordinator の発注不備が原因（drift 是正は repo 全体 sweep が既定）。FUNCTION_DESIGN:41/140 / SCREEN_DESIGN の plain input 開始・L3 指示 / 60 の D13・Non-scope・Test Focus / 63 の Non-scope・Test Focus / UI_TECH_STACK §6.7 の `createObjectURL(file)` を FilePicker 現行方式（D14 / D20 参照、`PickedFile.bytes` → Blob → `createObjectURL(blob)`）へ同期。historical / superseded decision 行（60 D3 / 63 D4 の記録自体）は残置。historical 除外の repo-wide sweep を Review Focus へ追加 |
+| P2-2 58 要約層の 2 query / 4 key 残存 | accept | round 2 是正で詳細（3 query / 5 key / 拡張 return）を更新した際、要約・構成表・データフロー・FUNCTION_DESIGN 索引の追随が漏れた（packet correction full sweep の同型）。58 の全要約層と FUNCTION_DESIGN:59/136 を「3 useQuery」「5 URL key」「実 return 形」へ同期し、旧表現は更新履歴のみに限定 |
+| P2-3 SPEC-UIBB-9 の loading / error oracle 欠落 | accept | 契約（disabled 結線・isError alert・一覧独立）は 58 / packet に規定済みだが Matrix に殺す test がない。Matrix へ 2 行（pending → trigger disabled / reject + list 成功 → exact alert 文言と一覧の同時表示）を追加、58 §58.9 と Ledger へ転記、test harness の QueryClient retry 無効化を fixture 条件に明記 |
