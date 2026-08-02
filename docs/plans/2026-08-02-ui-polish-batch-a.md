@@ -2,16 +2,16 @@
 
 ## Workflow State
 
-- Phase: implementing
+- Phase: human-confirm
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: 0f66764
-- Amendments: none
+- Amendments: 3c103aa 69a94ec f0021d0 6fc3568
 - Coordinator: Claude (Fable 5)
 - Writer: Claude (Sonnet 5 subagent、worktree isolation)
 - Plan Reviewer: Codex (cross-vendor)
 - Final Reviewer: Codex (cross-vendor、fresh context)
-- Reviewed Content HEAD: pending
+- Reviewed Content HEAD: 1edf94f
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
 - Human Gate: L3 Windows native 目視（sidebar focus / 復元成功 Alert / 代表画面の内部遷移）、Ready 承認、merge
@@ -27,6 +27,8 @@
 2026-08-03 round 3 是正 content commit で `design -> plan-draft -> plan-gate` を再材料化する。evidence = round 2 closure の design 出力は commit `3578518` で source docs / Matrix へ反映済み（design→plan-draft）、本 commit の round 3 P1/P2 是正（Phase 記録の欠落是正 + Link 統一 site manifest 追加）で packet 完成・commit（plan-draft→plan-gate）。註（round 3 P1 の記録）: `3578518` の commit 件名は同遷移を宣言していたが packet の Phase 更新と遷移記録を欠いており、遷移は本 commit で初めて成立する。件名と Workflow State の不一致は本註をもって是正記録とする。
 
 2026-08-03 state-only 遷移 commit で `plan-gate -> plan-approved -> implementing` を材料化する（圧縮記録、STATECAP 1/3）。evidence = 独立 Plan Reviewer（Codex、Writer と別 vendor）が round 4 で「Plan Review PASS P1/P2=0」を報告（plan-gate→plan-approved）、`Plan Commit` = 0f66764 を設定し、plan-first 系列（350100a〜0f66764）は全実装 commit に先行する。owner が 2026-08-03 に plan を承認し実装開始を指示（介入 1 回目/予算 3 回）（plan-approved→implementing）。
+
+2026-08-03 state-only 遷移 commit で `implementing -> local-verified -> independent-review -> human-confirm` を材料化する（圧縮記録、STATECAP 2/3）。evidence = content candidate `1edf94f` の L1 full PASS / TREE CLEAN（PR #57 body に evidence SHA と log path 収録、implementing→local-verified）、Final Reviewer（Codex、fresh context）round 1 実施 + mutation 実注入 5 件 red（local-verified→independent-review）、closure round で P1/P2=0 確定・再注入 2 件 red 独立再現（independent-review→human-confirm）。P3（「9 file」表記残存）は Findings Freeze 規定の follow-up（非 blocker）だが commit `6fc3568` で closure 済み — 残 hit は Review Response 経緯記録 2 箇所のみ（rg 実測、closure 条件充足）。`Reviewed Content HEAD` = 1edf94f（Final Reviewer が監査した content commit。6fc3568 は packet 表記同期のみの gated amendment）。relay 実績 = 6/4（超過 2: Final Review round 1 と closure round。X3 survivor の是正確認に mutation 再注入の独立再現が代替不可のため。owner の relay 実施をもって承認）。Human Gate 残 = owner L3 目視（PR body 記載の 3 手順）+ Ready 承認 + merge。
 
 ## Owner Effort Budget
 
