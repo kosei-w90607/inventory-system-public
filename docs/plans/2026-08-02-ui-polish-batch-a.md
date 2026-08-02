@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: plan-gate
+- Phase: design
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: pending
@@ -21,6 +21,8 @@
 2026-08-02 Codex Plan Review round 1 = FAIL（P1=1 / P2=5 / P3=0）。P1 = 復元成功通知が新規 state 契約を伴い Risk Tiers の R3 条件（route/search state / operator workflow）に該当、R2 での plan-gate は無効。Design Readiness の focus ring「明文規範なし」も UI_TECH_STACK.md §5.4 実在により事実誤認（P2-5）。最早影響 phase = design（68 への通知契約追記と UI_TECH_STACK §5.4 の source-doc sync が必要）のため `plan-gate -> design` へ backtrack する。findings の裁定詳細は Review Response 参照。
 
 2026-08-02 是正 content commit で `design -> plan-draft -> plan-gate` を再材料化する。evidence = design 出力を source docs へ反映（68-ui-backup-restore.md UI-11b-D11 新設 + UI_TECH_STACK.md §5.4 の実装標準同期、同一 plan-first change 内 — design→plan-draft）、R3 packet 再構成 + Test Design Matrix commit（plan-draft→plan-gate）。
+
+2026-08-03 Codex Plan Review round 2 = FAIL（P1=0 / P2=3 / P3=1、全件 round 1 是正で投入した content への closure defect）。P2 = D11 の one-shot 意味論が「mount 中の表示維持」を規定せず StrictMode 下で Alert 不可視の実装を許す / §5.4 の「全フォーカス可能要素で 3px」が catalog 632・646 行と既存実装（segmented-control 等）に対する新規 drift を作る / Matrix が template 必須節（State Lifecycle Matrix / Adjacent Pattern Audit / Residual Test Gaps）と Ledger 隣接契約（UI-11b-D2/D3/D10、UI-12-D1）を欠く。いずれも design 出力の改訂を要するため `plan-gate -> design` へ再 backtrack する（直前 backtrack との間に content commit 5b24aa9 があり隣接ではない）。裁定詳細は Review Response 参照。
 
 ## Owner Effort Budget
 
