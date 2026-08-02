@@ -4,7 +4,7 @@ PR #57 owner L3（2026-08-03）で確認された既存不具合の是正: 在�
 
 ## Workflow State
 
-- Phase: human-confirm
+- Phase: implementing
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: d25990c
@@ -292,6 +292,13 @@ Fill after review.
 - P3-1（JAN 列）: §65.5 は全記録種別で「商品コード / JAN / 商品名 / 部門 = yes」と規定するが、既存 4 詳細を含む 5 詳細画面すべてで JAN 非表示（DTO にも field なし）。本 PR は canonical 踏襲の結果で新規 drift ではない（pre-existing systemic）。裁定 = backlog 起票（§65.5 の実態同期 or 5 画面横断の JAN 列追加を別 change で設計判断）。
 - Coordinator mutation 独立再実測: X1〜X7 の 7/7 全 red 再現（clean tree、注入→該当 test red→復元）。X7 は Writer の注入形（label 改変）と意図的に変えて route prefix 側を改変しても red — oracle の label/route 両面感度を確認。survivor 0。
 - implementing → local-verified の evidence: Writer L1 `local-ci.sh full` PASS（exact HEAD `e1b2158` / CLEAN / MERGE_EVIDENCE_VALID=true、PR #58 body 記録）。local-verified → independent-review → human-confirm の evidence: 上記 Final Review P1/P2=0 + mutation 独立再実測。
+
+### Owner L3 結果と state-backtrack（2026-08-03、append-only）
+
+- owner Windows native L3（PR HEAD `4061c55`）: 主要動線 PASS（synthetic 取込み→在庫変動履歴→「CSV取込み #2」→詳細表示→returnTo 戻り、詳細は PR #58 comment 5160238536）。
+- L3 P3 finding: 取込み画面 `ErrorRowsTable.tsx` の accordion trigger「エラー N 件」が展開可能な操作部と認識できない（chevron が右端、owner 自身が当初見落とし）。owner 裁定 = **別 follow-up へ送らず本 PR で是正**（Post-Freeze の content correction、Ready 保留）。
+- 正規 backtrack: human-confirm → implementing（L3 finding のコード修正のため、遷移表の correction 規則どおり最先影響 phase へ復帰）。是正対象は元 Scope 外（取込み画面 UI-07 側の既存 component）のため、owner 裁定に基づく Scope 追加を gated Amendment 2 として記録する。
+- 再 L3 の範囲: 当該 accordion の collapsed / open の発見性に限定（owner 指定）。
 
 ### Plan Review rally 記録（2026-08-03、append-only）
 
