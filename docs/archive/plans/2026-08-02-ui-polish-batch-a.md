@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: ready-hosted-final
+- Phase: archive
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: 0f66764
@@ -173,10 +173,10 @@ file:line は本 manifest 作成時点（HEAD `3578518`）の実測。実装時�
 ## Design Sources
 
 - Requirements / spec: 既存画面の requirement 変更なし
-- Architecture: [UI_TECH_STACK.md](../UI_TECH_STACK.md) §5.4（focus 可視性の outcome 契約 + 実装 2 系統、本 change で改訂）、[design-system/02-component-catalog.md](../design-system/02-component-catalog.md)（系統②: date / month input 等の `focus-visible:ring-2` 規定、632・646 行）、TanStack Router / Sonner 技術選定
+- Architecture: [UI_TECH_STACK.md](../../UI_TECH_STACK.md) §5.4（focus 可視性の outcome 契約 + 実装 2 系統、本 change で改訂）、[design-system/02-component-catalog.md](../../design-system/02-component-catalog.md)（系統②: date / month input 等の `focus-visible:ring-2` 規定、632・646 行）、TanStack Router / Sonner 技術選定
 - Function / command / DTO: 変更なし（IPC 不変。`bindings.ts` の `detail_route` / `MovementSourceLink` は読み取りのみ）
 - DB: 変更なし
-- Screen / UI: [function-design/68-ui-backup-restore.md](../function-design/68-ui-backup-restore.md)（UI-11b-F6 / D4 / **D11（本 change 新設、mount 中表示維持の寿命契約）** / §68.7 状態遷移表 / §68.10）、[function-design/52-ui-shared-layout.md](../function-design/52-ui-shared-layout.md)（§52.1 SidebarLink 行の focus ring 規定 = 本 change 追加、UI-12-D1 active 判定契約）
+- Screen / UI: [function-design/68-ui-backup-restore.md](../../function-design/68-ui-backup-restore.md)（UI-11b-F6 / D4 / **D11（本 change 新設、mount 中表示維持の寿命契約）** / §68.7 状態遷移表 / §68.10）、[function-design/52-ui-shared-layout.md](../../function-design/52-ui-shared-layout.md)（§52.1 SidebarLink 行の focus ring 規定 = 本 change 追加、UI-12-D1 active 判定契約）
 - Decision log / ADR: 変更なし（D11 は 68 内の design decision として記録）
 
 ## Required Design Artifacts
@@ -314,9 +314,7 @@ IPC / JSON / DB / URL は不変。browser state（history.state / URL search par
 
 ## Implementation Results
 
-Fill after implementation.
-
-Do not transcribe exact-HEAD SHA or test counts here (D-035/D-038 Evidence Ownership). Record a qualitative summary and the PR link only.
+PR #57（squash merge、2026-08-03 JST）で完了。sidebar focus ring（§5.4 系統①）、internal 遷移 19 site の `<Link>` 統一（site manifest どおり、C2 canary 19→0）、復元成功のホーム one-shot Alert（UI-11b-D11 寿命契約）を実装。owner L3 指摘の sidebar label 統一（「バックアップ・復元」+ 52 正本 sync）も同 PR 内で是正。CSV取込み元記録 404 は UI-06c-D7 既存契約と実証し Plans.md へ backlog 起票。編成 = Fable coordinator / Sonnet writer（worktree）/ Codex Plan+Final Reviewer の鏡像分担の初運用で、詳細評価は Review Response と Workflow State 遷移記録を参照。
 
 ## Review Response
 
