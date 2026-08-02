@@ -93,6 +93,7 @@ UI は PR #141 で生成済みの `commands.*` だけを使う。
 | UI-11b-D8 | `backup_path` 変更は native directory picker のみ。自由入力は不可。現在の保存先は表示のみ。 | PR #125 の file dialog 移行前例に合わせ、WebView path 入力の誤操作を避ける。 |
 | UI-11b-D9 | `checkAutoBackup` の 60 秒 interval は frontend 未実装。UI-11b implementation PR の scope に含める。 | `src/` grep で `checkAutoBackup` 呼び出しと `setInterval` 実装が未検出。backend / binding は実装済み。 |
 | UI-11b-D10 | Windows native L3 で、手動バックアップファイル、復元によるデータ切替、復元前自動バックアップ、backup_path 変更後出力を目視確認する。double failure は自動テスト + 文言目視のみ。 | ファイル実体と DB 入れ替わりは native runtime でしか最終確認できない。 |
+| UI-11b-D11 | 復元成功の success Alert はホーム遷移後に表示する one-shot 通知とし、受け渡しは frontend の in-memory flag で行う。router / history state・URL search param は使わない。ホーム初回 render で consume して表示し、reload・アプリ再起動・履歴 back/forward・通常到達では再表示・誤表示しない。 | history.state 経由は reload / 履歴再訪で残存し one-shot 性の証明が実装依存になる。in-memory は消滅が構造的に保証される。PR #144 L3「toast 見落とし」所感の是正で、D4 / F6 の「遷移先で success Alert」契約の実装機構を固定する。 |
 
 ## 68.6 Route / Components
 
@@ -117,7 +118,7 @@ UI は PR #141 で生成済みの `commands.*` だけを使う。
 | `pre_backup_failed` | 事前バックアップ失敗 | `restore_confirm` / `restore_detail` | break-glass checkbox を表示。checkbox 未チェックでは進行不可。 |
 | `restore_confirm` | 最終 AlertDialog | `restoring` / `restore_detail` | 「元に戻せません」と日時を再掲。実行ボタンに日時を含める。 |
 | `restoring` | `restoreBackup` | `restore_succeeded` / `restore_failed_recovered` / `restore_failed_unrecoverable` | 画面内操作を disabled。 |
-| `restore_succeeded` | CMD が Ok を返す | home route | Query cache を `clear` し、ホームへ遷移して success Alert。 |
+| `restore_succeeded` | CMD が Ok を返す | home route | Query cache を `clear` し、ホームへ遷移して success Alert（one-shot、UI-11b-D11）。 |
 | `restore_failed_recovered` | CMD が **recoverable 分類**の Err を返す（DB 接続再確立済み） | `ready` | 復元失敗を表示し、一覧を再取得して再試行可能にする。 |
 | `restore_failed_unrecoverable` | CMD が **unrecoverable 分類**の Err を返す | terminal | DSR-03 上部帯の full-page destructive Alert、全操作 disabled、「アプリを閉じて、もう一度開いてください」。 |
 

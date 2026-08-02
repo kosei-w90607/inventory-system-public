@@ -457,7 +457,7 @@ Tauri 初期ウィンドウは `src-tauri/tauri.conf.json` で 1280x800、最小
 
 ### 5.4 フォーカス管理
 
-- **フォーカスリング明示**: shadcn/ui の `ring-2 ring-ring ring-offset-2` を全フォーカス可能要素で維持。ブラウザデフォルトの outline は抑制しない（見た目カスタマイズするが可視性は保持）
+- **フォーカスリング明示**: 現行 shadcn/ui component 群が実装する `focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50` パターンを全フォーカス可能要素で維持（旧記載 `ring-2 ring-ring ring-offset-2` は shadcn 世代更新により `src/components/ui/` の実装標準と乖離していたため、2026-08-02 に実装標準へ同期。UI backlog batch A packet 起源）。ブラウザデフォルトの outline は抑制しない（見た目カスタマイズするが可視性は保持）
 - **フォーカストラップ**: Dialog / AlertDialog / Sheet 内では Tab でダイアログ外に出ない。Radix UI の仕様で標準装備
 - **初期フォーカス**: 各画面の「一番使う要素」に自動フォーカス（検索画面なら検索ボックス、フォーム画面なら先頭入力）
 
