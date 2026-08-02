@@ -3,7 +3,7 @@
 //! docs/function-design/42-cmd-sales-stocktake.md §22.4 に基づく実装。
 
 use crate::biz::sales_service::{self, SalesMode, SalesReportType};
-use crate::cmd::{AppState, CmdError, CmdErrorKind};
+use crate::cmd::{AppState, CmdError};
 use base64::{engine::general_purpose, Engine as _};
 use tauri::State;
 
@@ -45,32 +45,19 @@ pub fn get_daily_sales(
 
 /// 指定月の売上レポートを取得する
 ///
-/// mode は文字列で受け取り CMD 層で SalesMode enum に変換する。
-/// フロントエンド側の実装を単純化するための設計判断（§22.4、H-1: response serialize のみ rename_all で snake_case 化）。
+/// mode は generated enum を直接受け取る。
 #[tauri::command]
 #[specta::specta]
 pub fn get_monthly_sales(
     state: State<AppState>,
     month: String,
-    mode: String,
+    mode: SalesMode,
 ) -> Result<sales_service::MonthlySalesReport, CmdError> {
-    let sales_mode = match mode.as_str() {
-        "by_product" => SalesMode::ByProduct,
-        "by_department" => SalesMode::ByDepartment,
-        _ => {
-            return Err(CmdError {
-                kind: CmdErrorKind::Validation,
-                message: "不正な集計モードです".to_string(),
-                field: Some("mode".to_string()),
-                error_id: None,
-            });
-        }
-    };
     let conn = state
         .db
         .lock()
         .map_err(|error| CmdError::internal("DB接続エラー", error))?;
-    sales_service::get_monthly_sales(&conn, &month, sales_mode).map_err(CmdError::from)
+    sales_service::get_monthly_sales(&conn, &month, mode).map_err(CmdError::from)
 }
 
 /// 売上データをCSVファイルとしてエクスポートする
@@ -115,6 +102,7 @@ pub fn export_sales_csv(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::cmd::CmdErrorKind;
     use crate::db;
     use crate::db::product_repo::{self, NewProduct};
     use crate::db::sales_repo::{
@@ -134,30 +122,6 @@ mod tests {
     }
 
     #[test]
-    fn test_monthly_sales_req502_invalid_mode() {
-        // REQ-502 / CMD-09-CONV-D1: 実CMDの不正mode wire tripleを独立転記で固定する。
-        let invalid_modes = vec!["invalid", "by_Product", "BY_PRODUCT", "", "product"];
-        for mode_str in invalid_modes {
-            let (_dir, conn) = setup_test_db();
-            let app = tauri::test::mock_builder()
-                .manage(app_state_for_test(conn))
-                .build(tauri::test::mock_context(tauri::test::noop_assets()))
-                .unwrap();
-
-            let err = get_monthly_sales(
-                app.state::<AppState>(),
-                "2026-03".to_string(),
-                mode_str.to_string(),
-            )
-            .unwrap_err();
-
-            assert_eq!(err.kind, CmdErrorKind::Validation);
-            assert_eq!(err.message, "不正な集計モードです");
-            assert_eq!(err.field.as_deref(), Some("mode"));
-        }
-    }
-
-    #[test]
     fn test_monthly_sales_req502_valid_modes() {
         // REQ-502 / CMD-09-CONV-D1: 実CMDが2つの正規modeを対応variantへ変換する。
         let (_dir, conn) = setup_test_db();
@@ -169,7 +133,7 @@ mod tests {
         let by_product = get_monthly_sales(
             app.state::<AppState>(),
             "2026-03".to_string(),
-            "by_product".to_string(),
+            SalesMode::ByProduct,
         )
         .unwrap();
         assert!(matches!(by_product.mode, SalesMode::ByProduct));
@@ -177,7 +141,7 @@ mod tests {
         let by_department = get_monthly_sales(
             app.state::<AppState>(),
             "2026-03".to_string(),
-            "by_department".to_string(),
+            SalesMode::ByDepartment,
         )
         .unwrap();
         assert!(matches!(by_department.mode, SalesMode::ByDepartment));

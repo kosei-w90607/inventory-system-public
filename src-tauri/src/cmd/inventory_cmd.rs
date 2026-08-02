@@ -260,7 +260,10 @@ mod tests {
         };
         let result = crate::biz::inventory_service::list_movements(&conn, &query).unwrap();
         assert_eq!(result.total_count, 1); // voided行は除外
-        assert_eq!(result.items[0].movement_type, "receiving");
+        assert_eq!(
+            result.items[0].movement_type,
+            crate::db::inventory_repo::MovementType::Receiving
+        );
     }
 
     /// list_movements: movement_type フィルタ
@@ -276,13 +279,16 @@ mod tests {
             product_code: "MV-002".to_string(),
             date_from: None,
             date_to: None,
-            movement_type: Some("receiving".to_string()),
+            movement_type: Some(crate::db::inventory_repo::MovementType::Receiving),
             page: 1,
             per_page: 50,
         };
         let result = crate::biz::inventory_service::list_movements(&conn, &query).unwrap();
         assert_eq!(result.total_count, 1);
-        assert_eq!(result.items[0].movement_type, "receiving");
+        assert_eq!(
+            result.items[0].movement_type,
+            crate::db::inventory_repo::MovementType::Receiving
+        );
     }
 
     /// list_movements: date_to の日末補完（T23:59:59）

@@ -34,7 +34,7 @@ struct DailySaleItem {
     department_id: i64,
     quantity: i64,       // 売上帳票視点（+販売/-返品）
     amount: i64,         // 金額（円）
-    source: String,      // "auto" / "manual"
+    source: DailySaleSource, // "auto" / "manual"
 }
 ```
 

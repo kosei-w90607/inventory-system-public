@@ -11,10 +11,18 @@ export function computeSalesLineSummary(items: DailySaleItem[]): SalesLineSummar
   let autoCount = 0;
   let manualCount = 0;
   for (const item of items) {
-    // source は bindings.ts では string 型（"auto" | "manual" literal union 化は将来 D-10）
-    if (item.source === "auto") autoCount += 1;
-    else if (item.source === "manual") manualCount += 1;
-    // 未知 source は total には含むが内訳には含めない（防御的設計）
+    switch (item.source) {
+      case "auto":
+        autoCount += 1;
+        break;
+      case "manual":
+        manualCount += 1;
+        break;
+      default: {
+        const exhaustive: never = item.source;
+        return exhaustive;
+      }
+    }
   }
   return { total: items.length, autoCount, manualCount };
 }

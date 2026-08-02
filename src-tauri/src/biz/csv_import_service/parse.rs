@@ -101,7 +101,7 @@ pub fn parse_and_validate(
                     name: row.name.clone(),
                     raw_quantity: row.quantity.to_string(),
                     raw_amount: row.amount.to_string(),
-                    error_type: "unmatched_product".to_string(),
+                    error_type: super::CsvImportErrorType::UnmatchedProduct,
                     error_message: format!("JAN {} に該当する商品がありません", row.normalized_jan),
                 });
             }
@@ -133,10 +133,10 @@ pub fn parse_and_validate(
 
     // 4c. parse_errors を ErrorRow にマージ
     for pe in &parse_result.parse_errors {
-        let error_type_str = match pe.error_type {
-            ParseErrorType::InvalidFormat => "invalid_format",
-            ParseErrorType::InvalidJan => "invalid_jan",
-            ParseErrorType::InvalidNumber => "invalid_number",
+        let error_type = match pe.error_type {
+            ParseErrorType::InvalidFormat => super::CsvImportErrorType::InvalidFormat,
+            ParseErrorType::InvalidJan => super::CsvImportErrorType::InvalidJan,
+            ParseErrorType::InvalidNumber => super::CsvImportErrorType::InvalidNumber,
         };
         error_rows.push(ErrorRow {
             line_no: pe.line_no,
@@ -144,7 +144,7 @@ pub fn parse_and_validate(
             name: pe.raw_name.clone().unwrap_or_default(),
             raw_quantity: pe.raw_quantity.clone().unwrap_or_default(),
             raw_amount: pe.raw_amount.clone().unwrap_or_default(),
-            error_type: error_type_str.to_string(),
+            error_type,
             error_message: pe.error_message.clone(),
         });
     }

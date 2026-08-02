@@ -163,7 +163,7 @@ export const commands = {
 	 *
 	 *  docs/function-design/41-cmd-pos.md §17.6 prepare_plu_export
 	 */
-	preparePluExport: (mode: string) => typedError<PluExportPrepareResponse, CmdError>(__TAURI_INVOKE("prepare_plu_export", { mode })),
+	preparePluExport: (mode: ExportMode) => typedError<PluExportPrepareResponse, CmdError>(__TAURI_INVOKE("prepare_plu_export", { mode })),
 	/**
 	 *  PLUファイル保存済み確認を受け、対象商品を未反映から外す
 	 *
@@ -181,10 +181,9 @@ export const commands = {
 	/**
 	 *  指定月の売上レポートを取得する
 	 *
-	 *  mode は文字列で受け取り CMD 層で SalesMode enum に変換する。
-	 *  フロントエンド側の実装を単純化するための設計判断（§22.4、H-1: response serialize のみ rename_all で snake_case 化）。
+	 *  mode は generated enum を直接受け取る。
 	 */
-	getMonthlySales: (month: string, mode: string) => typedError<MonthlySalesReport, CmdError>(__TAURI_INVOKE("get_monthly_sales", { month, mode })),
+	getMonthlySales: (month: string, mode: SalesMode) => typedError<MonthlySalesReport, CmdError>(__TAURI_INVOKE("get_monthly_sales", { month, mode })),
 	/**
 	 *  売上データをCSVファイルとしてエクスポートする
 	 *
@@ -388,9 +387,13 @@ export type CsvImport = {
 	total_items: number,
 	total_amount: number,
 	skipped_count: number,
-	status: string,
+	status: CsvImportStatus,
 	imported_at: string,
 };
+
+export type CsvImportErrorType = "unmatched_product" | "invalid_format" | "invalid_jan" | "invalid_number";
+
+export type CsvImportStatus = "completed" | "completed_partial" | "rolled_back";
 
 export type DailyReportDepartmentLinePreview = {
 	department_id: number | null,
@@ -506,8 +509,10 @@ export type DailySaleItem = {
 	department_id: number,
 	quantity: number,
 	amount: number,
-	source: string,
+	source: DailySaleSource,
 };
+
+export type DailySaleSource = "auto" | "manual";
 
 // 日次売上レポート
 export type DailySalesReport = {
@@ -557,7 +562,7 @@ export type DisposalCreateResult = {
 
 export type DisposalItemInput = {
 	product_code: string,
-	disposal_type: string,
+	disposal_type: DisposalType,
 	quantity: number,
 	cost_price: number,
 	reason: string,
@@ -581,7 +586,7 @@ export type DisposalRecordDetailItem = {
 	product_name: string,
 	department_name: string,
 	stock_unit: string,
-	disposal_type: string,
+	disposal_type: DisposalType,
 	quantity: number,
 	cost_price: number,
 	reason: string,
@@ -594,6 +599,8 @@ export type DisposalRecordSummary = {
 	disposal_date: string,
 	created_at: string,
 };
+
+export type DisposalType = "disposal" | "damage" | "other";
 
 // 重複チェック結果
 export type DuplicateCheck = {
@@ -618,7 +625,7 @@ export type ErrorRow = {
 	raw_quantity: string,
 	raw_amount: string,
 	// "unmatched_product" / "invalid_format" / "invalid_jan" / "invalid_number"
-	error_type: string,
+	error_type: CsvImportErrorType,
 	// 利用者向け日本語メッセージ
 	error_message: string,
 };
@@ -630,6 +637,13 @@ export type ErrorSummary = {
 	// 最大100件（UI表示の上限）
 	items: ErrorRow[],
 };
+
+// 書出しモード
+export type ExportMode =
+// 全件（is_discontinued=0）
+"full" |
+// 差分（plu_dirty=1）
+"diff";
 
 // ファイル情報
 export type FileInfo = {
@@ -671,7 +685,7 @@ export type ImportPreview = {
 export type ImportResult = {
 	csv_import_id: number,
 	// "completed" / "completed_partial"
-	status: string,
+	status: CsvImportStatus,
 	total_items: number,
 	total_amount: number,
 	skipped_count: number,
@@ -773,7 +787,7 @@ export type LogQuery = {
 export type ManualSaleCreateRequest = {
 	idempotency_key: string,
 	sale_date: string,
-	reason: string,
+	reason: ManualSaleReason,
 	note: string | null,
 	items: ManualSaleItemInput[],
 	confirmation_token: string | null,
@@ -796,11 +810,13 @@ export type ManualSaleItemInput = {
 	amount: number,
 };
 
+export type ManualSaleReason = "plu_unregistered" | "other";
+
 // 手動販売記録詳細
 export type ManualSaleRecordDetail = {
 	id: number,
 	sale_date: string,
-	reason: string,
+	reason: ManualSaleReason,
 	note: string | null,
 	status: string,
 	created_at: string,
@@ -857,7 +873,7 @@ export type MovementQuery = {
 	product_code: string,
 	date_from: string | null,
 	date_to: string | null,
-	movement_type: string | null,
+	movement_type: MovementType | null,
 	page: number,
 	per_page: number,
 };
@@ -870,10 +886,10 @@ export type MovementQuery = {
 export type MovementRecord = {
 	id: number,
 	product_code: string,
-	movement_type: string,
+	movement_type: MovementType,
 	quantity: number,
 	stock_after: number,
-	reference_type: string | null,
+	reference_type: ReferenceType | null,
 	reference_id: number | null,
 	source: MovementSourceLink | null,
 	note: string | null,
@@ -889,6 +905,9 @@ export type MovementSourceLink = {
 	label: string,
 	route: string,
 };
+
+// 在庫変動種別（db-design/tracking-system-tables.md: inventory_movements.movement_type CHECK制約に対応）
+export type MovementType = "sale_auto" | "sale_manual" | "receiving" | "return" | "disposal" | "stocktake";
 
 // レジ日報由来の部門別集計行
 export type OfficialDailyDepartmentLine = {
@@ -1021,10 +1040,10 @@ export type Product = {
 	supplier_id: number | null,
 	selling_price: number,
 	cost_price: number,
-	tax_rate: string,
+	tax_rate: ProductTaxRate,
 	maker_code: string | null,
 	stock_quantity: number,
-	stock_unit: string,
+	stock_unit: ProductStockUnit,
 	is_discontinued: boolean,
 	plu_dirty: boolean,
 	plu_exported_at: string | null,
@@ -1041,8 +1060,8 @@ export type ProductCreateRequest = {
 	department_id: number,
 	selling_price: number,
 	cost_price: number,
-	tax_rate: string,
-	stock_unit: string,
+	tax_rate: ProductTaxRate,
+	stock_unit: ProductStockUnit,
 	initial_stock: number,
 	maker_code: string | null,
 	supplier_id: number | null,
@@ -1095,6 +1114,10 @@ export type ProductSearchQuery = {
 	per_page: number,
 };
 
+export type ProductStockUnit = "pcs" | "cm";
+
+export type ProductTaxRate = "10" | "8" | "0";
+
 // 商品更新リクエスト（FUNC-4.4）
 export type ProductUpdateRequest = ProductUpdateRequest_Serialize | ProductUpdateRequest_Deserialize;
 
@@ -1105,7 +1128,7 @@ export type ProductUpdateRequest_Deserialize = {
 	supplier_id?: number | null,
 	selling_price?: number | null,
 	cost_price?: number | null,
-	tax_rate?: string | null,
+	tax_rate?: ProductTaxRate | null,
 	maker_code?: string | null,
 	pos_stock_sync?: boolean | null,
 	plu_target?: boolean | null,
@@ -1118,7 +1141,7 @@ export type ProductUpdateRequest_Serialize = {
 	supplier_id: number | null,
 	selling_price: number | null,
 	cost_price: number | null,
-	tax_rate: string | null,
+	tax_rate: ProductTaxRate | null,
 	maker_code: string | null,
 	pos_stock_sync: boolean | null,
 	plu_target: boolean | null,
@@ -1198,6 +1221,9 @@ export type ReceivingRecordWithSupplier = {
 	created_at: string,
 };
 
+// 参照先種別（db-design/tracking-system-tables.md: inventory_movements.reference_type CHECK制約に対応）
+export type ReferenceType = "csv_import" | "manual_sale" | "receiving_record" | "return_record" | "disposal_record" | "stocktake";
+
 export type RestoreBackupRequest = {
 	backup_path: string,
 };
@@ -1205,7 +1231,7 @@ export type RestoreBackupRequest = {
 // 返品・交換記録リクエスト（31-biz-inventory-service.md §12.4）
 export type ReturnCreateRequest = {
 	idempotency_key: string,
-	return_type: string,
+	return_type: ReturnExchangeType,
 	return_date: string,
 	register_processed: boolean,
 	receipt_image_path: string | null,
@@ -1221,16 +1247,20 @@ export type ReturnCreateResult = {
 	stock_warnings: string[],
 };
 
+export type ReturnDirection = "in" | "out";
+
+export type ReturnExchangeType = "return" | "exchange";
+
 export type ReturnItemInput = {
 	product_code: string,
-	direction: string,
+	direction: ReturnDirection,
 	quantity: number,
 };
 
 // 返品・交換記録詳細
 export type ReturnRecordDetail = {
 	id: number,
-	return_type: string,
+	return_type: ReturnExchangeType,
 	return_date: string,
 	register_processed: boolean,
 	receipt_image_path: string | null,
@@ -1248,14 +1278,14 @@ export type ReturnRecordDetailItem = {
 	product_name: string,
 	department_name: string,
 	stock_unit: string,
-	direction: string,
+	direction: ReturnDirection,
 	quantity: number,
 };
 
 // 返品記録一覧表示用
 export type ReturnRecordSummary = {
 	id: number,
-	return_type: string,
+	return_type: ReturnExchangeType,
 	return_date: string,
 	register_processed: boolean,
 	note: string | null,

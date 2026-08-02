@@ -19,7 +19,8 @@ use std::collections::{BTreeMap, HashSet};
 // ---------------------------------------------------------------------------
 
 /// 書出しモード
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, specta::Type)]
+#[serde(rename_all = "snake_case")]
 pub enum ExportMode {
     /// 全件（is_discontinued=0）
     Full,
@@ -146,7 +147,7 @@ pub fn prepare_plu_export(
             jan_code: first.product.jan_code.clone(),
             name: first.product.name.clone(),
             selling_price: first.product.selling_price,
-            tax_rate: first.product.tax_rate.clone(),
+            tax_rate: first.product.tax_rate.as_str().to_string(),
             department_name: first.department_name.clone(),
         });
     }
@@ -582,6 +583,28 @@ mod tests {
             "元からplu_dirty=0だった商品はそのまま"
         );
         assert!(p2.product.plu_exported_at.is_none());
+    }
+
+    #[test]
+    fn test_prepare_plu_export_req402_rate8_uses_tax2_internal() {
+        let (_dir, conn) = setup_test_db();
+        seed_product_for_plu(&conn, "PLU-TAX8", "税率8商品", 1, false, true);
+        conn.execute(
+            "UPDATE products SET tax_rate = '8' WHERE product_code = 'PLU-TAX8'",
+            [],
+        )
+        .unwrap();
+
+        let result = prepare_plu_export(
+            &conn,
+            PluExportPrepareRequest {
+                mode: ExportMode::Diff,
+            },
+        )
+        .unwrap();
+        let (decoded, _, had_errors) = encoding_rs::SHIFT_JIS.decode(&result.plu_output.bytes);
+        assert!(!had_errors);
+        assert!(decoded.contains("税2(内税)"), "PLU output: {decoded}");
     }
 
     #[test]

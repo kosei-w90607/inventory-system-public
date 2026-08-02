@@ -10,6 +10,67 @@ use crate::constants::PAGINATION_MAX_PER_PAGE;
 // 型定義
 // ---------------------------------------------------------------------------
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, specta::Type)]
+pub enum ProductTaxRate {
+    #[serde(rename = "10")]
+    Rate10,
+    #[serde(rename = "8")]
+    Rate8,
+    #[serde(rename = "0")]
+    Rate0,
+}
+
+impl ProductTaxRate {
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Rate10 => "10",
+            Self::Rate8 => "8",
+            Self::Rate0 => "0",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, specta::Type)]
+#[serde(rename_all = "snake_case")]
+pub enum ProductStockUnit {
+    Pcs,
+    Cm,
+}
+
+impl ProductStockUnit {
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Pcs => "pcs",
+            Self::Cm => "cm",
+        }
+    }
+}
+
+fn parse_tax_rate(value: String) -> rusqlite::Result<ProductTaxRate> {
+    match value.as_str() {
+        "10" => Ok(ProductTaxRate::Rate10),
+        "8" => Ok(ProductTaxRate::Rate8),
+        "0" => Ok(ProductTaxRate::Rate0),
+        _ => Err(rusqlite::Error::FromSqlConversionFailure(
+            0,
+            rusqlite::types::Type::Text,
+            format!("unknown product tax_rate: {value}").into(),
+        )),
+    }
+}
+
+fn parse_stock_unit(value: String) -> rusqlite::Result<ProductStockUnit> {
+    match value.as_str() {
+        "pcs" => Ok(ProductStockUnit::Pcs),
+        "cm" => Ok(ProductStockUnit::Cm),
+        _ => Err(rusqlite::Error::FromSqlConversionFailure(
+            0,
+            rusqlite::types::Type::Text,
+            format!("unknown product stock_unit: {value}").into(),
+        )),
+    }
+}
+
 /// 商品マスタの行マッピング（products テーブル全18カラム）
 ///
 /// db-design/master-tables.md products
@@ -22,10 +83,10 @@ pub struct Product {
     pub supplier_id: Option<i64>,
     pub selling_price: i64,
     pub cost_price: i64,
-    pub tax_rate: String,
+    pub tax_rate: ProductTaxRate,
     pub maker_code: Option<String>,
     pub stock_quantity: i64,
-    pub stock_unit: String,
+    pub stock_unit: ProductStockUnit,
     pub is_discontinued: bool,
     pub plu_dirty: bool,
     pub plu_exported_at: Option<String>,
@@ -192,10 +253,10 @@ fn row_to_product(row: &rusqlite::Row) -> rusqlite::Result<Product> {
         supplier_id: row.get(4)?,
         selling_price: row.get(5)?,
         cost_price: row.get(6)?,
-        tax_rate: row.get(7)?,
+        tax_rate: parse_tax_rate(row.get(7)?)?,
         maker_code: row.get(8)?,
         stock_quantity: row.get(9)?,
-        stock_unit: row.get(10)?,
+        stock_unit: parse_stock_unit(row.get(10)?)?,
         is_discontinued: row.get(11)?,
         plu_dirty: row.get(12)?,
         plu_exported_at: row.get(13)?,

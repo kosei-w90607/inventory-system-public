@@ -1,6 +1,6 @@
-import type { ProductWithRelations } from "@/lib/bindings";
+import type { DisposalType, ProductWithRelations } from "@/lib/bindings";
 
-export type DisposalType = "disposal" | "damage" | "other";
+export type { DisposalType };
 
 export interface DisposalRow {
   rowId: string;

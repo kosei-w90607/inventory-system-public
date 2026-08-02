@@ -42,7 +42,7 @@ fn test_commit_req401_normal_flow() {
     )
     .unwrap();
 
-    assert_eq!(result.status, "completed");
+    assert_eq!(result.status, sales_repo::CsvImportStatus::Completed);
     assert_eq!(result.total_items, 2);
     assert_eq!(result.total_amount, 1100);
     assert_eq!(result.skipped_count, 0);
@@ -76,7 +76,7 @@ fn test_commit_req401_overwrite_flow() {
         },
     )
     .unwrap();
-    assert_eq!(result1.status, "completed");
+    assert_eq!(result1.status, sales_repo::CsvImportStatus::Completed);
     let p = product_repo::find_by_product_code(&conn, "TEST-001")
         .unwrap()
         .unwrap();
@@ -99,7 +99,7 @@ fn test_commit_req401_overwrite_flow() {
         },
     )
     .unwrap();
-    assert_eq!(result2.status, "completed");
+    assert_eq!(result2.status, sales_repo::CsvImportStatus::Completed);
     assert_eq!(result2.total_items, 1);
     assert_eq!(result2.total_amount, 1500);
 
@@ -205,7 +205,7 @@ fn test_commit_req401_pos_stock_sync_false() {
         },
     )
     .unwrap();
-    assert_eq!(result.status, "completed");
+    assert_eq!(result.status, sales_repo::CsvImportStatus::Completed);
     assert_eq!(result.total_items, 1);
 
     // DB検証: 在庫は動かない
@@ -238,7 +238,7 @@ fn test_commit_req401_negative_stock_warning() {
     )
     .unwrap();
     // 処理は完了する（INV-3: 負在庫は警告のみ）
-    assert_eq!(result.status, "completed");
+    assert_eq!(result.status, sales_repo::CsvImportStatus::Completed);
 
     // DB検証: 在庫がマイナス
     let p = product_repo::find_by_product_code(&conn, "TEST-001")
@@ -271,7 +271,7 @@ fn test_commit_req401_partial_with_errors() {
         },
     )
     .unwrap();
-    assert_eq!(result.status, "completed_partial");
+    assert_eq!(result.status, sales_repo::CsvImportStatus::CompletedPartial);
     assert_eq!(result.total_items, 1);
     assert_eq!(result.skipped_count, 1);
 }

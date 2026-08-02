@@ -59,7 +59,7 @@ function makeProduct(productCode: string, stockQuantity: number): ProductWithRel
     tax_rate: "10",
     maker_code: null,
     stock_quantity: stockQuantity,
-    stock_unit: "個",
+    stock_unit: "pcs",
     is_discontinued: false,
     plu_dirty: false,
     plu_exported_at: null,

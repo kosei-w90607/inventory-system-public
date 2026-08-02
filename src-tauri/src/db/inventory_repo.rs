@@ -2,10 +2,7 @@
 //!
 //! 21-io-inventory-repo.md §2.7 に基づく実装。
 //!
-//! ## 設計ドキュメントとの差分
-//! 21-io-inventory-repo.md では movement_type/reference_type を String としているが、
-//! db-design/tracking-system-tables.md の CHECK 制約値が固定のため enum 化して typo 事故を防止。
-//! as_str() で同じ文字列に変換されるため振る舞いは同一。
+//! DB CHECK 制約の有限値を enum と canonical wire 文字列で一元管理する。
 
 use super::{DbConnection, DbError};
 
@@ -14,7 +11,8 @@ use super::{DbConnection, DbError};
 // ---------------------------------------------------------------------------
 
 /// 在庫変動種別（db-design/tracking-system-tables.md: inventory_movements.movement_type CHECK制約に対応）
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, specta::Type)]
+#[serde(rename_all = "snake_case")]
 pub enum MovementType {
     SaleAuto,
     SaleManual,
@@ -25,7 +23,7 @@ pub enum MovementType {
 }
 
 impl MovementType {
-    pub fn as_str(&self) -> &'static str {
+    pub const fn as_str(self) -> &'static str {
         match self {
             MovementType::SaleAuto => "sale_auto",
             MovementType::SaleManual => "sale_manual",
@@ -37,8 +35,25 @@ impl MovementType {
     }
 }
 
+pub(super) fn parse_movement_type(value: String) -> rusqlite::Result<MovementType> {
+    match value.as_str() {
+        "sale_auto" => Ok(MovementType::SaleAuto),
+        "sale_manual" => Ok(MovementType::SaleManual),
+        "receiving" => Ok(MovementType::Receiving),
+        "return" => Ok(MovementType::Return),
+        "disposal" => Ok(MovementType::Disposal),
+        "stocktake" => Ok(MovementType::Stocktake),
+        _ => Err(rusqlite::Error::FromSqlConversionFailure(
+            0,
+            rusqlite::types::Type::Text,
+            format!("unknown movement_type: {value}").into(),
+        )),
+    }
+}
+
 /// 参照先種別（db-design/tracking-system-tables.md: inventory_movements.reference_type CHECK制約に対応）
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, specta::Type)]
+#[serde(rename_all = "snake_case")]
 pub enum ReferenceType {
     CsvImport,
     ManualSale,
@@ -49,7 +64,7 @@ pub enum ReferenceType {
 }
 
 impl ReferenceType {
-    pub fn as_str(&self) -> &'static str {
+    pub const fn as_str(self) -> &'static str {
         match self {
             ReferenceType::CsvImport => "csv_import",
             ReferenceType::ManualSale => "manual_sale",
@@ -58,6 +73,18 @@ impl ReferenceType {
             ReferenceType::DisposalRecord => "disposal_record",
             ReferenceType::Stocktake => "stocktake",
         }
+    }
+}
+
+pub(super) fn parse_reference_type(value: Option<String>) -> Option<ReferenceType> {
+    match value.as_deref() {
+        Some("csv_import") => Some(ReferenceType::CsvImport),
+        Some("manual_sale") => Some(ReferenceType::ManualSale),
+        Some("receiving_record") => Some(ReferenceType::ReceivingRecord),
+        Some("return_record") => Some(ReferenceType::ReturnRecord),
+        Some("disposal_record") => Some(ReferenceType::DisposalRecord),
+        Some("stocktake") => Some(ReferenceType::Stocktake),
+        Some(_) | None => None,
     }
 }
 
@@ -184,7 +211,7 @@ pub struct MovementQuery {
     pub product_code: String,
     pub date_from: Option<String>,
     pub date_to: Option<String>,
-    pub movement_type: Option<String>,
+    pub movement_type: Option<MovementType>,
     pub page: u32,
     pub per_page: u32,
 }
@@ -205,10 +232,10 @@ pub struct MovementSourceLink {
 pub struct MovementRecord {
     pub id: i64,
     pub product_code: String,
-    pub movement_type: String,
+    pub movement_type: MovementType,
     pub quantity: i64,
     pub stock_after: i64,
-    pub reference_type: Option<String>,
+    pub reference_type: Option<ReferenceType>,
     pub reference_id: Option<i64>,
     pub source: Option<MovementSourceLink>,
     pub note: Option<String>,
@@ -255,7 +282,7 @@ pub fn list_movements(
     }
     if let Some(ref mt) = query.movement_type {
         where_clauses.push(format!("movement_type = ?{}", params.len() + 1));
-        params.push(Box::new(mt.clone()));
+        params.push(Box::new(mt.as_str()));
     }
 
     let where_sql = format!("WHERE {}", where_clauses.join(" AND "));
@@ -289,10 +316,10 @@ pub fn list_movements(
             Ok(MovementRecord {
                 id: row.get(0)?,
                 product_code: row.get(1)?,
-                movement_type: row.get(2)?,
+                movement_type: parse_movement_type(row.get(2)?)?,
                 quantity: row.get(3)?,
                 stock_after: row.get(4)?,
-                reference_type: row.get(5)?,
+                reference_type: parse_reference_type(row.get(5)?),
                 reference_id: row.get(6)?,
                 source: None,
                 note: row.get(7)?,
@@ -347,6 +374,20 @@ mod tests {
         assert_eq!(ReferenceType::ReturnRecord.as_str(), "return_record");
         assert_eq!(ReferenceType::DisposalRecord.as_str(), "disposal_record");
         assert_eq!(ReferenceType::Stocktake.as_str(), "stocktake");
+    }
+
+    #[test]
+    fn test_reference_type_unknown_falls_back_to_none_req303() {
+        assert_eq!(
+            parse_reference_type(Some("legacy_reference".to_string())),
+            None
+        );
+        assert_eq!(parse_reference_type(None), None);
+    }
+
+    #[test]
+    fn test_movement_type_unknown_is_internal_req303() {
+        assert!(parse_movement_type("legacy_movement".to_string()).is_err());
     }
 
     #[test]

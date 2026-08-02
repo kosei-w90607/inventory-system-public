@@ -92,7 +92,7 @@ enum DuplicateStatus {
 - error_type: String（"unmatched_product" / "invalid_format" / "invalid_jan" / "invalid_number"）
 - error_message: String（利用者向け日本語メッセージ）
 
-**enum 契約化（D-061）**: `error_type` の4値は IO の `ParseErrorType` 3 variant + BIZ 生成 `unmatched_product` を合成した4値 wire enum を新設する（D-061、順14 実装 PR2）。IO→wire 変換は明示 match とする。値・利用者向け文言は不変。
+**enum 契約化（D-061）**: `error_type` の4値は IO の `ParseErrorType` 3 variant + BIZ 生成 `unmatched_product` を合成した `CsvImportErrorType` generated enum で表す。IO→wire 変換は明示 match とし、値・利用者向け文言は不変。
 
 #### CommitRequest構造体
 
@@ -107,7 +107,7 @@ enum DuplicateStatus {
 #### ImportResult構造体
 
 - csv_import_id: i64
-- status: String（"completed" / "completed_partial"。rollback 後の "rolled_back" と合わせ、csv_imports.status 全体は D-061 で generated enum（CsvImportResult.status）へ置換される。値・分岐は不変）
+- status: CsvImportStatus（"completed" / "completed_partial"。rollback 後の "rolled_back" と同じ generated enum。値・分岐は不変）
 - total_items: i64
 - total_amount: i64
 - skipped_count: i64

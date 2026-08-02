@@ -181,7 +181,7 @@ fn execute_commit(
                 raw_name: e.name.clone(),
                 raw_quantity: e.raw_quantity.clone(),
                 raw_amount: e.raw_amount.clone(),
-                error_type: e.error_type.clone(),
+                error_type: e.error_type.as_str().to_string(),
                 error_message: e.error_message.clone(),
             })
             .collect();
@@ -193,9 +193,9 @@ fn execute_commit(
     let total_amount: i64 = matched_rows.iter().map(|r| r.amount as i64).sum();
     let skipped_count = error_rows.len() as i64;
     let status = if error_rows.is_empty() {
-        "completed"
+        sales_repo::CsvImportStatus::Completed
     } else {
-        "completed_partial"
+        sales_repo::CsvImportStatus::CompletedPartial
     };
     sales_repo::update_csv_import_totals(
         &tx,
@@ -203,7 +203,7 @@ fn execute_commit(
         total_items,
         total_amount,
         skipped_count,
-        status,
+        status.as_str(),
     )?;
 
     // 9. COMMIT
@@ -218,7 +218,7 @@ fn execute_commit(
         "total_items": total_items,
         "total_amount": total_amount,
         "skipped_count": skipped_count,
-        "status": status,
+        "status": status.as_str(),
     })
     .to_string();
     let log = NewOperationLog {
@@ -235,7 +235,7 @@ fn execute_commit(
 
     Ok(ImportResult {
         csv_import_id: import_id,
-        status: status.to_string(),
+        status,
         total_items,
         total_amount,
         skipped_count,

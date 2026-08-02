@@ -25,7 +25,7 @@ pub fn rollback_csv_import(
     })?;
 
     // 冪等: 既に rolled_back なら何もせず成功
-    if import.status == "rolled_back" {
+    if import.status == sales_repo::CsvImportStatus::RolledBack {
         return Ok(RollbackResult {
             success: true,
             voided_sale_count: 0,
@@ -51,7 +51,11 @@ pub fn rollback_csv_import(
     let stock_corrections = apply_void_stock_corrections(&tx, &voided_movements)?;
 
     // 6. csv_imports の status 更新
-    sales_repo::update_csv_import_status(&tx, csv_import_id, "rolled_back")?;
+    sales_repo::update_csv_import_status(
+        &tx,
+        csv_import_id,
+        sales_repo::CsvImportStatus::RolledBack.as_str(),
+    )?;
 
     // 7. COMMIT
     tx.commit()

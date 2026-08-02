@@ -222,7 +222,7 @@ fn create_return(
 ```
 struct ReturnCreateRequest {
     idempotency_key: String,
-    return_type: String,          // "return" | "exchange"
+    return_type: ReturnExchangeType, // "return" | "exchange"
     return_date: String,          // YYYY-MM-DD
     register_processed: bool,
     receipt_image_path: Option<String>,
@@ -231,7 +231,7 @@ struct ReturnCreateRequest {
 }
 struct ReturnItemInput {
     product_code: String,
-    direction: String,            // "in" | "out"
+    direction: ReturnDirection,   // "in" | "out"
     quantity: i64,
 }
 ```
@@ -253,7 +253,7 @@ struct ReturnCreateResult {
 4. Err(BizError) → CmdError に変換して返す
 
 **入力不変条件**:
-return_type / direction / exchange片側不足などの業務バリデーションは BIZ-02 が最終防御として実施する。CMD-03 は薄いラッパーとして request を中継し、BIZ validation error を `CmdError.kind="validation"` に変換する。
+return_type / direction の値域は generated enum が検査し、exchange片側不足などの業務不変条件は BIZ-02 が最終防御する。CMD-03 は薄いラッパーとして request を中継し、BIZ validation error を `CmdError.kind="validation"` に変換する。
 
 **入力例**:
 ```json
@@ -305,7 +305,7 @@ fn list_returns(
 ```
 struct ReturnRecordSummary {
     id: i64,
-    return_type: String,
+    return_type: ReturnExchangeType,
     return_date: String,
     register_processed: bool,
     note: Option<String>,
@@ -337,7 +337,7 @@ fn create_manual_sale(
 struct ManualSaleCreateRequest {
     idempotency_key: String,
     sale_date: String,            // YYYY-MM-DD
-    reason: String,               // "plu_unregistered" | "other"
+    reason: ManualSaleReason,     // "plu_unregistered" | "other"
     note: Option<String>,
     items: Vec<ManualSaleItemInput>,
     confirmation_token: Option<String>,  // PLU警告確認後の再送時に使用
@@ -398,7 +398,7 @@ struct DisposalCreateRequest {
 }
 struct DisposalItemInput {
     product_code: String,
-    disposal_type: String,        // "disposal" | "damage" | "other"
+    disposal_type: DisposalType,  // "disposal" | "damage" | "other"
     quantity: i64,
     cost_price: i64,
     reason: String,
@@ -417,7 +417,7 @@ struct DisposalCreateResult {
 
 **処理ステップ**: create_receiving と同パターン
 
-**enum 契約化（D-061）**: 本節群（§23.5〜§23.7）のうち D-061 の enum 化対象は `return_type` / `direction` / `disposal_type` と、§23.6 手動販売の `manual_sales.reason`（family (5)、CHECK 制約付き 2 値）である。値・wire 表現・分岐意味論は不変（順14 実装 PR2 で追随。それまでの現行実装は移行前の String 形）。**§23.7 廃棄の `reason`（`DisposalItemInput.reason` 等）は CHECK 制約なしの自由記述 field であり D-061 の対象外** — 値集合が存在しないため enum 化してはならない（Final Review P1 で明示化）。
+**enum 契約化（D-061 / D-064）**: 本節群（§23.5〜§23.7）の `return_type` / `direction` / `disposal_type` と、§23.6 手動販売の `manual_sales.reason`（family (5)、CHECK 制約付き 2 値）は generated enum で検査する。値・wire 表現・分岐意味論は不変。**§23.7 廃棄の `reason`（`DisposalItemInput.reason` 等）は CHECK 制約なしの自由記述 field であり D-061 の対象外** — 値集合が存在しないため enum 化してはならない。
 
 ---
 
@@ -557,7 +557,7 @@ fn get_return_record(
 ```
 struct ReturnRecordDetail {
     id: i64,
-    return_type: String,
+    return_type: ReturnExchangeType,
     return_date: String,
     register_processed: bool,
     receipt_image_path: Option<String>,
@@ -591,7 +591,7 @@ fn get_manual_sale_record(
 struct ManualSaleRecordDetail {
     id: i64,
     sale_date: String,
-    reason: String,
+    reason: ManualSaleReason,
     note: Option<String>,
     status: String,
     created_at: String,
@@ -636,7 +636,7 @@ struct DisposalRecordDetailItem {
     product_name: String,
     department_name: String,
     stock_unit: String,
-    disposal_type: String,
+    disposal_type: DisposalType,
     quantity: i64,
     cost_price: i64,
     reason: String,
@@ -791,7 +791,7 @@ struct MovementQuery {
     product_code: String,
     date_from: Option<String>,        // YYYY-MM-DD
     date_to: Option<String>,          // YYYY-MM-DD
-    movement_type: Option<String>,    // "sale_auto" | "sale_manual" | "receiving" | "return" | "disposal" | "stocktake"
+    movement_type: Option<MovementType>, // "sale_auto" | "sale_manual" | "receiving" | "return" | "disposal" | "stocktake"
     page: u32,
     per_page: u32,
 }
@@ -802,10 +802,10 @@ struct MovementQuery {
 struct MovementRecord {
     id: i64,
     product_code: String,
-    movement_type: String,
+    movement_type: MovementType,
     quantity: i64,
     stock_after: i64,
-    reference_type: Option<String>,
+    reference_type: Option<ReferenceType>,
     reference_id: Option<i64>,
     source: Option<MovementSourceLink>,
     note: Option<String>,
@@ -827,7 +827,7 @@ struct MovementSourceLink {
 
 **設計判断 — source link の責務**: IO層は `reference_type/reference_id` を取得し、BIZ層が `source` を解決する。既知の `reference_type` は `label` と `route` を返す。`reference_type` または `reference_id` が NULL、または未知の値の場合は movement 行を残したまま `source=None` にする。
 
-**enum 契約化（D-061）**: `movement_type` / `reference_type` は DB 層既存 enum（MovementType/ReferenceType）を generated enum として wire 露出する（D-061、reference_type は Option）。値・wire 表現・分岐意味論は不変（順14 実装 PR2 で追随。それまでの現行実装は移行前の String 形）。
+**enum 契約化（D-061 / D-064）**: `movement_type` / `reference_type` は DB 層 enum（MovementType/ReferenceType）を generated enum として wire 露出する（reference_type は Option）。値・wire 表現・分岐意味論は不変で、不明な reference_type のみ REQ-303 に従って None へ fallback する。
 
 **入力例**:
 ```json

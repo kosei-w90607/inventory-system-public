@@ -133,7 +133,7 @@ pub struct ErrorRow {
     pub raw_quantity: String,
     pub raw_amount: String,
     /// "unmatched_product" / "invalid_format" / "invalid_jan" / "invalid_number"
-    pub error_type: String,
+    pub error_type: CsvImportErrorType,
     /// 利用者向け日本語メッセージ
     pub error_message: String,
 }
@@ -163,10 +163,30 @@ pub struct CachedPreview {
 pub struct ImportResult {
     pub csv_import_id: i64,
     /// "completed" / "completed_partial"
-    pub status: String,
+    pub status: crate::db::sales_repo::CsvImportStatus,
     pub total_items: i64,
     pub total_amount: i64,
     pub skipped_count: i64,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, specta::Type)]
+#[serde(rename_all = "snake_case")]
+pub enum CsvImportErrorType {
+    UnmatchedProduct,
+    InvalidFormat,
+    InvalidJan,
+    InvalidNumber,
+}
+
+impl CsvImportErrorType {
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::UnmatchedProduct => "unmatched_product",
+            Self::InvalidFormat => "invalid_format",
+            Self::InvalidJan => "invalid_jan",
+            Self::InvalidNumber => "invalid_number",
+        }
+    }
 }
 
 /// rollback_csv_import の結果

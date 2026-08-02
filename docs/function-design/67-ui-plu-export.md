@@ -87,7 +87,7 @@ function PluExportPage(): JSX.Element
 
 `target_product_codes` はprepare時のexact setである。confirm時にUIが現在の差分一覧から再計算しない。
 
-**enum 契約化（D-061）**: `preparePluExport({ mode })` の `"diff"` / `"full"` frontend literal（`ExportMode`）は D-061 で bindings 由来 generated union へ置換される（順14 実装 PR2）。値・wire 表現は不変。
+**enum 契約化（D-061）**: `preparePluExport({ mode })` は bindings 由来の `ExportMode` generated union を利用する。値・wire 表現は不変。
 
 ### 67.8.1 Browser Recovery Contract
 
