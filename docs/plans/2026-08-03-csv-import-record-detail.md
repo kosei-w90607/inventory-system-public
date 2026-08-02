@@ -292,7 +292,7 @@ Fill after review.
 - round 2 closure（別 Sonnet fresh context）: 4/4 CLOSED（各是正の技術的正確さを実コード実読で検証、`useCsvImportFlow.ts` zero-arg 呼出しの署名不変主張も確認）、是正差分起因の新規 findings 0。P1/P2 残 0。
 - plan-gate → plan-approved → implementing の materialize evidence: 上記 P1/P2=0、plan-first commit `4854e3a`（+ rally 是正 `d25990c`）が全実装 commit に先行、Writer は Codex（発注書駆動、実装 commit 未作成）。
 
-### Writer fail-closed 停止 1 回目と gated Amendment 1（2026-08-03、append-only）
+### Writer fail-closed 停止（初回）と gated Amendment `1`（2026-08-03、append-only）
 
 - Writer（Codex）が実装中の T10 runtime test red で packet の route 前提の誤りを検出し fail-closed 停止（true positive、Draft PR 未作成・未 commit tree 保持）。内容 = Contract Probe の「flat dot 記法は非 nesting 共存」結論が誤りで、詳細 route は `CsvImportRoute` の子として生成されるが `csv-import.tsx` に `<Outlet />` がなく描画されない。
 - Coordinator 裁定 = Writer の修正案（layout + index 構造への再構成、receiving 系 4 種と同型）を accept。routeTree.gen.ts の `getParentRoute` / `receiving.tsx` の Outlet-only layout / `receiving/index.tsx` の index 構造を Coordinator が実読で独立裏取り済み。
