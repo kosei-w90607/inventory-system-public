@@ -276,7 +276,7 @@ Test Design Matrix: [test-matrices/2026-08-02-ui-polish-batch-a.md](test-matrice
 
 - targeted tests: Matrix C1-C8（SidebarLink focus class / rg gate / 遷移 URL 同値 / 復元成功 flow 統合 / one-shot negative 群）
 - negative tests: Matrix C6-C8（再訪・通常到達・失敗時・store reset の非表示）
-- compatibility checks: 既存 test suite 全 green（削除・無効化・skip なし = Matrix C9）。Affected Surfaces 9 file の Router wrapper 追随
+- compatibility checks: 既存 test suite 全 green（削除・無効化・skip なし = Matrix C9）。Affected Surfaces 11 file（original 9 + amendment 2）の Router wrapper 追随
 - data safety checks: synthetic fixture のみ（Data Safety 節）
 - main wiring/integration checks: 実 Router + memory history での producer→consumer 結線（Matrix C5）
 - Human Gate に L3 を含むため、Writer 完了条件に `cargo check --release` を含める（frontend のみの変更でも native build 前提を壊していないことの確認。CI gate ではない）
@@ -298,7 +298,7 @@ IPC / JSON / DB / URL は不変。browser state（history.state / URL search par
 
 - one-shot 契約の穴: consume 前の重複 render、React StrictMode の二重実行、consume 後の Alert 消去タイミング
 - `<Link>` 化 19 箇所の遷移先 URL 同値性（特に search param 付き遷移と runtime 文字列群）、helper 構造化変更の呼び出し元波及
-- Affected Surfaces 9 test file の Router wrapper 追随で既存 assertion が弱体化していないか
+- Affected Surfaces 11 test file（original 9 + amendment 2）の Router wrapper 追随で既存 assertion が弱体化していないか
 - focus ring が disabled / pending 状態の link 表示を壊さないこと
 - 既存 test の削除・無効化・skip が紛れていないこと
 
@@ -348,3 +348,11 @@ Plan Review round 4 PASS 後の owner 承認を経て Sonnet writer が実装。
 2. **navigate reject 時の feedback: 差し戻しのうえ是正済み**。toast 撤去により reject 経路の成功 feedback が 0 になる劣化を Coordinator が指摘し、reject 分岐限定の fallback toast + test を追加（commit `ede3c78`）。flag 消去（D11）は維持
 3. **Affected Surfaces へ実装時発見の 2 file 追加: accept**。`StockInquiryPage.test.tsx` / `ProductListTable.test.tsx` は `StockDetailContent` 埋め込み経由で Router context が必要になった正当な発見。上記 Affected Surfaces 節へ追記
 4. **共有 test helper `src/test/render-with-router.tsx` 新設: accept**。packet の「Router wrapper を群ごとに割り当てる」方針の範囲内の実装手段
+
+### Final Review round 1（Codex、2026-08-03）裁定
+
+FAIL（P1=0 / P2=2 / P3=1）。mutation 実注入 5 件（X2 / X5 / X5b / X6 / X8）は全件 red を独立再現、追加 X3 が survivor となり P2-1 を実証した。全 findings accept:
+
+- **P2-1（C3/C4 の click SPA 遷移未証明、X3 survivor）: accept、Writer へ差し戻し**。代表 3 test は href 属性 assert のみで click 経路を検証していなかった。是正 = click 後の `router.state.location`（pathname + search）を test 内独立転記 literal と比較、X3（static 代表）+ runtime 代表 1 件の再注入 red 確認まで
+- **P2-2（L3 手順の観測条件不足）: accept**。PR body の Human Gate L3 手順へ「復元後ホームの各 summary 取得完了後も Alert が 1 個残存すること」の到達手順・合格基準を明記（Ledger D10 行の約束と一致させる）
+- **P3（9 file 表記の残存 3 箇所）: accept**。Test Plan / Review Focus / Matrix Characterization Baseline を「11 file（original 9 + amendment 2）」へ同期（本 amendment）

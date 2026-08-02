@@ -139,7 +139,7 @@ workflow-state 変更なし（本 change は product code + docs のみ）のた
 | Surface | Existing oracle | 今回補強する不足 |
 |---|---|---|
 | `BackupRestorePage` 復元成功 | 既存 test の成功経路（toast + navigate） | ホーム側 Alert の統合 assert（C5）。既存 toast assertion は残置または Alert へ置換を packet の文言判断に従い実施 |
-| Affected Surfaces 9 test file | 各画面の render / 遷移 assertion | Router wrapper 追随のみ。assertion 本体は不変（C9） |
+| Affected Surfaces 11 test file（original 9 + amendment 2） | 各画面の render / 遷移 assertion | Router wrapper 追随のみ。assertion 本体は不変（C9） |
 | `SidebarLink` | active/pending 分岐の既存 test（UI-12-D1 判定含む） | focus class assertion 追加（C1） |
 
 既存 REQ literal の件数は変更しない。新規 test case 名は `UI-11b` token を使い、`90-traceability.md` を変化させない。
