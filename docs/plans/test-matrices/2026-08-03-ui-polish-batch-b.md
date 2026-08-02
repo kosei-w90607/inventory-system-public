@@ -60,6 +60,8 @@ Risk: R3
 | SPEC-UIBB-8 | 回復押下の条件消失 | unit (RTL) | 同 test 内で「先頭ページに戻る」押下 → page=1 + q/dept/status 維持を assert | 回復が検索条件を落とす |
 | SPEC-UIBB-9 | 候補が filtered result 由来へ退行 | unit (RTL + hook) | `useStockInquiry.test.tsx` `SPEC-UIBB-9 部門候補はlistDepartments全件で4条件に依存しない`（同一 QueryClient 上で page 2 移動・q 変更・dept 選択・status 変更〈all → low_stock → stockout〉を順に実行し、候補 assert 不変 **かつ `listDepartments` の call count = 1 のまま**を assert） | 候補 query の searchProducts 派生への退行（DSR-10 縮退）、および query key へ 4 条件を誤再導入して毎回再取得する mutant（round 2 P2-3: 候補配列 assert だけでは同一 master 応答で素通しになるため call count で殺す） |
 | SPEC-UIBB-9 | query key の条件依存化 | unit | `query-keys` の unit test `SPEC-UIBB-9 departmentOptionsは無引数で一定keyを返す` | `queryKeys.stockInquiry.departmentOptions()` への引数再導入 |
+| SPEC-UIBB-9 | loading 結線の欠落 | unit (RTL) | `StockInquiryPage.test.tsx` `SPEC-UIBB-9 候補ロード中はDepartmentFilterがdisabled`（候補 query を pending に固定し trigger の disabled を assert） | `disabled={false}` 固定・loading 結線削除の mutant（round 3 P2-3） |
+| SPEC-UIBB-9 | error 表示と一覧独立の退行 | unit (RTL) | `StockInquiryPage.test.tsx` `SPEC-UIBB-9 候補取得失敗でも一覧は表示され失敗文言が出る`（`listDepartments` reject + list query 成功の fixture で、`role="alert"`「部門候補の取得に失敗しました」の exact 文言と商品一覧行の**同時表示**を assert。test harness は QueryClient retry を無効化して失敗状態を一意確定） | isError alert の削除・文言変更、候補失敗で一覧まで非表示にする結合退行（round 3 P2-3） |
 | SPEC-UIBB-9 | 選択中部門への縮退 | unit (RTL) | `StockInquiryPage.test.tsx` `SPEC-UIBB-9 部門選択中も他部門へ直接切替できる` | 候補縮退で他部門へ移れない行き止まり |
 | SPEC-UIBB-3 | invalid param で例外/NaN | unit (schema) | `stockInquirySearchSchema` test `SPEC-UIBB-3 pageの不正値は既定1に落ちる`（0 / -1 / 1.5 / "abc" / 欠落） | catch 欠落・境界誤り |
 | SPEC-UIBB-4 | 条件変更で page 保持 | unit (RTL) | `StockInquiryPage.test.tsx` `SPEC-UIBB-4 検索条件変更でpage=1に戻る` | reset 結線漏れ |

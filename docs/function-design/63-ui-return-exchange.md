@@ -155,7 +155,6 @@ UI-03 実装 PR では以下を generated binding に出す。
 - 返品・交換作成画面内での記録詳細表示、編集、取消、画像再表示。履歴調査用の詳細 route は `65-inventory-record-traceability.md` §65.10 の横展開 slice で扱う。保存済み画像の asset 表示は別 Design Phase とする。
 - 保存済み receipt image の削除 / orphan cleanup。
 - `createReturn` と画像保存を単一 command / 擬似TX にまとめる再設計。
-- `@tauri-apps/plugin-dialog` + filesystem plugin による path-based 画像選択。
 - inline 商品登録。
 - グローバル barcode scan detection。
 - cm / m 表示切替。
@@ -165,7 +164,7 @@ UI-03 実装 PR では以下を generated binding に出す。
 
 - UI-03-D1: `/inventory/return` route で page title と navigation active が一致する。
 - UI-03-D2: `createReturn` / `listReturns` が generated binding に存在し、ad hoc invoke を使わない。
-- UI-03-D3/D4: `saveReceiptImage` が generated binding に存在し、画像 file input/drop から base64 payload を作る。
+- UI-03-D3/D20: `saveReceiptImage` が generated binding に存在し、共通 FilePicker（`accept="image/*"`、native dialog + 任意 drop）から base64 payload を作る。
 - UI-03-D5: 画像保存成功後の create 失敗 retry で同じ `savedReceiptPath` を使い、画像を再保存しない。
 - UI-03-D6/D7: 返品では `in` のみ、交換では `in` / `out` 両方が必要。
 - UI-03-D8: `register_processed` true/false の在庫反映説明が日本語 text + Badge で読める。

@@ -311,7 +311,7 @@
 - **レイアウト判断**:
   - route は `/products/import`。商品管理エリアの独立画面として扱い、商品一覧 / 商品フォームの query param で mode 切替しない
   - 3ステップ構成（ファイル選択 → 内容確認 → 完了）にし、プレビュー段階で新規登録候補 / エラー行 / 重複行を同じ画面で確認できるようにする
-  - ファイル選択は UI-07 と同じ plain `<input type="file">` + drag/drop で始める。`@tauri-apps/plugin-dialog` は UI-01c 単独では導入しない
+  - ファイル選択は共通 FilePicker（native dialog ボタン + 任意 drop、[UI_TECH_STACK.md §6.5.4](UI_TECH_STACK.md) 正本、D-054）を使う
   - 重複行は既定「スキップ」。行ごとに「上書き」を選べる。上書き選択が 1 件以上ある場合だけ確認ダイアログを出す
   - エラー行があっても正常行があれば取込み可能にする。ただしエラー行は取り込まれないことを件数サマリと行別エラーで明示する
   - 取り込める行が 0 件の場合は「取り込む」を disabled にし、理由を日本語で表示する
@@ -320,7 +320,7 @@
   - CSV 初期投入は失敗影響が大きいため、色だけで状態を示さず、`新規登録候補` / `エラー行` / `重複行` / `上書き` / `スキップ` の日本語ラベルを主情報にする
   - 一括上書きは初回実装では置かない。既存商品を変える操作は行ごとに明示選択させる
   - commit 中は中断可能に見せない。backend は単一 TX であり、UI だけの cancel は誤認を招く
-  - Windows native L3 で file input / dragdrop、エラー行と重複行の見分け、上書き確認、結果サマリ、商品一覧への戻り導線を確認する
+  - Windows native L3 で FilePicker（native dialog ボタン + 任意 drop）、エラー行と重複行の見分け、上書き確認、結果サマリ、商品一覧への戻り導線を確認する
   - 詳細な関数設計と Design Intent Trace は [function-design/60-ui-product-import.md](function-design/60-ui-product-import.md) を参照
 
 ### 月次売上レポート画面

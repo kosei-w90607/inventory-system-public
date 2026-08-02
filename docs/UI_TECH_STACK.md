@@ -600,7 +600,7 @@ CMD層の `CmdError` は `kind: string` / `message: string` / `field?` / `error_
 - **UI**: ドロップゾーン + ファイル選択ボタン + プレビューサムネイル
 - **保存**: 初回 UI-03 実装は既存 `saveReceiptImage` command に base64 bytes + extension を渡し、IO-06 `image_manager` がアプリデータ配下へ保存した相対パスを `return_records.receipt_image_path` に格納する
 - **リサイズ**: 初回 UI-03 実装では圧縮・リサイズを行わない。現行 IO-06 は画像保存と相対パス管理のみを持つため、長辺1200px以下への圧縮は画像処理 crate と品質設定を含む別 Design Phase で扱う
-- **プレビュー**: 保存前は `URL.createObjectURL(file)` で選択中ファイルを表示する。保存済み画像の `asset://` 表示は、返品詳細表示 / 画像再表示を実装する時点で Tauri 許可設定と合わせて設計する
+- **プレビュー**: 保存前は共通 FilePicker が返す `PickedFile.bytes` から `Blob` を生成し、`URL.createObjectURL(blob)` で選択中ファイルを表示する（`src/features/return-exchange/ReturnExchangePage.tsx` 参照）。保存済み画像の `asset://` 表示は、返品詳細表示 / 画像再表示を実装する時点で Tauri 許可設定と合わせて設計する
 - **削除**: 明示的な「画像を削除」ボタン、確認ダイアログ不要（再度アップロード可能）
 
 ### 6.8 CSV / TSV ダウンロードUI

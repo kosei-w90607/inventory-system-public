@@ -7,8 +7,8 @@
 
 | 観点 | 本画面の選択 | 根拠 |
 |---|---|---|
-| useQuery 数 | **2 useQuery 部分障害許容**（list query = `search_products` または `list_low_stock`、detail query = `get_stock_detail`） | `get_stock_detail` と `list_low_stock` / `search_products` は独立 CMD で BIZ 内一体化されていない（UI-09a 横展開、機械的横展開でなく BIZ DTO 設計に従う） |
-| URL state | TanStack Router `validateSearch`（zod 4 直接渡し、`.optional().catch(undefined)` で不正値吸収）、`q` / `dept` / `status` / `selected` の 4 key | desktop-app-ui-constraints.md「状態の URL 化」、`selected` URL 化で詳細カード展開状態の F5 耐性 |
+| useQuery 数 | **3 useQuery 部分障害許容**（list query = `search_products` または `list_low_stock`、detail query = `get_stock_detail`、departmentOptions query = `listDepartments`） | `get_stock_detail` と `list_low_stock` / `search_products` は独立 CMD で BIZ 内一体化されていない（UI-09a 横展開、機械的横展開でなく BIZ DTO 設計に従う）。`listDepartments` は page/q/dept/status 非依存の独立 query（UI-06a-D2、round 1 P1-3） |
+| URL state | TanStack Router `validateSearch`（zod 4 直接渡し、`.optional().catch(undefined)` で不正値吸収）、`q` / `dept` / `status` / `page` / `selected` の 5 key | desktop-app-ui-constraints.md「状態の URL 化」、`selected` URL 化で詳細カード展開状態の F5 耐性、`page` は UI-06a-D1 pagination 導入で追加 |
 | 派生純関数 | 4 個（derive-stock-state / format-stock-display / format-last-date / filter-low-stock-list） | UI-09a/b 同型、業務ルールを純関数に閉じる。閾値判定は持たない（BIZ 責務） |
 | factory | 1 種類（`makeMockProductWithRelations` + `makeMockStockDetail`、test-fixtures.ts に集約） | テスト DRY、DTO + UI 派生型を 1 file に集約 |
 | ファイル分離 | `src/features/stock-inquiry/` 内閉鎖（types / lib / hooks / components）+ shadcn primitives は `src/components/ui/` | UI-09a/b 同型。`toggle` / `toggle-group` は新規 add（`collapsible` も add したが F1 行インライン展開化で現在未使用、primitive 残置） |
@@ -106,7 +106,7 @@ export type PaginatedResult<T> = {
 | 新規 | `src/features/stock-inquiry/lib/format-last-date.ts` | `string \| null → string`（None → 「—」、Q-2） | 15-25 |
 | 新規 | `src/features/stock-inquiry/lib/filter-low-stock-list.ts` | `list_low_stock` 結果の q / dept sub-filter + stockout/low 分岐 | 30-45 |
 | 新規 | `src/features/stock-inquiry/lib/test-fixtures.ts` | `makeMockProductWithRelations` + `makeMockStockDetail` factory | 30-45 |
-| 新規 | `src/features/stock-inquiry/hooks/useStockInquiry.ts` | 2 useQuery 部分障害許容 + `StockInquiryListResult` 正規化 + 1 件自動展開 + selected 不在 clear useEffect | 100-140 |
+| 新規 | `src/features/stock-inquiry/hooks/useStockInquiry.ts` | 3 useQuery 部分障害許容 + `StockInquiryListResult` 正規化 + 1 件自動展開 + selected 不在 clear useEffect | 100-140 |
 | 新規 | `src/components/patterns/SearchBar.tsx`（実装当時は `stock-inquiry/components/SearchBar.tsx`、PR-B で統合） | 検索 input（placeholder + `autoFocus` + Enter 検索 + debounce 200ms = live 型、[59-ui-shared-patterns.md](59-ui-shared-patterns.md)） | 50-70 |
 | 新規 | `src/features/stock-inquiry/components/StatusChips.tsx` | 3 チップ（shadcn `ToggleGroup`、件数バッジなし、Q-5） | 40-55 |
 | 新規 | `src/components/patterns/DepartmentFilter.tsx`（実装当時は UI-06a 用ローカル実装、PR-B で 3 feature を統合） | shadcn Select 単一選択（`DepartmentOption` 型は patterns/ が定義、[59-ui-shared-patterns.md](59-ui-shared-patterns.md)） | 40-60 |
@@ -152,7 +152,7 @@ useStockInquiry({ status, q, dept, page, selected, navigate })
   ├ departmentOptions useQuery（page / q / dept / status 非依存、独立、UI-06a-D2）
   │   commands.listDepartments() → Department[] → DepartmentOption[]（hook 内変換、round 2 P1-1）
   ↓ 派生純関数（derive-stock-state / filter-low-stock-list / format-*）
-{ listResult, detail, departmentOptions, autoExpand }
+{ listQuery, detailQuery, departmentOptionsQuery, departmentOptions, isAllEmpty }
   ↓
 StockInquiryPage（EmptySearchPlaceholder / Skeleton / Alert / EmptyState 出し分け、EmptyState は絞り込み非既定時に「絞り込みを解除」action、catalog ⑥）
   ↓ render
@@ -201,7 +201,7 @@ const searchSchema = z.object({
 
 ### 58.5 hook 設計
 
-#### useStockInquiry（2 useQuery 部分障害許容 + 正規化型）
+#### useStockInquiry（3 useQuery 部分障害許容 + 正規化型）
 
 ```ts
 import type { Department, ProductWithRelations, StockDetail } from "@/lib/bindings";
@@ -524,7 +524,7 @@ function StockInquiryPage() {
 
 - `commands.getStockDetail` の `BizError::NotFound`（商品コード不正）は CmdError `kind: "not_found"` で frontend に伝播、`InvokeError` で型安全に処理（`src/lib/invoke.ts`）
 
-### 58.9 テスト戦略（Vitest 純関数 + hook + RTL、9 file、45+ ケース）
+### 58.9 テスト戦略（Vitest 純関数 + hook + RTL、9 file、47+ ケース）
 
 | file | ケース数 | 主内容 |
 |---|---|---|
@@ -533,11 +533,11 @@ function StockInquiryPage() {
 | `format-last-date.test.ts` | 3 | null → 「—」/ `YYYY-MM-DD` そのまま / 空文字扱い |
 | `filter-low-stock-list.test.ts` | 6-8 | stockout 分岐 / low_stock 分岐 / q 部分一致 / dept 絞り込み / 複合 / 空配列 |
 | `useStockInquiry.test.tsx` | 10+ | search → PaginatedResult 正規化（source/totalCount、`truncated` は撤去済み） / low_stock → 配列正規化 / status=all+q空 で enabled=false / 1 件自動展開 / status 切替 → selected clear → 新 list 1 件で再展開 / detail 部分障害 / list 成功 + selected 不在 → clear（C-P2-1） / isAllEmpty + selected → clear + detail 非発火（Round 1 P2-2） / page が queryKey とクエリ引数に反映される（SPEC-UIBB-3/4） / SPEC-UIBB-9: `departmentOptionsQuery` が `listDepartments()` を呼び、page/q/dept/status 変更後も候補が不変で選択中部門から別部門へ直接切替できる（round 1 P1-3、DSR-10）。status 変更（all → low_stock → stockout）も候補不変であることを追加 assert（round 2 P2-3）。同一 `QueryClient` 上で page/q/dept/status を変えても `listDepartments` の call count = 1 に留まる（round 2 P2-3、query-key 安定性の mutant 検出）。`queryKeys.stockInquiry.departmentOptions()` が無引数で呼ぶたびに同一・一定の key を返す unit test（round 2 P1-1、無引数化の regression 防止） |
-| `SearchBar.test.tsx` + `StockInquiryPage.test.tsx` | 8+ | `autoFocus` 検証 / Enter で debounce flush + 即時 search / 結果 1 件で自動展開 useEffect → URL state `selected` 更新 / list 成功 + selected でインライン展開 / 行クリックで selected 更新 → 展開（stateful harness、C-P2-3）/ list 失敗 + detail 成功でフォールバックカード独立描画（部分障害許容、Codex Round 1 P2-1）/ search flow の在庫切れ label / low_stock flow の在庫少 label（RTL + user-event）/ SPEC-UIBB-1/2: 絞り込み非既定+0件で reset action 表示・押下で全条件+page 既定復帰 / SPEC-UIBB-4: q・dept・status 変更で page=1、page 移動は条件維持 / SPEC-UIBB-5: 51 件 synthetic で page 2 に到達、`TruncatedResultsAlert` 残存 0（rg 静的 sweep） / SPEC-UIBB-8: `items` 空 + `total_count > 0` + `page > 1` で範囲外 page 専用メッセージ + 「先頭ページに戻る」を表示し、filter-empty reset action より優先判定される（UI-06a-D3、round 1 P1-2） |
+| `SearchBar.test.tsx` + `StockInquiryPage.test.tsx` | 10+ | `autoFocus` 検証 / Enter で debounce flush + 即時 search / 結果 1 件で自動展開 useEffect → URL state `selected` 更新 / list 成功 + selected でインライン展開 / 行クリックで selected 更新 → 展開（stateful harness、C-P2-3）/ list 失敗 + detail 成功でフォールバックカード独立描画（部分障害許容、Codex Round 1 P2-1）/ search flow の在庫切れ label / low_stock flow の在庫少 label（RTL + user-event）/ SPEC-UIBB-1/2: 絞り込み非既定+0件で reset action 表示・押下で全条件+page 既定復帰 / SPEC-UIBB-4: q・dept・status 変更で page=1、page 移動は条件維持 / SPEC-UIBB-5: 51 件 synthetic で page 2 に到達、`TruncatedResultsAlert` 残存 0（rg 静的 sweep） / SPEC-UIBB-8: `items` 空 + `total_count > 0` + `page > 1` で範囲外 page 専用メッセージ + 「先頭ページに戻る」を表示し、filter-empty reset action より優先判定される（UI-06a-D3、round 1 P1-2） / SPEC-UIBB-9: 候補 query pending 中は `DepartmentFilter` trigger が disabled（`departmentOptionsQuery.isLoading`、round 3 P2-3） / SPEC-UIBB-9: `listDepartments` reject + list query 成功で `role="alert"`「部門候補の取得に失敗しました」と商品一覧が**同時に**表示される（一覧独立の結合退行検出、round 3 P2-3）。test harness は QueryClient retry を無効化して失敗状態を一意に確定させる |
 | `ProductListTable.test.tsx` | 9 | 状態列の「在庫切れ」「在庫少」「通常」text / 商品コード cell `text-sm` readability guard / 選択行直下インライン展開 / nextElementSibling colSpan=6 guard（旧下部固定・旧 5 列混入検出）/ 非選択時展開なし / detail 失敗 inline（C-P2-3） / 展開行 whitespace-normal guard（Round 1 P2-1） |
 | `StatusChips.test.tsx` | 3 | selected chip の `data-state="on"` / chip click の filter value 発火 / deselect 空文字無視（常に 1 つ選択維持） |
 
-合計テストケース **45+ ケース**。`vi.mock("@/lib/bindings")` で commands mock + TanStack Router test wrapper（memory `feedback-vitest-react19-setup-pattern.md` 踏襲）。状態表示のテストは Tailwind color class ではなく text / DOM state / table structure を assert する。
+合計テストケース **47+ ケース**。`vi.mock("@/lib/bindings")` で commands mock + TanStack Router test wrapper（memory `feedback-vitest-react19-setup-pattern.md` 踏襲）。状態表示のテストは Tailwind color class ではなく text / DOM state / table structure を assert する。
 
 ### 58.10 業務ルール
 
@@ -633,3 +633,4 @@ function StockInquiryPage() {
 | 2026-08-03 | ui-polish-batch-b（本 PR） | UI-06a-D1 追加: `page` search param + 既存 canonical `ProductPagination`（02 ⑩）を結線し、「すべて」全件へページ送りで到達できるようにする（対象は `status === "all"` のみ）。`TruncatedResultsAlert` component と `truncated` flag を撤去（§58.2/§58.3/§58.5/§58.7/§58.10）。§58.7 DepartmentFilter を PR-B で統合済みの共通 `patterns/DepartmentFilter` 使用へ表記更新。§58.13 の pagination UI 行（本 change で実装）と DepartmentFilter 共通化行（PR-B で完了済み）を削除。filter-empty 0 件時の「絞り込みを解除」reset action（catalog ⑥）を追加（§58.7/§58.8） |
 | 2026-08-03 | ui-polish-batch-b round 1 是正（本 PR） | UI-06a-D2 追加: 部門候補 query を `listDepartments()` master 全件へ切替（DSR-10、round 1 P1-3）、`departmentOptionsQuery` を dept/status 非依存の単一 query へ再設計（§58.5/§58.7/§58.10）。UI-06a-D3 追加: 範囲外 page（`items` 空 + `total_count > 0` + `page > 1`）に専用回復導線「先頭ページに戻る」を新設し、filter-empty reset action より優先判定（74 UI-11c-D8 同型、round 1 P1-2、§58.4/§58.7/§58.8/§58.9/§58.10）。EmptyState 疑似コードの `message=` prop を実契約 `title=` へ是正（round 1 P2-5、§58.7/§58.8） |
 | 2026-08-03 | ui-polish-batch-b round 2 是正（本 PR） | round 2 P1-1 対応: `useStockInquiry` の return に `departmentOptionsQuery` / `departmentOptions`（`Department[] → DepartmentOption[]` 変換済み）を追加し、`StockInquiryPage` の `DepartmentFilter` を canonical props（`options` / `selected` / `onChange` / `disabled`、59 §59.1）へ結線（§58.3/§58.5/§58.7）。候補取得失敗時は `departmentOptionsQuery.isError` で「部門候補の取得に失敗しました」を listQuery と独立に表示する挙動を明記（§58.5/§58.7）。`queryKeys.stockInquiry.departmentOptions()` の無引数化（現状 `(status, q)` 引数付き）を implementation target として明示、対象は src/lib/query-keys.ts / useStockInquiry.ts / useStockInquiry.test.tsx（§58.5）。§58.9 SPEC-UIBB-9 に status 変更後の候補不変 assert / 同一 QueryClient での `listDepartments` call count = 1 / `departmentOptions()` 無引数・一定 key の unit test を追加 |
+| 2026-08-03 | ui-polish-batch-b round 3 是正（本 PR） | P2-1（FilePicker ripple、対象は 60/63/SCREEN_DESIGN/FUNCTION_DESIGN/UI_TECH_STACK、本 file 対象外）と合わせて、本 file の要約層を詳細（§58.5/§58.3）と同期: 冒頭テンプレ判定表・§58.2 hook 行・§58.5 見出しを「2 useQuery」→「3 useQuery」、URL state を「4 key」→「5 key（q/dept/status/page/selected）」、§58.3 データフロー返却値を実疑似コードと同じ `{ listQuery, detailQuery, departmentOptionsQuery, departmentOptions, isAllEmpty }` へ修正（round 3 P2-2）。§58.9 に SPEC-UIBB-9 の loading（候補 pending 中は DepartmentFilter trigger disabled）/ error（`listDepartments` reject + list 成功で alert と一覧が同時表示、QueryClient retry 無効化）2 test を追加（round 3 P2-3） |

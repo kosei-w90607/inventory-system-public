@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: design
+- Phase: plan-gate
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: pending
@@ -28,11 +28,15 @@
 
 2026-08-03 Codex Plan Review round 3 = FAIL（P1=0 / P2=3 / P3=0、全件 accept、round 2 closure = closed 7 / not closed 1、round 1 持ち越し 5 件 = 全 closed、裁定詳細は Review Response 参照）。P2-1（FilePicker 移行完了宣言と 5 live docs の矛盾 = round 2 P2-4 の ripple 残存）/ P2-2（58 の要約層が 2 useQuery / 4 key のまま = round 2 是正で生じた要約層 closure defect）は design 出力の改訂を要するため、最早影響 phase = design へ backtrack する（`plan-gate -> design`。直前 backtrack `33d9d68` とは content commit `018d6ad` を挟み隣接しない）。P2-3（SPEC-UIBB-9 の loading / error oracle 欠落)は Matrix / Ledger / 58 §58.9 の追補で同時に是正する。
 
+2026-08-03 round 3 是正 content commit で `design -> plan-draft -> plan-gate` を再材料化する。evidence = round 3 の design 出力を source docs へ反映（P2-1 = FUNCTION_DESIGN 41/140 の「plain file input 暫定例外」/ SCREEN_DESIGN の plain input 開始・L3 指示 / 60 の D13・Non-scope・Test Focus / 63 の Non-scope・Test Focus / UI_TECH_STACK §6.7 `createObjectURL(file)` を FilePicker 現行方式へ同期し、historical 文脈以外の残存 0 を rg で確認。P2-2 = 58 の要約層〈冒頭判定表・§58.2・§58.3 返却値・§58.5 見出し〉と FUNCTION_DESIGN 59/136 を 3 useQuery / 5 key / 実 return 形へ同期。P2-3 = 58 §58.9 へ loading disabled / error alert+一覧同時表示の 2 test を追加、同一 plan-first change 内 — design→plan-draft）、Matrix の SPEC-UIBB-9 loading/error oracle 2 行 + retry 無効化 harness、packet の Ledger 転記 + Review Focus repo-wide sweep 追加 + relay 予算現況記録を完成・commit（plan-draft→plan-gate）。`doc-consistency-check --target plan` 全チェック通過。
+
 ## Owner Effort Budget
 
 - 介入回数上限: 3（plan 承認 / L3 目視 + Ready 承認 / merge）
 - 実働時間上限: 30分
 - relay 往復上限: 4（batch A 実績 6/4 を踏まえた調整値。Plan Review 複数 round + Final Review を見込む。超過が見えた時点で Coordinator が停止し owner 承認を得る）
+
+現況記録（2026-08-03、round 3 裁定時点）: Plan Review round 1〜3 で 3/4 消化。round 4（closure 確認）で 4/4 に達し、Final Review 以降は超過となる見込み。Final Review は独立レビューの代替が利かないため（Review Rules / batch A 前例と同判断）、超過分は本記録をもって owner へ事前明示し、owner の relay 実施をもって承認と扱う。
 
 承認依頼フォーマット: `この change での介入 N 回目 / 予算 M 回` + `承認すると利用者から見て何が完了するか1文`。
 
@@ -243,6 +247,7 @@ N/A — 未検証の外部前提なし。TanStack Router validateSearch の para
 | 02 ⑥ 適用除外（分類表の除外(a)〜(d) 19 site） | 変更なしの確認 | 既存 characterization PASS + PR diff 監査 | non-scope（diff 監査） |
 | 58 新設: 範囲外 page 回復（UI-11c-D8 同型、通常 EmptyState より優先） | StockInquiryPage | RTL（items 空 + total_count>0 + page>1 の一意 oracle） | L3 |
 | DSR-10: 部門候補 = listDepartments master 全件（縮退禁止） | useStockInquiry 候補 query + `queryKeys.stockInquiry.departmentOptions()` 無引数化 + DepartmentFilter canonical props 結線 | RTL + unit（page/q/dept/status の 4 条件変更で候補不変 + call count=1、別部門へ直接切替、無引数 key unit） | L3 |
+| SPEC-UIBB-9: 候補 loading の disabled 結線 / 候補失敗文言と一覧独立 | StockInquiryPage（disabled={isLoading} / isError alert） | RTL 2 本（pending → trigger disabled / reject + list 成功 → exact alert 文言と一覧の同時表示、retry 無効化 harness。Matrix 参照、round 3 P2-3） | — |
 | 58 新設: page param（>=1、invalid catch → 既定 1） | stock-inquiry search schema | schema unit test | — |
 | 58 新設: 条件変更 → page=1 / page 移動 → 条件維持 | StockInquiryPage | RTL | L3 |
 | 58 新設: truncated alert 撤去（全件ページ到達で代替） | stock-inquiry view-model | rg 残存 0 + RTL（51 件 synthetic で page 2 到達） | L3 |
@@ -284,6 +289,7 @@ Test Design Matrix: [test-matrices/2026-08-03-ui-polish-batch-b.md](test-matrice
 - 在庫照会の範囲外 page 判定（SPEC-UIBB-8）と reset 表示条件（SPEC-UIBB-1）の優先順位実装。
 - `listDepartments` 切替による部門候補の挙動変化（絞り込み中でも全部門が出る = DSR-10 の意図どおりだが、旧挙動との差分を L3 で owner 確認）。
 - stale 是正が更新履歴を持つ doc で履歴行を欠かさないこと。
+- FilePicker 移行完了形の repo-wide 整合（round 3 P2-1 の再発防止）: `rg -n "plain file input|createObjectURL\(file\)|暫定例外" docs/` の hit が historical 文脈（更新履歴・supersede 済み decision 記録・経緯引用）のみであること。current 節（Non-scope / Test Focus / L3 確認対象 / 索引）に旧方式が残っていれば blocker。
 
 ## Spec Contract
 
