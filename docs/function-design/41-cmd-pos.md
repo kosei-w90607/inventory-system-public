@@ -651,3 +651,5 @@ CMD-07/CMD-08が**やらないこと**を明示する。
     cmd::plu_export_cmd::list_plu_dirty,
 ])
 ```
+
+現行実装（`lib.rs`）では command 登録は 2 箇所に分離している: `export_specta_bindings()` 内の `collect_commands![...]`（bindings 生成用）と `.invoke_handler(tauri::generate_handler![...])`（実行時 dispatch 用）。新規 command は**両方**へ登録する。collect_commands のみでは bindings diff が clean のまま IPC 実呼出しが「command not found」になる（CSV取込み詳細 Design Phase、Plan Review round 1 P2 起源）。

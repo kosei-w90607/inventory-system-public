@@ -441,7 +441,7 @@ file_hash は重複取込み判定の内部値であり operator 向け情報で
 1. sales_repo::get_csv_import_record_detail(conn, import_id) を呼ぶ。IO 層の NotFound は「CSV取込み記録が見つかりません」を含む BizError::NotFound、その他の IO エラーは BizError::DatabaseError に変換する
 2. sales_repo::list_csv_import_error_rows(conn, import_id) を呼ぶ
 3. エラー行を ErrorRow へ写像する（line_no=source_line_no、name=raw_name、error_type は raw TEXT から `CsvImportErrorType` へ変換。DB CHECK により4値保証のため想定外値は BizError::DatabaseError で fail-fast）
-4. movements の各行に `biz::inventory_service` の `resolve_movement_source` と同一実装で source(label, route) を補完する（label/route 規則の独自複製を作らず、共有関数を再利用する）
+4. movements の各行に `biz::inventory_service` の `resolve_movement_source` と同一実装で source(label, route) を補完する（label/route 規則の独自複製を作らず、共有関数を再利用する）。共有のため `inventory_service/mod.rs` へ `pub(crate) use list::resolve_movement_source;` の re-export を 1 行追加する（`mod list` は private のため sibling module から現状 unreachable。同 file の `pub(crate) use common::apply_stock_change` と同型の既存慣習）
 5. CsvImportRecordDetail を構成して返す
 
 ---

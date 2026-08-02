@@ -66,13 +66,13 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。AC や�
 ## Scope
 
 1. IO: `db::sales_repo` へ `get_csv_import_record_detail` + `list_csv_import_error_rows` 追加（[24-io-csv-import-repo.md](../function-design/24-io-csv-import-repo.md) §14.13a）
-2. BIZ: `biz::csv_import_service::get_csv_import_record` 追加（[32-biz-csv-import-service.md](../function-design/32-biz-csv-import-service.md) §15.6a）。movements の source 補完は `biz::inventory_service` の既存 `resolve_movement_source`（pub(crate)）を共有し、label/route 規則の複製を作らない
-3. CMD: `cmd::csv_import_cmd::get_csv_import_record` 追加 + `#[tauri::command]` / `#[specta::specta]` 属性の対 + `lib.rs` `collect_commands` 登録（[41-cmd-pos.md](../function-design/41-cmd-pos.md) §17.5 / §17.9）
+2. BIZ: `biz::csv_import_service::get_csv_import_record` 追加（[32-biz-csv-import-service.md](../function-design/32-biz-csv-import-service.md) §15.6a）。movements の source 補完は `biz::inventory_service` の既存 `resolve_movement_source` を共有し、label/route 規則の複製を作らない。**共有には `inventory_service/mod.rs` へ `pub(crate) use list::resolve_movement_source;` の re-export 1 行追加が必要**（`mod list` は private のため sibling module から現状 unreachable。同 file の `pub(crate) use common::apply_stock_change`〈BIZ-03 CSV取込みから呼び出し可〉と同型の既存慣習）— Plan Review round 1 P1 是正
+3. CMD: `cmd::csv_import_cmd::get_csv_import_record` 追加 + `#[tauri::command]` / `#[specta::specta]` 属性の対 + `lib.rs` の **2 箇所登録**: `export_specta_bindings()` 内 `collect_commands![...]`（bindings 生成用）と `.invoke_handler(tauri::generate_handler![...])`（実行時 dispatch 用）の両方（[41-cmd-pos.md](../function-design/41-cmd-pos.md) §17.5 / §17.9。collect_commands のみでは AC4 が green のまま IPC 実呼出しが「command not found」になる — Plan Review round 1 P2 是正）
 4. bindings: `cargo run --bin generate_bindings` 再生成（`getCsvImportRecord` / `CsvImportRecordDetail` / `CsvImportErrorType` union）
 5. route: `src/routes/csv-import.records.$importId.tsx` 新設（既存 `receiving.records.$recordId.tsx` の flat dot 記法前例に従う）+ `npm run generate:routes`。`validateSearch` の `returnTo` pattern（`z.string().max(500).optional().catch(undefined)`）を既存 4 詳細 route と同形で踏襲
 6. UI: `src/features/inventory-records/CsvImportRecordDetailPage.tsx` 新設。`ReceivingRecordDetailPage.tsx` を canonical 参照とし、同構造（useQuery + queryKeys + describeError + returnTo 戻り導線）。status は 65 §65.6.1 に従い正規化した日本語 label（completed / completed_partial / rolled_back の 3 値表示）、rolled_back 時は rollback 状態を明示表示
 7. query key: `queryKeys.inventoryRecords.csvImportDetail(importId)` 追加（既存 `*Detail` 4 key と同形）
-8. D-052 契約変更（C9）: `invalidation-contract.ts` の `csvImportRollback` へ本詳細 query を stale 化する key を table.column 導出手順（UI_TECH_STACK §2.5）で追加 + 独立転記 oracle test の追随 + production-only mutation 感度の再実測。`csvImportCommit` への追加要否も同手順で導出し、採否と根拠を PR body に記録（rollback は `csv_imports.status` / `sale_records.is_voided` / `inventory_movements.is_voided` を確定し本 query が全て読むため追加必須。commit は既存 import 行を変更しないため過剰禁止原則との突合が必要）
+8. D-052 契約変更（C9）: `invalidation-contract.ts` の `csvImportRollback` へ **広域 prefix `queryKeys.inventoryRecords.root()` を追加**する（既存 receiving / return / manualSale / disposal mutation と同一 pattern。`csvImportDetail` が正当 consumer となるため prefix + child collateral は D-052 許容に適合し、zero-arg 署名を変えないため `invalidation-contract.meta.test.ts` / `invalidation-oracle.ts` / `useCsvImportFlow.ts` の署名追随が不要 — Plan Review round 1 P2 是正で importId 個別指定案を不採用）+ 独立転記 oracle test の追随 + production-only mutation 感度の再実測。`csvImportCommit` への追加要否も table.column 導出手順（UI_TECH_STACK §2.5）で導出し、採否と根拠を PR body に記録（rollback は `csv_imports.status` / `sale_records.is_voided` / `inventory_movements.is_voided` を確定し本 query が全て読むため追加必須。commit は既存 import 行を変更しないため過剰禁止原則との突合が必要）
 9. tests: 実装と同時に作成、`REQ-206` / `REQ-207` token 付与、`cargo run --bin generate_traceability` で 90 再生成
 10. design docs（本 plan-first commit に同乗済み）: 24 §14.13a / 32 §15.6a + 更新履歴 / 41 §17.5 + §17.9 / 65 §65.10 slice 4b + 変更履歴
 
@@ -124,7 +124,7 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。AC や�
 
 | 新規追加物 | 登録・生成義務 | 対応 |
 |---|---|---|
-| Tauri command `get_csv_import_record` | `lib.rs` collect_commands 登録 / `#[tauri::command]` + `#[specta::specta]` 対 / `generate_bindings` 再生成 | Scope 3 / 4。Ledger 行あり |
+| Tauri command `get_csv_import_record` | `lib.rs` の 2 箇所登録（`collect_commands![...]` + `.invoke_handler(generate_handler![...])`）/ `#[tauri::command]` + `#[specta::specta]` 対 / `generate_bindings` 再生成 | Scope 3 / 4。Ledger 行あり（invoke_handler 行を独立行として立てる） |
 | function-design doc 新設 | — | 該当なし（既存 4 doc への追記。`build_doc_to_modules_map()` の 24/32/41/65 entry は `db::sales_repo` / `biz::csv_import_service` / `cmd::csv_import_cmd` を登録済みで map 変更不要。§14.13a/§15.6a/§17.5 の新関数は実装までは info_unimplemented 扱い） |
 | source / workflow doc 新設・改名 | — | 該当なし |
 | Consultation Relay | — | 不使用 |
@@ -140,7 +140,7 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。AC や�
 | REQ-206 | 65 §65.5 CSV取込み列 / §65.6.1 状態正規化 | — | 表示項目は既存契約に従う。金額 yes / 原価 no / 種別 no の列定義どおり | `CsvImportRecordDetailPage` | AC3 / AC8 |
 | REQ-207 | 66 UI-06c-D7 | — | link URL 表示契約は不変。遷移先実装のみ追加 | — | AC6 |
 | D-052 C9 | UI_TECH_STACK §2.5 | D-052 | rollback は `csv_imports.status` / `sale_records.is_voided` / `inventory_movements.is_voided` を確定し、本 query が 3 table を読むため invalidate 追加必須。commit は既存 import 行を変更しないため過剰禁止原則で要導出 | `invalidation-contract.ts` + oracle test | AC9 |
-| D-061 | 32 §15.6a / 24 §14.13a | D-061 | `status` は `CsvImportStatus`、`error_type` は `CsvImportErrorType` の generated enum。IO 層は raw TEXT（enum 所有が BIZ 層のため層方向を守る）、BIZ で変換 | DTO | AC4 |
+| D-061 | 32 §15.6a / 24 §14.13a | D-061 | `error_type` は BIZ 所有 `CsvImportErrorType`（IO は raw TEXT を返し BIZ で変換 — 層方向維持）。`status` は既存 IO 所有 `CsvImportStatus`（`CsvImport` header 型が enum 変換済みの値を返すため BIZ での変換なし・素通し）— Plan Review round 1 P3 是正で分離記述 | DTO | AC4 |
 | REQ-206 | 65 §65.5（returnTo 戻り） | TRACE-D11 同型 | movements から来た場合の検索条件保持は既存 4 詳細の `returnTo` pattern を踏襲 | route `validateSearch` | Matrix T13 |
 
 ## Design Intent Audit
@@ -200,7 +200,9 @@ Minimum design checks:
 | 32 §15.6a: source 補完は `resolve_movement_source` 共有（label「CSV取込み」/ route `/csv-import/records/{id}`） | 同上 | T7 | — |
 | 32 §15.6a: wire DTO へ file_hash 非搭載 | `CsvImportRecordDetail` 型 | T6（DTO field assert） | — |
 | 41 §17.5: CMD thin wrapper + kind="not_found" 変換 | `csv_import_cmd::get_csv_import_record` | T8（production command 実呼び） | — |
-| 41 §17.9: collect_commands 登録 + specta 対 + bindings 生成 | `lib.rs` / `bindings.ts` | AC4（clean diff） | — |
+| 41 §17.9: collect_commands 登録 + specta 対 + bindings 生成 | `lib.rs` `export_specta_bindings()` / `bindings.ts` | AC4（clean diff） | — |
+| 41 §17.9: invoke_handler（`generate_handler!`）登録 — collect_commands と独立の登録点 | `lib.rs` `.invoke_handler(...)` | T10 / AC6（IPC 実呼出し経路）+ 実装 review で登録行 diff 確認 | L3 視認が実 IPC の最終確認 |
+| 32 §15.6a: `resolve_movement_source` の pub(crate) re-export（`inventory_service/mod.rs` 1 行、apply_stock_change 前例と同型） | `biz/inventory_service/mod.rs` | T7（共有関数経由の label/route exact oracle） | — |
 | 65 §65.3: route `/csv-import/records/$importId` | route file + generate:routes | AC5 | — |
 | 65 §65.5 CSV列: 表示項目（ID/日付/状態/明細数/商品情報/数量/金額/movements/rollback 状態） | `CsvImportRecordDetailPage` | T9 | L3 視認 |
 | 65 §65.6.1: status 正規化 label 表示 | 同上 | T9 / T12 | L3 視認 |
