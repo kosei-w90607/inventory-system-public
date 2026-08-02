@@ -65,7 +65,7 @@ workflow-state 変更なし（本 change は product code + docs のみ）のた
 
 | Source pattern / contract | Repository sites inspected | Ported sites | Explicit exclusions and reason | Test / evidence |
 |---|---|---|---|---|
-| internal 遷移の `<Link>` 化（route/search state pattern） | 生 `<a href>` 全 19 箇所 / 10 file（packet Scope に列挙、C2 canary で機械固定） | 19 箇所すべて | external link は src/ に 0 件（除外対象なし）。test fixture 内の `<a>` は遷移 pattern ではないため対象外（rg glob で分離） | C2 / C3 / C4 |
+| internal 遷移の `<Link>` 化（route/search state pattern） | 生 `<a href>` 全 19 site / 10 file — packet「Link 統一 site manifest」に file:line・static/runtime 分類・evidence 紐付けを全列挙（C2 canary で機械固定） | 19 site すべて | external link は src/ に 0 件（除外対象なし）。test fixture 内の `<a>` は遷移 pattern ではないため対象外（rg glob で分離） | C2 / C3 / C4 + packet manifest |
 | focus ring（accessibility pattern） | §5.4 系統① = `src/components/ui/` shadcn primitive 群 + SidebarLink。系統② = catalog 632・646 規定の date/month input、`segmented-control.tsx:9`、`DateNavigator.tsx` / `MonthNavigator.tsx` | SidebarLink のみ（本 change の port 対象） | 系統②の既存 component は catalog 規定準拠のため変更しない（§5.4 outcome 契約で両系統とも可視性を充足。全要素 3px 統一は round 2 P2-B 裁定で不採用、将来判断） | C1 + §5.4 / 52 §52.1 anchor（C10） |
 | one-shot 通知（query invalidation 隣接） | 復元成功経路の `toast.success` + navigate（既存）、UI-11b-D4 cache 全消去（既存） | Alert 受け口を home へ新設（D11） | 他画面への同型通知の横展開はしない（本 change は復元経路のみ） | C5-C8 |
 

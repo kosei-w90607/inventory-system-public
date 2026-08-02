@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: design
+- Phase: plan-gate
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: pending
@@ -24,11 +24,13 @@
 
 2026-08-03 Codex Plan Review round 2 = FAIL（P1=0 / P2=3 / P3=1、全件 round 1 是正で投入した content への closure defect）。P2 = D11 の one-shot 意味論が「mount 中の表示維持」を規定せず StrictMode 下で Alert 不可視の実装を許す / §5.4 の「全フォーカス可能要素で 3px」が catalog 632・646 行と既存実装（segmented-control 等）に対する新規 drift を作る / Matrix が template 必須節（State Lifecycle Matrix / Adjacent Pattern Audit / Residual Test Gaps）と Ledger 隣接契約（UI-11b-D2/D3/D10、UI-12-D1）を欠く。いずれも design 出力の改訂を要するため `plan-gate -> design` へ再 backtrack する（直前 backtrack との間に content commit 5b24aa9 があり隣接ではない）。裁定詳細は Review Response 参照。
 
+2026-08-03 round 3 是正 content commit で `design -> plan-draft -> plan-gate` を再材料化する。evidence = round 2 closure の design 出力は commit `3578518` で source docs / Matrix へ反映済み（design→plan-draft）、本 commit の round 3 P1/P2 是正（Phase 記録の欠落是正 + Link 統一 site manifest 追加）で packet 完成・commit（plan-draft→plan-gate）。註（round 3 P1 の記録）: `3578518` の commit 件名は同遷移を宣言していたが packet の Phase 更新と遷移記録を欠いており、遷移は本 commit で初めて成立する。件名と Workflow State の不一致は本註をもって是正記録とする。
+
 ## Owner Effort Budget
 
 - 介入回数上限: 3（plan 承認 / L3 目視 + Ready 承認 / merge）
 - 実働時間上限: 30分
-- relay 往復上限: 4（Codex Plan Review round 1 消化済み。残 = Plan Review round 2 + Final Review + 予備 1）
+- relay 往復上限: 4（Plan Review round 1〜3 で 3/4 消化。残 1 = Final Review。round 4 closure confirmation を挟む場合は 5/4 の超過 1 となるため、超過をここに明示し owner の relay 実施をもって承認と扱う）
 
 承認依頼フォーマット: `この change での介入 N 回目 / 予算 M 回` + `承認すると利用者から見て何が完了するか1文`。
 
@@ -74,7 +76,7 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 ## Scope
 
 - `src/components/layout/SidebarLink.tsx` の focusable な link（active / inactive）へ、UI_TECH_STACK.md §5.4 系統①の focus ring `focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50` を追加する（52 §52.1 の規定どおり。pending は `tabIndex={-1}` で focus 対象外）。active / inactive / pending の既存表示を壊さない
-- src/ 配下の internal 遷移の生 `<a href>` 全 19 箇所（10 file）を TanStack Router `<Link>` へ統一する。2 群に分けて扱う:
+- src/ 配下の internal 遷移の生 `<a href>` 全 19 箇所（10 file、下記「Link 統一 site manifest」に全列挙）を TanStack Router `<Link>` へ統一する。2 群に分けて扱う:
   - **static 群（9 箇所）**: 遷移先が compile-time に決まる箇所。型付き `to` / `search` へ完全移行
   - **runtime 群（10 箇所）**: `returnTo` / `InventoryRecordSummary.detail_route` / `MovementSourceLink.route` 等の runtime 文字列由来。`<Link to={string}>` で SPA 遷移のみ保証し、compile-time typed navigation は主張しない（Plan Review round 1 P2-2 の選択肢②を採用）
   - `sourceHref()` / `buildDetailHref()` 等の href 組み立て helper は `<Link>` props へ渡せる形へ追随変更する（DTO は不変）
@@ -91,7 +93,40 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 - Storybook / Error Boundary / unsaved changes（別 packet）
 - 52 §52.3 ルーティング表の URL 陳腐化是正（docs backlog、別途）
 - external link 対応（src/ に external link は 0 件と確認済み）
-- `src/components/ui/` 既存 component 群の focus ring 変更（§5.4 同期は docs 側を実装標準へ合わせるもので、component 実装は不変）
+- `src/components/ui/` 既存 component 群の focus ring 変更（§5.4 は outcome 契約 + 実装 2 系統の併記であり、既存 component 実装は系統①・②とも不変）
+
+## Link 統一 site manifest（19 site / 10 file、2026-08-03 実測）
+
+runtime 群 10 site（route が実行時文字列由来。`<Link to={string}>` で SPA 遷移のみ保証）:
+
+| # | file:line | route 由来 | evidence |
+|---|---|---|---|
+| 1 | `src/features/inventory-records/ManualSaleRecordDetailPage.tsx:86` | `backHref = normalizeReturnTo(returnTo)` | C2 機械 gate |
+| 2 | `src/features/inventory-records/ManualSaleRecordDetailPage.tsx:104` | 同上 | C2 |
+| 3 | `src/features/inventory-records/ReturnRecordDetailPage.tsx:101` | 同上 | C2 |
+| 4 | `src/features/inventory-records/ReturnRecordDetailPage.tsx:119` | 同上 | C2 |
+| 5 | `src/features/inventory-records/DisposalRecordDetailPage.tsx:84` | 同上 | C2 |
+| 6 | `src/features/inventory-records/DisposalRecordDetailPage.tsx:102` | 同上 | C2 |
+| 7 | `src/features/inventory-records/ReceivingRecordDetailPage.tsx:78` | 同上 | C2 |
+| 8 | `src/features/inventory-records/ReceivingRecordDetailPage.tsx:96` | 同上 | C2 |
+| 9 | `src/features/inventory-records/InventoryRecordsPage.tsx:325` | `buildDetailHref(record.detail_route, returnTo)`（DTO 由来） | **C3/C4 代表（runtime）** |
+| 10 | `src/features/stock-movements/components/MovementTable.tsx:79` | `sourceHref(movement.source.route, returnTo)`（DTO 由来） | **C3/C4 代表（runtime）** |
+
+static 群 9 site（path template が compile-time に決まる。型付き `<Link to/search>` へ完全移行）:
+
+| # | file:line | href 式 | evidence |
+|---|---|---|---|
+| 11 | `src/features/daily-report-import/DailyReportImportPage.tsx:297` | `` `/reports/daily?date=${...}` `` | **C3/C4 代表（static、search 付き）** |
+| 12 | `src/features/stock-movements/StockMovementsPage.tsx:61` | `` `/stock?selected=${...}` `` | C2 + typecheck |
+| 13 | `src/features/inventory-records/ManualSaleRecordDetailPage.tsx:146` | `` `/reports/daily?date=${...}` `` | C2 + typecheck |
+| 14 | `src/features/inventory-records/ManualSaleRecordDetailPage.tsx:182` | `` `/stock/${...}` `` | C2 + typecheck |
+| 15 | `src/features/inventory-records/ReturnRecordDetailPage.tsx:215` | `` `/stock/${...}` `` | C2 + typecheck |
+| 16 | `src/features/inventory-records/DisposalRecordDetailPage.tsx:179` | `` `/stock/${...}` `` | C2 + typecheck |
+| 17 | `src/features/inventory-records/ReceivingRecordDetailPage.tsx:172` | `` `/stock/${...}` `` | C2 + typecheck |
+| 18 | `src/features/operation-logs/OperationLogsPage.tsx:175` | `` `${RELATED[recordType]}...` ``（frontend 定数 map、typed 化には map を `to` 構造へ変更） | C2 + typecheck |
+| 19 | `src/features/stock-inquiry/components/StockDetailContent.tsx:68` | `ActiveCta` prop 経由（唯一の呼び出し元 :127 が `` `/stock/${...}/movements` `` 固定 template。`ActiveCta` を `<Link>` 化し props を構造化） | C2 + typecheck |
+
+file:line は本 manifest 作成時点（HEAD `3578518`）の実測。実装時の行ずれは file 単位の同定で吸収し、site の増減があれば C2 canary との不一致として検出する。
 
 ## Affected Surfaces
 
@@ -153,7 +188,7 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 ## Design Intent Audit
 
 - Source docs can answer what is being built and why without chat history or archived Plan Packets: yes（68 D11 と UI_TECH_STACK §5.4 が本 change の設計判断を保持。packet は実装計画のみ）
-- Plan-only durable decisions found and promoted to source docs / decision-log / ADR: UI-11b-D11（68 へ昇格済み）、focus ring 実装標準（§5.4 へ同期済み）
+- Plan-only durable decisions found and promoted to source docs / decision-log / ADR: UI-11b-D11（68 へ昇格済み）、focus 可視性 outcome 契約 + 実装 2 系統（§5.4 へ改訂済み）+ SidebarLink 規定（52 §52.1）
 - Assumptions and constraints: Sonner toast は遷移を跨いで表示され続けるが「遷移先で success Alert」契約の充足とは見なさない（68 §68.7 が Alert を明記）。in-memory flag は再起動・reload で消滅することを one-shot 保証の根拠とする
 - Deferred design gaps, risk, and follow-up target: runtime route 文字列の DTO 構造化（別 R3 候補）、UI-09b coverage 表示（R3 移管）
 - Test Design Matrix can cite design decision IDs or source doc sections: yes（[Matrix](test-matrices/2026-08-02-ui-polish-batch-a.md)）
@@ -165,10 +200,10 @@ not applicable — 本 change は field 調査・実機挙動・外部 tool・PO
 
 ## Design Readiness
 
-- Existing design docs are sufficient because: 復元成功 Alert の表示先・cache 消去は 68 の既存契約（F6 / D4）。one-shot 機構と focus ring 実装標準は本 plan-first change で source docs へ反映済み（D11 / §5.4）。`<Link>` 統一は UI_TECH_STACK の既存技術選定（TanStack Router）の範囲内で契約変更なし
+- Existing design docs are sufficient because: 復元成功 Alert の表示先・cache 消去は 68 の既存契約（F6 / D4）。one-shot 寿命契約と focus 可視性 outcome 契約（実装 2 系統）は本 plan-first change で source docs へ反映済み（D11 / §5.4 / 52 §52.1）。`<Link>` 統一は UI_TECH_STACK の既存技術選定（TanStack Router）の範囲内で契約変更なし
 - Source docs updated in this PR: 68-ui-backup-restore.md（D11 新設 + §68.7 付記）、UI_TECH_STACK.md §5.4
 - Design gaps intentionally deferred: runtime route 文字列の DTO 構造化
-- Durable decisions discovered in this plan and promoted to source docs: D11、focus ring 実装標準同期
+- Durable decisions discovered in this plan and promoted to source docs: D11、§5.4 outcome 契約化（実装 2 系統）、52 §52.1 SidebarLink focus 規定
 
 Minimum design checks for business-app work:
 
@@ -195,7 +230,7 @@ N/A — 未検証の外部前提なし。round 1 P2-1 が指摘した TanStack R
 | UI-11b-D5（double failure 表示）— 隣接契約、非対象 | 変更しない | 既存 test 維持 | non-scope（成功経路のみ変更） |
 | UI-11b-D10（L3 目視対象の所有）| L3 手順に復元成功 Alert の mount 中表示維持 + reload 後非表示を追加 | — | L3: D10 の既存目視項目に本 change 分を追記して実施 |
 | UI-12-D1（SidebarLink active 判定の排他契約） | 変更しない（class 追加のみ） | 既存 active 判定 test 維持（C1 で分岐不変を確認） | non-scope（focus ring は判定 logic に触れない） |
-| §5.4 focus ring 実装標準 | `SidebarLink.tsx` | Matrix C1 | L3: Tab 移動視認 |
+| §5.4 outcome 契約・系統①の SidebarLink 適用（52 §52.1） | `SidebarLink.tsx` | Matrix C1 | L3: Tab 移動視認 |
 | SPA 遷移統一（生 anchor 0 件） | 10 file / 19 箇所 | Matrix C2 / C3 / C4 | L3: 代表画面の遷移目視 |
 | §68.7 状態遷移表 `restore_succeeded` 行 | 同上（Alert 経路） | Matrix C5 | — |
 | §68.10 Query cache clear 挙動維持 | 変更しない（既存実装） | 既存 test 維持 | non-scope |
@@ -212,7 +247,7 @@ Contract ID: SPEC-UIPOLA-D2
 
 Contract ID: SPEC-UIPOLA-D3
 
-- sidebar link は UI_TECH_STACK §5.4 の focus ring 実装標準に従い、active / inactive / pending の既存表示を変えない（Test: Matrix C1）
+- sidebar link は UI_TECH_STACK §5.4 系統①（52 §52.1 規定）の focus ring に従い、active / inactive / pending の既存表示と UI-12-D1 active 判定を変えない（pending は focus 対象外のまま。Test: Matrix C1）
 
 ## Trace Matrix
 
@@ -289,3 +324,11 @@ FAIL（P1=0 / P2=3 / P3=1）。全件 closure defect として accept:
 - **P2-B（§5.4 改訂自身が新規 drift）: accept、推奨案採用**。catalog 632・646 / segmented-control.tsx:9 / DateNavigator / MonthNavigator の ring-2 系実在を実確認。§5.4 を outcome 契約 + 実装 2 系統併記へ改訂、SidebarLink の exact class は 52 §52.1 へ配置
 - **P2-C（Matrix の template 必須節欠落 + Ledger 隣接契約漏れ）: accept**。templates/test-design-matrix.md の State Lifecycle Matrix / Adjacent Pattern Audit / Residual Test Gaps を確認し Matrix を template 準拠へ再構成。Ledger へ UI-11b-D2 / D3 / D10 / UI-12-D1 を追加。X8 は「復元失敗後に実 Router で通常ホーム遷移して非表示 assert」へ明確化
 - **P3（Freeze 未設定）: accept**。round 1 Broad Audit 完了時点で frozen と記録し、round 2 findings を closure defect と分類（上記 Freeze 行）
+
+### Plan Review round 3（Codex、2026-08-03）裁定
+
+FAIL（P1=1 / P2=1 / P3=1）。全件 accept（closure defect / follow-up）:
+
+- **P1（3578518 の件名宣言と Phase 記録の不一致）: accept**。coordinator の記録ミス — commit 件名で `design -> plan-draft -> plan-gate` を宣言しながら packet の Phase 更新と遷移記録を欠いた。本 round 3 是正 content commit で Phase を plan-gate へ更新し、遷移記録に成立 commit と経緯の註を追記（STATECAP を消費する state-only commit は使わず、Codex 提案どおり文書是正と同一 content commit に統合）
+- **P2（Adjacent Pattern Audit の site 列挙不足）: accept**。R3 再構成時の packet 全面書き換えで round 1 packet にあった per-file 列挙を脱落させていた。「Link 統一 site manifest」節を新設し、19 site の file:line・runtime/static 分類・evidence 紐付けを実測で全列挙（runtime 10 = backHref×8 + detail_route + MovementSourceLink.route、static 9 = 固定 template 7 + RELATED map + ActiveCta prop 経由）
+- **P3（stale「実装標準」表現 + relay 実績）: accept（follow-up、非 blocker）**。Non-scope / Design Readiness / Ledger / Spec の旧表現を「outcome 契約 + 実装 2 系統」へ統一し、relay 実績を round 3 時点（3/4 消化、round 4 実施時は超過 1 を明示）へ更新
