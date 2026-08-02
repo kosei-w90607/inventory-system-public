@@ -2,10 +2,10 @@
 
 ## Workflow State
 
-- Phase: plan-gate
+- Phase: implementing
 - Risk: R3
 - Execution Mode: fable-window
-- Plan Commit: pending
+- Plan Commit: 0f66764
 - Amendments: none
 - Coordinator: Claude (Fable 5)
 - Writer: Claude (Sonnet 5 subagent、worktree isolation)
@@ -25,6 +25,8 @@
 2026-08-03 Codex Plan Review round 2 = FAIL（P1=0 / P2=3 / P3=1、全件 round 1 是正で投入した content への closure defect）。P2 = D11 の one-shot 意味論が「mount 中の表示維持」を規定せず StrictMode 下で Alert 不可視の実装を許す / §5.4 の「全フォーカス可能要素で 3px」が catalog 632・646 行と既存実装（segmented-control 等）に対する新規 drift を作る / Matrix が template 必須節（State Lifecycle Matrix / Adjacent Pattern Audit / Residual Test Gaps）と Ledger 隣接契約（UI-11b-D2/D3/D10、UI-12-D1）を欠く。いずれも design 出力の改訂を要するため `plan-gate -> design` へ再 backtrack する（直前 backtrack との間に content commit 5b24aa9 があり隣接ではない）。裁定詳細は Review Response 参照。
 
 2026-08-03 round 3 是正 content commit で `design -> plan-draft -> plan-gate` を再材料化する。evidence = round 2 closure の design 出力は commit `3578518` で source docs / Matrix へ反映済み（design→plan-draft）、本 commit の round 3 P1/P2 是正（Phase 記録の欠落是正 + Link 統一 site manifest 追加）で packet 完成・commit（plan-draft→plan-gate）。註（round 3 P1 の記録）: `3578518` の commit 件名は同遷移を宣言していたが packet の Phase 更新と遷移記録を欠いており、遷移は本 commit で初めて成立する。件名と Workflow State の不一致は本註をもって是正記録とする。
+
+2026-08-03 state-only 遷移 commit で `plan-gate -> plan-approved -> implementing` を材料化する（圧縮記録、STATECAP 1/3）。evidence = 独立 Plan Reviewer（Codex、Writer と別 vendor）が round 4 で「Plan Review PASS P1/P2=0」を報告（plan-gate→plan-approved）、`Plan Commit` = 0f66764 を設定し、plan-first 系列（350100a〜0f66764）は全実装 commit に先行する。owner が 2026-08-03 に plan を承認し実装開始を指示（介入 1 回目/予算 3 回）（plan-approved→implementing）。
 
 ## Owner Effort Budget
 
