@@ -144,7 +144,12 @@ file:line は本 manifest 作成時点（HEAD `3578518`）の実測。実装時�
 - `src/features/inventory-records/OtherRecordDetailPages.test.tsx`
 - `src/features/stock-inquiry/components/StockDetailContent.test.tsx`
 
-方針: 直接 render している test は Router wrapper（memory history）または限定 mock を群ごとに割り当てる。dynamic route / search の検証は既存の real-router route test 群で行う。既存 assertion の削除・弱体化はしない。
+実装時発見の追加 2 file（gated amendment 2026-08-03。`StockDetailContent` を埋め込むため Router context が必要になった）:
+
+- `src/features/stock-inquiry/StockInquiryPage.test.tsx`
+- `src/features/stock-inquiry/components/ProductListTable.test.tsx`
+
+方針: 直接 render している test は Router wrapper（memory history）または限定 mock を群ごとに割り当てる。Router bootstrap の重複を避けるため共有 helper `src/test/render-with-router.tsx` を新設（catch-all root route 方式）。dynamic route / search の検証は既存の real-router route test 群で行う。既存 assertion の削除・弱体化はしない。
 
 ## Acceptance Criteria
 
@@ -334,3 +339,12 @@ FAIL（P1=1 / P2=1 / P3=1）。全件 accept（closure defect / follow-up）:
 - **P1（3578518 の件名宣言と Phase 記録の不一致）: accept**。coordinator の記録ミス — commit 件名で `design -> plan-draft -> plan-gate` を宣言しながら packet の Phase 更新と遷移記録を欠いた。本 round 3 是正 content commit で Phase を plan-gate へ更新し、遷移記録に成立 commit と経緯の註を追記（STATECAP を消費する state-only commit は使わず、Codex 提案どおり文書是正と同一 content commit に統合）
 - **P2（Adjacent Pattern Audit の site 列挙不足）: accept**。R3 再構成時の packet 全面書き換えで round 1 packet にあった per-file 列挙を脱落させていた。「Link 統一 site manifest」節を新設し、19 site の file:line・runtime/static 分類・evidence 紐付けを実測で全列挙（runtime 10 = backHref×8 + detail_route + MovementSourceLink.route、static 9 = 固定 template 7 + RELATED map + ActiveCta prop 経由）
 - **P3（stale「実装標準」表現 + relay 実績）: accept（follow-up、非 blocker）**。Non-scope / Design Readiness / Ledger / Spec の旧表現を「outcome 契約 + 実装 2 系統」へ統一し、relay 実績を round 3 時点（3/4 消化、round 4 実施時は超過 1 を明示）へ更新
+
+### Writer 要裁定 4 件の Coordinator 裁定（2026-08-03、gated amendment）
+
+Plan Review round 4 PASS 後の owner 承認を経て Sonnet writer が実装。writer 報告の要裁定 4 件を以下のとおり裁定した（本節を含む packet 修正が gated amendment であり、その commit SHA は次の state-only 遷移 commit の `Amendments` 行に記録する）:
+
+1. **復元成功の transient toast を撤去し home Alert へ一本化: accept**。D11 / F6 の契約通知は Alert であり、Characterization Baseline も置換を許容済み。既存 test に当該 toast の assertion はなく regression なし
+2. **navigate reject 時の feedback: 差し戻しのうえ是正済み**。toast 撤去により reject 経路の成功 feedback が 0 になる劣化を Coordinator が指摘し、reject 分岐限定の fallback toast + test を追加（commit `ede3c78`）。flag 消去（D11）は維持
+3. **Affected Surfaces へ実装時発見の 2 file 追加: accept**。`StockInquiryPage.test.tsx` / `ProductListTable.test.tsx` は `StockDetailContent` 埋め込み経由で Router context が必要になった正当な発見。上記 Affected Surfaces 節へ追記
+4. **共有 test helper `src/test/render-with-router.tsx` 新設: accept**。packet の「Router wrapper を群ごとに割り当てる」方針の範囲内の実装手段
