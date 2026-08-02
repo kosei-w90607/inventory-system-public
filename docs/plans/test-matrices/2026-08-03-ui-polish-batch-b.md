@@ -6,15 +6,30 @@ Risk: R3
 
 ## Contracts Under Test
 
-- SPEC-UIBB-1: filter-empty reset action の表示条件（絞り込み非既定 + 0 件のみ、5 site 共通）
-- SPEC-UIBB-2: reset 押下の全条件既定値復帰（page 含む）
+- SPEC-UIBB-1: filter-empty reset action の表示条件（絞り込み非既定 + 0 件のみ、reset 対象 6 site 共通）
+- SPEC-UIBB-2: reset 押下の全条件既定値復帰（site 別 tuple、page 含む。並び替え・表示件数は不変）
 - SPEC-UIBB-3: 在庫照会 `page` search param の検証契約（>=1、invalid catch → 1）
 - SPEC-UIBB-4: 条件変更 → page=1 / page 移動 → 条件維持
 - SPEC-UIBB-5: 「すべて」全件ページ到達 + `TruncatedResultsAlert` 撤去
-- SPEC-UIBB-6: `DepartmentOption` SSOT（patterns 1 箇所定義 + feature re-export）
-- SPEC-UIBB-7: FilePicker catalog 登録の責務分離（02 実装規約 / §6.5.4 方針、二重記述なし）
-- 02 ⑥ 適用除外の非回帰（receiving 明細空 / EmptySearchPlaceholder / shortcuts emptyMessage）
+- SPEC-UIBB-6: `DepartmentOption` SSOT（patterns 1 箇所定義 + feature re-export、方式はファイル別）
+- SPEC-UIBB-7: FilePicker catalog 登録の責務分離（02 = 構造/トークン/Do-Don't、§6.5.4 = behavior/API 正本、二重記述なし）
+- SPEC-UIBB-8: 在庫照会の範囲外 page 回復（UI-11c-D8 同型、通常 EmptyState / reset より優先判定）
+- SPEC-UIBB-9: 部門候補 = `listDepartments()` master 全件（DSR-10、page/q/dept/status 非依存）
+- 02 ⑥ 適用除外の非回帰（分類表除外(a)〜(d) 19 site。packet Scope(1) の全数分類表を正とする）
 - 50 §50.4 非破壊（products 画面の既存 page 挙動不変）
+
+## Reset 対象 site 別 tuple（SPEC-UIBB-2 の個別 assert 対象）
+
+各 site の test は tuple の**全項目**を個別 assert する（1 項目でも戻し忘れる mutant を殺す）。
+
+| site | reset で既定値へ戻す tuple | page | 共存 action |
+|---|---|---|---|
+| StocktakePage | 部門フィルタ、未入力のみ表示 toggle | なし | なし |
+| StockInquiryPage | q、dept、status | あり（page=1、URL param 除去） | なし（復帰後は EmptySearchPlaceholder） |
+| InventoryRecordsPage | 65 §65.4.1 の検索条件（recordType / dateFrom / dateTo / q / recordId / departmentId / status） | あり | なし |
+| StockMovementsPage | dateFrom、dateTo、type | あり | なし |
+| OperationLogsPage | start_date、end_date、operation_type（既存 defaultFilter 非既定側のみ表示） | あり | 範囲外 page 回復（別 semantic、優先判定） |
+| ProductListPage | q、dept、discontinued（sort / dir / perPage は**戻さない**ことも assert） | あり | 「商品を登録する」常設（既定 0 件 = 登録のみ / 非既定 0 件 = 登録 + reset の 2 ボタン） |
 
 ## Failure Modes
 
@@ -35,10 +50,16 @@ Risk: R3
 
 | Contract | Failure Mode | Test Type | Test Name | Would fail if... |
 |---|---|---|---|---|
-| SPEC-UIBB-1 | 非既定 + 0 件で action 不在 | unit (RTL) | 各画面 `*Page.test.tsx` `SPEC-UIBB-1 絞り込み該当なしで解除ボタンを表示する`（5 site 各 1） | action 結線漏れ・表示条件の分岐欠落 |
-| SPEC-UIBB-1 | 既定 0 件で action 誤表示 | unit (RTL, negative) | 同 `SPEC-UIBB-1 既定条件の0件では解除ボタンを出さない`（5 site 各 1） | 非既定判定の欠落・恒真化 |
-| SPEC-UIBB-2 | 一部フィルタのみ復帰 | unit (RTL) | 同 `SPEC-UIBB-2 解除で全条件が既定値に戻る`（複合条件を設定し全項目 assert） | 復帰対象の列挙漏れ（1 条件でも戻し忘れ） |
-| SPEC-UIBB-2 | page 残存 | unit (RTL) | stock-movements / stock-inquiry の同 test 内で page assert | page 復帰漏れ |
+| SPEC-UIBB-1 | 非既定 + 0 件で action 不在 | unit (RTL) | 各画面 `*Page.test.tsx` `SPEC-UIBB-1 絞り込み該当なしで解除ボタンを表示する`（6 site 各 1） | action 結線漏れ・表示条件の分岐欠落 |
+| SPEC-UIBB-1 | 既定 0 件で action 誤表示 | unit (RTL, negative) | 同 `SPEC-UIBB-1 既定条件の0件では解除ボタンを出さない`（6 site 各 1。ProductList は「登録のみ表示」を assert） | 非既定判定の欠落・恒真化 |
+| SPEC-UIBB-2 | 一部フィルタのみ復帰 | unit (RTL) | 同 `SPEC-UIBB-2 解除で全条件が既定値に戻る`（site 別 tuple 表の全項目を個別 assert） | 復帰対象の列挙漏れ（1 条件でも戻し忘れ） |
+| SPEC-UIBB-2 | page 残存 | unit (RTL) | page を持つ 4 site（stock-inquiry / inventory-records / stock-movements / operation-logs / products のうち該当）で同 test 内 page assert | page 復帰漏れ |
+| SPEC-UIBB-2 | 表示設定の誤リセット | unit (RTL, negative) | `ProductListPage.test.tsx` の同 test 内で sort / dir / perPage 不変 assert | reset が絞り込み以外まで戻す過剰復帰 |
+| SPEC-UIBB-1/2 | 共存 action の欠落・混入 | unit (RTL) | `ProductListPage.test.tsx` `SPEC-UIBB-1 既定0件は登録のみ・非既定0件は登録と解除の2ボタン` | 登録 action の消失 / 既定時の reset 混入 |
+| SPEC-UIBB-8 | 範囲外 page で回復導線なし | unit (RTL) | `StockInquiryPage.test.tsx` `SPEC-UIBB-8 範囲外pageで先頭ページに戻る導線を表示する`（items=[] + total_count>0 + page>1 の一意 fixture、通常 EmptyState 非表示も assert） | 範囲外判定の欠落・通常 EmptyState との優先順位逆転 |
+| SPEC-UIBB-8 | 回復押下の条件消失 | unit (RTL) | 同 test 内で「先頭ページに戻る」押下 → page=1 + q/dept/status 維持を assert | 回復が検索条件を落とす |
+| SPEC-UIBB-9 | 候補が filtered result 由来へ退行 | unit (RTL + hook) | `useStockInquiry.test.tsx` `SPEC-UIBB-9 部門候補はlistDepartments全件でpage/q/deptに依存しない`（page 2 移動・q 変更・dept 選択後も候補 assert 不変） | 候補 query の searchProducts 派生への退行（DSR-10 縮退） |
+| SPEC-UIBB-9 | 選択中部門への縮退 | unit (RTL) | `StockInquiryPage.test.tsx` `SPEC-UIBB-9 部門選択中も他部門へ直接切替できる` | 候補縮退で他部門へ移れない行き止まり |
 | SPEC-UIBB-3 | invalid param で例外/NaN | unit (schema) | `stockInquirySearchSchema` test `SPEC-UIBB-3 pageの不正値は既定1に落ちる`（0 / -1 / 1.5 / "abc" / 欠落） | catch 欠落・境界誤り |
 | SPEC-UIBB-4 | 条件変更で page 保持 | unit (RTL) | `StockInquiryPage.test.tsx` `SPEC-UIBB-4 検索条件変更でpage=1に戻る` | reset 結線漏れ |
 | SPEC-UIBB-4 | page 移動で条件消失 | unit (RTL) | 同 `SPEC-UIBB-4 page移動で検索条件を維持する` | navigate が search を上書き |
@@ -53,8 +74,9 @@ Risk: R3
 
 | State / subject | Initial | Pending | Success | Invalidate | Refetch | Revisit | Restart | Failure | Retry | Evidence |
 |---|---|---|---|---|---|---|---|---|---|---|
-| stock-inquiry `page` param | 既定 1（URL 欠落時） | query loading | 応答 items + total_count 表示 | 条件変更で page=1 | queryKey に page 含め再取得 | URL 直開きで param 復元 | アプリ再起動で URL どおり | invalid は catch → 1 | query retry 既存 1 回 | schema unit + RTL |
-| filter reset（5 site） | フィルタ既定 = action なし | — | 非既定 + 0 件 = action 表示 | reset 押下で既定復帰・一覧再表示 | フィルタ既定の queryKey で再取得 | reset 後の URL は既定 param（URL 画面） | 再起動で既定 | 取得失敗時は Alert 系統（reset 非表示、既存 2 系統区分） | — | RTL 表示/非表示/復帰の 3 点 |
+| stock-inquiry `page` param | 既定 1（URL 欠落時） | query loading | 応答 items + total_count 表示 | 条件変更で page=1 | queryKey に page 含め再取得 | URL 直開きで param 復元 | アプリ再起動で URL どおり | invalid は catch → 1 / 範囲外（items 空 + total_count>0 + page>1）は SPEC-UIBB-8 の回復導線 | query retry 既存 1 回 | schema unit + RTL |
+| stock-inquiry 部門候補 | listDepartments 全件 | 候補ロード中 disabled（catalog 既定） | 全部門表示 | page/q/dept/status 変更で不変 | master query の再取得のみ | 同左 | 同左 | 取得失敗は呼び出し側文言（catalog 既定）、一覧 query と独立 | query retry 既存 | SPEC-UIBB-9 RTL + unit |
+| filter reset（6 site） | フィルタ既定 = action なし（ProductList は登録 action のみ） | — | 非既定 + 0 件 = action 表示 | reset 押下で既定復帰・一覧再表示 | フィルタ既定の queryKey で再取得 | reset 後の URL は既定 param（URL 画面） | 再起動で既定 | 取得失敗時は Alert 系統（reset 非表示、既存 2 系統区分） | — | RTL 表示/非表示/復帰の 3 点 |
 | `truncated` flag 撤去 | — | — | view-model から削除、参照 0 | — | — | — | — | — | — | rg 残存 0 + tsc |
 | workflow state | content candidate -> L1 / independent review -> state-only human-confirm commit | | | | | | | state-only violation: file allowlist + `git diff --unified=0` hunks 監査、Scope/AC/contracts 変更は implementing へ返す | | 遷移記録 + STATECAP |
 | ready 系 | owner authorization -> Draft state-only Ready commit -> exact-HEAD L1 -> PR body -> Ready/dispatch -> merge with no later tracked commit | | | | | | | hosted-not-required incidental failure: product/gate failure は implementing へ、infrastructure/cancel のみ owner disposition | | PR body |
@@ -63,7 +85,7 @@ Risk: R3
 
 | Source pattern / contract | Repository sites inspected | Ported sites | Explicit exclusions and reason | Test / evidence |
 |---|---|---|---|---|
-| EmptyState filter-empty（catalog ⑥） | Writer が `rg -n "<EmptyState" src` 全数を実測し、manifest 6 site（packet Scope(1)）+ その他の EmptyState 使用箇所を filter-empty か否かで分類する | manifest 1〜5 | receiving（明細 0 行）、EmptySearchPlaceholder / shortcuts emptyMessage（catalog ⑥ 既存除外）、真にデータなし系（detail 系 record 不在等） | 分類表を PR body に添付 |
+| EmptyState filter-empty（catalog ⑥） | **分類確定済み**（plan-first change 内、packet Scope(1) の全数分類表 = `rg -n --glob '!**/*.test.tsx' '<EmptyState' src` の production 全 site を Coordinator が実読分類。round 1 P1-1 対応） | reset 対象 6 site | 除外(a) 範囲外 page 回復 / 除外(b) 期間主キーレポート 4 / 除外(c) 明細 0 行 4 / 除外(d) 直近実績 4 + 詳細系 6（各理由は packet 分類軸） | packet 分類表 + Final Review の独立再分類 |
 | ProductPagination 結線（catalog ⑩） | products / stock-movements / operation-logs / integrity-check / inventory-records の既存 5 画面 | stock-inquiry | 在庫少経路（client filter、58 既存前提） | 既存 5 画面 test PASS + 新規 RTL |
 | page=1 reset 慣行（50 §50.4） | products の条件変更 reset 実装 | stock-inquiry | perPage（在庫照会に導入しない） | RTL |
 | operation-logs 既存 action「先頭ページに戻る」 | OperationLogsPage の範囲外回復 EmptyState | 共存（reset は filter-empty 側にのみ追加） | 範囲外回復 EmptyState への reset 追加はしない（semantic 相違） | RTL + 目視 |
@@ -74,7 +96,7 @@ Risk: R3
 - missing input: page param 欠落 → 既定 1（schema test）
 - invalid input: page 0 / 負 / 小数 / 非数値 → catch で 1（schema test）
 - duplicate/ambiguous input: 同一フィルタの連続 reset 押下 → 冪等（2 回目は既定のまま、RTL で確認）
-- unknown reference: 最終ページ超過の page 直 URL → clamp または空ページ + 「先頭ページに戻る」系回復（50 慣行に合わせ Writer が既存 products 挙動を踏襲、RTL）
+- unknown reference: 最終ページ超過の page 直 URL → 専用メッセージ +「先頭ページに戻る」（SPEC-UIBB-8 の一意 oracle: items=[] && total_count>0 && page>1。clamp はしない）
 - dependency missing: query 失敗時は Alert 系統（reset 非表示、既存 2 系統区分の RTL）
 - permission/write failure: 該当なし（読み取りのみの画面変更）
 - dry-run side effect: 該当なし
@@ -133,5 +155,5 @@ Risk: R3
 ## Residual Test Gaps
 
 - L3 でのみ検証可能: Windows native での実表示（focus 表示・ボタン視認性）は RTL で判別不能、Human Gate の L3 目視に割り当て。
-- 部門 options の 50 件 truncate 既知 gap は本 change の test 対象外（据え置き、Review Focus で backlog 判定）。
+- 部門候補の DSR-10 準拠は SPEC-UIBB-9 で test 対象へ昇格済み（round 1 P1-3）。listDepartments 応答自体の並び順・内容は既存 command 契約の責務で本 Matrix の対象外。
 - reset ボタン文言の operator 妥当性（「絞り込みを解除」の語感）は自動 test 対象外、L3 で owner 確認。

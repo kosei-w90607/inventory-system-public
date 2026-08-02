@@ -87,7 +87,7 @@ per_page: number  // 上限 200。UI は 50 / 100 / 200 のみ送信し、200 �
 ## 50.7 Loading / Empty / Error
 
 - Loading: 検索条件エリアは残し、一覧領域で loading を示す。
-- Empty: 条件に一致する商品がない場合は、検索条件を維持したまま空状態を表示する。
+- Empty: 条件に一致する商品がない場合は、検索条件を維持したまま空状態を表示する。絞り込み（`q` / `dept` / `discontinued`）が既定値以外かつ 0 件のときは、既存の「商品を登録する」action を常設のまま維持し、`action` slot 内に「絞り込みを解除」ボタンを横並び併置する（既存 action が先、reset ボタンが後。[02-component-catalog.md](../design-system/02-component-catalog.md) ⑥ filter-empty reset action の共存規定、2026-08-03 batch B）。押下で `q` / `dept` / `discontinued` と `page` を既定値へ戻す。`sort` / `dir` / `perPage` は変更しない。絞り込みが既定値のまま 0 件（真にデータなし）のときは reset ボタンを出さない。
 - Error: CMD 呼び出し失敗時は一覧領域にエラーを表示し、検索条件を編集できる状態を維持する。DB / CMD の失敗を UI 側で業務成功扱いにしない。
 - Recovery: 条件変更または再試行で同じ `searchProducts` を再実行できるようにする。
 

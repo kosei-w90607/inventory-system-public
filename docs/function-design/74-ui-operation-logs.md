@@ -277,7 +277,7 @@ OperationLogFilters + OperationLogTable（展開行1件） + ProductPagination
 | 範囲外 page（§74.10） | 専用メッセージ + 先頭ページに戻るボタン（EmptyState 系より優先して判定。filter-empty reset action とは対象ケースが異なり、同一画面内で共存する） |
 | `typesQuery` 失敗 | operation_type filter を「すべて」固定・disabled にせず、既存 URL の `operation_type` 値があればそのまま select 選択肢に温存する（`typesQuery` が直っていない間も現在の絞り込みを失わない）。一覧本体（`logsQuery`）は独立して表示を継続する。 |
 
-- **2026-08-03 batch B で追加**: 「絞り込みを解除」reset action（catalog ⑥ filter-empty reset action、SPEC-UIBB-1/2）を、既存の `defaultFilter` 判定（UI-11c-D9）の**非既定側にのみ**追加した（上表 empty・filter 適用中 行）。既定 filter 一致（真にデータなし）側には出さない。既存の範囲外 page 回復 action「先頭ページに戻る」（§74.10、UI-11c-D8）とは対象ケースが異なり（reset = filter 変更で 0 件、範囲外 page 回復 = 総件数減少で page が溢れた）、同一画面内で共存する。`StockMovementsPage` / `InventoryRecordsPage` も同 batch で同じ reset action を追加済み（catalog ⑥ 5 site 統一）。
+- **2026-08-03 batch B で追加**: 「絞り込みを解除」reset action（catalog ⑥ filter-empty reset action、SPEC-UIBB-1/2）を、既存の `defaultFilter` 判定（UI-11c-D9）の**非既定側にのみ**追加した（上表 empty・filter 適用中 行）。既定 filter 一致（真にデータなし）側には出さない。既存の範囲外 page 回復 action「先頭ページに戻る」（§74.10、UI-11c-D8）とは対象ケースが異なり（reset = filter 変更で 0 件、範囲外 page 回復 = 総件数減少で page が溢れた）、同一画面内で共存する。`StockMovementsPage` / `InventoryRecordsPage` / `ProductListPage` も同 batch で同じ reset action を追加済み（catalog ⑥ 6 site 統一、round 1 P1-1 で ProductList 追加）。
 
 ---
 

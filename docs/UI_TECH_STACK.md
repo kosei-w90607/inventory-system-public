@@ -557,6 +557,8 @@ CMD層の `CmdError` は `kind: string` / `message: string` / `field?` / `error_
 
 **共通 FilePicker（D-054、監査是正 順9）**: ファイル選択は共通 `FilePicker` component に一元化する。入口は native dialog ボタン（`plugin-dialog.open()` + `plugin-fs.readFile()` の path-based 方式）と任意の drag&drop 経路の 2 つ、出力は `{ bytes, filename, size }` の単一契約。`open()` の cancel（null）は state 据え置き。accept / disabled / 上限サイズ表示 / accessible label は props で供給する。画面ローカルの plain `<input type="file">` / 独自 dropzone の新設は禁止。
 
+**責務分離（2026-08-03 batch B）**: 本節（§6.5.4）が FilePicker の behavior / API 契約（入口 2 経路・出力契約・cancel 挙動・Do/Don't）の正典であり、実装規約（DOM 構造 / トークン / 状態 / a11y / 採用箇所）は [design-system/02-component-catalog.md ⑭](design-system/02-component-catalog.md) が持つ。両節は二重記述しない。
+
 **cross-language validation 定数（D-054）**: file サイズ上限等、frontend と backend が同値を要する validation 定数は `src-tauri/src/constants.rs` を SSOT とし、bindings 生成で `bindings.ts` に export された値を frontend が import する。frontend 側の local 複製は禁止（静的 sweep test で検出）。L1 の bindings clean diff 検査が cross-language 同期の機械検査を兼ねる。
 
 ### 6.6 ダークモード見送り
