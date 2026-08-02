@@ -18,7 +18,7 @@ mod tests;
 #[allow(unused_imports)]
 pub use commit::commit_csv_import;
 #[allow(unused_imports)]
-pub use list::list_csv_imports;
+pub use list::{get_csv_import_record, list_csv_imports};
 #[allow(unused_imports)]
 pub use parse::parse_and_validate;
 #[allow(unused_imports)]
@@ -187,6 +187,36 @@ impl CsvImportErrorType {
             Self::InvalidNumber => "invalid_number",
         }
     }
+
+    fn from_db(value: &str) -> Result<Self, crate::db::DbError> {
+        match value {
+            "unmatched_product" => Ok(Self::UnmatchedProduct),
+            "invalid_format" => Ok(Self::InvalidFormat),
+            "invalid_jan" => Ok(Self::InvalidJan),
+            "invalid_number" => Ok(Self::InvalidNumber),
+            other => Err(crate::db::DbError::QueryFailed(format!(
+                "unknown csv import error type: {other}"
+            ))),
+        }
+    }
+}
+
+/// CSV取込み記録詳細の wire DTO。
+///
+/// docs/function-design/32-biz-csv-import-service.md §15.6a
+#[derive(Debug, serde::Serialize, specta::Type)]
+pub struct CsvImportRecordDetail {
+    pub id: i64,
+    pub filename: String,
+    pub settlement_date: String,
+    pub total_items: i64,
+    pub total_amount: i64,
+    pub skipped_count: i64,
+    pub status: crate::db::sales_repo::CsvImportStatus,
+    pub imported_at: String,
+    pub items: Vec<crate::db::sales_repo::CsvImportRecordDetailItem>,
+    pub error_rows: Vec<ErrorRow>,
+    pub movements: Vec<crate::db::inventory_repo::MovementRecord>,
 }
 
 /// rollback_csv_import の結果

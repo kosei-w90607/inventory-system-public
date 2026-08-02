@@ -221,3 +221,47 @@ pub fn list_csv_imports(
         .map_err(|error| CmdError::internal("DB接続エラー", error))?;
     csv_import_service::list_csv_imports(&conn, page, per_page).map_err(CmdError::from)
 }
+
+/// CSV取込み記録の詳細を返す。
+///
+/// docs/function-design/41-cmd-pos.md §17.5 get_csv_import_record
+#[tauri::command]
+#[specta::specta]
+pub fn get_csv_import_record(
+    state: State<AppState>,
+    import_id: i64,
+) -> Result<csv_import_service::CsvImportRecordDetail, CmdError> {
+    let conn = state
+        .db
+        .lock()
+        .map_err(|error| CmdError::internal("DB接続エラー", error))?;
+    csv_import_service::get_csv_import_record(&conn, import_id).map_err(CmdError::from)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::db::test_support::setup_test_db;
+    use std::collections::HashMap;
+    use std::sync::Mutex;
+    use tauri::Manager;
+
+    #[test]
+    fn test_get_csv_import_record_cmd_req206_not_found_kind() {
+        // REQ-206 / 41 §17.5: production command 実呼びで not_found wire kind を固定する。
+        let (_dir, conn) = setup_test_db();
+        let app = tauri::test::mock_builder()
+            .manage(AppState {
+                db: Mutex::new(conn),
+                preview_cache: Mutex::new(HashMap::new()),
+                daily_report_preview_cache: Mutex::new(HashMap::new()),
+            })
+            .build(tauri::test::mock_context(tauri::test::noop_assets()))
+            .unwrap();
+
+        let error = get_csv_import_record(app.state::<AppState>(), 99_999).unwrap_err();
+
+        assert_eq!(error.kind, CmdErrorKind::NotFound);
+        assert_eq!(error.message, "CSV取込み記録が見つかりません: 99999");
+    }
+}

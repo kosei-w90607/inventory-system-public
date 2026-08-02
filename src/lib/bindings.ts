@@ -154,6 +154,12 @@ export const commands = {
 	 *  docs/function-design/41-cmd-pos.md §17.5 list_csv_imports
 	 */
 	listCsvImports: (page: number, perPage: number) => typedError<PaginatedResult<CsvImport>, CmdError>(__TAURI_INVOKE("list_csv_imports", { page, perPage })),
+	/**
+	 *  CSV取込み記録の詳細を返す。
+	 *
+	 *  docs/function-design/41-cmd-pos.md §17.5 get_csv_import_record
+	 */
+	getCsvImportRecord: (importId: number) => typedError<CsvImportRecordDetail, CmdError>(__TAURI_INVOKE("get_csv_import_record", { importId })),
 	parseAndValidateDailyReport: (files: DailyReportSourceFileRequest[]) => typedError<DailyReportPreviewResponse, CmdError>(__TAURI_INVOKE("parse_and_validate_daily_report", { files })),
 	commitDailyReportImport: (previewToken: string, overwriteConfirmed: boolean) => typedError<DailyReportImportResult, CmdError>(__TAURI_INVOKE("commit_daily_report_import", { previewToken, overwriteConfirmed })),
 	rollbackDailyReportImport: (dailyReportImportId: number) => typedError<DailyReportRollbackResult, CmdError>(__TAURI_INVOKE("rollback_daily_report_import", { dailyReportImportId })),
@@ -392,6 +398,41 @@ export type CsvImport = {
 };
 
 export type CsvImportErrorType = "unmatched_product" | "invalid_format" | "invalid_jan" | "invalid_number";
+
+/**
+ *  CSV取込み記録詳細の wire DTO。
+ *
+ *  docs/function-design/32-biz-csv-import-service.md §15.6a
+ */
+export type CsvImportRecordDetail = {
+	id: number,
+	filename: string,
+	settlement_date: string,
+	total_items: number,
+	total_amount: number,
+	skipped_count: number,
+	status: CsvImportStatus,
+	imported_at: string,
+	items: CsvImportRecordDetailItem[],
+	error_rows: ErrorRow[],
+	movements: MovementRecord[],
+};
+
+/**
+ *  CSV取込み詳細の sale_records 明細行。
+ *
+ *  24-io-csv-import-repo.md §14.13a
+ */
+export type CsvImportRecordDetailItem = {
+	id: number,
+	product_code: string,
+	product_name: string,
+	department_name: string,
+	stock_unit: string,
+	quantity: number,
+	amount: number,
+	is_voided: boolean,
+};
 
 export type CsvImportStatus = "completed" | "completed_partial" | "rolled_back";
 

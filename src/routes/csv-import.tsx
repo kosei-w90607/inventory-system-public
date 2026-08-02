@@ -1,8 +1,11 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { CsvImportPage } from "@/features/csv-import/CsvImportPage";
+import { createFileRoute, Outlet } from "@tanstack/react-router";
 
-/// UI-07 CSV取込み画面のファイルベースルート。
-/// 設計: docs/function-design/55-ui-csv-import.md §55.1 接続点
+/// UI-07 CSV取込み family の layout route。
+/// 設計: docs/function-design/65-inventory-record-traceability.md §65.10 slice 4b
 export const Route = createFileRoute("/csv-import")({
-  component: CsvImportPage,
+  component: CsvImportLayout,
 });
+
+function CsvImportLayout() {
+  return <Outlet />;
+}

@@ -25,6 +25,7 @@ pub(crate) use common::StockChangeOutcome;
 
 // apply_stock_change は pub(crate) を維持（BIZ-03 CSV取込みから呼び出し可）
 pub(crate) use common::apply_stock_change;
+pub(crate) use list::resolve_movement_source;
 
 // 入庫
 pub use receiving::{create_receiving, ReceivingCreateRequest, ReceivingCreateResult};
