@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: plan-gate
+- Phase: design
 - Risk: R2
 - Execution Mode: fable-window
 - Plan Commit: pending
@@ -17,6 +17,8 @@
 - Human Gate: L3 Windows native 目視（sidebar focus / 復元成功 Alert / 代表画面の内部遷移）、Ready 承認、merge
 
 遷移記録（append-only）: 本 packet を追加する content commit で `kickoff -> spec-check -> plan-draft -> plan-gate` を材料化する。evidence = task scoped + Risk R2 を本 packet に記録（kickoff→spec-check）、Design Readiness が既存設計 docs 十分を cite（spec-check→plan-draft の許可された skip）、packet 完成と commit（plan-draft→plan-gate）。
+
+2026-08-02 Codex Plan Review round 1 = FAIL（P1=1 / P2=5 / P3=0）。P1 = 復元成功通知が新規 state 契約を伴い Risk Tiers の R3 条件（route/search state / operator workflow）に該当、R2 での plan-gate は無効。Design Readiness の focus ring「明文規範なし」も UI_TECH_STACK.md §5.4 実在により事実誤認（P2-5）。最早影響 phase = design（68 への通知契約追記と UI_TECH_STACK §5.4 の source-doc sync が必要）のため `plan-gate -> design` へ backtrack する。findings の裁定詳細は Review Response 参照。
 
 ## Owner Effort Budget
 
