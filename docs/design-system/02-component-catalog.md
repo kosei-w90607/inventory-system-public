@@ -1,7 +1,7 @@
-# コンポーネントカタログ（13 パターン）
+# コンポーネントカタログ（14 パターン）
 
 > **親文書**: [README.md](README.md)
-> **責務**: 繰り返し使われる 13 パターンの canonical 定義。各パターンに使いどころ・JSX skeleton・使用トークン・全状態・a11y 要件・Do-Don't・canonical ファイル参照を記載する。
+> **責務**: 繰り返し使われる 14 パターンの canonical 定義。各パターンに使いどころ・JSX skeleton・使用トークン・全状態・a11y 要件・Do-Don't・canonical ファイル参照を記載する。
 
 ---
 
@@ -350,7 +350,17 @@ function FormSection({ title, description, children }: FormSectionProps) {
 - **0 件成功** = `EmptyState`（pure テーブル component 内 or ページ分岐内）。テーブル系は `rows.length === 0` の内部分岐の中身として埋め込む — props 駆動の pure presentational 責務は不変
 - **取得失敗** = ページ側 Alert で差し替え（パターン③テーブルの「取得失敗はテーブルごと差し替え」の射程）。`EmptyState` は使わない
 
-**適用除外**: `EmptySearchPlaceholder`（検索前の操作指示 = 空結果ではない）と shortcuts の `emptyMessage`（navigation config 駆動で利用者アクション不能）は semantic が「取得結果 0 件」と異なるため EmptyState 化しない。
+**適用除外**: `EmptySearchPlaceholder`（検索前の操作指示 = 空結果ではない）と shortcuts の `emptyMessage`（navigation config 駆動で利用者アクション不能）は semantic が「取得結果 0 件」と異なるため EmptyState 化しない。明細 0 行系（例: 入庫 `ReceivingPage.tsx` の「入庫する商品がありません」）も同様に適用除外とする — 絞り込み結果が 0 件なのではなく、業務入力の明細行が単に空という別 semantic のため。
+
+### filter-empty reset action（絞り込み解除、2026-08-03 batch B で新設）
+
+一覧画面で「絞り込み条件を既定値以外にした結果、0 件になった」ケースに限定した回復導線。
+
+- **表示条件**: 絞り込み条件が既定値以外、かつ結果が 0 件のときのみ、EmptyState の `action` に絞り込み解除ボタン（`variant="outline"`）を置く。絞り込みが既定値のまま 0 件（真にデータなし）のときは action を出さない。
+- **動作**: 押下でその画面の絞り込み条件をすべて既定値へ戻す。URL search param 画面は search param を既定値へ、local state 画面は state を既定値へ戻す。`page` を持つ画面は `page` も既定（1）へ戻す。
+- **文言**: 「絞り込みを解除」で全採用箇所を統一する。
+- **採用箇所**: 棚卸し（`StocktakePage`）/ 在庫照会（`StockInquiryPage`）/ 入出庫履歴一覧（`InventoryRecordsPage`）/ 在庫変動履歴（`StockMovementsPage`）/ 操作ログ（`OperationLogsPage`）の 5 画面。操作ログは既存の `defaultFilter` 判定の非既定側にのみ reset action が付く。既存の範囲外 page 回復 action「先頭ページに戻る」（§74 参照）とは対象ケースが異なり、同一画面内で共存する。
+- **適用除外**: 本節冒頭の適用除外（`EmptySearchPlaceholder` / shortcuts `emptyMessage` / 明細 0 行系）と同じ。これらは「絞り込み結果 0 件」ではないため reset action の対象にしない。
 
 **バリエーション: インライン選択エラー 1 スロット**（PR #125、canonical: `src/features/daily-report-import/DailyReportImportPage.tsx` の `SelectionErrorMessage`）: ファイル選択（DSR-14 の path-based 方式）など非フォーム文脈の入力検証エラーは、発生源（選択ボタン）直下の 1 スロットに `role="alert"` + destructive テキスト + アイコンで表示する。エラー state は選択試行のたびに置換し、成功で `null` にクリアする。画面上部の Alert 帯（データ安全系専用）とは役割を混ぜない（DSR-03 の 3 階層）。フォーム文脈の入力検証はパターン④の `FieldError`（入力直下）が既定で、本バリエーションは非フォーム文脈専用。
 
@@ -764,6 +774,64 @@ toast.error(`出力に失敗しました: ${message}`, { id: `export-${reportTyp
 **Don't**:
 - 状態を色（hue）だけで符号化しない（DSR-08）
 - 意味を tooltip だけに閉じ込めない
+
+---
+
+## ⑭ FilePicker
+
+**使いどころ**: ファイル選択を伴う入力（CSV取込み、商品マスタ一括インポート、返品・交換のレシート画像添付）で、native dialog ボタンと drag&drop の 2 経路を統一 UI で提供する。**方針・経緯の正典は [UI_TECH_STACK.md §6.5.4](../UI_TECH_STACK.md)**（D-054、WebView2 の HTML file input 白画面バグ回避、cross-language validation 定数 SSOT）。本節は実装規約（構造 / トークン / Do-Don't）のみを扱い、方針・経緯は二重記述しない。
+
+**canonical**: `src/components/FilePicker.tsx`（`patterns/` 配下ではなく `components/` 直下に置く。plugin-dialog / plugin-fs 副作用を持つため純表示部品規約〔[59-ui-shared-patterns.md](../function-design/59-ui-shared-patterns.md) §59.4〕の対象外、詳細は同 §59.3 参照）
+
+**構造**:
+
+```tsx
+<FilePicker
+  accept=".csv"
+  ariaLabel="CSVファイルを選択"
+  buttonLabel="ファイルを選択"
+  onSelect={(file: PickedFile) => { /* file = { bytes, filename, size } */ }}
+  onError={(message) => toast.error(message)}
+/>
+```
+
+```ts
+export interface PickedFile {
+  bytes: Uint8Array;
+  filename: string;
+  size: number;
+}
+```
+
+**入口 2 経路**:
+- **native dialog ボタン**: `@tauri-apps/plugin-dialog` の `open({ multiple: false, filters? })` で単一ファイルを選択し、選択パスを `@tauri-apps/plugin-fs` の `readFile()` で読み込む
+- **drag&drop**（`dropEnabled` 既定 `true`）: dropzone へのドロップで `File.arrayBuffer()` を読み込む
+
+いずれの経路も成功時は共通の出力契約 `PickedFile { bytes, filename, size }` を `onSelect` に渡す。dialog の cancel（`open()` が `null` を返す）は既存 state を据え置き、`onSelect` を呼ばない。
+
+**使用トークン**: 選択ボタンは `variant="outline"`。dropzone は `rounded-lg border-2 border-dashed p-8 text-center`、drag over 時 `border-primary bg-primary/5`、既定 `border-muted-foreground/30`。dropzone アイコンは lucide `Upload`（`size-8 text-muted-foreground`）。
+
+**状態**:
+- **disabled**: `disabled` prop でボタン・dropzone とも操作不能にする（dropzone は `cursor-not-allowed opacity-50`）
+- **エラー**: 読取り失敗時、`onError` が渡されていれば呼び出し側の表示に委譲、なければ `toast.error("ファイルの選択または読み取りに失敗しました")` にフォールバックする
+- hover / focus / active: ボタン primitive の既定に従う
+
+**アクセシビリティ**: ボタンは `ariaLabel` prop（必須）で識別する。dropzone のアイコンは `aria-hidden`。
+
+**Do**:
+- 出力契約 `{bytes, filename, size}` をそのまま consumer に渡す（画面側で再変換しない）
+- cancel 時は state を据え置く（エラー扱いにしない）
+
+**Don't**:
+- 画面ローカルの plain `<input type="file">` を新設しない
+- 画面ローカルの独自 dropzone を新設しない（`FilePicker` の `dropEnabled` を使う）
+
+**採用箇所**（2026-08-03 実測、`rg -ln "FilePicker" src` の JSX 使用箇所）:
+- `src/features/csv-import/components/FileDropzone.tsx`（CSV取込み、初期選択）
+- `src/features/csv-import/components/PreviewStep.tsx`（CSV取込み、プレビュー段階の選び直し）
+- `src/features/products/import/ProductImportDropzone.tsx`（商品マスタ一括インポート、初期選択）
+- `src/features/products/import/ProductImportPreview.tsx`（商品マスタ一括インポート、プレビュー段階の選び直し）
+- `src/features/return-exchange/ReturnExchangePage.tsx`（返品・交換、レシート画像添付）
 
 ---
 

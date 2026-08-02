@@ -113,9 +113,11 @@ export type PaginatedResult<T> = {
 | 新規 | `src/features/stock-inquiry/components/ProductListTable.tsx` | shadcn Table（`source` prop 受取 → derive-stock-state 引き渡し、状態列で Badge + icon + 日本語ラベル表示。stockout red / low yellow / ok default は在庫数セルの補助シグナル）+ 行クリックで選択 + 選択行直下に colSpan インライン展開（`detailQuery` props → StockDetailContent 共用） | 90-150 |
 | 新規 | `src/features/stock-inquiry/components/StockStatusBadge.tsx` | `StockStatus` を `Badge + lucide icon + 日本語ラベル` に変換（在庫切れ / 在庫少 / 通常）。閾値判定は持たない | 25-40 |
 | 新規 | `src/features/stock-inquiry/components/EmptySearchPlaceholder.tsx` | status=all + q 空文字時の centered muted text（契約 I） | 20-30 |
-| 新規 | `src/features/stock-inquiry/components/TruncatedResultsAlert.tsx` | `truncated` 時に shadcn Alert で絞り込み案内（契約 I） | 25-35 |
+| ~~新規~~ 撤去 | ~~`src/features/stock-inquiry/components/TruncatedResultsAlert.tsx`~~ | `truncated` 時に shadcn Alert で絞り込み案内（契約 I）。**2026-08-03 batch B（UI-06a-D1）で撤去**: pagination 導入により全件へ到達可能になったため、打ち切り告知は不要（§58.10 契約 I 参照） | 25-35 |
 | 新規 | `src/features/stock-inquiry/components/StockDetailContent.tsx` | 詳細の内側描画（在庫数/売価/原価/最終入庫日/最終販売日 + 商品修正/入庫記録 disabled CTA + 在庫変動履歴 active link、isLoading/isError/data 全状態内包）。行インライン展開とフォールバックカードで共用 | 90-130 |
 | 新規 | `src/features/stock-inquiry/components/StockDetailCard.tsx` | list 失敗時フォールバックカード（`StockDetailContent` を Card で包み独立描画 = 部分障害許容）、collapsible 不使用（条件描画） | 20-30 |
+
+**2026-08-03 batch B 追加（UI-06a-D1）**: pagination は新規 file を作らず、既存 canonical `src/features/products/components/ProductPagination.tsx`（[02-component-catalog.md](../design-system/02-component-catalog.md) ⑩）を結線する。`StockInquiryPage` が `total_count` から最終ページを計算して渡す。
 
 #### components/ui（shadcn primitives 新規 add、shadcn CLI 不使用 = npm install 凍結遵守）
 
@@ -138,21 +140,21 @@ export type PaginatedResult<T> = {
 ### 58.3 データフロー
 
 ```
-URL search params (q, dept, status, selected)
+URL search params (q, dept, status, page, selected)
   ↓ validateSearch + zod 4 fallback
-useStockInquiry({ status, q, dept, selected, navigate })
+useStockInquiry({ status, q, dept, page, selected, navigate })
   ↓ list useQuery（status により分岐）
-  │   status === "all" + q あり → commands.searchProducts(ProductSearchQuery) → PaginatedResult<ProductWithRelations>
-  │   status === "stockout" | "low_stock" → commands.listLowStock(false) → ProductWithRelations[]
-  │   ↓ StockInquiryListResult { items, totalCount, source, truncated } に正規化
+  │   status === "all" + q あり → commands.searchProducts(ProductSearchQuery { page, per_page: 50, ... }) → PaginatedResult<ProductWithRelations>
+  │   status === "stockout" | "low_stock" → commands.listLowStock(false) → ProductWithRelations[]（page 非対象、既存挙動）
+  │   ↓ StockInquiryListResult { items, totalCount, source } に正規化（UI-06a-D1: `truncated` は撤去済み）
   ├ detail useQuery（selected != null）
   │   commands.getStockDetail(selected) → StockDetail
   ↓ 派生純関数（derive-stock-state / filter-low-stock-list / format-*）
 { listResult, detail, autoExpand }
   ↓
-StockInquiryPage（EmptySearchPlaceholder / Skeleton / Alert / EmptyState 出し分け）
+StockInquiryPage（EmptySearchPlaceholder / Skeleton / Alert / EmptyState 出し分け、EmptyState は絞り込み非既定時に「絞り込みを解除」action、catalog ⑥）
   ↓ render
-SearchBar + StatusChips + DepartmentFilter + TruncatedResultsAlert + ProductListTable（状態列 + 選択行直下に StockDetailContent インライン展開）+ StockDetailCard（list 失敗時フォールバック）
+SearchBar + StatusChips + DepartmentFilter + ProductListTable（状態列 + 選択行直下に StockDetailContent インライン展開）+ StockDetailCard（list 失敗時フォールバック）+ ProductPagination（status === "all" のみ、UI-06a-D1）
 ```
 
 **派生 4 純関数の責務分担**:
@@ -171,6 +173,7 @@ const searchSchema = z.object({
   q: z.string().min(1).max(100).optional().catch(undefined),
   dept: z.coerce.number().int().positive().optional().catch(undefined),
   status: z.enum(["all", "stockout", "low_stock"]).optional().catch(undefined),
+  page: z.coerce.number().int().positive().optional().catch(undefined),
   selected: z.string().min(1).max(20).optional().catch(undefined),
 });
 ```
@@ -179,9 +182,11 @@ const searchSchema = z.object({
 - `q` undefined → `""` fallback（page 内）
 - `dept` undefined → `null` fallback（全部門）
 - `status` undefined → `"all"` fallback
+- `page` undefined または invalid（0 / 負数 / 小数 / 非数値）→ `1` fallback（zod `.catch(undefined)` で吸収後、page 内で `page ?? 1`。50 §50.4 と同型、UI-06a-D1）
 - `selected` undefined → `null` fallback（詳細カード閉）
 - 不正値（例: `?status=invalid`、`?dept=abc`）→ zod `.catch(undefined)` で吸収、ユーザに通知せず黙って fallback（UI-09a/b 同方針）
 - `selected` URL 化で詳細カード展開状態の F5 耐性を担保（detail query のみ再 fetch）
+- `q` / `dept` / `status` の変更で `page=1` に戻す。page 移動だけは検索条件を維持する（50 §50.4 慣行の踏襲）。対象は `status === "all"`（`search_products` 経路）のみで、在庫少 / 在庫切れ（`list_low_stock` の client filter 経路）には pagination を適用しない（既存挙動維持）
 
 #### `selected` ライフサイクル（race condition 回避）
 
@@ -202,20 +207,22 @@ export type StockInquiryListResult = {
   items: ProductWithRelations[];
   totalCount: number | null;       // source="search" 時のみ数値、source="low_stock" 時 null
   source: "search" | "low_stock";
-  truncated: boolean;              // source="search" かつ total_count > items.length
 };
+// UI-06a-D1（2026-08-03）: `truncated` field は撤去済み。pagination 導入により
+// 全件へページ送りで到達できるため、打ち切り告知フラグを持つ理由がなくなった。
 
 export function useStockInquiry(params: {
   status: ListChipFilter;
   q: string;
   dept: number | null;
+  page: number;                    // 1 始まり。status !== "all" では無視（既存 client filter 経路は非対象）
   selected: string | null;
   navigate: (search: Partial<StockInquirySearch>) => void;
 }) {
   const isAllEmpty = params.status === "all" && !params.q.trim();
 
   const listQuery = useQuery({
-    queryKey: queryKeys.stockInquiry.list(params.status, params.q, params.dept),
+    queryKey: queryKeys.stockInquiry.list(params.status, params.q, params.dept, params.page),
     queryFn: async (): Promise<StockInquiryListResult> => {
       if (params.status === "all") {
         const data = await unwrapResult(
@@ -225,7 +232,7 @@ export function useStockInquiry(params: {
             is_discontinued: false,
             sort_key: "ProductCode",
             sort_order: "Asc",
-            page: 1,
+            page: params.page,
             per_page: 50,
           }),
           { source: "commands", cmd: "search_products" },
@@ -234,7 +241,6 @@ export function useStockInquiry(params: {
           items: data.items,
           totalCount: data.total_count,
           source: "search",
-          truncated: data.total_count > data.items.length,
         };
       }
       const rows = await unwrapResult(commands.listLowStock(false), {
@@ -242,7 +248,7 @@ export function useStockInquiry(params: {
         cmd: "list_low_stock",
       });
       const filtered = filterLowStockList(rows, params.q, params.dept, params.status);
-      return { items: filtered, totalCount: null, source: "low_stock", truncated: false };
+      return { items: filtered, totalCount: null, source: "low_stock" };
     },
     enabled: !isAllEmpty,           // status=all + q 空文字 → search_products 呼ばない（契約 I）
     staleTime: 10_000,              // 10 sec（UI_TECH_STACK.md UI-06a 既定値、CSV 取込み直後の即時反映）
@@ -303,7 +309,7 @@ export function useStockInquiry(params: {
 }
 ```
 
-- **正規化の契約**: 自動展開 / EmptySearchPlaceholder 判定 / TruncatedResultsAlert は常に `listQuery.data.items` / `.truncated` を参照（生 `data.total_count` / `data.items` 直接参照禁止、type narrowing 維持）
+- **正規化の契約**: 自動展開 / EmptySearchPlaceholder 判定 / ProductPagination は常に `listQuery.data.items` / `.totalCount` を参照（生 `data.total_count` / `data.items` 直接参照禁止、type narrowing 維持）
 - list query 失敗時も detail query は独立動作（部分障害許容）、逆も同様
 - 部門選択肢は dept 未選択時は現 list から派生し、dept 選択時は同じ q/status で dept だけ外した候補用 query から派生する。個別部門を選んだ後に Select が「すべての部門 + 現在の部門」だけへ縮退すると他部門へ直接切り替えられないため、Windows native L3 feedback で functional defect として修正
 
@@ -351,22 +357,28 @@ export function useStockInquiry(params: {
 
 ```tsx
 function StockInquiryPage() {
-  const { q, dept, status, selected } = Route.useSearch();
+  const { q, dept, status, page, selected } = Route.useSearch();
   const navigate = Route.useNavigate();
   const qValue = q ?? "";
   const deptValue = dept ?? null;
   const statusValue = status ?? "all";
+  const pageValue = page ?? 1;
   const selectedValue = selected ?? null;
   const { listQuery, detailQuery, isAllEmpty } = useStockInquiry({
-    status: statusValue, q: qValue, dept: deptValue, selected: selectedValue,
+    status: statusValue, q: qValue, dept: deptValue, page: pageValue, selected: selectedValue,
     navigate: (search) => navigate({ search: (prev) => ({ ...prev, ...search }) }),
   });
+  // q / dept / status の変更は page も既定（1）へ戻す（UI-06a-D1、50 §50.4 慣行の踏襲）。
+  // page 移動（ProductPagination の onPageChange）は他条件を維持したまま page だけ更新する。
+  const isFilterDefault = !qValue && deptValue === null && statusValue === "all";
+  const resetFilters = () =>
+    navigate({ search: (p) => ({ ...p, q: undefined, dept: undefined, status: undefined, page: undefined, selected: undefined }) });
 
   return (
     <div className="...">
-      <SearchBar value={qValue} onSearchChange={(v) => navigate({ search: (p) => ({ ...p, q: v || undefined, selected: undefined }) })} />
-      <StatusChips value={statusValue} onChange={(s) => navigate({ search: (p) => ({ ...p, status: s, selected: undefined }) })} />
-      <DepartmentFilter value={deptValue} onChange={(d) => navigate({ search: (p) => ({ ...p, dept: d ?? undefined, selected: undefined }) })} />
+      <SearchBar value={qValue} onSearchChange={(v) => navigate({ search: (p) => ({ ...p, q: v || undefined, page: undefined, selected: undefined }) })} />
+      <StatusChips value={statusValue} onChange={(s) => navigate({ search: (p) => ({ ...p, status: s, page: undefined, selected: undefined }) })} />
+      <DepartmentFilter value={deptValue} onChange={(d) => navigate({ search: (p) => ({ ...p, dept: d ?? undefined, page: undefined, selected: undefined }) })} />
       {isAllEmpty ? (
         <EmptySearchPlaceholder />
       ) : listQuery.isLoading ? (
@@ -378,10 +390,13 @@ function StockInquiryPage() {
           {selectedValue && <StockDetailCard query={detailQuery} />}
         </>
       ) : listQuery.data!.items.length === 0 ? (
-        <EmptyState message="該当する商品がありません" />
+        <EmptyState
+          message="該当する商品がありません"
+          // 絞り込みが既定値以外のときだけ reset action を出す（catalog ⑥ filter-empty reset action、SPEC-UIBB-1/2）。
+          action={!isFilterDefault ? <Button variant="outline" onClick={resetFilters}>絞り込みを解除</Button> : undefined}
+        />
       ) : (
         <>
-          {listQuery.data!.truncated && <TruncatedResultsAlert />}
           {/* list 成功時は選択行の直下に詳細をインライン展開する（detailQuery を渡す、§58.7 ProductListTable） */}
           <ProductListTable
             items={listQuery.data!.items}
@@ -390,6 +405,15 @@ function StockInquiryPage() {
             detailQuery={detailQuery}
             onSelect={(code) => navigate({ search: (p) => ({ ...p, selected: code }) })}
           />
+          {/* status === "all" のときだけ表示（UI-06a-D1、02-component-catalog.md ⑩ canonical を結線） */}
+          {statusValue === "all" && listQuery.data!.totalCount !== null && (
+            <ProductPagination
+              page={pageValue}
+              totalCount={listQuery.data!.totalCount}
+              perPage={50}
+              onPageChange={(next) => navigate({ search: (p) => ({ ...p, page: next }) })}
+            />
+          )}
         </>
       )}
       {/* 最下部固定カードは廃止。詳細は list 成功=選択行直下インライン展開 / list 失敗=フォールバックカードの
@@ -412,9 +436,9 @@ function StockInquiryPage() {
 - 件数バッジは表示しない（検索条件・部門フィルタとの結合で意味論が壊れる、§58.13）
 - 選択中 tone は shared stone selection tone（solid stone-700 ではない）+ 太字。stockout / low の rose / amber は在庫状態の補助色として残し、filter selection の背景色と意味色を衝突させない
 
-#### DepartmentFilter（UI-06a 用ローカル実装）
+#### DepartmentFilter（共通 `patterns/DepartmentFilter`、2026-08-03 batch B で sync）
 
-- shadcn `Select`、「すべての部門」+ `commands` 由来の部門一覧。`DepartmentOption` 型は feature 内再定義（daily-sales feature 直接 import = 横依存禁止、共通化は別 PR Backlog）
+- 共通 `src/components/patterns/DepartmentFilter.tsx`（shadcn `Select`、「すべての部門」+ `commands` 由来の部門一覧）を使う。`DepartmentOption` 型は `patterns/DepartmentFilter.tsx` が単一定義し、stock-inquiry 側は re-export を import する（[59-ui-shared-patterns.md](59-ui-shared-patterns.md) §59.3、PR-B で 3 feature 統合済み）
 - 個別部門選択中も、同じ q/status の他部門候補を残す。`DepartmentFilter` 自体は pure component とし、候補維持は `useStockInquiry` が担う
 
 #### ProductListTable（高視認性状態表示契約 H、選択行直下インライン展開）
@@ -429,10 +453,11 @@ function StockInquiryPage() {
 - 行クリックで `onSelect(product_code)` 発火 → `selected` URL state 更新 → **選択行の直下**に colSpan 展開行で `StockDetailContent` をインライン描画（`detailQuery` props を受け取る、collapsible 不使用 = 条件描画）。展開行は `bg-muted` を明示固定し選択行と視覚的に一体化（New-1）。list 失敗時の独立描画はフォールバック `StockDetailCard` が担う（§58.8）
 - 状態列追加後のインライン展開は `colSpan=6`。旧 `colSpan=5` は table 列数と不一致になるため regression test で防ぐ
 
-#### EmptySearchPlaceholder / TruncatedResultsAlert（契約 I）
+#### EmptySearchPlaceholder（契約 I）/ ProductPagination（UI-06a-D1）
 
-- EmptySearchPlaceholder: status=all + q 空文字時、centered muted text「商品コード、商品名、または JAN コードで検索してください」
-- TruncatedResultsAlert: `truncated === true` 時、shadcn Alert で「他にも検索結果があります。商品コード / 商品名 / JAN で絞り込んでください」（Phase 2 では pagination UI 非実装）
+- EmptySearchPlaceholder: status=all + q 空文字時、centered muted text「商品コード、商品名、または JAN コードで検索してください」（catalog ⑥ の適用除外、検索前の操作指示であり空結果ではない）
+- ~~TruncatedResultsAlert~~: **2026-08-03 batch B（UI-06a-D1）で撤去**。pagination 導入により全件へページ送りで到達できるため、「他にも検索結果があります」の打ち切り告知は不要になった（打ち切り告知とページ送りの二重表現を避ける）
+- ProductPagination: `status === "all"` のときだけ表示（在庫少 / 在庫切れは `list_low_stock` の client filter 経路のため対象外、既存挙動）。02-component-catalog.md ⑩ の canonical をそのまま結線し、`totalCount` から最終ページを計算する
 
 #### StockDetailContent / StockDetailCard（インライン展開 + フォールバック共用、在庫変動履歴 link）
 
@@ -455,7 +480,7 @@ function StockInquiryPage() {
 | 状態 | 描画 | 復旧手段 |
 |---|---|---|
 | **#1 list query API fail**（`listQuery.isError`） | ProductListTable 領域 `<Alert variant="destructive">` + toast（`id: "stock-inquiry-list-error"`） | 検索条件変更 or ページ再読込、リトライ成功で同 id `toast.dismiss` |
-| **#2 list query items 空配列** | `<EmptyState message="該当する商品がありません" />` | 検索条件 / 部門フィルタ変更 |
+| **#2 list query items 空配列** | `<EmptyState message="該当する商品がありません" />`。q / dept / status が既定値以外なら `action` に「絞り込みを解除」ボタン（catalog ⑥ filter-empty reset action、SPEC-UIBB-1/2） | 検索条件 / 部門フィルタ変更、または reset action で既定値へ一括復帰 |
 | **#3 detail query fail**（`detailQuery.isError`） | 詳細の inline エラー（一覧は維持、部分障害許容）。list 成功時は選択行直下のインライン展開行内、list 失敗時はフォールバック StockDetailCard 内（両系統とも `StockDetailContent` が isLoading/isError/data を内包）+ toast（`id: "stock-inquiry-detail-error"`） | 別商品選択 or リトライ、成功で同 id `toast.dismiss` |
 | **#4 status=all + q 空文字** | `<EmptySearchPlaceholder />`（search_products 呼ばない、契約 I） | 検索欄に入力 |
 
@@ -469,8 +494,8 @@ function StockInquiryPage() {
 | `format-stock-display.test.ts` | 3-4 | `"pcs"` → 「個」/ `"cm"` → 「cm」/ unexpected → 「—」（Q-4 網羅） |
 | `format-last-date.test.ts` | 3 | null → 「—」/ `YYYY-MM-DD` そのまま / 空文字扱い |
 | `filter-low-stock-list.test.ts` | 6-8 | stockout 分岐 / low_stock 分岐 / q 部分一致 / dept 絞り込み / 複合 / 空配列 |
-| `useStockInquiry.test.tsx` | 10 | search → PaginatedResult 正規化（source/truncated） / low_stock → 配列正規化 / status=all+q空 で enabled=false / 1 件自動展開 / status 切替 → selected clear → 新 list 1 件で再展開 / detail 部分障害 / dept 選択中も他部門候補を維持 / list 成功 + selected 不在 → clear（C-P2-1） / isAllEmpty + selected → clear + detail 非発火（Round 1 P2-2） |
-| `SearchBar.test.tsx` + `StockInquiryPage.test.tsx` | 8 | `autoFocus` 検証 / Enter で debounce flush + 即時 search / 結果 1 件で自動展開 useEffect → URL state `selected` 更新 / list 成功 + selected でインライン展開 / 行クリックで selected 更新 → 展開（stateful harness、C-P2-3）/ list 失敗 + detail 成功でフォールバックカード独立描画（部分障害許容、Codex Round 1 P2-1）/ search flow の在庫切れ label / low_stock flow の在庫少 label（RTL + user-event） |
+| `useStockInquiry.test.tsx` | 10+ | search → PaginatedResult 正規化（source/totalCount、`truncated` は撤去済み） / low_stock → 配列正規化 / status=all+q空 で enabled=false / 1 件自動展開 / status 切替 → selected clear → 新 list 1 件で再展開 / detail 部分障害 / dept 選択中も他部門候補を維持 / list 成功 + selected 不在 → clear（C-P2-1） / isAllEmpty + selected → clear + detail 非発火（Round 1 P2-2） / page が queryKey とクエリ引数に反映される（SPEC-UIBB-3/4） |
+| `SearchBar.test.tsx` + `StockInquiryPage.test.tsx` | 8+ | `autoFocus` 検証 / Enter で debounce flush + 即時 search / 結果 1 件で自動展開 useEffect → URL state `selected` 更新 / list 成功 + selected でインライン展開 / 行クリックで selected 更新 → 展開（stateful harness、C-P2-3）/ list 失敗 + detail 成功でフォールバックカード独立描画（部分障害許容、Codex Round 1 P2-1）/ search flow の在庫切れ label / low_stock flow の在庫少 label（RTL + user-event）/ SPEC-UIBB-1/2: 絞り込み非既定+0件で reset action 表示・押下で全条件+page 既定復帰 / SPEC-UIBB-4: q・dept・status 変更で page=1、page 移動は条件維持 / SPEC-UIBB-5: 51 件 synthetic で page 2 に到達、`TruncatedResultsAlert` 残存 0（rg 静的 sweep） |
 | `ProductListTable.test.tsx` | 9 | 状態列の「在庫切れ」「在庫少」「通常」text / 商品コード cell `text-sm` readability guard / 選択行直下インライン展開 / nextElementSibling colSpan=6 guard（旧下部固定・旧 5 列混入検出）/ 非選択時展開なし / detail 失敗 inline（C-P2-3） / 展開行 whitespace-normal guard（Round 1 P2-1） |
 | `StatusChips.test.tsx` | 3 | selected chip の `data-state="on"` / chip click の filter value 発火 / deselect 空文字無視（常に 1 つ選択維持） |
 
@@ -496,7 +521,14 @@ function StockInquiryPage() {
 
 #### 契約 I 「すべて」チップの検索駆動表示（ラベルと実データの一致）
 
-> status === "all" かつ q 空文字の場合、search_products は呼ばず「商品コード、商品名、または JAN コードで検索してください」を表示する。q 入力後のみ search_products(page: 1, per_page: 50) を呼ぶ。per_page 上限は search_products 既存契約どおり 200 で、200 超は IO 層でクランプされる（UI-06a は固定値 50 のみ使用）。total_count > items.length の場合は「他にも検索結果があります。商品コード / 商品名 / JAN で絞り込んでください」を inline alert 表示する。Phase 2 では pagination UI は実装しない。
+> status === "all" かつ q 空文字の場合、search_products は呼ばず「商品コード、商品名、または JAN コードで検索してください」を表示する。q 入力後のみ search_products(page, per_page: 50) を呼ぶ。per_page 上限は search_products 既存契約どおり 200 で、200 超は IO 層でクランプされる（UI-06a は固定値 50 のみ使用）。全件へは pagination（§58.4 / UI-06a-D1）でページ送りして到達する。
+
+#### UI-06a-D1: pagination 導入 + truncated alert 撤去（2026-08-03 batch B）
+
+- **決定**: 在庫照会「すべて」（`status === "all"`）に `page` search param と `ProductPagination`（既存 canonical、02-component-catalog.md ⑩）を導入し、`total_count` から全ページへ到達できるようにする。これに伴い `TruncatedResultsAlert` component と `StockInquiryListResult.truncated` flag を撤去する。
+- **Why**: pagination により全件へページ送りで到達できるようになるため、「他にも検索結果があります」という打ち切り告知（旧 契約 I）はページ送りと二重表現になる。50 §50.4（商品一覧）の既存 page 慣行をそのまま踏襲し、在庫照会だけの新しい UX を発明しない。
+- **Rejected**: truncated alert を pagination と併存させる案（「打ち切り告知」+「ページ送り」が同じ問題を二重に説明することになり、利用者が両方を読む必要が生じる）。在庫少 / 在庫切れ（`list_low_stock` 経路）への pagination 拡張（既存 100 件以下想定の client filter で十分、対象外のまま据え置き）。
+- **Revisit trigger**: `list_low_stock` の返却件数が 100 件を恒常的に超える運用が確認された場合、client filter 経路への pagination 適用を再検討する。
 
 #### 廃番除外
 
@@ -532,8 +564,6 @@ function StockInquiryPage() {
 | 詳細カード CSV 出力 / 印刷 | SCREEN_DESIGN.md L120-133 に言及なし | scope 外 |
 | `stock_low_threshold` 設定変更 UI | 閾値設定は別画面 | UI-11a 閾値設定画面 |
 | 廃番商品の表示トグル UI | `include_discontinued` 固定 false、scope 抑制 | Phase 4 で再検討 |
-| pagination UI（「すべて」50 件超） | Phase 2 では truncated を inline alert で告知のみ、ページング操作は非実装 | Phase 4 で再評価（Plans.md Backlog） |
-| DepartmentFilter / DepartmentOption の feature 間共通化 | feature 横依存禁止のため UI-06a 内ローカル実装、共通抽出は別 PR | `src/components/...` への抽出（Plans.md Backlog） |
 
 ### 更新履歴
 
@@ -550,3 +580,4 @@ function StockInquiryPage() {
 | 2026-06-27 | UI-06c | `StockDetailContent` の「在庫変動履歴」を disabled placeholder から `/stock/$code/movements` active link へ変更。UI-06c 画面本体と `listMovements` consumer contract は [66-ui-stock-movements.md](66-ui-stock-movements.md) に分離 |
 | 2026-07-16 | sidebar pending links follow-up | サイドバー「在庫少一覧」（UI-06b）の独立画面 `/stock/low` 予約を廃止し、本画面 `status=low_stock` フィルタへの deep-link に統合（D-047）。既存フィルタ contract（§58.4/§58.10）・useStockInquiry 実装は無変更 |
 | 2026-07-29 | wave 4 plan-first | UI-STATE-D2に従い、status tupleと`LOW_STOCK_FILTER`をfeature-local SSOTとしてroute / navigationへ供給する契約を追加。URL値・fallback・表示は不変 |
+| 2026-08-03 | ui-polish-batch-b（本 PR） | UI-06a-D1 追加: `page` search param + 既存 canonical `ProductPagination`（02 ⑩）を結線し、「すべて」全件へページ送りで到達できるようにする（対象は `status === "all"` のみ）。`TruncatedResultsAlert` component と `truncated` flag を撤去（§58.2/§58.3/§58.5/§58.7/§58.10）。§58.7 DepartmentFilter を PR-B で統合済みの共通 `patterns/DepartmentFilter` 使用へ表記更新。§58.13 の pagination UI 行（本 change で実装）と DepartmentFilter 共通化行（PR-B で完了済み）を削除。filter-empty 0 件時の「絞り込みを解除」reset action（catalog ⑥）を追加（§58.7/§58.8） |

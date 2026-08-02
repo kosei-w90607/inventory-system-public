@@ -197,6 +197,7 @@ UI-03 の既存 `return_records.receipt_image_path` は互換維持し、共通�
 - 結果: 記録種別、記録ID、業務日付、代表商品、明細数、状態、記録日時、詳細ボタン。
 - 各行は詳細 route へ遷移する。行内に取消/訂正ボタンは置かず、詳細画面で確認してから行う。
 - 詳細 route へ遷移するリンクは、現在の `/inventory/records` search state を `returnTo` に含める。詳細画面から戻ると、遷移前の検索条件とページを保持した一覧に戻る。
+- **filter-empty reset action**（2026-08-03 batch B、[02-component-catalog.md](../design-system/02-component-catalog.md) ⑥）: §65.4.1 の検索条件（recordType / dateFrom / dateTo / q / recordId / departmentId / status）が既定値以外、かつ結果 0 件のときは EmptyState に「絞り込みを解除」ボタンを表示する。押下で上記検索条件と `page` をすべて既定値へ戻す。既定値のまま 0 件（記録が実在しない）のときは表示しない。
 
 ### 65.8.2 在庫変動履歴
 
@@ -274,3 +275,4 @@ CSV は UTF-8 BOM 付きとし、既存 report export 方針に合わせる。�
 | 2026-06-30 | UI-03 note visibility follow-up | 返品・交換詳細の備考を独立表示し、入力なしの場合も `備考なし` として確認できる方針を追加。 |
 | 2026-07-11 | UI-11c Design Phase | §65.8.3 に [74-ui-operation-logs.md](74-ui-operation-logs.md) への正典リンクと、関連記録リンクの明示 contract（許可リスト・record_type未対応。record_idはreceiving/disposal/returnsの3 producerが書き込み済み）を追記。 |
 | 2026-08-03 | CSV取込み詳細 Design Phase | §65.10 に slice 4b（CSV取込み詳細 route + `getCsvImportRecord(id)`。PR #57 owner L3 の 404 backlog 起源）を追記。詳細表示項目・route・command 契約は既存 §65.3 / §65.5 / §65.7.1 を変更せず正とする。 |
+| 2026-08-03 | ui-polish-batch-b（本 PR） | §65.8.1 に入出庫履歴ハブの filter-empty reset action（catalog ⑥、絞り込み非既定 + 0 件時の「絞り込みを解除」）を追記。 |

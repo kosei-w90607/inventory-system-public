@@ -109,4 +109,3 @@ UI-01a 実装時は、以下を trace ID 付きで検証する。
 - UI-01b 商品登録・修正 route の最終ファイル構成と form 設計。
 - SP-103-08 の cm / m 表示切替 UI。初回 UI-01a 実装で扱う場合は、横断表示方針または商品管理内の設計判断を追加してから実装する。
 - 専用バーコードスキャン UX / 連続スキャン検知。
-- `DepartmentFilter` / `DepartmentOption` の feature 間共通化。
