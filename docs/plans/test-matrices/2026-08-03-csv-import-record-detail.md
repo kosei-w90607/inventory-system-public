@@ -29,6 +29,7 @@ Risk: R3
 - rollback 後に詳細 cache が stale のまま表示され続ける（invalidation 欠落）
 - returnTo に外部 URL / `//` 始まりが通る
 - 既存 CSV flow・既存 4 詳細の回帰
+- layout + index 再構成（Amendment 1）で既存 `/csv-import` 取込み画面が描画されなくなる
 
 ## Test Matrix
 
@@ -52,6 +53,7 @@ Risk: R3
 | returnTo | 外部 URL 通過・条件喪失 | RTL | T13 returnTo 保持戻り + 不正値 fallback（既存 4 詳細の test pattern 踏襲） | validateSearch 除去・fallback 除去 |
 | D-052 C9 oracle | invalidation 欠落・過剰 | unit (TS、独立転記 oracle、production SSOT 非 import — 既存静的 gate 継承) | T14 csvImportRollback 新集合の順序非依存・重複検出付き完全一致 | SSOT から新規行を削る / 余分な key を足す mutant |
 | query key 直書き 0 | literal 復活 | unit (TS、既存 sweep pattern) | T15 csvImportDetail key の literal sweep | page/hook に生 key 配列を書く実装 |
+| Amendment 1: 既存 `/csv-import` 取込み画面の index route 描画 | layout 化で既存取込み画面が描画されなくなる | RTL (runtime route test) | T16 `/csv-import` 直接進入で CsvImportPage が従来どおり描画される回帰 test | index 移設漏れ・layout の Outlet 欠落 |
 
 ## State Lifecycle Matrix
 
@@ -77,6 +79,7 @@ Risk: R3
 | internal `<Link>` 統一（batch A） | 既存 19 site 統一済み | 新規 link は `<Link>` のみ | — | T10 |
 | 状態 label 正規化（65 §65.6.1） | 既存 status label 表示箇所（55 取込み履歴 recent list） | 詳細 header | recent list の label 実装と文言一致を実装時に突合（drift 防止） | T9 |
 | production command 実呼び test（順5 規範） | 既存 4 詳細の CMD test | T8 | — | T8 |
+| layout + index route 構造（Amendment 1） | `receiving.tsx`+`receiving/index.tsx` / `return.tsx`+`return/index.tsx` / `manual-sale.tsx`+`manual-sale/index.tsx` / `disposal.tsx`+`disposal/index.tsx`（4 site 全列挙） | `csv-import.tsx`（layout 化）+ `csv-import/index.tsx`（新設） | — | T16 / T10 |
 
 ## Negative Paths
 

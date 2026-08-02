@@ -69,7 +69,7 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。AC や�
 2. BIZ: `biz::csv_import_service::get_csv_import_record` 追加（[32-biz-csv-import-service.md](../function-design/32-biz-csv-import-service.md) §15.6a）。movements の source 補完は `biz::inventory_service` の既存 `resolve_movement_source` を共有し、label/route 規則の複製を作らない。**共有には `inventory_service/mod.rs` へ `pub(crate) use list::resolve_movement_source;` の re-export 1 行追加が必要**（`mod list` は private のため sibling module から現状 unreachable。同 file の `pub(crate) use common::apply_stock_change`〈BIZ-03 CSV取込みから呼び出し可〉と同型の既存慣習）— Plan Review round 1 P1 是正
 3. CMD: `cmd::csv_import_cmd::get_csv_import_record` 追加 + `#[tauri::command]` / `#[specta::specta]` 属性の対 + `lib.rs` の **2 箇所登録**: `export_specta_bindings()` 内 `collect_commands![...]`（bindings 生成用）と `.invoke_handler(tauri::generate_handler![...])`（実行時 dispatch 用）の両方（[41-cmd-pos.md](../function-design/41-cmd-pos.md) §17.5 / §17.9。collect_commands のみでは AC4 が green のまま IPC 実呼出しが「command not found」になる — Plan Review round 1 P2 是正）
 4. bindings: `cargo run --bin generate_bindings` 再生成（`getCsvImportRecord` / `CsvImportRecordDetail` / `CsvImportErrorType` union）
-5. route: `src/routes/csv-import.records.$importId.tsx` 新設（既存 `receiving.records.$recordId.tsx` の flat dot 記法前例に従う）+ `npm run generate:routes`。`validateSearch` の `returnTo` pattern（`z.string().max(500).optional().catch(undefined)`）を既存 4 詳細 route と同形で踏襲
+5. route（gated Amendment 1 で訂正）: `src/routes/csv-import.records.$importId.tsx` 新設 + **`csv-import.tsx` の layout route 化**（`<Outlet />` のみを render、既存 `receiving.tsx` と同型）+ **`src/routes/csv-import/index.tsx` 新設**（`CsvImportPage` を index route へ移設、既存 `receiving/index.tsx` と同型）+ `npm run generate:routes`。詳細 route は `CsvImportRoute` の子として layout 経由で描画される。既存 `/csv-import` 取込み画面は index route で従来どおり描画されることを runtime route test で固定する（T16）。`validateSearch` の `returnTo` pattern（`z.string().max(500).optional().catch(undefined)`）を既存 4 詳細 route と同形で踏襲
 6. UI: `src/features/inventory-records/CsvImportRecordDetailPage.tsx` 新設。`ReceivingRecordDetailPage.tsx` を canonical 参照とし、同構造（useQuery + queryKeys + describeError + returnTo 戻り導線）。status は 65 §65.6.1 に従い正規化した日本語 label（completed / completed_partial / rolled_back の 3 値表示）、rolled_back 時は rollback 状態を明示表示
 7. query key: `queryKeys.inventoryRecords.csvImportDetail(importId)` 追加（既存 `*Detail` 4 key と同形）
 8. D-052 契約変更（C9）: `invalidation-contract.ts` の `csvImportRollback` へ **広域 prefix `queryKeys.inventoryRecords.root()` を追加**する（既存 receiving / return / manualSale / disposal mutation と同一 pattern。`csvImportDetail` が正当 consumer となるため prefix + child collateral は D-052 許容に適合し、zero-arg 署名を変えないため `invalidation-contract.meta.test.ts` / `invalidation-oracle.ts` / `useCsvImportFlow.ts` の署名追随が不要 — Plan Review round 1 P2 是正で importId 個別指定案を不採用）+ 独立転記 oracle test の追随 + production-only mutation 感度の再実測。`csvImportCommit` への追加要否も table.column 導出手順（UI_TECH_STACK §2.5）で導出し、採否と根拠を PR body に記録（rollback は `csv_imports.status` / `sale_records.is_voided` / `inventory_movements.is_voided` を確定し本 query が全て読むため追加必須。commit は既存 import 行を変更しないため過剰禁止原則との突合が必要）
@@ -147,7 +147,7 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。AC や�
 
 - Source docs can answer what/why without chat history: yes — 65 slice 4b が起点（404 backlog）と非 scope 境界を、24/32/41 が層別設計を記載
 - Plan-only durable decisions promoted: なし（wire DTO の BIZ 所有・ErrorRow 再利用・IO raw TEXT の層判断は 24/32 に記載済み）
-- Assumptions / constraints: SQLite 単一接続、DB CHECK による error_type 4 値保証、既存 flat dot 記法 route の非 nesting 生成（Contract Probe 参照）
+- Assumptions / constraints: SQLite 単一接続、DB CHECK による error_type 4 値保証、詳細 route は親 layout（`<Outlet />`）経由で描画される layout + index 構造（receiving 系 4 種と同型。gated Amendment 1 で訂正、Contract Probe 参照）
 - Deferred design gaps: 一覧 route / 棚卸し詳細 / 74 許可リスト追随（それぞれ 65 §65.10・§65.8.3 が追跡）
 - Test Design Matrix cites decision IDs: yes（Matrix 参照）
 - Absolute guarantee self-check: 「rolled_back 取込みは movements 0 件」は void_movements_by_reference の既存動作に依存 — 例外は「rollback 前に手動補正が同一 reference に movement を作る」経路だが、`csv_import` reference は BIZ-03 のみが書くため成立しない（32 §15.5 正本）。詳細画面は 0 件でも N 件でも表示が壊れない設計とし T12 で固定
@@ -185,7 +185,7 @@ Minimum design checks:
 
 ## Contract Probe
 
-- TanStack Router flat dot 記法の親 route 共存（`csv-import.tsx` が存在する状態での `csv-import.records.$importId.tsx` 追加）: repo 内前例で検証済み — `receiving.tsx`（`/inventory/receiving`）と `receiving.records.$recordId.tsx`（`/inventory/receiving/records/$recordId`）が `src/routeTree.gen.ts` に独立 route として共存生成されている実例を実確認（routeTree.gen.ts の `/inventory/receiving/records/$recordId` entry）。外部未検証前提なし。実装初手で `npm run generate:routes` を実行し、routeTree diff で `/csv-import` 非 nesting を end-to-end 確認する（是正仮適用）
+- TanStack Router flat dot 記法の親 route 共存（**gated Amendment 1 で probe 結論を訂正**）: 当初 probe は「routeTree に独立 route として共存生成」と結論したが、これは routeTree.gen.ts の entry 共存のみを確認し**親子関係（`getParentRoute`）と親の `<Outlet />` 有無を見落とした誤り**。実際は `receiving.records.$recordId` は `InventoryReceivingRoute` の**子**として登録され（routeTree.gen.ts `getParentRoute: () => InventoryReceivingRoute`）、`receiving.tsx` は `<Outlet />` のみを render する layout route、作成画面は `receiving/index.tsx` が担う layout + index 構造。`csv-import.tsx` は `CsvImportPage` を直接描画して Outlet を持たないため、詳細 route は URL が変わっても描画されない — Writer（Codex）の T10 runtime test red が実装中に検出し fail-closed 停止（2026-08-03、true positive）。是正 = csv-import も layout + index 構造へ再構成（Scope 5 訂正）。probe を「是正仮適用の end-to-end（runtime 描画まで）」で回さず routeTree 静的確認で打ち切ったことが見落としの原因
 
 ## Contract Coverage Ledger
 
@@ -204,6 +204,8 @@ Minimum design checks:
 | 41 §17.9: invoke_handler（`generate_handler!`）登録 — collect_commands と独立の登録点 | `lib.rs` `.invoke_handler(...)` | T10 / AC6（IPC 実呼出し経路）+ 実装 review で登録行 diff 確認 | L3 視認が実 IPC の最終確認 |
 | 32 §15.6a: `resolve_movement_source` の pub(crate) re-export（`inventory_service/mod.rs` 1 行、apply_stock_change 前例と同型） | `biz/inventory_service/mod.rs` | T7（共有関数経由の label/route exact oracle） | — |
 | 65 §65.3: route `/csv-import/records/$importId` | route file + generate:routes | AC5 | — |
+| Amendment 1: `csv-import.tsx` layout 化 + `csv-import/index.tsx` 移設で既存取込み画面が従来どおり `/csv-import` で描画される | route files（layout + index） | T16（runtime route test） | L3 で取込み画面到達も一瞥確認 |
+| Amendment 1: 詳細 route が layout `<Outlet />` 経由で実描画される | `csv-import.tsx` layout | T10（click 遷移後の詳細 render assert — 本 Amendment の検出元 test） | — |
 | 65 §65.5 CSV列: 表示項目（ID/日付/状態/明細数/商品情報/数量/金額/movements/rollback 状態） | `CsvImportRecordDetailPage` | T9 | L3 視認 |
 | 65 §65.6.1: status 正規化 label 表示 | 同上 | T9 / T12 | L3 視認 |
 | 65 §65.5 / TRACE-D11 同型: returnTo 検索条件保持 + 不正戻り先 fallback | route `validateSearch` + Page | T13 | — |
@@ -289,3 +291,10 @@ Fill after review.
 - round 1（Claude Sonnet 5 独立 fresh context、D-062 (c) 編成）: P1×1（`resolve_movement_source` が private `mod list` 経由で sibling module から unreachable — compile blocker かつ「複製 drift」誘発）/ P2×2（`lib.rs` 登録は collect_commands + invoke_handler の 2 箇所で Ledger は 1 箇所のみ / D-052 C9 の invalidate 粒度を特定しておらず cascading Ledger 漏れ）/ P3×1（D-061 Trace 行の status・error_type 層帰属の一括り記述が不正確）。Coordinator が P1 の module 可視性主張を `inventory_service/mod.rs` 実読で独立裏取りし（`pub(crate) use common::apply_stock_change` の同型前例も確認）、全 4 件 accept。是正 commit `d25990c`。
 - round 2 closure（別 Sonnet fresh context）: 4/4 CLOSED（各是正の技術的正確さを実コード実読で検証、`useCsvImportFlow.ts` zero-arg 呼出しの署名不変主張も確認）、是正差分起因の新規 findings 0。P1/P2 残 0。
 - plan-gate → plan-approved → implementing の materialize evidence: 上記 P1/P2=0、plan-first commit `4854e3a`（+ rally 是正 `d25990c`）が全実装 commit に先行、Writer は Codex（発注書駆動、実装 commit 未作成）。
+
+### Writer fail-closed 停止 1 回目と gated Amendment 1（2026-08-03、append-only）
+
+- Writer（Codex）が実装中の T10 runtime test red で packet の route 前提の誤りを検出し fail-closed 停止（true positive、Draft PR 未作成・未 commit tree 保持）。内容 = Contract Probe の「flat dot 記法は非 nesting 共存」結論が誤りで、詳細 route は `CsvImportRoute` の子として生成されるが `csv-import.tsx` に `<Outlet />` がなく描画されない。
+- Coordinator 裁定 = Writer の修正案（layout + index 構造への再構成、receiving 系 4 種と同型）を accept。routeTree.gen.ts の `getParentRoute` / `receiving.tsx` の Outlet-only layout / `receiving/index.tsx` の index 構造を Coordinator が実読で独立裏取り済み。
+- gated Amendment 1 = Scope 5 訂正・Assumptions 訂正・Contract Probe 結論訂正・Ledger 2 行追加・Matrix T16 追加 + Adjacent Pattern Audit 行追加。原 `Plan Commit` は不変、Amendment SHA は `Amendments` 行へ後続記録。
+- probe 見落としの原因記録: 「是正仮適用の end-to-end」を runtime 描画まで回さず routeTree 静的確認で打ち切った。
