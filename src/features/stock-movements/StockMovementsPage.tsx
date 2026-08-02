@@ -4,6 +4,7 @@
 // 設計: docs/function-design/66-ui-stock-movements.md
 
 import { ArrowLeft, PackageSearch } from "lucide-react";
+import { Link } from "@tanstack/react-router";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -58,10 +59,10 @@ export function StockMovementsPage({
         title="在庫変動履歴"
         actions={
           <Button type="button" asChild variant="outline">
-            <a href={`/stock?selected=${encodeURIComponent(productCode)}`}>
+            <Link to="/stock" search={{ selected: productCode }}>
               <ArrowLeft aria-hidden="true" />
               在庫照会へ戻る
-            </a>
+            </Link>
           </Button>
         }
       />

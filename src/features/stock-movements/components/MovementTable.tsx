@@ -4,6 +4,7 @@
 // 設計: docs/function-design/66-ui-stock-movements.md §66.5
 
 import { ArrowDown, ArrowRight, ArrowUp } from "lucide-react";
+import { Link } from "@tanstack/react-router";
 
 import { Badge } from "@/components/ui/badge";
 import {
@@ -32,10 +33,15 @@ function QuantityDirectionIcon({ quantity }: { quantity: number }) {
   return <ArrowRight aria-hidden="true" className="text-muted-foreground" />;
 }
 
-function sourceHref(route: string, returnTo: string | undefined): string {
-  if (returnTo === undefined) return route;
-  const separator = route.includes("?") ? "&" : "?";
-  return `${route}${separator}returnTo=${encodeURIComponent(returnTo)}`;
+// movement.source.route は DTO 由来の runtime 文字列 (compile-time に既知の route union
+// ではない)。batch A packet P2-2 の採用案どおり <Link to={string}> で SPA 遷移のみ保証し、
+// to は pathname のみ・returnTo は search object 経由で付与する。
+function sourceLinkProps(
+  route: string,
+  returnTo: string | undefined,
+): { to: string; search?: { returnTo: string } } {
+  if (returnTo === undefined) return { to: route };
+  return { to: route, search: { returnTo } };
 }
 
 export function MovementTable({ movements, returnTo }: MovementTableProps) {
@@ -74,12 +80,12 @@ export function MovementTable({ movements, returnTo }: MovementTableProps) {
               </TableCell>
               <TableCell>
                 {movement.source ? (
-                  <a
+                  <Link
                     className="font-medium text-primary underline-offset-4 hover:underline"
-                    href={sourceHref(movement.source.route, returnTo)}
+                    {...sourceLinkProps(movement.source.route, returnTo)}
                   >
                     {movement.source.label}
-                  </a>
+                  </Link>
                 ) : (
                   <span className="text-muted-foreground">元記録なし</span>
                 )}

@@ -1,11 +1,12 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ReactNode } from "react";
 
 import { commands } from "@/lib/bindings";
 import type { MovementRecord, StockDetail } from "@/lib/bindings";
+import { renderWithRouter } from "@/test/render-with-router";
 import { StockMovementsPage } from "./StockMovementsPage";
 
 vi.mock("@/lib/bindings", () => ({
@@ -22,7 +23,7 @@ function renderWithClient(ui: ReactNode) {
   const qc = new QueryClient({
     defaultOptions: { queries: { retry: false, gcTime: Number.POSITIVE_INFINITY } },
   });
-  return render(<QueryClientProvider client={qc}>{ui}</QueryClientProvider>);
+  return renderWithRouter(<QueryClientProvider client={qc}>{ui}</QueryClientProvider>);
 }
 
 function makeStockDetail(overrides: Partial<StockDetail> = {}): StockDetail {

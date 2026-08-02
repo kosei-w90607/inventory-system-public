@@ -1,7 +1,8 @@
-import { render, screen, within } from "@testing-library/react";
+import { screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
 import type { MovementRecord } from "@/lib/bindings";
+import { renderWithRouter } from "@/test/render-with-router";
 import { MovementTable } from "./MovementTable";
 
 function makeMovement(overrides: Partial<MovementRecord> = {}): MovementRecord {
@@ -21,10 +22,10 @@ function makeMovement(overrides: Partial<MovementRecord> = {}): MovementRecord {
 }
 
 describe("MovementTable (REQ-303 / REQ-207)", () => {
-  it("REQ-303: movement rows show type quantity stock source and note", () => {
-    render(<MovementTable movements={[makeMovement()]} />);
+  it("REQ-303: movement rows show type quantity stock source and note", async () => {
+    renderWithRouter(<MovementTable movements={[makeMovement()]} />);
 
-    const row = screen.getByText("入庫記録 #42").closest("tr");
+    const row = (await screen.findByText("入庫記録 #42")).closest("tr");
     if (row === null) throw new Error("movement row not found");
 
     expect(within(row).getByText("2026-06-27 10:11:12")).toBeInTheDocument();
@@ -39,8 +40,8 @@ describe("MovementTable (REQ-303 / REQ-207)", () => {
     expect(within(row).getByText("初回入庫")).toBeInTheDocument();
   });
 
-  it("REQ-207: sourceなしのmovementは元記録なしとして表示する", () => {
-    render(
+  it("REQ-207: sourceなしのmovementは元記録なしとして表示する", async () => {
+    renderWithRouter(
       <MovementTable
         movements={[
           makeMovement({
@@ -54,14 +55,14 @@ describe("MovementTable (REQ-303 / REQ-207)", () => {
       />,
     );
 
-    const row = screen.getByText("元記録なし").closest("tr");
+    const row = (await screen.findByText("元記録なし")).closest("tr");
     if (row === null) throw new Error("movement row not found");
     expect(within(row).queryByRole("link")).not.toBeInTheDocument();
     expect(within(row).getByText("—")).toBeInTheDocument();
   });
 
-  it("REQ-207: returnToを元記録リンクに付けてmovement検索状態を保持する", () => {
-    render(
+  it("REQ-207: returnToを元記録リンクに付けてmovement検索状態を保持する", async () => {
+    renderWithRouter(
       <MovementTable
         movements={[
           makeMovement({
@@ -72,7 +73,7 @@ describe("MovementTable (REQ-303 / REQ-207)", () => {
       />,
     );
 
-    expect(screen.getByRole("link", { name: "廃棄・破損 #7" })).toHaveAttribute(
+    expect(await screen.findByRole("link", { name: "廃棄・破損 #7" })).toHaveAttribute(
       "href",
       "/inventory/disposal/records/7?returnTo=%2Fstock%2FBT0002%2Fmovements%3Ftype%3Ddisposal%26page%3D2",
     );

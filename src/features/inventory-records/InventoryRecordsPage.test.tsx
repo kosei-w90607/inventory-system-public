@@ -1,11 +1,12 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { commands } from "@/lib/bindings";
 import type { InventoryRecordSummary } from "@/lib/bindings";
+import { renderWithRouter } from "@/test/render-with-router";
 import { InventoryRecordsPage } from "./InventoryRecordsPage";
 
 vi.mock("@/lib/bindings", () => ({
@@ -22,7 +23,7 @@ function renderWithClient(ui: ReactNode) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false, gcTime: Number.POSITIVE_INFINITY } },
   });
-  return render(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>);
+  return renderWithRouter(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>);
 }
 
 function makeRecord(overrides: Partial<InventoryRecordSummary> = {}): InventoryRecordSummary {

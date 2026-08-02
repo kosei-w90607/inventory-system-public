@@ -5,6 +5,7 @@
 import { Eye, PackageSearch } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -56,9 +57,15 @@ function buildInventoryRecordsReturnTo(search: ReturnType<typeof normalizeInvent
   return query ? `/inventory/records?${query}` : "/inventory/records";
 }
 
-function buildDetailHref(detailRoute: string, returnTo: string) {
-  const separator = detailRoute.includes("?") ? "&" : "?";
-  return `${detailRoute}${separator}${new URLSearchParams({ returnTo }).toString()}`;
+// detail_route は DTO 由来の runtime 文字列 (compile-time に既知の route union ではない)。
+// batch A packet P2-2 の採用案どおり <Link to={string}> で SPA 遷移のみ保証し、
+// to は pathname のみ・returnTo は search object 経由で付与する
+// (buildLocation は to をパス解決専用に扱うため文字列へ直接 query を埋め込まない)。
+function buildDetailLinkProps(
+  detailRoute: string,
+  returnTo: string,
+): { to: string; search: { returnTo: string } } {
+  return { to: detailRoute, search: { returnTo } };
 }
 
 export function InventoryRecordsPage({ search, onSearchChange }: InventoryRecordsPageProps) {
@@ -322,10 +329,10 @@ export function InventoryRecordsPage({ search, onSearchChange }: InventoryRecord
                   </TableCell>
                   <TableCell className="text-right">
                     <Button asChild variant="outline" size="sm">
-                      <a href={buildDetailHref(record.detail_route, returnTo)}>
+                      <Link {...buildDetailLinkProps(record.detail_route, returnTo)}>
                         <Eye aria-hidden="true" />
                         詳細を見る
-                      </a>
+                      </Link>
                     </Button>
                   </TableCell>
                 </TableRow>

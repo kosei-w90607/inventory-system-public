@@ -4,6 +4,7 @@
 
 import { ArrowLeft, PackageSearch } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -81,10 +82,10 @@ export function DisposalRecordDetailPage({ recordId, returnTo }: DisposalRecordD
           </AlertDescription>
         </Alert>
         <Button asChild variant="outline">
-          <a href={backHref}>
+          <Link to={backHref}>
             <ArrowLeft aria-hidden="true" />
             前の画面へ戻る
-          </a>
+          </Link>
         </Button>
       </div>
     );
@@ -99,10 +100,10 @@ export function DisposalRecordDetailPage({ recordId, returnTo }: DisposalRecordD
         title={`廃棄・破損 #${String(detail.id)}`}
         actions={
           <Button asChild variant="outline">
-            <a href={backHref}>
+            <Link to={backHref}>
               <ArrowLeft aria-hidden="true" />
               前の画面へ戻る
-            </a>
+            </Link>
           </Button>
         }
       />
@@ -174,12 +175,13 @@ export function DisposalRecordDetailPage({ recordId, returnTo }: DisposalRecordD
                 </TableCell>
                 <TableCell className="whitespace-normal">{item.reason}</TableCell>
                 <TableCell className="text-right">
-                  <a
+                  <Link
                     className="font-medium text-primary underline-offset-4 hover:underline"
-                    href={`/stock/${encodeURIComponent(item.product_code)}/movements`}
+                    to="/stock/$code/movements"
+                    params={{ code: item.product_code }}
                   >
                     {item.product_code} の在庫変動履歴
-                  </a>
+                  </Link>
                 </TableCell>
               </TableRow>
             ))}

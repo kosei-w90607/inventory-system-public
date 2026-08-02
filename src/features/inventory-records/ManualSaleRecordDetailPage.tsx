@@ -4,6 +4,7 @@
 
 import { ArrowLeft, PackageSearch } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -83,10 +84,10 @@ export function ManualSaleRecordDetailPage({
           </AlertDescription>
         </Alert>
         <Button asChild variant="outline">
-          <a href={backHref}>
+          <Link to={backHref}>
             <ArrowLeft aria-hidden="true" />
             前の画面へ戻る
-          </a>
+          </Link>
         </Button>
       </div>
     );
@@ -101,10 +102,10 @@ export function ManualSaleRecordDetailPage({
         title={`手動販売出庫 #${String(detail.id)}`}
         actions={
           <Button asChild variant="outline">
-            <a href={backHref}>
+            <Link to={backHref}>
               <ArrowLeft aria-hidden="true" />
               前の画面へ戻る
-            </a>
+            </Link>
           </Button>
         }
       />
@@ -141,12 +142,13 @@ export function ManualSaleRecordDetailPage({
           </div>
         </div>
         <div className="mt-3 flex flex-wrap items-center gap-3 text-sm">
-          <a
+          <Link
             className="font-medium text-primary underline-offset-4 hover:underline"
-            href={`/reports/daily?date=${encodeURIComponent(detail.sale_date)}`}
+            to="/reports/daily"
+            search={{ date: detail.sale_date }}
           >
             日次売上で確認
-          </a>
+          </Link>
           {detail.note ? <span className="text-muted-foreground">{detail.note}</span> : null}
         </div>
       </section>
@@ -177,12 +179,13 @@ export function ManualSaleRecordDetailPage({
                 </TableCell>
                 <TableCell className="text-right tabular-nums">{formatYen(item.amount)}</TableCell>
                 <TableCell className="text-right">
-                  <a
+                  <Link
                     className="font-medium text-primary underline-offset-4 hover:underline"
-                    href={`/stock/${encodeURIComponent(item.product_code)}/movements`}
+                    to="/stock/$code/movements"
+                    params={{ code: item.product_code }}
                   >
                     {item.product_code} の在庫変動履歴
-                  </a>
+                  </Link>
                 </TableCell>
               </TableRow>
             ))}
