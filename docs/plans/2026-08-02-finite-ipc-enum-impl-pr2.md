@@ -80,7 +80,7 @@ Goal Invariant: domain family (2)〜(14) の有限 IPC 値が「Rust enum SSOT �
 - 新しい有限値の追加・改名（値集合は現状凍結のまま型だけ強化する）
 - DB schema / CHECK 制約の変更
 - URL search 系の有限集合（監査 P4-2 の scope。`useStockMovements.ts:47` の URL→wire 代入 site は wire 側型強化の影響で型検査対象になるが、URL 層の型・値・schema は変更しない）
-- stock_unit の file 由来経路への値域 guard 新設（実測 (β) で欠落を確認したが、新設は「不正値行が pcs デフォルト化される」現行挙動をエラー化する挙動変更のため本 PR では行わない。30 の doc 記述を事実（非対称）へ是正し、guard 新設の要否は backlog 候補として Plans.md に記録する）
+- stock_unit の file 由来経路への値域 guard 新設（実測 (β) で欠落を確認したが、挙動変更のため本 PR では行わない。現行の実挙動は **missing / 空文字のみ INSERT 時に `"pcs"` デフォルト化**（`product_service.rs:699-702, 859`）で、**非空の不正値は preview では保持され commit の DB CHECK（`schema_v1.rs:40` `'pcs','cm'`）で拒否される** — round C-1 P2-2 で「不正値行が pcs デフォルト化」という不正確な要約を是正。30 の doc 記述を事実（非対称 + この境界）へ是正し、guard 新設の要否は backlog 候補として Plans.md に記録する
 - `DailyReportDuplicateStatus` / `DailyReportSourceKind` / `DuplicateStatus` 等の既 generated enum（rename_all なし・PascalCase wire 値）の標準形への「是正」（値の改名 = wire 変更になるため対象外。design packet が「是正不要の先行事例」と凍結済み）
 - 表示 label 統一等の任意の美化
 
@@ -88,16 +88,18 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 
 ## Scope
 
-### Rust（enum 新設 5 + 既存 enum derive 追加 4 + 適用）
+### Rust（enum 新設 9 + 既存 enum derive 追加 4 + 適用 — 数は cross-vendor round C-1 P2-3 で是正）
+
+定義位置の原則（round C-1 P1-1）: **response DTO が db 層にある family の enum は当該 db repo module に定義**し、biz / cmd は biz→db の許容方向で参照する（`architecture_test.rs` LAYER_RULES は db→biz を禁止。`MovementType` / (7) `CsvImportStatus` と同一の先例）。BIZ 完結 family（response DTO が biz 定義の (6)(8)）のみ biz 配置。
 
 enum 名は bindings.ts 生成型名になるため本 packet で凍結する（SPEC-P41-PR2-D1）:
 
 | family | enum 名 | 定義位置 | 方向 | 備考 |
 |---|---|---|---|---|
-| (2) return_type | `ReturnExchangeType`（新設: Return/Exchange） | `biz/inventory_service/returns.rs` | 両方向 | TS 組込み utility `ReturnType` との名前衝突を避け frontend alias と同名にする |
+| (2) return_type | `ReturnExchangeType`（新設: Return/Exchange） | `db/return_repo.rs`（response DTO `ReturnRecordSummary/Detail` の所有層 — round C-1 P1-1） | 両方向 | TS 組込み utility `ReturnType` との名前衝突を避け frontend alias と同名にする |
 | (3) direction | `ReturnDirection`（新設: In/Out） | 同上 | 両方向 | |
-| (4) disposal_type | `DisposalType`（新設: Disposal/Damage/Other） | `biz/inventory_service/disposal.rs` | 両方向 | `item.reason`（自由記述）は触らない |
-| (5) reason | `ManualSaleReason`（新設: PluUnregistered/Other） | `biz/inventory_service/manual_sale.rs` | 両方向 | fingerprint 不変（SPEC-P41-PR2-D6） |
+| (4) disposal_type | `DisposalType`（新設: Disposal/Damage/Other） | `db/disposal_repo.rs`（`DisposalRecordDetailItem` の所有層 — 同上） | 両方向 | `item.reason`（自由記述）は触らない |
+| (5) reason | `ManualSaleReason`（新設: PluUnregistered/Other） | `db/manual_sale_repo.rs`（`ManualSaleRecordDetail` の所有層 — 同上） | 両方向 | fingerprint 不変（SPEC-P41-PR2-D6） |
 | (6) source | `DailySaleSource`（新設: Auto/Manual） | `biz/sales_service.rs` | response-only | D-10 解消。`translate_source()` は enum match 化 |
 | (7) status | `CsvImportStatus`（新設: Completed/CompletedPartial/RolledBack） | `db/sales_repo.rs`（`CsvImport` の所有層。MovementType 先例に従い DB 層定義 + BIZ 再利用で layer 方向を守る） | response-only | wire 露出 2 site（`ImportResult.status` / `CsvImport.status`）共有 |
 | (8) error_type | `CsvImportErrorType`（新設: UnmatchedProduct/InvalidFormat/InvalidJan/InvalidNumber） | `biz/csv_import_service/` | response-only | IO `ParseErrorType` 3 variant + BIZ 1 値の合成、IO→wire は明示 match（32 §15） |
@@ -105,7 +107,7 @@ enum 名は bindings.ts 生成型名になるため本 packet で凍結する（
 | (10) SalesMode | 既存（`biz/sales_service.rs:19-27`）へ `serde::Deserialize` 追加 | 既存位置 | 両方向 | `get_monthly_sales(mode: SalesMode)` 直受け化、手動 match 廃止 |
 | (11) movement_type | 既存 `MovementType`（`db/inventory_repo.rs:17-25`）へ derive 追加 | 既存位置 | 両方向（request filter は `Option`） | `MovementQuery.movement_type: Option<MovementType>` / `MovementRecord.movement_type: MovementType` |
 | (12) reference_type | 既存 `ReferenceType`（`db/inventory_repo.rs:41-49`）へ derive 追加 | 既存位置 | response-only（`Option`） | REQ-303 fallback は SPEC-P41-PR2-D4 |
-| (13) tax_rate | `ProductTaxRate`（新設: Rate10/Rate8/Rate0、**explicit `#[serde(rename = "10")]` 等**） | `biz/product_service.rs` | 両方向 | 数値文字列のため rename_all では導出不能（Contract Probe 対象） |
+| (13) tax_rate | `ProductTaxRate`（新設: Rate10/Rate8/Rate0、**explicit `#[serde(rename = "10")]` 等**） | `db/product_repo.rs`（`Product` の所有層 — round C-1 P1-1） | 両方向 | 数値文字列のため rename_all では導出不能（Contract Probe 対象） |
 | (14) stock_unit | `ProductStockUnit`（新設: Pcs/Cm） | 同上 | 両方向（update request は field 自体なし） | |
 
 - 適用対象 DTO / command: `ReturnCreateRequest` / `ReturnItemInput` / `ReturnRecordSummary` / `ReturnRecordDetail(Item)`、`DisposalItemInput` / `DisposalRecordDetailItem`、`ManualSaleCreateRequest` / `ManualSaleRecordDetail`、`DailySaleItem`、`ImportResult` / `CsvImport`、`ErrorRow`、`prepare_plu_export(mode)`、`get_monthly_sales(mode)`、`MovementQuery` / `MovementRecord`、`ProductCreateRequest` / `ProductUpdateRequest` / `Product`
@@ -140,6 +142,7 @@ enum 名は bindings.ts 生成型名になるため本 packet で凍結する（
   - 45 / 73 / 74 / 23 / 24 は keyword 実測で該当なし（24 の reference_type 言及は SQL WHERE 句で型記述でない）。SPEC-P41-D5 (iv) の rg 全箇所 sweep を実装時に再実行して確定する
 - `30-biz-product-service.md:49` の二層化記述を実測事実へ是正: 「d/e の validation を guard として維持」が stock_unit の file 経路値域チェックを含意しない非対称（実在するのは tax_rate のみ）と、`ImportRow` の DTO 境界（SPEC-P41-PR2-D2）を明記
 - code comment sweep: `compute-summary.ts` D-10 comment、`db/inventory_repo.rs:5-7` の「21 では String だが」注記等、旧前提 comment の rg 全箇所追随（SPEC-P41-D5 (iv)）
+- `docs/decision-log.md` へ **D-063**（D-061 の精密 amendment — Spec Contract 節の凍結条文どおり: direction 別 derive / REQ-303 限定例外 / stock_unit file 境界の実態訂正 / F4 direction 別 oracle）を追加（round C-1 P1-2。archive の design packet は書き換えず、現行 decision が supersede する）
 
 ## Non-scope
 
@@ -155,7 +158,9 @@ enum 名は bindings.ts 生成型名になるため本 packet で凍結する（
 
 ## Acceptance Criteria
 
-- `rg -c '^export type (MovementType|ReferenceType|ProductTaxRate|ProductStockUnit|ReturnExchangeType|ReturnDirection|DisposalType|ManualSaleReason|DailySaleSource|CsvImportStatus|CsvImportErrorType|ExportMode)' src/lib/bindings.ts` → `12`（baseline 0 実測。SalesMode は既生成のため対象外、計 12 型）
+anchor 実行規約（round C-1 P3-1）: 期待値 `0` の `rg -c` は match 0 件時に出力なし + exit 1 となるため、**`rg -c --include-zero` で実行して `0` を確認する**（fail-closed shell では exit 1 を「0 件 = 達成」と誤読しないこと）。
+
+- `rg -c '^export type (MovementType|ReferenceType|ProductTaxRate|ProductStockUnit|ReturnExchangeType|ReturnDirection|DisposalType|ManualSaleReason|DailySaleSource|CsvImportStatus|CsvImportErrorType|ExportMode)' src/lib/bindings.ts` → `12`（baseline 0 実測。13 enum のうち SalesMode のみ既生成のため、新規 export は 12 型 — round C-1 P2-3 で内訳明記）
 - `rg -c 'fn parse_export_mode' src-tauri/src/cmd/plu_export_cmd.rs` → `0`（baseline 1 実測）
 - `rg -c '"by_product" => SalesMode::ByProduct' src-tauri/src/cmd/sales_cmd.rs` → `0`（baseline 1 実測、`sales_cmd.rs:58`）
 - `rg -c 'literal union 化は将来 D-10' src/features/daily-sales/lib/compute-summary.ts` → `0`（baseline 1 実測、`compute-summary.ts:14`）
@@ -206,7 +211,7 @@ enum 名は bindings.ts 生成型名になるため本 packet で凍結する（
 | 実装固有（実測 γ・δ） | 44 list_movements 節 / D-061 (c) / REQ-303 | SPEC-P41-PR2-D4 | DB 読出し変換を新設: movement_type 不明値 = 明示 match で internal（CHECK により実質到達不能）。reference_type 不明値 = None（REQ-303 の既存契約 fallback。D-061 (c) の catch-all 禁止に対する文書化された契約的例外であり、silent catch-all ではない — test `list.rs:473` が根拠。同 test は実装時に DB 読出し変換 site の新設 test へ契約ごと移設する — round 1 P2-1、Scope 参照）。REQ-303 を internal 化する案は legacy 行で一覧全体が落ちる機能退行のため棄却 | `db/inventory_repo.rs` / `biz/inventory_service/list.rs` | Matrix F5 |
 | D-061 (b) 実装 | 41 §17.6 / 42 §22.5・§125 相当節 | SPEC-P41-PR2-D5 | 手動 parse 2 site（`parse_export_mode` / sales mode match）を廃止し serde 拒否へ統一。validation 文言（「書出しモードは…」「不正な集計モードです」）は wire 契約から退役（UI 固定操作から到達不能、D-061 (b) で凍結済み）。wire shape は Contract Probe で実測 | `plu_export_cmd.rs` / `sales_cmd.rs` | Matrix F3, F4 |
 | 実装固有（fingerprint、round 4 P1-2 で 3 domain へ拡張） | 44 §23.5-23.7 / 冪等契約 | SPEC-P41-PR2-D6 / D8 (f) | 冪等 fingerprint への埋め込み値（manual_sale reason / returns return_type・direction / disposal disposal_type）は enum 化後も wire 文字列と同一 bit 列を維持する。Debug 形式等の別表現を流す実装は冪等キーの互換破壊のため禁止 — 型検査で守られない唯一の class のため 3 domain 固定値 test + mutation で防御 | `manual_sale.rs` / `returns.rs` / `disposal.rs` | Matrix F6 |
-| D-061 (a) 併存 SSOT | 21 / 44 | SPEC-P41-PR2-D7 | (11)(12) は既存 `as_str()`（DB 書込み用）と serde rename が文字列表現を二重所有する。DB 層 TEXT 書込みは `as_str()` 維持（D-061 (c) の層境界）とし、全 variant で `as_str()` == serde 出力の parity test を常設して drift を機械防御する | `db/inventory_repo.rs` | Matrix F7 |
+| D-061 (a) 併存 SSOT（round 5 / C-1 で一般化） | 21 / 44 / 33 | SPEC-P41-PR2-D7 | serde 以外で wire 文字列が必要な全消費 site（DB write / IO struct / fingerprint）は per-enum canonical 関数を一元供給とし ad-hoc 変換を禁止。既存 (11)(12) + 新設 (2)(3)(4)(5)(7)(13)(14) に全 variant parity test を常設 | `db/inventory_repo.rs` + 各 canonical 関数 | Matrix F7（parity + PLU integration） |
 | D-061 (d) 隣接 / D-10 | 56 §56.2 / 53 | D-061 (e) | `compute-summary.ts` を switch + never 網羅へ、D-10 comment 退役（56 の凍結方針どおり） | `compute-summary.ts` | Matrix F8 |
 | 実装固有（round 3 P1 の一般化、round 4/5 で 6 class 化） | D-061 (c) / test-quality 削除禁止規範 | SPEC-P41-PR2-D8 | 型変更波及を 6 class（(a) 無効値 test 移設 / (b) 正値 literal 書き換え / (c) DB・IO write 変換 / (d) DB read 明示 match / (e) doc の wire 行限定更新 / (f) fingerprint 等の非 wire 埋め込み）で処遇し rg 全数 sweep を義務化。site を列挙し尽くす方式は round 1〜3 で 3 回連続の列挙漏れを生んだため、class 原則 + 実測列挙 + sweep の三層へ転換 | Scope の実測列挙 + Writer sweep | Matrix F4, F5, F6, F9, F11 + `cargo build` |
 
@@ -216,7 +221,7 @@ enum 名は bindings.ts 生成型名になるため本 packet で凍結する（
 - Plan-only durable decisions promoted: なし。D-061 は確定済み。SPEC-P41-PR2-D1〜D7 は実装の内部詳細（ただし D2/D3 の DTO 境界・非対称事実は 30 の doc 是正として正本へ反映する）
 - Assumptions and constraints: specta が explicit `#[serde(rename = "...")]` を literal union へ反映すること（Contract Probe で実証してから本実装）。`Option<Enum>` の serde deserialize 挙動（null / 省略 / 不正 literal）は Contract Probe で実測
 - Deferred design gaps: stock_unit file guard 新設の要否（backlog 候補、Plans.md 記録）
-- Test Design Matrix can cite design decision IDs: D-061 (a)-(e) / SPEC-P41-PR2-D1〜D7
+- Test Design Matrix can cite design decision IDs: D-061 (a)-(e) / D-063 (i)-(iv) / SPEC-P41-PR2-D1〜D8
 - Absolute guarantee / escape hatch self-check: 絶対保証は新設しない。REQ-303 の legacy fallback は既存契約の維持であり新設 escape hatch ではない
 
 ## Impact Review Lenses
@@ -232,7 +237,7 @@ not applicable — 監査起源の design PR（D-061）凍結契約を実装す�
 
 Minimum design checks for business-app work:
 
-- Layer ownership: enum 定義位置は値の所有層（BIZ 5 + DB 3 + 既存 BIZ 2）。DB 層 TEXT + CHECK 不変、`CsvImportStatus` は DB 層定義 + BIZ 再利用で依存方向を守る（architecture_test が gate）
+- Layer ownership: 新設 9 enum の定義位置 = response DTO が db 層にある family（(2)(3)(4)(5)(7)(13)(14)）は当該 db repo module、BIZ 完結 family（(6)(8)）は biz（round C-1 P1-1 — `architecture_test.rs` LAYER_RULES の db→biz 禁止が根拠）。既存 4 は現位置。DB 層 TEXT + CHECK 不変
 - Backend function design: 各 family の構築 site / validation site は Scope の実測列挙どおり
 - Command / DTO / data contract: 正常値 wire 表現不変、型のみ強化。bindings 再生成 diff は型強化 + 12 型 export のみ
 - Persistence / transaction / audit impact: なし（DB 書込みは `as_str()` / TEXT のまま）
@@ -242,10 +247,12 @@ Minimum design checks for business-app work:
 
 ## Contract Probe
 
-- **family (11) nullable filter probe（PR1 rally round 1 P2-2 の凍結転記義務）**: `MovementQuery.movement_type: Option<MovementType>` の deserialize を是正仮適用状態で end-to-end 実測する — (i) `null` 明示 (ii) field 省略 (iii) 不正 literal（例 `"bogus"`）の 3 パターンで invoke し、(i)(ii) が None 相当・(iii) が拒否になることと error shape を確認する
-- **不正値拒否の wire shape（D-061 (b)、design packet から委譲された義務）**: request 側 enum family（(2)(3)(4)(5)(9)(10)(13)(14)）の代表で不正文字列を invoke し、serde deserialize 拒否の具体 shape（invoke error の形）を実測して frontend `describe-error` 既定 fallback 文言への合流を確定する。実測結果は本節へ追記し、41/42 の「serde 拒否へ統一」記述と矛盾しないことを確認する
-- **specta × explicit serde rename**: `ProductTaxRate`（`#[serde(rename = "10")]` 等）が bindings に `"10" | "8" | "0"` の literal union として生成されることを是正仮適用で実証する（rename_all 導出でない唯一の family。生成が PascalCase 等へ落ちる場合は設計へ差し戻し）
-- **`Option<Enum>` response の生成形**: `MovementRecord.reference_type: Option<ReferenceType>` が bindings で `ReferenceType | null` になることを確認する（既存 `string | null` との形状互換）
+全 probe を 2026-08-02 に worktree 隔離の是正仮適用（throwaway）で実測済み（round C-1 P1-3 の是正。仮適用状態で `cargo build` clean / `cargo test --lib` 766 passed 0 failed）:
+
+- **family (11) nullable filter probe（PR1 rally round 1 P2-2 の凍結転記義務）**: `MovementQuery.movement_type: Option<MovementType>` の serde_json deserialize を実測 → (i) `null` 明示 = `None` (ii) field 省略 = `None`（`#[serde(default)]` なしでも `Option<T>` は serde が特別扱いし default None — 省略エラーの懸念は否定された） (iii) 不正 literal `"bogus"` = 拒否（`` unknown variant `bogus`, expected one of `sale_auto`, ... ``）。frontend `useStockMovements.ts:47` は常に key を null 明示送信で省略は発生しない → 互換問題なし
+- **不正値拒否の wire shape（D-061 (b)、design packet から委譲された義務）**: `tauri::test::get_ipc_response` による実 IPC round-trip で `list_movements` へ `"movement_type": "bogus"` を invoke → `` Err(String("invalid args `query` for command `list_movements`: unknown variant `bogus`, expected one of ...")) `` を実測。**IPC 層の enum 拒否は構造化 `CmdError` を経由せず tauri 定型の生 String（`invalid args {arg} for command {cmd}: {serde error}`）で返る**。frontend は `invoke.ts:57-72` の CmdError 形状 guard に非該当 → `describeError` の fallback 既定文言へ合流（実コード確認済み）。UI 固定操作から到達不能な defense-in-depth 経路であり、41/42 の「serde 拒否へ統一」と整合。実装 PR の frontend 変更は不要（既存 fallback が受ける）が、Review Focus でこの合流の regression を確認する
+- **specta × explicit serde rename**: 仮適用で bindings 再生成 → `export type ProductTaxRate = "10" | "8" | "0";` が生成されることを実測（declare 順保持の literal union。PascalCase 落ちなし）
+- **`Option<Enum>` の生成形**: 仮適用で実測 → struct field は `MovementType | null`（型 alias 参照）、command 引数は literal union の inline 展開 + `| null`。既存 `string | null` との形状互換を確認
 
 ## Contract Coverage Ledger
 
@@ -281,7 +288,7 @@ Test Design Matrix: [test-matrices/2026-08-02-finite-ipc-enum-impl-pr2.md](test-
 
 - producer / consumer: 各 family の Rust enum（SSOT）→ generated `bindings.ts` literal union → frontend
 - wire type: 現行 snake_case string（(13) は `"10"|"8"|"0"`）と 1:1 完全一致。正常値の wire 表現不変が不変条件
-- internal type: Rust enum（新設 5 + 既存 derive 追加 4。方向別 derive は SPEC-P41-PR2-D1 の表）
+- internal type: Rust enum（新設 9 + 既存 derive 追加 4。方向別 derive は SPEC-P41-PR2-D1 の表 + D-063 (i)）
 - precision/range: 値集合は現状凍結（追加・改名なし）
 - round-trip path: request = enum 直 deserialize / response = enum 直 serialize。DB 読出しは明示 match（SPEC-P41-PR2-D4）
 - invalid input: request 側は serde deserialize 拒否へ統一（shape は Contract Probe で実測）。response-only family は受信経路なし。`ImportRow` のみ String + 既存 file 経路 validation を維持（SPEC-P41-PR2-D2）
@@ -294,6 +301,7 @@ Test Design Matrix: [test-matrices/2026-08-02-finite-ipc-enum-impl-pr2.md](test-
 - `ImportRow` 境界（D2）: enum 適用 DTO と String 維持 DTO の線引きが 30 の doc と実装で一致するか、file 由来不正値の error row 挙動が bit-for-bit 不変か
 - 冪等 fingerprint（D6、3 domain）: enum 化前後で同一入力の fingerprint が一致するか（既存 idempotency test + F6）。format!/Display 埋め込みは型検査で守られない唯一の class（D8 (f)）— returns / disposal / manual_sale の各 site で Display（または明示変換）の出力が wire 文字列と bit 一致するかを重点確認
 - validation 文言退役の範囲が D-061 (b) の凍結（wire 経路のみ）を超えていないか（file 経路 `692-702` の文言は不変）
+- IPC 層の enum 拒否（tauri 生 String、Contract Probe 実測 shape）が frontend の CmdError 形状 guard（`invoke.ts:57-72`）非該当 → `describeError` fallback へ合流する経路に regression がないか（既存挙動の維持確認のみ、frontend 変更は不要 — round C-1 P1-3 probe 帰結）
 - 既存 test assertion の enum 移行で弱体化（assert 削除・値比較の消失）がないか
 - mock drift 3 箇所の是正後、同種 drift の再注入が `tsc` で red になるか（D-061 の本来目的の実証）
 - `useStockMovements.ts:47` の変更が URL search 層（P4-2 対象外)へ波及していないか
@@ -302,11 +310,13 @@ Test Design Matrix: [test-matrices/2026-08-02-finite-ipc-enum-impl-pr2.md](test-
 
 ## Spec Contract
 
-Contract ID: D-061 (a)(b)(c)(e)（design PR で凍結、本 PR で実装） + SPEC-P41-PR2-D1〜D7（本 PR で新規確定した実装詳細）
+Contract ID: D-061 (a)(b)(c)(e)（design PR で凍結、本 PR で実装） + **D-063（D-061 の精密 amendment、本 PR で decision-log へ新設 — round C-1 P1-2）** + SPEC-P41-PR2-D1〜D8（本 PR で新規確定した実装詳細）
+
+- **D-063（D-061 amendment の凍結条文 — archive の design packet は書き換えず、decision-log の現行 decision が supersede する）**: (i) SPEC-P41-D1 の共通 derive（Serialize + Deserialize）は **direction 別へ精密化** — request を運ぶ enum は両 derive、response-only enum は Deserialize を付与しない（存在しない round-trip を偽装しない。PR1 の SPEC-P41-PR1-D1 で確立した先例の正式契約化）。(ii) D-061 (c) の「DB 読出し変換失敗は internal / catch-all 禁止」に**限定例外**を追加 — `MovementRecord.reference_type` の不明値のみ REQ-303 の既存契約（legacy 行を落とさず source なし表示、test 根拠付き）により None へ fallback する。movement_type ほか他 family は internal 維持。(iii) D-061 (2) 特記の「tax_rate / stock_unit の file 由来経路 guard 維持」は実態へ訂正 — 値域 validation が実在するのは tax_rate のみで、stock_unit は missing/空文字→INSERT 時 pcs デフォルト化・非空不正値→commit の DB CHECK 拒否という既存境界を維持する。(iv) SPEC-P41-D5 (iii) の family round-trip test は **direction 別 oracle** へ精密化 — request 系 = serialize/deserialize 両方向 + 不正値拒否、response-only = serialize 出力固定 oracle
 
 - SPEC-P41-PR2-D1: enum 名・定義位置・方向別 derive セットを Scope 表のとおり凍結する。request を運ぶ family は `Serialize + Deserialize + specta::Type` + `Debug, Clone, Copy, PartialEq, Eq`、response-only family は Deserialize を derive しない。`ProductTaxRate` のみ explicit `#[serde(rename)]`、他は `rename_all = "snake_case"`
 - SPEC-P41-PR2-D2: (13)(14) の enum 適用境界は `ProductCreateRequest` / `ProductUpdateRequest` / `Product`。`ImportRow` は String 維持（file 由来 error row 契約の保護）
-- SPEC-P41-PR2-D3: stock_unit file 経路の値域 guard は実在しない（tax_rate と非対称）。現状挙動（存在確認 + pcs デフォルト化）を維持し、30 の記述を事実へ是正する。guard 新設は backlog 候補
+- SPEC-P41-PR2-D3（round C-1 P2-2 で境界を精密化）: stock_unit file 経路の値域 guard は実在しない（tax_rate と非対称）。現状挙動 = missing / 空文字は INSERT 時のみ `"pcs"` デフォルト化、非空の不正値は preview で保持され commit の DB CHECK で拒否 — この境界を維持し、30 の記述を事実へ是正する。`ImportRow.stock_unit: Option<String>` の構造も不変。guard 新設は backlog 候補
 - SPEC-P41-PR2-D4: DB 読出し変換は明示 match。movement_type 不明値 = internal（D-061 (c)）、reference_type 不明値 = None（REQ-303 の契約的 fallback、test 根拠付き）
 - SPEC-P41-PR2-D5: 手動 parse 2 site を廃止し serde 拒否へ統一（D-061 (b) 実装）。退役する validation 文言は wire 経路のみ
 - SPEC-P41-PR2-D6（round 4 P1-2 で 3 domain へ拡張）: 冪等 fingerprint への埋め込み値は enum 化後も wire 文字列と同一 bit 列を維持する。対象 = manual_sale `reason`（`manual_sale.rs:100`）+ returns `return_type` / `direction`（`returns.rs:149-151, 156` の `format!` 埋め込み + test 内 fingerprint 複製 `returns.rs:581`）+ disposal `disposal_type`（`disposal.rs:72-75`。同 format! の `i.reason` は自由記述で String 維持のため対象外）。`{}` は Display を要求するため、wire 不一致の Display 実装でもコンパイルが通り fingerprint だけ静かに変わる — 型検査で守られない唯一の class（D8 (f)）であり、3 domain の fingerprint 固定値 test で防御する
@@ -321,9 +331,11 @@ Contract ID: D-061 (a)(b)(c)(e)（design PR で凍結、本 PR で実装） + SP
 | D-061 (b) / PR2-D5 | 手動 parse 廃止 | Matrix F3 + Probe | 退役範囲の限定 | probe 実測記録 |
 | D-061 (c) / PR2-D4 | DB 読出し明示 match | Matrix F5 | REQ-303 例外裁定 | 既存 test + F5 |
 | PR2-D2 / PR2-D3 | ImportRow 境界 + 30 是正 | Matrix F9, F11 | file 経路挙動不変 | rg token + negative test |
-| PR2-D6 | fingerprint 不変 | Matrix F6 | 冪等互換 | idempotency test |
-| PR2-D7 | as_str parity | Matrix F7 | 二重 SSOT 防御 | parity test |
-| SPEC-P41-D5 (iii)(iv) | round-trip + drift sweep | Matrix F4, F8, F9, F10 | sweep 網羅 | rg 全箇所 + tsc |
+| PR2-D6 | fingerprint 不変（3 domain） | Matrix F6 | 冪等互換 | idempotency + 固定値 test |
+| PR2-D7 | canonical 関数一元供給 + parity | Matrix F7 | 二重 SSOT 防御・PLU 税区分 | parity + integration test |
+| PR2-D8 | 6 class 別処遇 + Writer sweep | Matrix F4, F5, F6, F9, F11 | class 定義の完全性 | 実測列挙 + cargo build |
+| D-063 (i)-(iv) | decision-log 追加 + direction 別 derive / oracle | Matrix F1, F4 | D-061 との supersede 関係 | decision-log diff |
+| SPEC-P41-D5 (iii)(iv) | direction 別 oracle + drift sweep | Matrix F4, F8, F9, F10 | sweep 網羅 | rg 全箇所 + tsc |
 
 ## Data Safety
 
@@ -380,3 +392,15 @@ Contract ID: D-061 (a)(b)(c)(e)（design PR で凍結、本 PR で実装） + SP
 - P2-1（D8 の「5 class」表記が 3 箇所で (f) 新設に未追随）: **accept**。313 / Trace 211 / Ledger 264 を 6 class へ統一、Ledger の site 数も現況（write 9 / fingerprint 4）へ更新
 - reviewer が問題なしと確認: D6 3 domain 拡張の実読一致（disposal の同一 format! 内 reason 弁別含む）/ 21 新 anchor の一意性（44 の書式と衝突なし）/ D8 (f) sweep 独立再実行で fingerprint 4 site 以外の隠れ埋め込みなし（CSV export・mnt/restore の reason は別概念で除外正当）/ 実装未着手の確認
 - **Sonnet lane 収束判定**: round 5 findings も「列挙漏れ」class の反復であり、owner 裁定（2026-08-02）の rally 天井方式に基づき Sonnet lane は本 round で終了。以降は Codex cross-vendor レビュー（相互修正案方式）で別 lens の検証を行う
+
+### Cross-vendor Review round C-1（Codex GPT-5.6, owner relay, fresh clone — HEAD b90762c）
+
+- P1-1（BIZ 配置の新 enum を db 層 response DTO が参照すると db→biz 逆依存で architecture_test fail）: **accept**。Coordinator が `architecture_test.rs` LAYER_RULES（db forbidden: biz/cmd/io）と 4 DTO の db 所有を実測再現。Sonnet rally 5 round の最大の見逃し（(7) のみ同理由で db 配置にしながら水平適用を怠った）。裁定 = 6 enum（(2)(3)(4)(5)(13)(14)）を response DTO 所有の db repo module 定義へ変更（`MovementType` / (7) と同一先例、最小差分。DB row 型と BIZ response DTO の分離 + mapping 層追加案は refactor 範囲が非目的に反し棄却）。Scope 表 / Layer ownership / Ledger を改訂
+- P1-2（PR2-D1/D3/D4 と F4 が凍結 SPEC-P41-D1/D3/D5・D-061 の文言と矛盾 — 局所裁定を durable decision 化せず archive と衝突したまま）: **accept**。裁定 = **D-063**（D-061 の精密 amendment）を decision-log へ新設し、(i) direction 別 derive（PR1-D1 先例の正式契約化） (ii) REQ-303 限定例外 (iii) stock_unit file 境界の実態訂正 (iv) F4 の direction 別 oracle を supersede として凍結。archive は書き換えない。packet の Spec Contract に条文を凍結し、Scope に decision-log 追加を追加
+- P1-3（R3 必須の Contract Probe が未実施のまま plan-gate — DEV_WORKFLOW は Plan Gate 前実施 + 結果記録を要求）: **accept**。裁定 = worktree 隔離の throwaway 仮適用 probe（specta×explicit rename / Option&lt;Enum&gt; 生成形と deserialize 3 パターン / tauri invoke error shape）を即時実施し、結果を Contract Probe 節へ記録してから Plan Gate を継続（plan-approved 未付与のため phase regression は不要）
+- P2-1（parity test は canonical 関数自体のみ検証し、consumer の迂回・誤配線を kill できない）: **accept**。税率 `"8"`（SPEC-P41-D2 凍結値集合内の literal）の商品を seed し PLU bytes の税区分が `税2(内税)`（`plu_formatter.rs:295` の実測 mapping 値）になる BIZ-level integration test + consumer site mutation を F7/Y7 へ追加
+- P2-2（stock_unit の missing/空文字と非空不正値の同一視）: **accept**。実測（`product_service.rs:699-702, 859` / `schema_v1.rs:40`）で「missing/空→pcs、非空不正→DB CHECK 拒否」の境界を確認。D3 / 非目的 / F11 を分離し、structural anchor + rollback regression を追加
+- P2-3（新設 5 + 既存 4 の勘定誤り — 実勘定は新設 9 + 既存 4）: **accept**。Scope header / Boundary / Matrix F1 を統一、12 TS export = 13 enum − 既生成 SalesMode と明記
+- P2-4（D8 追加後の Contract ID / Design Audit / Trace Matrix 未同期）: **accept**。D1〜D8 + D-063 へ全同期、D7 trace 行を canonical 全 family へ更新
+- P3-1（期待 0 の `rg -c` は出力なし + exit 1 で記載期待と不一致）: **accept**。anchor 実行規約（`--include-zero`）を AC / Matrix の冒頭へ明記
+- Codex が問題なしと確認: explicit rename の型生成成立性（先例根拠）/ `Option<DailyReportSourceKind>` の `| null` 生成先例 / collect_commands 収集対象 / 型名衝突なし / record_type 除外の整合 / 全 gate baseline green（cargo test / architecture / design compliance / npm 823 test / tsc / doc-consistency）/ rally 5 round の accept 事実認識の独立再現
