@@ -46,7 +46,7 @@ Risk: R3（packet と同値）
 | C9 | F8 | diff review gate | `git diff` で test file の削除行を review。既存 assertion の削除・`skip`・`todo` 出現 0 | assertion 弱体化 | review red（機械 gate は lint の no-skip 慣行に従う） |
 | C10 | F9 | docs gate | `rg -c 'UI-11b-D11' docs/function-design/68-ui-backup-restore.md` = 2 / `rg -c 'focus-visible:ring-\[3px\]' docs/UI_TECH_STACK.md docs/function-design/52-ui-shared-layout.md` = 各 1 | anchor 消失・重複増殖 | X9: D11 行を旧 D4 のみへ戻して red |
 
-anchor 一意性の確認（Matrix anchor uniqueness 教訓）: `UI-11b-D11` は 68 内の新設 ID。`focus-visible:ring-[3px]` の docs 内出現は UI_TECH_STACK §5.4 と 52 §52.1 の各 1 箇所で、file を明示した rg -c で個別に固定する（src 内の実装出現は docs gate の対象外）。
+anchor 一意性の確認（Matrix anchor uniqueness 教訓）: `UI-11b-D11` は 68 内の新設 ID。`focus-visible:ring-[3px]` の C10 gate は UI_TECH_STACK §5.4 と 52 §52.1 の 2 file を明示 path の rg -c で個別に固定する（src 内の実装出現と、§5.4 を参照する他 doc の出現 — 74 §a11y の系統①参照 = gated amendment で旧文言 sync — は C10 の対象外）。
 
 ## State Lifecycle Matrix
 

@@ -296,7 +296,7 @@ OperationLogFilters + OperationLogTable（展開行1件） + ProductPagination
 - 行展開トリガーは詳細列のnative `<button>` とし、`aria-expanded` / `aria-controls` を持つ。Tabで到達可能、visible label / accessible nameは閉状態「詳細を表示」・開状態「詳細を閉じる」、Enter / Spaceはnative buttonのactivationで一度だけ展開トグルする。行全体clickは使わず、関連記録リンクのclickは展開toggleしない。
 - 展開行のコピー・関連記録リンクボタンも通常の Tab 順序に含める。
 - 種別・状態はラベル文字列を主情報にし、色のみに依存しない（`inventory-operator-ui` skill 準拠）。「その他（raw値）」は outline 系 Badge、既知カテゴリは stone 系ニュートラル Badge とし、色は補助のみ。
-- コントラスト・フォーカスリングは既存 shadcn/ui 既定（`ring-2 ring-ring ring-offset-2`）を継続利用する。
+- コントラスト・フォーカスリングは UI_TECH_STACK §5.4 の outcome 契約（実装系統①、shadcn/ui primitive 既定の `focus-visible:ring-[3px]` 系）を継続利用する。
 
 ---
 
