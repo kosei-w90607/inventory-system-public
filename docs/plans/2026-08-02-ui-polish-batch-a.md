@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: human-confirm
+- Phase: implementing
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: 0f66764
@@ -29,6 +29,8 @@
 2026-08-03 state-only 遷移 commit で `plan-gate -> plan-approved -> implementing` を材料化する（圧縮記録、STATECAP 1/3）。evidence = 独立 Plan Reviewer（Codex、Writer と別 vendor）が round 4 で「Plan Review PASS P1/P2=0」を報告（plan-gate→plan-approved）、`Plan Commit` = 0f66764 を設定し、plan-first 系列（350100a〜0f66764）は全実装 commit に先行する。owner が 2026-08-03 に plan を承認し実装開始を指示（介入 1 回目/予算 3 回）（plan-approved→implementing）。
 
 2026-08-03 state-only 遷移 commit で `implementing -> local-verified -> independent-review -> human-confirm` を材料化する（圧縮記録、STATECAP 2/3）。evidence = content candidate `1edf94f` の L1 full PASS / TREE CLEAN（PR #57 body に evidence SHA と log path 収録、implementing→local-verified）、Final Reviewer（Codex、fresh context）round 1 実施 + mutation 実注入 5 件 red（local-verified→independent-review）、closure round で P1/P2=0 確定・再注入 2 件 red 独立再現（independent-review→human-confirm）。P3（「9 file」表記残存）は Findings Freeze 規定の follow-up（非 blocker）だが commit `6fc3568` で closure 済み — 残 hit は Review Response 経緯記録 2 箇所のみ（rg 実測、closure 条件充足）。`Reviewed Content HEAD` = 1edf94f（Final Reviewer が監査した content commit。6fc3568 は packet 表記同期のみの gated amendment）。relay 実績 = 6/4（超過 2: Final Review round 1 と closure round。X3 survivor の是正確認に mutation 再注入の独立再現が代替不可のため。owner の relay 実施をもって承認）。Human Gate 残 = owner L3 目視（PR body 記載の 3 手順）+ Ready 承認 + merge。
+
+2026-08-03 owner L3 実施（PR #57 comment）: D11 Alert 寿命契約 / SPA 遷移・検索条件維持 / focus ring 表示は PASS。指摘 2 件 — (a) sidebar 表記「バックアップ」を画面タイトルと揃う「バックアップ・復元」へ修正要（52 §52.4 の正本記述自体が「バックアップ」のため正本 sync を伴う文言 fix）、(b)「CSV取込み #1」元記録 link が 404（`/csv-import/records/*` 詳細 route 不在。UI-06c-D7 の明示契約「未実装 route でも source.route をそのまま表示」どおりで本 change の回帰ではないと Coordinator が実証 — route file 不在 + D7 文言を実読確認。対処は backlog 起票）。(a) の code fix のため `human-confirm -> implementing` へ backtrack する。
 
 ## Owner Effort Budget
 
