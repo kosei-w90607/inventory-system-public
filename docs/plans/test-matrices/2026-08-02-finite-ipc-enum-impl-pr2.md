@@ -10,7 +10,7 @@ Risk: R3
 - F2: bindings 再生成 diff が「対象 field 型強化 + 12 型新規 export + `getMonthlySales` / `preparePluExport` シグネチャ enum 化」のみで、全 enum の wire 文字列が現行値と 1:1 完全一致する（`ProductTaxRate` の explicit rename `"10"|"8"|"0"` を含む）
 - F3: 手動 parse 2 site（`parse_export_mode` / `sales_cmd.rs:58` の mode match）が廃止され、request 側不正値は serde deserialize 拒否へ統一される（wire shape は Contract Probe 実測）
 - F4: family ごとの wire round-trip test（正常全値 + request family の不正値拒否 + family (11) nullable filter の null / 省略 / 不正 literal 3 パターン）が追加され pass する（SPEC-P41-D5 (iii) + PR1 P2-2 凍結義務）
-- F5: DB 読出し変換が明示 match で新設され、movement_type 不明値 = internal / reference_type 不明値 = None（REQ-303 契約 fallback）となり、既存 REQ-303 test（`list.rs:473` 相当）が pass し続ける
+- F5: DB 読出し変換（TEXT → enum）が明示 match で新設され、movement_type 不明値 = internal / reference_type 不明値 = None（REQ-303 契約 fallback）。reference_type 側は不明値→None を検証する新設 unit test を持ち、`list.rs` の既存 REQ-303 legacy 文字列 test（`test_resolve_movement_source_req303_unknown_reference`）は契約ごとこの新設 test へ移設される（round 1 P2-1。`resolve_movement_source` は `Option<ReferenceType>` の 6 variant 網羅 match となり wildcard を持たない）。NULL reference 系の既存 REQ-303 test（`list.rs:466-468`）は存続する
 - F6: 手動販売の冪等 fingerprint が enum 化前後で同一入力に対し bit 一致する（SPEC-P41-PR2-D6）
 - F7: `MovementType` / `ReferenceType` の全 variant で `as_str()` == serde 出力の parity test が常設される（SPEC-P41-PR2-D7）
 - F8: frontend の exhaustive 化 — `movementTypeLabels` が `Record<MovementType, string>`、`compute-summary.ts` が switch + never 網羅（D-10 comment 退役）となり、variant 増減が `tsc` で検出される
@@ -44,7 +44,7 @@ Risk: R3
 | F2 | G1, G2 | generated contract + unit | bindings 再生成後の `git diff --stat src/lib/bindings.ts` を Review で突合 + 各 family round-trip test（F4）が wire 文字列の実値を固定 | `ProductTaxRate` の explicit rename がずれる、他型に diff が混入する | Y2: `#[serde(rename = "10")]` を一時的に `"ten"` へ差し替え、round-trip test red + bindings diff 検出を確認し復元 |
 | F3 | G3 | source contract + compile | `rg -c 'fn parse_export_mode' src-tauri/src/cmd/plu_export_cmd.rs` → `0`（baseline 1 実測）+ `rg -c '"by_product" => SalesMode::ByParameter' 系 anchor → `0`（baseline 1 実測、`"by_product" => SalesMode::ByProduct`）+ file 経路 validation 文言の残存確認（`rg -c "税率は '10', '8', '0'" src-tauri/src/biz/product_service.rs` → `1` 維持） | 手動 parse が残る、または file 経路文言まで消える | Y3: 是正後の `prepare_plu_export` 引数を一時的に `mode: String` へ差し戻し、`cargo build` が型不整合で fail することを確認（bindings 由来の呼び出し契約が enum 前提のため） |
 | F4 | G4 | unit（round-trip） | 各 family の round-trip test（正常全値の serialize/deserialize + request family の不正 literal 拒否 + (11) の null / 省略 / 不正 literal 3 パターン）。test 名は実装時に `test_<family>_wire_roundtrip` 系で追加 | いずれかの値の wire 表現が変わる、不正値が素通りする | Y4: (2) の round-trip test の期待値を `Return`↔`Exchange` で交換し red を確認し復元 |
-| F5 | G5 | unit + regression | 既存 REQ-303 test（`biz/inventory_service/list.rs` の legacy/corrupt reference_type test、実在を rg で確認済み: `list.rs:473`）+ movement_type 不明値 = internal の新設 test | legacy 値で一覧が internal エラーになる（機能退行）、または明示 match が catch-all 化する | Y5: reference_type 変換の fallback（不明値→None）を一時的に internal 返却へ差し替え、REQ-303 test が red になることを確認し復元 |
+| F5 | G5 | unit + regression | reference_type 不明値→None の**新設** unit test（TEXT→enum 変換 site。`list.rs:471-476` の legacy 文字列シナリオ `test_resolve_movement_source_req303_unknown_reference` を契約ごと移設 — 実在を実読確認済み）+ movement_type 不明値 = internal の新設 test + 存続する NULL reference 系 REQ-303 test（`list.rs:466-468`、実在確認済み） | legacy 値で一覧が internal エラーになる（機能退行）、明示 match が catch-all 化する、または移設が単なる削除になり REQ-303 網羅が消える | Y5: reference_type 変換の fallback（不明値→None）を一時的に internal 返却へ差し替え、移設後の新設 REQ-303 test が red になることを確認し復元 |
 | F6 | G6 | unit（idempotency） | 既存の手動販売冪等 test（`manual_sale.rs` の fingerprint / idempotency 系、実装時に rg で実在確認）+ enum 化前後の fingerprint 固定値 test | fingerprint 入力が wire 文字列以外の表現になる | Y6: fingerprint への連結を一時的に Debug 形式（`format!("{:?}", reason)`）へ差し替え、fingerprint 固定値 test が red になることを確認し復元 |
 | F7 | G7 | unit（parity） | `MovementType` / `ReferenceType` 全 variant の `as_str()` == serde_json 出力 parity test（新設、既存 `as_str()` 全 variant test `inventory_repo.rs:322-329` を拡張） | どちらか一方の変更が他方に追随しない | Y7: `as_str()` の 1 arm（例 `SaleAuto => "sale_auto"`）を別文字列へ差し替え、parity test red を確認し復元 |
 | F8 | G8 | compile（exhaustive） | `npx tsc --noEmit` PASS + `rg -c 'literal union 化は将来 D-10' src/features/daily-sales/lib/compute-summary.ts` → `0`（baseline 1 実測） | labels の key 欠落 / switch case 欠落が素通りする | Y8: `movementTypeLabels` から 1 key を一時削除 → `tsc` red。`compute-summary.ts` の switch から 1 case を一時削除 → never 網羅で `tsc` red。各復元 |
@@ -69,6 +69,7 @@ not applicable — 本 PR は wire 型強化のみで、業務記録の作成・
 | 既 generated enum（`DailyReportDuplicateStatus` 等、rename_all なし PascalCase） | `biz/daily_report_import_service/mod.rs:97-101` / `io/daily_report_parser.rs:15-19` | 対象なし | wire 値の改名になるため是正しない（design packet で凍結済みの対象外） | diff 検査（非接触） |
 | file 由来経路の validation guard（tax_rate） | `product_service.rs:692-695`（値域チェック実在）/ `699-702`（stock_unit は存在確認のみ） | 変更なし（維持） | stock_unit への guard 新設は挙動変更のため non-scope（SPEC-P41-PR2-D3、backlog 候補） | F11 negative |
 | URL search 層の有限集合（P4-2 scope） | `src/features/stock-movements/types.ts:8-41` / `monthly-sales/types.ts:56` | 対象なし | 監査 P4-2 の別 scope。`useStockMovements.ts:47` は wire 側型整合のみ | F10 diff 検査 |
+| `InventoryRecordQuery.record_type` の独自値集合（65 §65.8.3 所有） | `db/disposal_repo.rs:246-276`（独立定数配列）/ `biz/inventory_service/list.rs` の REQ-206 validation | 対象なし | P4-1 監査対象外（audit findings に record_type 言及 0 hit を実測）。65 が `csv_import`/`stocktake` 除外を含む別契約として文書化済みで、値集合が `ReferenceType` と異なるため統合不可（round 1 P3-1 の明示除外） | diff 検査（非接触） |
 
 ## Negative Paths
 
@@ -120,7 +121,7 @@ not applicable — 本 PR は wire 型強化のみで、業務記録の作成・
 
 - いずれかの enum から 1 variant を削除したとき、参照 production コード / round-trip test / frontend exhaustive 検査のいずれかが必ず fail するか
 - `rename_all` / explicit rename を 1 箇所崩したとき、bindings diff と round-trip test の両方で検知されるか（Y1/Y2）
-- reference_type の REQ-303 fallback を internal 化したとき、既存 test が確実に red になるか（Y5）
+- reference_type の REQ-303 fallback を internal 化したとき、移設後の新設 REQ-303 test が確実に red になるか（Y5）
 - fingerprint 入力の表現を変えたとき、冪等 test が red になるか（Y6）
 - mock drift の再注入が型検査で機械的に阻止されるか（Y10 — D-061 の本来目的）
 - baseline 全量 mutation 後の oracle-only 修正は、変更 family の代表 mutation だけを再測定し、PR1 済みの CmdErrorKind 系や無変更層（mnt）の全量再実行を始めないか
