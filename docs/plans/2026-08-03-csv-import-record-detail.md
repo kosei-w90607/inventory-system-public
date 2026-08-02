@@ -75,6 +75,7 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。AC や�
 8. D-052 契約変更（C9）: `invalidation-contract.ts` の `csvImportRollback` へ **広域 prefix `queryKeys.inventoryRecords.root()` を追加**する（既存 receiving / return / manualSale / disposal mutation と同一 pattern。`csvImportDetail` が正当 consumer となるため prefix + child collateral は D-052 許容に適合し、zero-arg 署名を変えないため `invalidation-contract.meta.test.ts` / `invalidation-oracle.ts` / `useCsvImportFlow.ts` の署名追随が不要 — Plan Review round 1 P2 是正で importId 個別指定案を不採用）+ 独立転記 oracle test の追随 + production-only mutation 感度の再実測。`csvImportCommit` への追加要否も table.column 導出手順（UI_TECH_STACK §2.5）で導出し、採否と根拠を PR body に記録（rollback は `csv_imports.status` / `sale_records.is_voided` / `inventory_movements.is_voided` を確定し本 query が全て読むため追加必須。commit は既存 import 行を変更しないため過剰禁止原則との突合が必要）
 9. tests: 実装と同時に作成、`REQ-206` / `REQ-207` token 付与、`cargo run --bin generate_traceability` で 90 再生成
 10. design docs（本 plan-first commit に同乗済み）: 24 §14.13a / 32 §15.6a + 更新履歴 / 41 §17.5 + §17.9 / 65 §65.10 slice 4b + 変更履歴
+11. （gated Amendment 2、owner L3 裁定 2026-08-03 による Scope 追加）取込み画面 `ErrorRowsTable.tsx` の accordion trigger 発見性是正: 閉時 trigger を「エラー詳細を見る（N件）」、開時を「エラー詳細を閉じる（N件）」の明示的操作文言へ変更し、展開 chevron を文言隣接位置へ移動（`justify-start` 上書き）。accordion 挙動・行全体 click・keyboard focus は維持。55 §55.5 の trigger 文言規定を同期し、T17 test（閉状態の操作文言可視 / click 展開と文言切替 / 再 click で閉じる）を追加
 
 ## Non-scope
 
@@ -206,6 +207,7 @@ Minimum design checks:
 | 65 §65.3: route `/csv-import/records/$importId` | route file + generate:routes | AC5 | — |
 | Amendment 1: `csv-import.tsx` layout 化 + `csv-import/index.tsx` 移設で既存取込み画面が従来どおり `/csv-import` で描画される | route files（layout + index） | T16（runtime route test） | L3 で取込み画面到達も一瞥確認 |
 | Amendment 1: 詳細 route が layout `<Outlet />` 経由で実描画される | `csv-import.tsx` layout | T10（click 遷移後の詳細 render assert — 本 Amendment の検出元 test） | — |
+| Amendment 2: ErrorRowsTable accordion trigger の明示的操作文言（閉「エラー詳細を見る（N件）」/ 開「エラー詳細を閉じる（N件）」）+ chevron 文言隣接 + 行全体 click・keyboard focus 維持 | `ErrorRowsTable.tsx` + 55 §55.5 同期 | T17 | 再 L3（collapsed / open の発見性限定） |
 | 65 §65.5 CSV列: 表示項目（ID/日付/状態/明細数/商品情報/数量/金額/movements/rollback 状態） | `CsvImportRecordDetailPage` | T9 | L3 視認 |
 | 65 §65.6.1: status 正規化 label 表示 | 同上 | T9 / T12 | L3 視認 |
 | 65 §65.5 / TRACE-D11 同型: returnTo 検索条件保持 + 不正戻り先 fallback | route `validateSearch` + Page | T13 | — |

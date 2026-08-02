@@ -54,6 +54,7 @@ Risk: R3
 | D-052 C9 oracle | invalidation 欠落・過剰 | unit (TS、独立転記 oracle、production SSOT 非 import — 既存静的 gate 継承) | T14 csvImportRollback 新集合の順序非依存・重複検出付き完全一致 | SSOT から新規行を削る / 余分な key を足す mutant |
 | query key 直書き 0 | literal 復活 | unit (TS、既存 sweep pattern) | T15 csvImportDetail key の literal sweep | page/hook に生 key 配列を書く実装 |
 | Amendment 1: 既存 `/csv-import` 取込み画面の index route 描画 | layout 化で既存取込み画面が描画されなくなる | RTL (runtime route test) | T16 `/csv-import` 直接進入で CsvImportPage が従来どおり描画される回帰 test | index 移設漏れ・layout の Outlet 欠落 |
+| Amendment 2: ErrorRowsTable accordion の発見性（owner L3 P3 起源） | 閉時に操作部と認識できない / 開閉文言が切り替わらない / click・keyboard 操作の退行 | RTL | T17 閉状態で「エラー詳細を見る（N件）」の trigger button が可視 → click で table 展開 + 「エラー詳細を閉じる（N件）」へ切替 → 再 click で閉じる（keyboard 操作は Radix Trigger の button semantics で担保） | 文言を件数のみへ戻す・開閉切替の欠落・trigger の button role 喪失 |
 
 ## State Lifecycle Matrix
 
