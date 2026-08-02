@@ -77,7 +77,7 @@ not applicable — 本 PR は wire 型強化のみで、業務記録の作成・
 ## Negative Paths
 
 - missing input: family (11) の filter 省略 / `null` → None 相当で全件クエリ（現行挙動維持、Probe で実測）
-- invalid input: request 側 enum family の不正 literal → serde deserialize 拒否（shape は Contract Probe 実測、frontend は describe-error 既定 fallback へ合流）。UI 固定操作からは到達不能
+- invalid input: request 側 enum family の不正 literal → serde deserialize 拒否（shape は Contract Probe 実測の tauri 生 String）。生 String rejection は `typedError` → `unwrapResult`/`toCmdError` → internal `InvokeError` に正規化され、`StockMovementsPage` は固定 Alert を表示する（round C-2/C-3 P2-1）。F4 unit test で正規化を固定。UI 固定操作からは到達不能
 - duplicate/ambiguous input: 冪等キー（manual_sale / returns / disposal の 3 domain）は fingerprint 不変（F6）で既存挙動維持
 - unknown reference: DB 読出しの reference_type 不明値 → None（REQ-303、F5）。movement_type 不明値 → internal（CHECK により実質到達不能）
 - dependency missing: `cargo run --bin generate_bindings` 失敗時は commit しない
