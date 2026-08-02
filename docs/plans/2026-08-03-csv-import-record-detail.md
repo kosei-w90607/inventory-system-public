@@ -4,7 +4,7 @@ PR #57 owner L3（2026-08-03）で確認された既存不具合の是正: 在�
 
 ## Workflow State
 
-- Phase: implementing
+- Phase: human-confirm
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: d25990c
@@ -13,7 +13,7 @@ PR #57 owner L3（2026-08-03）で確認された既存不具合の是正: 在�
 - Writer: Codex (GPT-5.6、発注書駆動)
 - Plan Reviewer: Claude Sonnet 5 (independent fresh context)
 - Final Reviewer: Claude Sonnet 5 (independent fresh context) + Coordinator mutation 独立再実測
-- Reviewed Content HEAD: pending
+- Reviewed Content HEAD: e1b2158
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
 - Human Gate: L3 視認確認（在庫変動履歴 → 「CSV取込み #n」click → 詳細表示、synthetic fixture 使用）、Ready 承認
@@ -284,7 +284,14 @@ Do not transcribe exact-HEAD SHA or test counts here (D-035/D-038 Evidence Owner
 ## Review Response
 
 Fill after review.
-- Findings Freeze: not yet frozen; post-freeze exceptions: none.
+- Findings Freeze: frozen after Broad Audit（2026-08-03、Final Review 完了時点で発効）; post-freeze exceptions: none.
+
+### Final Review 記録（2026-08-03、append-only）
+
+- Sonnet 独立 fresh context の Contract Audit: Contract Coverage Ledger 22 行中 22 行が実装・test と整合（不適合 0）。Negative-space audit / State Lifecycle / Adjacent Pattern 再検証 / anti-tautology（T7・T14 の独立転記 oracle、production 定数非 import）/ Non-scope 遵守（branch 差分全 file 説明可能）/ T10 の click→pathname→command→render 実観測 / 生成物 3 種の整合を検査済み。**P1/P2 = 0、P3×1**。
+- P3-1（JAN 列）: §65.5 は全記録種別で「商品コード / JAN / 商品名 / 部門 = yes」と規定するが、既存 4 詳細を含む 5 詳細画面すべてで JAN 非表示（DTO にも field なし）。本 PR は canonical 踏襲の結果で新規 drift ではない（pre-existing systemic）。裁定 = backlog 起票（§65.5 の実態同期 or 5 画面横断の JAN 列追加を別 change で設計判断）。
+- Coordinator mutation 独立再実測: X1〜X7 の 7/7 全 red 再現（clean tree、注入→該当 test red→復元）。X7 は Writer の注入形（label 改変）と意図的に変えて route prefix 側を改変しても red — oracle の label/route 両面感度を確認。survivor 0。
+- implementing → local-verified の evidence: Writer L1 `local-ci.sh full` PASS（exact HEAD `e1b2158` / CLEAN / MERGE_EVIDENCE_VALID=true、PR #58 body 記録）。local-verified → independent-review → human-confirm の evidence: 上記 Final Review P1/P2=0 + mutation 独立再実測。
 
 ### Plan Review rally 記録（2026-08-03、append-only）
 
