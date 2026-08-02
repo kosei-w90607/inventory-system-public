@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, within } from "@testing-library/react";
+import { screen, within } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -9,6 +9,7 @@ import type {
   ReceivingRecordDetail,
   ReturnRecordDetail,
 } from "@/lib/bindings";
+import { renderWithRouter } from "@/test/render-with-router";
 import { ManualSaleRecordDetailPage } from "./ManualSaleRecordDetailPage";
 import { ReceivingRecordDetailPage } from "./ReceivingRecordDetailPage";
 import { ReturnRecordDetailPage } from "./ReturnRecordDetailPage";
@@ -29,7 +30,7 @@ function renderWithClient(ui: ReactNode) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false, gcTime: Number.POSITIVE_INFINITY } },
   });
-  return render(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>);
+  return renderWithRouter(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>);
 }
 
 function makeReceivingDetail(): ReceivingRecordDetail {

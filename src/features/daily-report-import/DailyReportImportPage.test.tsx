@@ -1,7 +1,8 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { DailyReportImportResult, DailyReportPreviewData } from "@/lib/bindings";
+import { renderWithRouter } from "@/test/render-with-router";
 import { DailyReportImportPage } from "./DailyReportImportPage";
 import { useDailyReportImportFlow } from "./hooks/useDailyReportImportFlow";
 import type { DailyReportImportState } from "./types";
@@ -94,7 +95,7 @@ afterEach(() => {
 });
 
 describe("DailyReportImportPage_req401", () => {
-  it("REQ-401: preview shows target date, totals, payment, department, and unmatched warning", () => {
+  it("REQ-401: preview shows target date, totals, payment, department, and unmatched warning", async () => {
     setFlow({
       status: "preview",
       preview: makePreview("NoDuplicate"),
@@ -102,9 +103,9 @@ describe("DailyReportImportPage_req401", () => {
       filenames: ["Z001_260321.CSV", "Z002_260321.CSV", "Z005_260321.CSV"],
     });
 
-    render(<DailyReportImportPage />);
+    renderWithRouter(<DailyReportImportPage />);
 
-    expect(screen.getByText("取込み内容")).toBeInTheDocument();
+    expect(await screen.findByText("取込み内容")).toBeInTheDocument();
     expect(screen.getByText("2026-03-21")).toBeInTheDocument();
     expect(screen.getByText("¥12,000")).toBeInTheDocument();
     expect(screen.getAllByText("¥11,000").length).toBeGreaterThan(0);
@@ -122,9 +123,9 @@ describe("DailyReportImportPage_req401", () => {
       filenames: ["Z001_260321.CSV", "Z002_260321.CSV", "Z005_260321.CSV"],
     });
 
-    render(<DailyReportImportPage />);
+    renderWithRouter(<DailyReportImportPage />);
 
-    const importButton = screen.getByRole("button", { name: "取り込む" });
+    const importButton = await screen.findByRole("button", { name: "取り込む" });
     expect(importButton).toBeDisabled();
 
     await user.click(screen.getByLabelText("同じ対象日の既存日報を取り消して上書きします"));
@@ -143,10 +144,10 @@ describe("DailyReportImportPage_req401", () => {
       filenames: ["Z001_260321.CSV", "Z002_260321.CSV", "Z005_260321.CSV"],
     });
 
-    render(<DailyReportImportPage />);
+    renderWithRouter(<DailyReportImportPage />);
 
     expect(
-      screen.getByText("この日報は取込み済みです。二重取込みはできません。"),
+      await screen.findByText("この日報は取込み済みです。二重取込みはできません。"),
     ).toBeInTheDocument();
     expect(screen.getByText("別の日報ファイルを選び直してください。")).toBeInTheDocument();
 
@@ -156,7 +157,7 @@ describe("DailyReportImportPage_req401", () => {
     expect(screen.queryByLabelText("Z001 Z002 Z005 ファイルを選び直す")).not.toBeInTheDocument();
   });
 
-  it("REQ-401: overwrite required preview shows a page-level warning alert", () => {
+  it("REQ-401: overwrite required preview shows a page-level warning alert", async () => {
     setFlow({
       status: "preview",
       preview: makePreview("OverwriteRequired"),
@@ -164,9 +165,9 @@ describe("DailyReportImportPage_req401", () => {
       filenames: ["Z001_260321.CSV", "Z002_260321.CSV", "Z005_260321.CSV"],
     });
 
-    render(<DailyReportImportPage />);
+    renderWithRouter(<DailyReportImportPage />);
 
-    expect(screen.getByText("同じ対象日の日報があります")).toBeInTheDocument();
+    expect(await screen.findByText("同じ対象日の日報があります")).toBeInTheDocument();
     expect(screen.getByText("取り込むには上書き確認にチェックしてください。")).toBeInTheDocument();
   });
 
@@ -178,9 +179,9 @@ describe("DailyReportImportPage_req401", () => {
       reportDate: "2026-03-21",
     });
 
-    render(<DailyReportImportPage />);
+    renderWithRouter(<DailyReportImportPage />);
 
-    expect(screen.getByText("日報取込み完了")).toBeInTheDocument();
+    expect(await screen.findByText("日報取込み完了")).toBeInTheDocument();
     expect(screen.getByText("在庫数は変わりません")).toBeInTheDocument();
     expect(screen.getByText("取消しても在庫数は変わりません。")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "日次売上を見る" })).toHaveAttribute(
@@ -210,8 +211,8 @@ describe("DailyReportImportPage_req401", () => {
       reportDate: "2026-03-21",
     });
 
-    render(<DailyReportImportPage />);
-    await user.click(screen.getByRole("button", { name: "取り消す" }));
+    renderWithRouter(<DailyReportImportPage />);
+    await user.click(await screen.findByRole("button", { name: "取り消す" }));
     await waitFor(() => {
       expect(screen.getByRole("alertdialog")).toBeInTheDocument();
     });
@@ -222,18 +223,25 @@ describe("DailyReportImportPage_req401", () => {
     expect(rollback).toHaveBeenCalledWith(501);
   });
 
-  it("test_daily_report_result_cta_daily_sales_date_req501", () => {
+  it("test_daily_report_result_cta_daily_sales_date_req501", async () => {
+    const user = userEvent.setup();
     setFlow({
       status: "result",
       result: makeResult(),
       reportDate: "2026-03-21",
     });
 
-    render(<DailyReportImportPage />);
+    const { router } = renderWithRouter(<DailyReportImportPage />);
 
-    expect(screen.getByRole("link", { name: "日次売上を見る" })).toHaveAttribute(
-      "href",
-      "/reports/daily?date=2026-03-21",
-    );
+    const dailySalesLink = await screen.findByRole("link", { name: "日次売上を見る" });
+    expect(dailySalesLink).toHaveAttribute("href", "/reports/daily?date=2026-03-21");
+
+    // C3/C4: href assertion だけでなく click による実 SPA 遷移を証明する
+    // (X3 mutation: static 代表を生 <a> に戻した場合に red 化する)。
+    await user.click(dailySalesLink);
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe("/reports/daily");
+    });
+    expect(router.state.location.search).toEqual({ date: "2026-03-21" });
   });
 });

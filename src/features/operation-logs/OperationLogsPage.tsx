@@ -1,6 +1,7 @@
 import { ChevronDown, ChevronUp, ScrollText } from "lucide-react";
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
 
 import { EmptyState } from "@/components/patterns/EmptyState";
 import { PageHeader } from "@/components/patterns/PageHeader";
@@ -36,12 +37,21 @@ const KNOWN_KEYS: Partial<Record<string, string>> = {
   record_id: "関連記録ID",
   record_type: "関連記録種別",
 };
-const RELATED: Partial<Record<string, string>> = {
-  receiving_record: "/inventory/receiving/records/",
-  return_record: "/inventory/return/records/",
-  manual_sale: "/inventory/manual-sale/records/",
-  disposal_record: "/inventory/disposal/records/",
-};
+// batch A packet: 型付き <Link to/params> 化のため route template を静的リテラルで保持する
+// (recordType は JSON 由来の runtime 文字列だが、対応先は frontend 所有のこの有限 map のみ)。
+const RELATED_ROUTES = {
+  receiving_record: "/inventory/receiving/records/$recordId",
+  return_record: "/inventory/return/records/$recordId",
+  manual_sale: "/inventory/manual-sale/records/$recordId",
+  disposal_record: "/inventory/disposal/records/$recordId",
+} as const satisfies Partial<Record<string, string>>;
+
+function relatedRecordRoute(
+  recordType: string | undefined,
+): (typeof RELATED_ROUTES)[keyof typeof RELATED_ROUTES] | undefined {
+  if (recordType === undefined || !(recordType in RELATED_ROUTES)) return undefined;
+  return RELATED_ROUTES[recordType as keyof typeof RELATED_ROUTES];
+}
 
 function displayValue(value: unknown) {
   if (value === null) return "null";
@@ -122,6 +132,7 @@ function Detail({ log }: { log: OperationLog }) {
     detail.parsed.record_id > 0
       ? detail.parsed.record_id
       : undefined;
+  const relatedRoute = relatedRecordRoute(recordType);
   return (
     <div className="space-y-3">
       <p className="break-words whitespace-pre-wrap">{log.summary}</p>
@@ -170,9 +181,11 @@ function Detail({ log }: { log: OperationLog }) {
           )}
         </section>
       )}
-      {recordType && recordId && RELATED[recordType] && (
+      {relatedRoute && recordId && (
         <Button asChild variant="outline" size="sm">
-          <a href={`${RELATED[recordType]}${String(recordId)}`}>関連記録を見る</a>
+          <Link to={relatedRoute} params={{ recordId: String(recordId) }}>
+            関連記録を見る
+          </Link>
         </Button>
       )}
       <details>

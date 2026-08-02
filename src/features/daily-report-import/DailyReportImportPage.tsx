@@ -1,5 +1,6 @@
 import { AlertCircle, Loader2 } from "lucide-react";
 import { useState } from "react";
+import { Link } from "@tanstack/react-router";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   AlertDialog,
@@ -294,7 +295,9 @@ function DailyReportResultStep({
           <AlertDescription>取消しても在庫数は変わりません。</AlertDescription>
         </Alert>
         <Button asChild>
-          <a href={`/reports/daily?date=${encodeURIComponent(reportDate)}`}>日次売上を見る</a>
+          <Link to="/reports/daily" search={{ date: reportDate }}>
+            日次売上を見る
+          </Link>
         </Button>
         <AlertDialog>
           <AlertDialogTrigger asChild>

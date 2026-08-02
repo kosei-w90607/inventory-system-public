@@ -7,6 +7,7 @@
 
 import type { UseQueryResult } from "@tanstack/react-query";
 import { History } from "lucide-react";
+import { Link } from "@tanstack/react-router";
 import type { StockDetail } from "@/lib/bindings";
 import { Button } from "@/components/ui/button";
 import { CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -62,13 +63,13 @@ function DetailRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-function ActiveCta({ label, href }: { label: string; href: string }) {
+function ActiveCta({ label, productCode }: { label: string; productCode: string }) {
   return (
     <Button type="button" asChild variant="outline" size="sm">
-      <a href={href}>
+      <Link to="/stock/$code/movements" params={{ code: productCode }}>
         <History aria-hidden="true" />
         {label}
-      </a>
+      </Link>
     </Button>
   );
 }
@@ -122,10 +123,7 @@ export function StockDetailContent({ query }: StockDetailContentProps) {
           </div>
           <div className="flex flex-wrap gap-2">
             <DisabledCta label="商品修正" hint="Phase 3 で実装予定" />
-            <ActiveCta
-              label="在庫変動履歴"
-              href={`/stock/${encodeURIComponent(query.data.product.product_code)}/movements`}
-            />
+            <ActiveCta label="在庫変動履歴" productCode={query.data.product.product_code} />
             <DisabledCta label="入庫記録" hint="Phase 3 で実装予定" />
           </div>
         </CardContent>

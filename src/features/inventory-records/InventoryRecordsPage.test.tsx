@@ -1,11 +1,12 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { commands } from "@/lib/bindings";
 import type { InventoryRecordSummary } from "@/lib/bindings";
+import { renderWithRouter } from "@/test/render-with-router";
 import { InventoryRecordsPage } from "./InventoryRecordsPage";
 
 vi.mock("@/lib/bindings", () => ({
@@ -22,7 +23,7 @@ function renderWithClient(ui: ReactNode) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false, gcTime: Number.POSITIVE_INFINITY } },
   });
-  return render(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>);
+  return renderWithRouter(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>);
 }
 
 function makeRecord(overrides: Partial<InventoryRecordSummary> = {}): InventoryRecordSummary {
@@ -96,8 +97,9 @@ describe("InventoryRecordsPage (REQ-206)", () => {
       status: "ok",
       data: { items: [makeRecord()], total_count: 1, page: 2, per_page: 20 },
     });
+    const user = userEvent.setup();
 
-    renderWithClient(
+    const { router } = renderWithClient(
       <InventoryRecordsPage
         search={{
           recordType: "disposal_record",
@@ -132,10 +134,22 @@ describe("InventoryRecordsPage (REQ-206)", () => {
     expect(screen.getByLabelText("状態")).toHaveValue("active");
     expect(screen.getAllByText("廃棄・破損").length).toBeGreaterThan(0);
     expect(screen.getByText("ボタン #02")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "詳細を見る" })).toHaveAttribute(
+    const detailLink = screen.getByRole("link", { name: "詳細を見る" });
+    expect(detailLink).toHaveAttribute(
       "href",
       "/inventory/disposal/records/7?returnTo=%2Finventory%2Frecords%3FrecordType%3Ddisposal_record%26dateFrom%3D2026-06-01%26dateTo%3D2026-06-30%26q%3D%25E3%2583%259C%25E3%2582%25BF%25E3%2583%25B3%26recordId%3D7%26departmentId%3D2%26status%3Dactive%26page%3D2",
     );
+
+    // C3/C4: href assertion だけでなく click による実 SPA 遷移を証明する
+    // (X3 mutation: static/runtime 代表を生 <a> に戻した場合に red 化する)。
+    await user.click(detailLink);
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe("/inventory/disposal/records/7");
+    });
+    expect(router.state.location.search).toEqual({
+      returnTo:
+        "/inventory/records?recordType=disposal_record&dateFrom=2026-06-01&dateTo=2026-06-30&q=%E3%83%9C%E3%82%BF%E3%83%B3&recordId=7&departmentId=2&status=active&page=2",
+    });
   });
 
   it("REQ-206: filter変更時はpageを1に戻す", async () => {

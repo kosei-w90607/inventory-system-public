@@ -93,6 +93,7 @@ UI は PR #141 で生成済みの `commands.*` だけを使う。
 | UI-11b-D8 | `backup_path` 変更は native directory picker のみ。自由入力は不可。現在の保存先は表示のみ。 | PR #125 の file dialog 移行前例に合わせ、WebView path 入力の誤操作を避ける。 |
 | UI-11b-D9 | `checkAutoBackup` の 60 秒 interval は frontend 未実装。UI-11b implementation PR の scope に含める。 | `src/` grep で `checkAutoBackup` 呼び出しと `setInterval` 実装が未検出。backend / binding は実装済み。 |
 | UI-11b-D10 | Windows native L3 で、手動バックアップファイル、復元によるデータ切替、復元前自動バックアップ、backup_path 変更後出力を目視確認する。double failure は自動テスト + 文言目視のみ。 | ファイル実体と DB 入れ替わりは native runtime でしか最終確認できない。 |
+| UI-11b-D11 | 復元成功の success Alert はホーム遷移後に表示する one-shot 通知とし、受け渡しは frontend の in-memory flag で行う。router / history state・URL search param は使わない。ホーム component は **mount 時に一度だけ** flag を component-local 表示 state へ取り込み（取り込みと同時に flag を消去）、**その mount 中は Alert を表示し続ける**（他 query の更新や再 render で消さない）。非表示になるのは unmount 後の再訪・reload・アプリ再起動・通常到達（flag なし）のみ。React StrictMode の二重 mount でも表示される Alert は 1 個。navigate が reject された場合は flag を消去し、次回ホーム到達で誤表示しない。復元失敗時は flag を set しない。 | history.state 経由は reload / 履歴再訪で残存し one-shot 性の証明が実装依存になる。in-memory は消滅が構造的に保証される。render 中の module read で consume する実装は StrictMode の discard render が flag を消費し Alert 不可視になり得るため、mount 時取り込み + mount 中表示維持を契約とする（表示寿命を規定しないと PR #144 L3「toast 見落とし」問題を再生産する）。D4 / F6 の「遷移先で success Alert」契約の実装機構を固定する。 |
 
 ## 68.6 Route / Components
 
@@ -117,7 +118,7 @@ UI は PR #141 で生成済みの `commands.*` だけを使う。
 | `pre_backup_failed` | 事前バックアップ失敗 | `restore_confirm` / `restore_detail` | break-glass checkbox を表示。checkbox 未チェックでは進行不可。 |
 | `restore_confirm` | 最終 AlertDialog | `restoring` / `restore_detail` | 「元に戻せません」と日時を再掲。実行ボタンに日時を含める。 |
 | `restoring` | `restoreBackup` | `restore_succeeded` / `restore_failed_recovered` / `restore_failed_unrecoverable` | 画面内操作を disabled。 |
-| `restore_succeeded` | CMD が Ok を返す | home route | Query cache を `clear` し、ホームへ遷移して success Alert。 |
+| `restore_succeeded` | CMD が Ok を返す | home route | Query cache を `clear` し、ホームへ遷移して success Alert（one-shot、UI-11b-D11）。 |
 | `restore_failed_recovered` | CMD が **recoverable 分類**の Err を返す（DB 接続再確立済み） | `ready` | 復元失敗を表示し、一覧を再取得して再試行可能にする。 |
 | `restore_failed_unrecoverable` | CMD が **unrecoverable 分類**の Err を返す | terminal | DSR-03 上部帯の full-page destructive Alert、全操作 disabled、「アプリを閉じて、もう一度開いてください」。 |
 

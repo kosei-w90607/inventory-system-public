@@ -1,10 +1,11 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { commands } from "@/lib/bindings";
 import type { DisposalRecordDetail } from "@/lib/bindings";
+import { renderWithRouter } from "@/test/render-with-router";
 import { DisposalRecordDetailPage } from "./DisposalRecordDetailPage";
 
 vi.mock("@/lib/bindings", () => ({
@@ -19,7 +20,7 @@ function renderWithClient(ui: ReactNode) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false, gcTime: Number.POSITIVE_INFINITY } },
   });
-  return render(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>);
+  return renderWithRouter(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>);
 }
 
 function makeDetail(overrides: Partial<DisposalRecordDetail> = {}): DisposalRecordDetail {

@@ -1,10 +1,11 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { startTransition, Suspense, use, useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { commands } from "@/lib/bindings";
+import { renderWithRouter } from "@/test/render-with-router";
 import { OperationLogsPage } from "./OperationLogsPage";
 import * as operationLogTypes from "./types";
 import { normalizeOperationLogsSearch, type OperationLogsSearch } from "./types";
@@ -19,7 +20,7 @@ type SearchChange = (updater: (previous: OperationLogsSearch) => OperationLogsSe
 
 function renderPage(search: OperationLogsSearch = {}, onSearchChange = vi.fn<SearchChange>()) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  render(
+  renderWithRouter(
     <QueryClientProvider client={client}>
       <OperationLogsPage search={search} onSearchChange={onSearchChange} />
     </QueryClientProvider>,
@@ -40,7 +41,7 @@ function renderStatefulPage(initialSearch: OperationLogsSearch = {}) {
       />
     );
   }
-  render(
+  renderWithRouter(
     <QueryClientProvider client={client}>
       <StatefulPage />
     </QueryClientProvider>,
@@ -378,7 +379,7 @@ describe("UI-11c REQ-902", () => {
       status: "ok",
       data: { items: [log()], total_count: 45, page: 3, per_page: 20 },
     });
-    render(
+    renderWithRouter(
       <QueryClientProvider client={client}>
         <Suspense>
           <ConcurrentPage />

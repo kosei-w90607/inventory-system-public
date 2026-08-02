@@ -48,6 +48,10 @@ import {
 import { describeError } from "@/lib/describe-error";
 import { isInvokeError, unwrapResult } from "@/lib/invoke";
 import { queryKeys } from "@/lib/query-keys";
+import {
+  clearRestoreSuccessPending,
+  setRestoreSuccessPending,
+} from "@/lib/restore-success-notification";
 import { open } from "@tauri-apps/plugin-dialog";
 
 const BACKUP_SETTING_KEYS = new Set([
@@ -292,8 +296,20 @@ export function BackupRestorePage() {
         cmd: "restore_backup",
       });
       queryClient.clear();
-      toast.success("バックアップから復元しました");
-      void navigate({ to: "/" });
+      // UI-11b-D11: 遷移先ホームで success Alert を表示する in-memory one-shot flag。
+      // navigate が reject された場合は次回到達での誤表示を防ぐため flag を消去する
+      // (復元自体は成功しているため、navigate 失敗を復元失敗 UI へは伝播させない)。
+      setRestoreSuccessPending();
+      try {
+        await navigate({ to: "/" });
+      } catch (navigateError) {
+        clearRestoreSuccessPending();
+        console.warn("復元成功後のホーム遷移に失敗しました:", navigateError);
+        // navigate 失敗時は home Alert が出せないため、成功 feedback が operator に
+        // 一切届かなくなる（無通知への劣化）のを避けるフォールバックとしてのみ toast を出す。
+        // primary path（navigate 成功時）は home Alert に一本化し、二重通知にしない。
+        toast.success("バックアップから復元しました");
+      }
     } catch (error) {
       const kind = restoreErrorKind(error);
       setRestoreFailureErrorId(restoreErrorId(error));

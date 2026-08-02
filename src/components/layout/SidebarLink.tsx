@@ -11,6 +11,11 @@ interface SidebarLinkProps {
 const baseClass =
   "flex items-center gap-2 rounded-md border border-transparent px-2 py-1.5 text-sm transition-colors";
 
+// UI_TECH_STACK.md §5.4 系統① focus ring（52 §52.1 規定）。focusable な link（active /
+// inactive）のみに適用し、pending の tabIndex={-1} span には付与しない（batch A packet、2026-08-03）。
+const focusRingClass =
+  "focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50";
+
 const inactiveClass = cn("text-foreground hover:bg-stone-200/60", "[&_svg]:text-stone-500");
 
 interface ActiveMatchSidebarLinkProps {
@@ -37,6 +42,7 @@ function ActiveMatchSidebarLink({ item }: ActiveMatchSidebarLinkProps) {
       {...linkProps}
       className={cn(
         baseClass,
+        focusRingClass,
         isActive ? cn(SELECTION_TONE_ACTIVE, SELECTION_TONE_ACTIVE_ICON) : inactiveClass,
       )}
       aria-current={isActive ? "page" : undefined}
@@ -84,7 +90,7 @@ export function SidebarLink({ item }: SidebarLinkProps) {
       to={item.to}
       {...(item.search === undefined ? {} : { search: item.search })}
       activeOptions={{ exact: true, includeSearch: false }}
-      className={baseClass}
+      className={cn(baseClass, focusRingClass)}
       activeProps={{
         className: cn(SELECTION_TONE_ACTIVE, SELECTION_TONE_ACTIVE_ICON),
       }}
