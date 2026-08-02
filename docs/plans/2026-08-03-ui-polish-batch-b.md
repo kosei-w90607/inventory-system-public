@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: plan-gate
+- Phase: design
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: pending
@@ -21,6 +21,8 @@
 2026-08-03 Codex Plan Review round 1 = FAIL（P1=5 / P2=6 / P3=0、全件 accept、裁定詳細は Review Response 参照）。P1-1（EmptyState 全 site の Adjacent Pattern Audit 未完了 + ProductList の manifest 漏れ）/ P1-2（範囲外 page 挙動の規定欠落と「50 §50.4 clamp 慣行」の事実誤認）/ P1-3（部門候補 truncate の Non-scope 化が DSR-10 違反を増幅）/ P1-4（SCREEN_DESIGN / UI_TECH_STACK が Required Design Artifacts から欠落）は design 出力の改訂を要するため、最早影響 phase = design へ backtrack する（`plan-gate -> design`）。
 
 2026-08-03 round 1 是正 content commit で `design -> plan-draft -> plan-gate` を再材料化する。evidence = round 1 の design 出力を source docs へ反映（02 ⑥ 分類軸 + 既存 action 共存規定 + 6 site 化 / 02 ⑭ の behavior・API 縮退 / 58 UI-06a-D2 = listDepartments 部門候補 + UI-06a-D3 = 範囲外 page 回復 + `title=` 是正 / 59 の D-050 準拠化 + re-export ファイル別方式 / 50 §50.7 共存反映 / 74 の 6 site 化 / SCREEN_DESIGN 対象画面反映 / UI_TECH_STACK §6.5.4 責務分離、同一 plan-first change 内 — design→plan-draft）、packet の Scope 全数分類表・SPEC-UIBB-8/9・AC9/AC10・Boundary 是正と Matrix の site 別 tuple・一意 oracle 化を完成・commit（plan-draft→plan-gate）。`doc-consistency-check --target plan` 全チェック通過。
+
+2026-08-03 Codex Plan Review round 2 = FAIL（P1=1 / P2=6 / P3=1、全件 accept、round 1 closure 判定 = closed 6 / not closed 5、裁定詳細は Review Response 参照）。P1-1（UI-06a-D2 が query 宣言のみで hook return / DepartmentFilter props へ未結線 = round 1 P1-3 not closed）は 58 の design 出力改訂を要し、P2-1（stocktake の `page` 実在を分類表・73 が欠落）/ P2-2（daily-sales が reset 軸と除外軸の両方に該当 = 分類軸の排他性欠落）/ P2-4（FilePicker behavior/API 正本の分裂残存 + DSR-14 の将来形記述）も design 出力の改訂を要するため、最早影響 phase = design へ backtrack する（`plan-gate -> design`。直前 backtrack `dc91ed7` とは content commit `bb5857f` を挟み隣接しない）。
 
 ## Owner Effort Budget
 
@@ -340,3 +342,18 @@ Coordinator 裁定（全件、採否前に引用 file:line を実読して裏取
 | P2-4 採用数の実測説明誤り（D-050） | accept | 数値断定を撤去し、canonical source と正確な検索式の参照へ置換 |
 | P2-5 58 疑似コードの `message=` prop 不一致 | accept | `title=` へ是正（既存 58 記述由来の drift、本 change で解消） |
 | P2-6 Goal「一覧表示に戻れる」の契約不一致 | accept | 「各画面の既定状態へ回復（在庫照会は検索前 placeholder へ戻る）」へ修正 |
+
+### Codex Plan Review round 2（2026-08-03、FAIL P1=1 / P2=6 / P3=1、round 1 closure = closed 6 / not closed 5）
+
+Coordinator 裁定（全件、採否前に引用 file:line を実読して裏取り済み）:
+
+| Finding | 裁定 | 裏取りと対処方針 |
+|---|---|---|
+| P1-1 UI-06a-D2 の結線空洞（hook return / props 未接続） | accept | 58 の return 行と `value=` prop（canonical 契約外）を実読確認。hook が `departmentOptions` + loading / error 状態を返し、Page が canonical props（options / selected / onChange / disabled）で結線する形へ 58 を改訂。候補取得失敗文言と一覧 query 独立、`queryKeys.stockInquiry.departmentOptions()` 無引数化を明示 target 化、Boundary へ `Department[]` → `DepartmentOption[]` 伝播を追記 |
+| P2-1 stocktake の page 欠落 | accept | `stocktake/types.ts` の `page?: number` と `StocktakePage` の page=1 復帰実装を実読確認（Coordinator の検分漏れ）。分類表 tuple / 73 §73.6 / Matrix / SCREEN_DESIGN に page=1 を追加し、page assert を 6 site 全数へ |
+| P2-2 daily-sales の分類軸重複 | accept | `DailySalesPage` の DepartmentFilter 実装を実読確認。優先規則を明文化して除外を維持: 対象選択条件（「すべて」という既定値を持たない必須の主キー = 日報の日付・月報の月）を持つレポート画面は、副次絞り込みがあっても reset 対象外。理由 = reset 統一契約は「全絞り込み条件の既定復帰」だが、対象選択は既定復帰の対象になり得ず、副次絞り込みだけ戻す部分 reset を許すと同じボタン文言で site ごとに挙動が変わる。部分 reset（「部門の絞り込みを解除」等の別文言）は要望発生時に別 change で再評価 |
+| P2-3 SPEC-UIBB-9 oracle の query-key mutant 素通し | accept | status を 4 条件目として契約・AC・Ledger・Matrix に追加。同一 QueryClient 上で `listDepartments` call count = 1 の assert と、`queryKeys.stockInquiry.departmentOptions()` 無引数・一定 key の unit test を追加 |
+| P2-4 FilePicker 正本分裂の残存 + 将来形記述 | accept | 02 ⑭ の onError フォールバック記述（behavior）残存と、§6.5.4 に props 契約（dropEnabled 等）がないこと、UI_TECH_STACK / DSR-14 の「暫定例外・移行予定」将来形を実読確認。§6.5.4 へ API 契約を集約、02 は visual に限定、59 / SPEC-UIBB-7 の Do/Don't 帰属を visual 限定へ、移行記述を完了形へ同期 |
+| P2-5 Plans.md active dashboard の逆記述 | accept | 「次の行動」行の「5 site」と後回し Backlog の「未実装・いつかまとめて」行を実読確認。現行契約（6 site + 除外 19）へ同期し、backlog 行は batch B 昇格として取り消し線 + active packet link 化。FilePicker backlog 記述も完了記録と同期 |
+| P2-6 数値主張の scope 不一致（Risk 5 画面 / import 8 file） | accept | Risk 節を 6 画面の実態へ更新。「import 8 file」は判断理由が件数に依存しないため件数を削除（D-050 の volatile count 回避） |
+| P3-1 Design Readiness の SPEC 範囲 stale | accept | SPEC-UIBB-1〜9 へ更新 |
