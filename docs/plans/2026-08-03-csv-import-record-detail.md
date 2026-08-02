@@ -286,6 +286,6 @@ Fill after review.
 
 ### Plan Review rally 記録（2026-08-03、append-only）
 
-- round 1（Claude Sonnet 5 独立 fresh context、D-062 (c) 編成）: P1×1（`resolve_movement_source` が private `mod list` 経由で sibling module から unreachable — compile blocker かつ「複製 drift」誘発）/ P2×2（`lib.rs` 登録は collect_commands + invoke_handler の 2 箇所で Ledger は 1 箇所のみ / D-052 C9 の invalidate 粒度未確定で cascading Ledger 漏れ）/ P3×1（D-061 Trace 行の status・error_type 層帰属の一括り記述が不正確）。Coordinator が P1 の module 可視性主張を `inventory_service/mod.rs` 実読で独立裏取りし（`pub(crate) use common::apply_stock_change` の同型前例も確認）、全 4 件 accept。是正 commit `d25990c`。
+- round 1（Claude Sonnet 5 独立 fresh context、D-062 (c) 編成）: P1×1（`resolve_movement_source` が private `mod list` 経由で sibling module から unreachable — compile blocker かつ「複製 drift」誘発）/ P2×2（`lib.rs` 登録は collect_commands + invoke_handler の 2 箇所で Ledger は 1 箇所のみ / D-052 C9 の invalidate 粒度を特定しておらず cascading Ledger 漏れ）/ P3×1（D-061 Trace 行の status・error_type 層帰属の一括り記述が不正確）。Coordinator が P1 の module 可視性主張を `inventory_service/mod.rs` 実読で独立裏取りし（`pub(crate) use common::apply_stock_change` の同型前例も確認）、全 4 件 accept。是正 commit `d25990c`。
 - round 2 closure（別 Sonnet fresh context）: 4/4 CLOSED（各是正の技術的正確さを実コード実読で検証、`useCsvImportFlow.ts` zero-arg 呼出しの署名不変主張も確認）、是正差分起因の新規 findings 0。P1/P2 残 0。
 - plan-gate → plan-approved → implementing の materialize evidence: 上記 P1/P2=0、plan-first commit `4854e3a`（+ rally 是正 `d25990c`）が全実装 commit に先行、Writer は Codex（発注書駆動、実装 commit 未作成）。
