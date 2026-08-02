@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: human-confirm
+- Phase: ready-hosted-final
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: 0f66764
@@ -34,11 +34,15 @@
 
 2026-08-03 state-only 遷移 commit で `implementing -> local-verified -> independent-review -> human-confirm` を再材料化する（STATECAP 3/3）。evidence = 是正 content commit `0c1f050`（navigation label + 52 正本 2 行 sync + 404 backlog 起票）の L1 full PASS / TREE CLEAN（implementing→local-verified）。Review-only skipped because: 是正は label literal 1 語と正本表記 2 行の同期のみで契約面（IPC / route / state / Ledger 行）に触れず、Coordinator が rg 残存 0・targeted test 24 pass・L1 full で機械検証済み。relay 予算超過 2 の現況で追加 relay に見合う監査面がない（local-verified→independent-review、Review Rules の R3 skip 記録）。新規 findings なし P1/P2=0 維持（independent-review→human-confirm）。`Reviewed Content HEAD` は Final Reviewer が実監査した `1edf94f` のまま維持し、`0c1f050` は上記 skip 記録に基づく post-review correction として本記録で追跡する。Human Gate 残 = owner の sidebar 表記再確認（L3 差分確認のみ）+ Ready 承認 + merge。
 
+2026-08-03 owner が sidebar 表記「バックアップ・復元」を L3 再確認 pass とし Ready を承認（介入 3 回目/予算 3 回、budget 内で完了）。state-only 遷移 commit で `human-confirm -> ready-hosted-final` を材料化する。この commit の resulting exact HEAD で L1 full を実行し PR body を更新、owner の Ready 化 → hosted 三点一致 → merge へ進む。
+
 ## Owner Effort Budget
 
 - 介入回数上限: 3（plan 承認 / L3 目視 + Ready 承認 / merge）
 - 実働時間上限: 30分
 - relay 往復上限: 4（Plan Review round 1〜3 で 3/4 消化。残 1 = Final Review。round 4 closure confirmation を挟む場合は 5/4 の超過 1 となるため、超過をここに明示し owner の relay 実施をもって承認と扱う）
+
+実績（2026-08-03 Ready 承認時点の確定値）: 介入 3/3（plan 承認 / L3 目視 / 表記再確認 + Ready 承認）、relay 6/4（Plan Review 4 round + Final Review round 1 + closure round。超過 2 の承認経緯は Workflow State 遷移記録参照）。本実績記録と ready-hosted-final 遷移を載せる本 commit は STATECAP 上限（forward state-only 3 本消化済み）のため content commit として作成する gated amendment であり、tracked file は自身の SHA を持てない（D-035）ため本 commit の SHA は PR body の Amendments 補記で追跡する。
 
 承認依頼フォーマット: `この change での介入 N 回目 / 予算 M 回` + `承認すると利用者から見て何が完了するか1文`。
 
