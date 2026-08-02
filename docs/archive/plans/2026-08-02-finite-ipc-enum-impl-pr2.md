@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: ready-hosted-final
+- Phase: archive
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: ecbe64c870011021605b844d294a211550093593
@@ -14,7 +14,12 @@
 - Reviewed Content HEAD: 8ba6082c5a877e247e4cccd818d2071fb23018ab
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
-- Human Gate: pending
+- Human Gate: none（完了: owner 委任「承認するよ」（Ready 承認 + 後処理委任、介入 2/4）に基づき Coordinator が Ready + squash merge + closeout を実行。L3 項目なし — Impact Review Lenses not applicable）
+
+### 遷移圧縮記録（ready-hosted-final -> merge -> archive、archive commit で実体化）
+
+- ready-hosted-final -> merge: 最終 local full = 遷移 state-only commit 後の exact HEAD で RESULT=PASS / END_TREE_STATE=CLEAN / MERGE_EVIDENCE_VALID=true（npm-audit は既存依存の warn-only のみ）。hosted = ready_for_review trigger の run `30750386768` success（headSha 三点一致、初回 green）
+- merge -> archive: owner 委任に基づき Coordinator が Ready 化 + squash merge（PR #56）を実行し、本 commit で packet / Matrix を archive へ移動、Plans.md 完了転記（監査是正 22 単位の全消化）を実施
 
 ### 遷移記録（implementing -> local-verified -> independent-review -> human-confirm、本 content commit に相乗り）
 
