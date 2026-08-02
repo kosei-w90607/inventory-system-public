@@ -7,6 +7,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { commands } from "@/lib/bindings";
 import type { CmdErrorKind } from "@/lib/bindings";
 import { open } from "@tauri-apps/plugin-dialog";
+import {
+  clearRestoreSuccessPending,
+  consumeRestoreSuccessPending,
+} from "@/lib/restore-success-notification";
 import { BackupRestorePage } from "./BackupRestorePage";
 
 const mockNavigate = vi.fn();
@@ -129,6 +133,7 @@ beforeEach(() => {
   mockRestoreBackup.mockReset();
   mockOpen.mockReset();
   mockDefaultCommands();
+  clearRestoreSuccessPending();
 });
 
 afterEach(() => {
@@ -295,6 +300,36 @@ describe("BackupRestorePage (UI-11b / QR-05 / REQ-905)", () => {
       expect(clearSpy).toHaveBeenCalled();
     });
     expect(mockNavigate).toHaveBeenCalledWith({ to: "/" });
+  });
+
+  it("test_ui11b_d11_sets_restore_success_pending_flag_before_navigate", async () => {
+    const user = userEvent.setup();
+    renderWithClient(<BackupRestorePage />);
+
+    await startRestoreConfirmation(user);
+    await user.click(screen.getByRole("button", { name: "7月3日 21:00 の控えに戻す" }));
+
+    await waitFor(() => {
+      expect(mockNavigate).toHaveBeenCalledWith({ to: "/" });
+    });
+    // producer が flag を set 済みであることを consumer 相当の consume で確認する
+    // (このテストの consume 自体が flag を消費するため、本 assertion が最終確認)。
+    expect(consumeRestoreSuccessPending()).toBe(true);
+  });
+
+  it("test_ui11b_d11_clears_restore_success_pending_flag_when_navigate_rejects", async () => {
+    const user = userEvent.setup();
+    mockNavigate.mockRejectedValueOnce(new Error("synthetic navigate rejection"));
+    renderWithClient(<BackupRestorePage />);
+
+    await startRestoreConfirmation(user);
+    await user.click(screen.getByRole("button", { name: "7月3日 21:00 の控えに戻す" }));
+
+    await waitFor(() => {
+      expect(mockNavigate).toHaveBeenCalledWith({ to: "/" });
+    });
+    // navigate reject 後は次回到達での誤表示を防ぐため flag が消去されている。
+    expect(consumeRestoreSuccessPending()).toBe(false);
   });
 
   it("QR-05 REQ-905 shows created backup file path after manual backup", async () => {
