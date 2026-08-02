@@ -277,7 +277,7 @@ Contract ID: SPEC-UI06C-CSV-DETAIL-2026-08-03
 
 ## Implementation Results
 
-Fill after implementation.
+IO / BIZ / CMD の `get_csv_import_record`、generated bindings、CSV取込み詳細 route / Page、rollback invalidation、T1-T16 を実装した。gated Amendment 1 に従って CSV取込み画面を layout + index route へ再構成し、詳細 link の runtime 遷移と既存 `/csv-import` 直接進入を両方固定した。生成物 3 種の drift 確認、L1 full、X1-X7 実注入を完了し、Draft PR [#58](https://github.com/kosei-w90607/inventory-system-public/pull/58) を作成した。独立 Final Review と Windows native L3 は pending。
 
 Do not transcribe exact-HEAD SHA or test counts here (D-035/D-038 Evidence Ownership). Record a qualitative summary and the PR link only.
 
