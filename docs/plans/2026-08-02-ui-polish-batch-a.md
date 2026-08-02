@@ -73,13 +73,13 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 
 ## Scope
 
-- `src/components/layout/SidebarLink.tsx` の link class へ、UI_TECH_STACK.md §5.4（本 change で実装標準へ同期済み）の focus ring パターン `focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50` を追加する。active / inactive / pending の 3 状態の既存表示を壊さない
+- `src/components/layout/SidebarLink.tsx` の focusable な link（active / inactive）へ、UI_TECH_STACK.md §5.4 系統①の focus ring `focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50` を追加する（52 §52.1 の規定どおり。pending は `tabIndex={-1}` で focus 対象外）。active / inactive / pending の既存表示を壊さない
 - src/ 配下の internal 遷移の生 `<a href>` 全 19 箇所（10 file）を TanStack Router `<Link>` へ統一する。2 群に分けて扱う:
   - **static 群（9 箇所）**: 遷移先が compile-time に決まる箇所。型付き `to` / `search` へ完全移行
   - **runtime 群（10 箇所）**: `returnTo` / `InventoryRecordSummary.detail_route` / `MovementSourceLink.route` 等の runtime 文字列由来。`<Link to={string}>` で SPA 遷移のみ保証し、compile-time typed navigation は主張しない（Plan Review round 1 P2-2 の選択肢②を採用）
   - `sourceHref()` / `buildDetailHref()` 等の href 組み立て helper は `<Link>` props へ渡せる形へ追随変更する（DTO は不変）
 - `src/features/backup-restore/BackupRestorePage.tsx` の復元成功時（現状 `toast.success` + `navigate({ to: "/" })`）を、UI-11b-D11 の in-memory one-shot flag 機構でホーム遷移後の success Alert 表示へ是正する
-- 設計正本 sync（本 plan-first change 内で実施済み）: 68-ui-backup-restore.md へ UI-11b-D11 新設 + §68.7 `restore_succeeded` 行へ D11 参照付記、UI_TECH_STACK.md §5.4 を実装標準へ同期
+- 設計正本 sync（本 plan-first change 内で実施済み）: 68-ui-backup-restore.md へ UI-11b-D11 新設（round 2 で mount 中表示維持の寿命契約へ改訂）+ §68.7 `restore_succeeded` 行へ D11 参照付記、UI_TECH_STACK.md §5.4 を outcome 契約 + 実装 2 系統（shadcn primitive / SidebarLink 系統①、catalog 規定の date・month input 等 系統②）へ改訂、52 §52.1 SidebarLink 行へ focus ring 規定追加（pending は focus 対象外）
 - 上記の test 追随（既存 test の削除・無効化なし）。Affected Surfaces 節の 9 test file を含む
 
 ## Non-scope
@@ -113,18 +113,18 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 
 - 生 `<a href>` 検証: `rg -U --count-matches '<a\s+[^>]*href=' src --glob '*.tsx' --glob '!*.test.tsx'` が 0 件（変更前 baseline と変更後 0 件の実出力は D-038 Evidence Ownership に従い PR body へ収録し、本 packet には転記しない）
 - sidebar link の class に `focus-visible:ring-[3px]` literal が含まれる（Matrix C1 の RTL class assertion が `npm test` で green + L3 で Tab 移動視認）
-- 復元成功 flow の統合テスト（実 Router + memory history で producer `BackupRestorePage` → consumer ホーム画面を結線）が green: 成功 → ホーム遷移 → Alert 表示 → consume 後の再訪・再 mount で非表示
-- one-shot negative: Matrix C6 / C7 / C8 の negative test が `npm test` で green（通常到達 flag なしで Alert 非表示 / 復元失敗時に flag 非生成・Alert 非表示 / store reset 後に非表示）
+- 復元成功 flow の統合テスト（実 Router + memory history で producer `BackupRestorePage` → consumer ホーム画面を結線、StrictMode 相当の二重 mount 条件を含む）が green: ①Alert が 1 個表示 ②同一 mount 中の通常 re-render 後も表示継続 ③unmount / remount・再訪・store reset 後は非表示
+- one-shot negative: Matrix C6 / C7 / C8 の negative test が `npm test` で green（通常到達 flag なしで Alert 非表示 / 復元失敗後に実 Router で通常ホーム遷移しても Alert 非表示・flag 非生成 / navigate reject 時の flag 消去）
 - `npm run lint` / `npm run typecheck` / `npm test` / L1 `local-ci.sh full` CLEAN（evidence は PR body へ）
 - 既存 test suite green（既知の `ProductListPage.test.tsx` timing flake は本 change 無関係の既知事象として扱い、顕在化時は単独実行 pass を PR body に記録）
 
 ## Design Sources
 
 - Requirements / spec: 既存画面の requirement 変更なし
-- Architecture: [UI_TECH_STACK.md](../UI_TECH_STACK.md) §5.4（focus ring 実装標準、本 change で同期）、TanStack Router / Sonner 技術選定
+- Architecture: [UI_TECH_STACK.md](../UI_TECH_STACK.md) §5.4（focus 可視性の outcome 契約 + 実装 2 系統、本 change で改訂）、[design-system/02-component-catalog.md](../design-system/02-component-catalog.md)（系統②: date / month input 等の `focus-visible:ring-2` 規定、632・646 行）、TanStack Router / Sonner 技術選定
 - Function / command / DTO: 変更なし（IPC 不変。`bindings.ts` の `detail_route` / `MovementSourceLink` は読み取りのみ）
 - DB: 変更なし
-- Screen / UI: [function-design/68-ui-backup-restore.md](../function-design/68-ui-backup-restore.md)（UI-11b-F6 / D4 / **D11（本 change 新設）** / §68.7 状態遷移表 / §68.10）、[function-design/52-ui-shared-layout.md](../function-design/52-ui-shared-layout.md)（sidebar）
+- Screen / UI: [function-design/68-ui-backup-restore.md](../function-design/68-ui-backup-restore.md)（UI-11b-F6 / D4 / **D11（本 change 新設、mount 中表示維持の寿命契約）** / §68.7 状態遷移表 / §68.10）、[function-design/52-ui-shared-layout.md](../function-design/52-ui-shared-layout.md)（§52.1 SidebarLink 行の focus ring 規定 = 本 change 追加、UI-12-D1 active 判定契約）
 - Decision log / ADR: 変更なし（D11 は 68 内の design decision として記録）
 
 ## Required Design Artifacts
@@ -134,9 +134,9 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 | Backend function / command / repository / validation / error | 該当なし | 該当なし |
 | Command / DTO / generated binding / wire shape | 該当なし（読み取りのみ） | 該当なし |
 | DB / transaction / audit / rollback / migration | 該当なし | 該当なし |
-| Screen / UI / route state / Japanese wording | 68-ui-backup-restore.md UI-11b-D11 | updated in this PR（one-shot 通知契約を新設） |
+| Screen / UI / route state / Japanese wording | 68-ui-backup-restore.md UI-11b-D11 / 52 §52.1 SidebarLink focus ring 規定 | updated in this PR（one-shot 通知の寿命契約 + SidebarLink focus 規定） |
 | CSV / TSV / report / import / export format | 該当なし | 該当なし |
-| Durable decision / ADR | UI_TECH_STACK.md §5.4 focus ring 実装標準 | updated in this PR（旧記載の乖離を実装標準へ同期） |
+| Durable decision / ADR | UI_TECH_STACK.md §5.4 focus 可視性 outcome 契約 + 実装 2 系統 | updated in this PR（旧一律規範の実装乖離を outcome 契約 + 系統限定へ改訂） |
 
 ## Registration / Generation Obligations
 
@@ -148,7 +148,7 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 |---|---|---|---|---|---|
 | UI-11b-F6 / UI-11b-D4 | 68 §68.5 / §68.7 / §68.10 | UI-11b-D11 | 現実装は遷移前の一時 toast のみで「遷移先で success Alert」の契約に未達。機構は in-memory one-shot flag — history.state 経由は reload / 履歴再訪で残存し one-shot 性の証明が実装依存になるため不採用。URL search param は reload 再表示で契約を破るため不採用 | `BackupRestorePage.tsx` + ホーム画面受け口 + one-shot store | 復元成功 flow 統合テスト（Matrix C5-C8） |
 | PR #127 受け入れ R1 P3-2（Plans.md 起票） | Plans.md「Frontend follow-up」 | UIPOLA-D1 | static 9 箇所は型付き `<Link to/search>`、runtime 10 箇所（DTO 由来 route 文字列）は `<Link to={string}>` で SPA 遷移のみ保証（round 1 P2-2 ②採用）。DTO 構造化は別 R3 へ分離。生 `<a href>` 温存は全画面リロードで state 喪失のため不採用 | 10 file / 19 箇所 + href helper | 複数行対応 rg gate + 既存遷移 test（Matrix C2-C4） |
-| PR #9 Final Review P3（Plans.md 起票） | UI_TECH_STACK.md §5.4（本 change 同期済み） | UIPOLA-D2 | `src/components/ui/` 10+ component の実装標準 `focus-visible:ring-[3px]` 系を採用し、docs 側の旧記載 `ring-2 ring-offset-2` を実装標準へ同期。SidebarLink のみ旧記載準拠にすると近接 component と視覚不整合になるため不採用 | `SidebarLink.tsx` + UI_TECH_STACK.md §5.4 | class assertion + docs anchor（Matrix C1 / C10） |
+| PR #9 Final Review P3（Plans.md 起票） | UI_TECH_STACK.md §5.4 + 52 §52.1（本 change 改訂） | UIPOLA-D2 | §5.4 は「可視 focus 表示」の outcome 契約とし、実装は 2 系統（shadcn primitive + SidebarLink = `focus-visible:ring-[3px]` 系、date / month input・segmented-control 等 = catalog の `focus-visible:ring-2` 系）を併記。全要素の 3px 一律統一は catalog 632・646 行と既存実装への新規 drift を作るため不採用（round 2 P2 裁定）。SidebarLink のみ旧記載準拠も近接 component と視覚不整合のため不採用 | `SidebarLink.tsx` + UI_TECH_STACK.md §5.4 + 52 §52.1 | class assertion + docs anchor（Matrix C1 / C10） |
 
 ## Design Intent Audit
 
@@ -190,7 +190,11 @@ N/A — 未検証の外部前提なし。round 1 P2-1 が指摘した TanStack R
 |---|---|---|---|
 | UI-11b-F6 / D4（遷移先 success Alert + cache 全消去） | `BackupRestorePage.tsx` + ホーム受け口 | Matrix C5（統合テスト） | L3: 実復元での目視 |
 | UI-11b-D11（one-shot 通知、in-memory、再表示禁止） | one-shot store + ホーム受け口 | Matrix C6 / C7 / C8 | L3: 復元後 reload で非表示確認 |
+| UI-11b-D2（復元前の事前バックアップ強制）— 実装経路が通る隣接契約 | 変更しない | 既存 test 維持 | non-scope（成功後表示のみ変更、C9 で assertion 不変を担保） |
+| UI-11b-D3（2 段確認 + ボタンラベルの対象日時）— 実装経路が通る隣接契約 | 変更しない | 既存 test 維持 | non-scope（同上） |
 | UI-11b-D5（double failure 表示）— 隣接契約、非対象 | 変更しない | 既存 test 維持 | non-scope（成功経路のみ変更） |
+| UI-11b-D10（L3 目視対象の所有）| L3 手順に復元成功 Alert の mount 中表示維持 + reload 後非表示を追加 | — | L3: D10 の既存目視項目に本 change 分を追記して実施 |
+| UI-12-D1（SidebarLink active 判定の排他契約） | 変更しない（class 追加のみ） | 既存 active 判定 test 維持（C1 で分岐不変を確認） | non-scope（focus ring は判定 logic に触れない） |
 | §5.4 focus ring 実装標準 | `SidebarLink.tsx` | Matrix C1 | L3: Tab 移動視認 |
 | SPA 遷移統一（生 anchor 0 件） | 10 file / 19 箇所 | Matrix C2 / C3 / C4 | L3: 代表画面の遷移目視 |
 | §68.7 状態遷移表 `restore_succeeded` 行 | 同上（Alert 経路） | Matrix C5 | — |
@@ -200,7 +204,7 @@ N/A — 未検証の外部前提なし。round 1 P2-1 が指摘した TanStack R
 
 Contract ID: SPEC-UIPOLA-D1
 
-- 復元成功通知は in-memory one-shot flag で受け渡し、ホーム初回 render で consume して Alert 表示する。reload・履歴 back/forward・通常到達・復元失敗時には表示しない（UI-11b-D11。Test: Matrix C5-C8）
+- 復元成功通知は in-memory one-shot flag で受け渡す。ホーム component は mount 時に一度だけ flag を component-local 表示 state へ取り込み（同時に flag 消去）、その mount 中は Alert を表示し続ける。非表示は unmount 後の再訪・reload・restart・通常到達のみ。StrictMode 二重 mount で Alert は 1 個。navigate reject 時は flag を消去。復元失敗時は flag 非生成（UI-11b-D11。Test: Matrix C5-C8 + State Lifecycle Matrix）
 
 Contract ID: SPEC-UIPOLA-D2
 
@@ -240,12 +244,12 @@ Test Design Matrix: [test-matrices/2026-08-02-ui-polish-batch-a.md](test-matrice
 IPC / JSON / DB / URL は不変。browser state（history.state / URL search param）を**使わない**ことが本 change の契約である（UI-11b-D11）。
 
 - producer: `BackupRestorePage.tsx`（復元成功時に in-memory flag を set して navigate）
-- consumer: ホーム画面 route component（初回 render で consume して Alert 表示）
+- consumer: ホーム画面 route component（mount 時に一度だけ component-local state へ取り込み、mount 中は Alert 表示を維持）
 - wire type: frontend in-memory one-shot flag（module scope の store。router / history state・URL param・storage 不使用）
 - internal type: boolean 相当の one-shot flag（consume で消去）
 - precision/range: 該当なし
-- round-trip path: 復元成功 → flag set → navigate → ホーム初回 render で consume & 表示 → 以降の re-render / 再訪 / reload で非表示
-- invalid input: flag なしの通常ホーム到達では Alert を表示しない。復元失敗時は flag を set しない
+- round-trip path: 復元成功 → flag set → navigate → ホーム mount 時に一度だけ component-local state へ取り込み（flag 消去）→ **その mount 中は Alert 表示を維持**（他 query 更新・再 render で消えない）→ unmount 後の再訪 / reload / restart で非表示
+- invalid input: flag なしの通常ホーム到達では Alert を表示しない。復元失敗時は flag を set しない。navigate が reject された場合は flag を消去し次回到達で誤表示しない
 - compatibility: ホーム画面の既存表示・既存 query cache clear 挙動（UI-11b-D4）・URL 構造を変えない
 
 ## Review Focus
@@ -264,7 +268,7 @@ Do not transcribe exact-HEAD SHA or test counts here (D-035/D-038 Evidence Owner
 
 ## Review Response
 
-- Findings Freeze: not yet frozen; post-freeze exceptions: none.
+- Findings Freeze: frozen after Plan Review round 1 Broad Audit（2026-08-02）; post-freeze exceptions: round 2 findings（P2×3 / P3×1）は round 1 是正で新規投入した content（D11 / §5.4 改訂 / Matrix 新設）への closure defect であり、新規観点の追加ではない。round 3 以降は closure confirmation のみ。
 
 ### Plan Review round 1（Codex、2026-08-02）裁定
 
@@ -275,4 +279,13 @@ FAIL（P1=1 / P2=5 / P3=0）。全 findings を実物照合のうえ裁定した
 - **P2-2（runtime 文字列と typed 主張の矛盾）: accept**。`bindings.ts` の `detail_route: string` / `MovementSourceLink` を実確認。選択肢②（SPA 遷移のみ保証）を採用、DTO 構造化は別 R3 へ分離
 - **P2-3（rg の複数行検出漏れ）: accept、収録先のみ修正**。提案コマンド `rg -U --count-matches '<a\s+[^>]*href=' src --glob '*.tsx' --glob '!*.test.tsx'` を coordinator が 2026-08-02 に実行し 19 件 / 10 file の再現を実測確認（per-file 内訳の実出力は Matrix C2 canary 運用に従い PR body へ収録）、AC へ採用。ただし実出力の packet 収録は D-038 Evidence Ownership（volatile evidence は PR body 所有）に抵触するため PR body 収録へ変更
 - **P2-4（影響 test の未列挙）: accept、実数修正**。実在確認の結果 9 file（Codex 列挙 8 + `DailyReportImportPage.flow.test.tsx` / `OtherRecordDetailPages.test.tsx` を含む）。Affected Surfaces 節を新設
-- **P2-5（focus ring SSOT 衝突）: 核心 accept、細部 refute**。UI_TECH_STACK.md §5.4 の旧規範実在を確認し、docs 側を実装標準へ同期する source-doc 変更を本 packet に含めた（Non-goal 送りは取り下げ）。なお「component catalog にも規定あり」は rg 0 hit で不成立（catalog に focus ring 規範なし）
+- **P2-5（focus ring SSOT 衝突）: 核心 accept、細部 refute**。UI_TECH_STACK.md §5.4 の旧規範実在を確認し、docs 側を実装標準へ同期する source-doc 変更を本 packet に含めた（Non-goal 送りは取り下げ）。なお「component catalog にも規定あり」は rg 0 hit で不成立（catalog に focus ring 規範なし）→ **round 2 で撤回**: coordinator の rg パターン `'ring-2 ring-ring'` が `focus-visible:` prefix を跨げず false negative。catalog 632・646 行に `focus-visible:ring-2` 実在（Codex の再提示で確定、当方の refute が誤り）
+
+### Plan Review round 2（Codex、2026-08-03）裁定
+
+FAIL（P1=0 / P2=3 / P3=1）。全件 closure defect として accept:
+
+- **P2-A（C6 の再 render 非表示が視認目的と衝突 + StrictMode）: accept**。src/main.tsx:41 の StrictMode 使用を実確認。D11 を「mount 時に一度だけ component-local state へ取り込み、mount 中は表示維持、非表示は unmount 後の再訪・reload・restart のみ」の寿命契約へ改訂。navigate reject 時の flag 消去と復元失敗後の実 Router 通常遷移 negative を追加
+- **P2-B（§5.4 改訂自身が新規 drift）: accept、推奨案採用**。catalog 632・646 / segmented-control.tsx:9 / DateNavigator / MonthNavigator の ring-2 系実在を実確認。§5.4 を outcome 契約 + 実装 2 系統併記へ改訂、SidebarLink の exact class は 52 §52.1 へ配置
+- **P2-C（Matrix の template 必須節欠落 + Ledger 隣接契約漏れ）: accept**。templates/test-design-matrix.md の State Lifecycle Matrix / Adjacent Pattern Audit / Residual Test Gaps を確認し Matrix を template 準拠へ再構成。Ledger へ UI-11b-D2 / D3 / D10 / UI-12-D1 を追加。X8 は「復元失敗後に実 Router で通常ホーム遷移して非表示 assert」へ明確化
+- **P3（Freeze 未設定）: accept**。round 1 Broad Audit 完了時点で frozen と記録し、round 2 findings を closure defect と分類（上記 Freeze 行）
