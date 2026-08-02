@@ -224,17 +224,24 @@ describe("DailyReportImportPage_req401", () => {
   });
 
   it("test_daily_report_result_cta_daily_sales_date_req501", async () => {
+    const user = userEvent.setup();
     setFlow({
       status: "result",
       result: makeResult(),
       reportDate: "2026-03-21",
     });
 
-    renderWithRouter(<DailyReportImportPage />);
+    const { router } = renderWithRouter(<DailyReportImportPage />);
 
-    expect(await screen.findByRole("link", { name: "日次売上を見る" })).toHaveAttribute(
-      "href",
-      "/reports/daily?date=2026-03-21",
-    );
+    const dailySalesLink = await screen.findByRole("link", { name: "日次売上を見る" });
+    expect(dailySalesLink).toHaveAttribute("href", "/reports/daily?date=2026-03-21");
+
+    // C3/C4: href assertion だけでなく click による実 SPA 遷移を証明する
+    // (X3 mutation: static 代表を生 <a> に戻した場合に red 化する)。
+    await user.click(dailySalesLink);
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe("/reports/daily");
+    });
+    expect(router.state.location.search).toEqual({ date: "2026-03-21" });
   });
 });
