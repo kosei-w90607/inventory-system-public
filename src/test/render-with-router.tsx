@@ -6,7 +6,12 @@
 // だけで、実際の遷移・route matching は本 helper の対象外。SidebarLink.test.tsx の
 // renderAt と同じ考え方)。
 
-import { createMemoryHistory, createRootRoute, createRouter, RouterProvider } from "@tanstack/react-router";
+import {
+  createMemoryHistory,
+  createRootRoute,
+  createRouter,
+  RouterProvider,
+} from "@tanstack/react-router";
 import { render } from "@testing-library/react";
 import type { ReactElement } from "react";
 

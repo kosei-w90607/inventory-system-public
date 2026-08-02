@@ -149,7 +149,9 @@ describe("SidebarLink UI-11b batch A: focus ring (UI_TECH_STACK §5.4 系統①)
 
     const link = await screen.findByRole("link", { name: "在庫少一覧" });
     expect(link).toHaveAttribute("data-status", "active");
-    focusRingClasses.forEach((className) => { expect(link).toHaveClass(className); });
+    focusRingClasses.forEach((className) => {
+      expect(link).toHaveClass(className);
+    });
   });
 
   it("test_sidebarlink_batcha_activematch_inactive_entry_has_focus_ring", async () => {
@@ -157,7 +159,9 @@ describe("SidebarLink UI-11b batch A: focus ring (UI_TECH_STACK §5.4 系統①)
 
     const link = await screen.findByRole("link", { name: "在庫照会" });
     expect(link).not.toHaveAttribute("data-status", "active");
-    focusRingClasses.forEach((className) => { expect(link).toHaveClass(className); });
+    focusRingClasses.forEach((className) => {
+      expect(link).toHaveClass(className);
+    });
   });
 
   it("test_sidebarlink_batcha_plain_link_active_entry_has_focus_ring", async () => {
@@ -165,7 +169,9 @@ describe("SidebarLink UI-11b batch A: focus ring (UI_TECH_STACK §5.4 系統①)
 
     const link = await screen.findByRole("link", { name: "在庫照会" });
     expect(link).toHaveAttribute("data-status", "active");
-    focusRingClasses.forEach((className) => { expect(link).toHaveClass(className); });
+    focusRingClasses.forEach((className) => {
+      expect(link).toHaveClass(className);
+    });
   });
 
   it("test_sidebarlink_batcha_plain_link_inactive_entry_has_focus_ring", async () => {
@@ -173,7 +179,9 @@ describe("SidebarLink UI-11b batch A: focus ring (UI_TECH_STACK §5.4 系統①)
 
     const link = await screen.findByRole("link", { name: "在庫照会" });
     expect(link).not.toHaveAttribute("data-status", "active");
-    focusRingClasses.forEach((className) => { expect(link).toHaveClass(className); });
+    focusRingClasses.forEach((className) => {
+      expect(link).toHaveClass(className);
+    });
   });
 
   it("test_sidebarlink_batcha_pending_entry_stays_non_focusable_without_focus_ring", () => {
@@ -190,6 +198,8 @@ describe("SidebarLink UI-11b batch A: focus ring (UI_TECH_STACK §5.4 系統①)
     const pendingLink = screen.getByRole("link", { name: /未実装機能/ });
     expect(pendingLink).toHaveAttribute("tabindex", "-1");
     expect(pendingLink).toHaveAttribute("aria-disabled", "true");
-    focusRingClasses.forEach((className) => { expect(pendingLink).not.toHaveClass(className); });
+    focusRingClasses.forEach((className) => {
+      expect(pendingLink).not.toHaveClass(className);
+    });
   });
 });

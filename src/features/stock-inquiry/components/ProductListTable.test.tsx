@@ -180,8 +180,9 @@ describe("ProductListTable (REQ-301 インライン展開)", () => {
         onSelect={vi.fn()}
       />,
     );
-    const expansionCell = (await screen.findByText("P-001")).closest("tr")?.nextElementSibling
-      ?.querySelector("td");
+    const expansionCell = (await screen.findByText("P-001"))
+      .closest("tr")
+      ?.nextElementSibling?.querySelector("td");
     expect(expansionCell?.className).toContain("whitespace-normal");
   });
 });

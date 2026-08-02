@@ -13,7 +13,8 @@ const baseClass =
 
 // UI_TECH_STACK.md §5.4 系統① focus ring（52 §52.1 規定）。focusable な link（active /
 // inactive）のみに適用し、pending の tabIndex={-1} span には付与しない（batch A packet、2026-08-03）。
-const focusRingClass = "focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50";
+const focusRingClass =
+  "focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50";
 
 const inactiveClass = cn("text-foreground hover:bg-stone-200/60", "[&_svg]:text-stone-500");
 
