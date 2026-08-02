@@ -109,9 +109,9 @@ enum 名は bindings.ts 生成型名になるため本 packet で凍結する（
 | (14) stock_unit | `ProductStockUnit`（新設: Pcs/Cm） | 同上 | 両方向（update request は field 自体なし） | |
 
 - 適用対象 DTO / command: `ReturnCreateRequest` / `ReturnItemInput` / `ReturnRecordSummary` / `ReturnRecordDetail(Item)`、`DisposalItemInput` / `DisposalRecordDetailItem`、`ManualSaleCreateRequest` / `ManualSaleRecordDetail`、`DailySaleItem`、`ImportResult` / `CsvImport`、`ErrorRow`、`prepare_plu_export(mode)`、`get_monthly_sales(mode)`、`MovementQuery` / `MovementRecord`、`ProductCreateRequest` / `ProductUpdateRequest` / `Product`
-- BIZ validation の置換: `returns.rs:79-99`（return_type / direction）、`disposal.rs:117-124`（disposal_type）、`manual_sale.rs:92-96`（reason）、`product_service.rs:463-466 / 515-518`（tax_rate / stock_unit の wire 経路）の値域チェックは request 型が enum になることで型検査へ移行し、validation 文言は wire 契約から退役（D-061 (b)。file 由来経路 `692-702` は現状のまま維持 — SPEC-P41-PR2-D2/D3）
-- DB 読出し変換の新設: `MovementRecord` 生成時の movement_type = 明示 match（不明値は internal、D-061 (c)、CHECK により実質到達不能）、reference_type = 明示 match + REQ-303 契約 fallback（不明値→None、SPEC-P41-PR2-D4）。`resolve_movement_source()` の入力は `Option<ReferenceType>` へ揃え、**6 variant の網羅 match とし wildcard は置かない**（網羅後の `_` は unreachable_patterns で clippy -D warnings に抵触）。REQ-303 の legacy 許容は DB 読出し変換（TEXT → `Option<ReferenceType>`、不明値→None）が担い、これを検証する新設 unit test を追加する。`list.rs` の既存 REQ-303 legacy 文字列 test（`test_resolve_movement_source_req303_unknown_reference`）は担う契約ごとこの新設 test へ**移設**する（削除ではない — 移設先と契約の対応を Matrix F5 が固定。round 1 P2-1）。NULL reference 系の既存 REQ-303 test（`list.rs:466-468`）は存続する
-- `CsvImportStatus` / `CsvImportErrorType` の構築 site 置換: `commit.rs:134, 198` / `rollback.rs:28, 54` / `parse.rs:104, 135-141`
+- BIZ validation の置換: `returns.rs:79-99`（return_type / direction）、`disposal.rs:117-124`（disposal_type）、`manual_sale.rs:92-96`（reason）、`product_service.rs:463-466 / 515-518`（tax_rate / stock_unit の wire 経路）、**`list.rs:191-219`（`VALID_MOVEMENT_TYPES` const + movement_type 値域チェックの退役 — round 2 P2）**の値域チェックは request 型が enum になることで型検査へ移行し、validation 文言（「不正な変動種別です」を含む）は wire 契約から退役（D-061 (b)。file 由来経路 `692-702` は現状のまま維持 — SPEC-P41-PR2-D2/D3）。付随する test 処遇（round 2 P2）: `test_list_movements_req303_invalid_movement_type`（`list.rs:385-404`）は無効値が `Option<MovementType>` で型的に構築不能となるため、担う契約を family (11) 不正 literal の serde 拒否 test（Matrix F4 / Contract Probe (iii)）へ**移設**する（削除ではない）。`test_list_movements_req303_valid_movement_type`（`list.rs:406-421`）は enum literal（`Some(MovementType::Receiving)`）へ書き換えて存続
+- DB 読出し変換の新設: `MovementRecord` 生成時の movement_type = 明示 match（不明値は internal、D-061 (c)、CHECK により実質到達不能）、reference_type = 明示 match + REQ-303 契約 fallback（不明値→None、SPEC-P41-PR2-D4）。`resolve_movement_source()` の入力は `Option<ReferenceType>` へ揃え、**6 variant の網羅 match とし wildcard は置かない**（網羅後の `_` は unreachable_patterns で clippy -D warnings に抵触）。REQ-303 の legacy 許容は DB 読出し変換（TEXT → `Option<ReferenceType>`、不明値→None）が担い、これを検証する新設 unit test を追加する。`list.rs` の既存 REQ-303 legacy 文字列 test（`test_resolve_movement_source_req303_unknown_reference`）は担う契約ごとこの新設 test へ**移設**する（削除ではない — 移設先と契約の対応を Matrix F5 が固定。round 1 P2-1）。NULL reference 系の既存 REQ-303 test（`list.rs:466-468`）は enum literal への書き換え（`list.rs:468` の `Some("receiving_record".to_string())` → `Some(ReferenceType::ReceivingRecord)`）を伴い契約不変のまま存続する（round 2 P3 で精緻化）
+- `CsvImportStatus` / `CsvImportErrorType` の構築 site 置換: `commit.rs:134, 198` / `rollback.rs:28, 54` / `parse.rs:104, 135-141` + 既存 test file の literal 構築・比較の書き換え（`tests/commit_tests.rs` 9 hit / `tests/parse_tests.rs` 2 hit / `tests/list_tests.rs` 1 hit — baseline 実測。round 2 P3）
 - `bindings.ts` 再生成（`cd src-tauri && cargo run --bin generate_bindings`）
 
 ### Frontend
@@ -126,6 +126,7 @@ enum 名は bindings.ts 生成型名になるため本 packet で凍結する（
 ### Docs
 
 - function-design 14 file 19 箇所の future-state 注記の現在形化（30 / 31×2 / 32×2 / 33 / 41 / 42×2 / 44×2 / 51 / 53 / 56×3 / 57 / 62 / 67。Narrative 実測の一覧どおり）+ `DB_DESIGN.md:90` の軽微是正
+- **enum 化対象 DTO の field 型記述が stale になる doc の追随（round 2 P2）**: `21-io-inventory-repo.md`（`return_type: String` 3 箇所 = `:105, 134, 146` / `disposal_type: String` 1 箇所 = `:239`。**enum 化対象 DTO の行のみ** — family (13)(14) の凍結対象外 DTO（return/disposal/receiving の item 行 `stock_unit: String` 等）は String のまま正確なため触らない）+ `58-ui-stock-inquiry.md`（`Product` 型記述の `tax_rate: string;` = `:49` / `stock_unit: string;` = `:52`）。45 / 73 / 74 / 23 / 24 は keyword 実測で該当なし（24 の reference_type 言及は SQL WHERE 句で型記述でない）だが、SPEC-P41-D5 (iv) の rg 全箇所 sweep を実装時に再実行して確定する
 - `30-biz-product-service.md:49` の二層化記述を実測事実へ是正: 「d/e の validation を guard として維持」が stock_unit の file 経路値域チェックを含意しない非対称（実在するのは tax_rate のみ）と、`ImportRow` の DTO 境界（SPEC-P41-PR2-D2）を明記
 - code comment sweep: `compute-summary.ts` D-10 comment、`db/inventory_repo.rs:5-7` の「21 では String だが」注記等、旧前提 comment の rg 全箇所追随（SPEC-P41-D5 (iv)）
 
@@ -136,7 +137,7 @@ enum 名は bindings.ts 生成型名になるため本 packet で凍結する（
 - stock_unit file 経路の値域 guard 新設（挙動変更のため。backlog 候補として記録のみ）
 - URL search 層（P4-2）のコード変更
 - `StocktakeProgressBiz.status` / 26-io の別種 error_type / `operation_type` / daily report 系 3 点（design packet の対象外リストどおり）
-- `InventoryRecordQuery.record_type`（横断一覧 `listInventoryRecords` の request filter）: 値集合は 65 §65.8.3 が別途所有する独自契約（`csv_import` / `stocktake` を意図的に許可リストから除外）で `ReferenceType` とは別 SSOT。監査 P4-1 / D-061 family 一覧の対象外（audit findings に record_type 言及 0 hit を実測。round 1 P3-1 で明示除外）
+- `InventoryRecordQuery.record_type`（横断一覧 `listInventoryRecords` の request filter）: 値集合は 4 値（receiving_record / return_record / manual_sale / disposal_record、`db/disposal_repo.rs:246-276` の独立定数配列）で、正典は 65 §65.4（`disposal_repo.rs:44` の doc comment が明示。csv_import / stocktake は §65.7.1 の別 command `listCsvImportRecords` / `listStocktakeRecords` へ分離）。6 値の `ReferenceType` とは値集合自体が異なる別 SSOT で、監査 P4-1 / D-061 family 一覧の対象外（audit findings に record_type 言及 0 hit を実測。round 1 P3-1 で明示除外、round 2 P2 で引用節を §65.8.3 → §65.4 へ訂正 — §65.8.3 は操作ログの関連記録リンク（74 所有）という別契約）
 - 既 generated enum（DailyReport 系 / `DuplicateStatus`）の rename_all 化・改名
 - `src-tauri/src/mnt/` への変更
 - `Plans.md` の active packet link 追加（Coordinator が plan-first commit で実施済み）
@@ -150,6 +151,7 @@ enum 名は bindings.ts 生成型名になるため本 packet で凍結する（
 - `rg -c '= "return" \| "exchange"' src/features/return-exchange/types.ts` → `0`（baseline 1 実測）、`rg -c '= "in" \| "out"' src/features/return-exchange/types.ts` → `0`（baseline 1 実測）、`rg -c '= "disposal" \| "damage" \| "other"' src/features/disposal/types.ts` → `0`（baseline 1 実測）、`rg -c '= "plu_unregistered" \| "other"' src/features/manual-sale/types.ts` → `0`（baseline 1 実測）、`rg -c '= "10" \| "8" \| "0"' src/features/products/lib/product-form-request.ts` → `0`（baseline 1 実測）、`rg -c '= "pcs" \| "cm"' src/features/products/lib/product-form-request.ts` → `0`（baseline 1 実測）、`rg -c 'type ExportMode = "diff" \| "full"' src/features/plu-export/PluExportPage.tsx` → `0`（baseline 1 実測）
 - `rg -c 'movement_type: "manual_sale"' src/features/inventory-records/OtherRecordDetailPages.test.tsx` → `0`（baseline 1 実測）、`rg -c 'reference_type: "receiving",' src/features/stock-movements/components/MovementTable.test.tsx` → `0`（baseline 1 実測）、`rg -c 'reference_type: "disposal",' src/features/stock-movements/StockMovementsPage.test.tsx` → `0`（baseline 1 実測）
 - `rg "順14 実装 PR2" docs/function-design/ | wc -l` → `0`（baseline 14 実測）
+- `rg -c 'return_type: String' docs/function-design/21-io-inventory-repo.md` → `0`（baseline 3 実測）、`rg -c 'disposal_type: String' docs/function-design/21-io-inventory-repo.md` → `0`（baseline 1 実測）、`rg -c 'tax_rate: string;' docs/function-design/58-ui-stock-inquiry.md` → `0`（baseline 1 実測）、`rg -c 'stock_unit: string;' docs/function-design/58-ui-stock-inquiry.md` → `0`（baseline 1 実測。round 2 P2 の stale 型記述追随）
 - `rg -c "enum 型に置換される" docs/function-design/31-biz-inventory-service.md` → `0`（baseline 2 実測）、`rg -c "それまでの現行実装は" docs/function-design/42-cmd-sales-stocktake.md docs/function-design/44-cmd-inventory.md` → 各 `0`（baseline 42=1 / 44=2 実測）
 - `cargo build` / `cargo test`（src-tauri 全体、既存 test 件数以上・削除 skip なし）/ `cargo fmt --check` / `cargo clippy --all-targets --all-features -- -D warnings` / `cargo test --test architecture_test` / `cargo test --test design_compliance_test` PASS
 - `npx tsc --noEmit` / `npm test` / `bash scripts/doc-consistency-check.sh`（full + `--target plan`）/ `bash scripts/local-ci.sh full` PASS
@@ -161,7 +163,7 @@ enum 名は bindings.ts 生成型名になるため本 packet で凍結する（
 
 - Requirements / spec: `docs/research/audit-2026-07/report.md` 順14 / `findings/p4-type-contracts.md` P4-1
 - Architecture: `docs/ARCHITECTURE.md`（wire 型変換の CMD 境界規定、D-060 層境界）
-- Function / command / DTO: 30 §49 相当節 / 31 §12.4・§12.6 / 32 §15 / 33 §16.2 / 34（SalesMode/SalesReportType）/ 40 §5.3（PR1 済み、参照のみ）/ 41 §17.6 / 42 §22.5 / 44 §23.5-23.7・list_movements 節 / 51 / 53 / 55 / 56 §56.2 / 57 / 62 §62.4 / 67 §67.8 / 21・23・24（IO 層、変更なし・参照のみ）
+- Function / command / DTO: 30 §49 相当節 / 31 §12.4・§12.6 / 32 §15 / 33 §16.2 / 34（SalesMode/SalesReportType）/ 40 §5.3（PR1 済み、参照のみ）/ 41 §17.6 / 42 §22.5 / 44 §23.5-23.7・list_movements 節 / 51 / 53 / 55 / 56 §56.2 / 57 / 58（enum 化 DTO の型記述追随 — round 2 P2）/ 62 §62.4 / 67 §67.8 / 21（enum 化 DTO の型記述追随 — round 2 P2）・23・24（23・24 は参照のみ、実装時 rg で最終確認）/ 65 §65.4・§65.7.1（record_type 除外の正典、参照のみ）
 - DB: `docs/DB_DESIGN.md` CHECK 制約方針（TEXT + CHECK 不変）、`transaction-tables.md` / `pos-tables.md`（値集合の理由所有元）
 - Decision log / ADR: D-053 / D-060 / D-061（実装対象の凍結契約）
 - 生成基盤: `src-tauri/src/lib.rs` `export_specta_bindings()` / `docs/UI_TECH_STACK.md` §2.5
@@ -328,3 +330,12 @@ Contract ID: D-061 (a)(b)(c)(e)（design PR で凍結、本 PR で実装） + SP
 - P2-1（Matrix F5 の REQ-303 oracle が Scope の `resolve_movement_source` シグネチャ変更後に無効化される）: **accept**。Coordinator が `list.rs:230-244`（`&Option<String>` 入力 + `_ => return None`）と `list.rs:471-476`（legacy 文字列 `"legacy_reference"` を直接渡す test）を実読再現。`Option<ReferenceType>` 化後は不正文字列を型的に構築できず、6 variant 網羅後の wildcard は unreachable_patterns で clippy -D warnings に抵触する。是正 = legacy 許容を DB 読出し変換（TEXT→enum、不明値→None）へ移し、新設 unit test + 既存 test の契約ごと移設（削除ではない）で REQ-303 網羅を維持。Scope / Matrix F5 を改訂
 - P3-1（`InventoryRecordQuery.record_type` の隣接契約が除外宣言なし）: **accept**。65 §65.8.3 所有の別契約（`csv_import`/`stocktake` 除外を含む独自許可リスト、`db/disposal_repo.rs:246-276` の独立定数配列、audit P4 findings に record_type 言及 0 hit）を Coordinator も実測確認。Non-scope + Matrix Adjacent Pattern Audit へ明示除外行を追加
 - reviewer が独立再現して問題なしと確認した観点: SPEC-P41-D2 family 一覧の完全一致 / 凍結義務 2 点の転記実在 / AC baseline 全件 / enum 名 12 型の衝突なし / 実測差分 α〜δ / literal 直書きの独自 sweep（(2)〜(5)(9) に漏れなし）
+
+### Plan Review round 2（independent Claude subagent, Sonnet 5, fresh context）
+
+- P1 = 0。round 1 是正（P2-1 の 6 variant 網羅 match / wildcard 不要）の妥当性は reviewer 実測で確認
+- P2（movement_type 側の同種問題）: **accept**。`list.rs:191-219` の `VALID_MOVEMENT_TYPES` + BIZ 値域チェックと test 2 本（`:385-421`）が Scope から欠落 — round 1 P2-1 と同型の「型変更で無効値が構築不能になる」パターンの水平展開漏れ。Coordinator が実読再現し、Scope の BIZ validation 置換行 + Matrix F4/F5 へ退役・移設・書き換えを明記
+- P2（record_type の引用節誤り）: **accept**。round 1 指摘文の「§65.8.3」を Coordinator が節番号まで検証せず転記していた（§65.8.3 は操作ログ関連記録リンク = 74 所有の別契約。`InventoryRecordQuery` の正典は `disposal_repo.rs:44` doc comment が示す §65.4）。除外の結論自体は正しい（4 値 vs 6 値の別 SSOT を reviewer/Coordinator 双方が実測）。Non-scope / Adjacent Pattern Audit の引用を訂正
+- P2（drift sweep の 21 / 58 未網羅）: **accept**。design packet が deferred とした反復言及 doc のうち、21（`return_type: String` ×3 / `disposal_type: String` ×1）と 58（`tax_rate: string;` / `stock_unit: string;`）は enum 化対象 DTO の型記述で実装後 stale になることを Coordinator 実測で確認。Docs Scope + Matrix F9 anchor + AC へ追加（family (13)(14) 凍結対象外 DTO の `stock_unit: String` 行は正確なまま維持と明記）。Design Sources の「21 変更なし」を訂正
+- P3（`list.rs:468` の存続表現）: **accept**。enum literal への書き換えを伴う存続へ精緻化 / P3（csv import test file 構築 site 未列挙）: **accept**。3 file 12 hit の baseline を実測し Scope へ追加
+- reviewer が問題なしと確認: `CsvImportStatus` の DB 層定義 + BIZ 再利用は既存 `CsvImport` re-export（`biz/mod.rs:22`）と同 pattern / `PaginatedResult<T>` generic への specta 波及なし / F11 anchor 頑健性（`Option<String>` 行は非 hit）/ mock drift 3 箇所の記述一致
