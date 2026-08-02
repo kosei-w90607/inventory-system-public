@@ -2,10 +2,10 @@
 
 ## Workflow State
 
-- Phase: plan-gate
+- Phase: implementing
 - Risk: R3
 - Execution Mode: fable-window
-- Plan Commit: pending
+- Plan Commit: ecbe64c870011021605b844d294a211550093593
 - Amendments: none
 - Coordinator: Claude (Fable 5, main session)
 - Writer: Codex (GPT-5.6, owner relay)
@@ -15,6 +15,11 @@
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
 - Human Gate: pending
+
+### 遷移記録（plan-gate -> plan-approved -> implementing、state-only commit で実体化）
+
+- plan-gate -> plan-approved: Sonnet rally 5 round + Codex cross-vendor 3 round（C-3 残指摘の是正は Codex 検出コマンド再実行 0 hit で機械検証、Review Response 参照）の後、owner 承認 2026-08-02（介入 1/4）
+- plan-approved -> implementing: Coordinator が Plan Commit 記入（`ecbe64c`、PK5 ancestry）を完了し Codex 実装発注へ。**relay 予算超過の記録: 上限 3 は cross-vendor review C-1〜C-3 で消化済みで、実装発注 relay は 4 往復目 = 超過**。owner は plan 承認時に発注書提示を予告済みの上で承認しており、超過は本記録で明示する（PR #21 の超過記録先例に倣う）
 
 Narrative（append-only）:
 
