@@ -9,7 +9,9 @@ use crate::db::{inventory_repo, stocktake_repo, DbConnection, DbError, Paginated
 
 use super::BizError;
 use crate::db::inventory_repo::{MovementType, NewMovement};
-use crate::db::product_repo::{ProductSearchQuery, ProductWithRelations};
+use crate::db::product_repo::{
+    ProductSearchQuery, ProductStockUnit, ProductTaxRate, ProductWithRelations,
+};
 use crate::db::stocktake_repo::NewStocktakeItem;
 
 // ---------------------------------------------------------------------------
@@ -24,8 +26,8 @@ pub struct ProductCreateRequest {
     pub department_id: i64,
     pub selling_price: i64,
     pub cost_price: i64,
-    pub tax_rate: String,
-    pub stock_unit: String,
+    pub tax_rate: ProductTaxRate,
+    pub stock_unit: ProductStockUnit,
     pub initial_stock: i64,
     pub maker_code: Option<String>,
     pub supplier_id: Option<i64>,
@@ -51,7 +53,7 @@ pub struct ProductUpdateRequest {
     pub supplier_id: Option<Option<i64>>,
     pub selling_price: Option<i64>,
     pub cost_price: Option<i64>,
-    pub tax_rate: Option<String>,
+    pub tax_rate: Option<ProductTaxRate>,
     #[serde(default, deserialize_with = "deserialize_nullable_update_field")]
     #[specta(type = Option<Option<String>>)]
     pub maker_code: Option<Option<String>>,
@@ -167,10 +169,10 @@ pub fn create_product(
         supplier_id: req.supplier_id,
         selling_price: req.selling_price,
         cost_price: req.cost_price,
-        tax_rate: req.tax_rate.clone(),
+        tax_rate: req.tax_rate.as_str().to_string(),
         maker_code: req.maker_code.clone(),
         stock_quantity: req.initial_stock,
-        stock_unit: req.stock_unit.clone(),
+        stock_unit: req.stock_unit.as_str().to_string(),
         is_discontinued: false,
         plu_dirty: true,
         plu_exported_at: None,
@@ -297,7 +299,7 @@ pub fn update_product(
         supplier_id: req.supplier_id,
         selling_price: req.selling_price,
         cost_price: req.cost_price,
-        tax_rate: req.tax_rate.clone(),
+        tax_rate: req.tax_rate.map(|rate| rate.as_str().to_string()),
         maker_code: req.maker_code.clone(),
         pos_stock_sync: req.pos_stock_sync,
         plu_target: req.plu_target,
@@ -460,12 +462,6 @@ fn validate_create_request(
             "原価は0以上で入力してください".to_string(),
         ));
     }
-    if !["10", "8", "0"].contains(&req.tax_rate.as_str()) {
-        return Err(BizError::ValidationFailed("税率が不正です".to_string()));
-    }
-    if !["pcs", "cm"].contains(&req.stock_unit.as_str()) {
-        return Err(BizError::ValidationFailed("数量単位が不正です".to_string()));
-    }
     if req.initial_stock < 0 {
         return Err(BizError::ValidationFailed(
             "初期在庫は0以上で入力してください".to_string(),
@@ -510,11 +506,6 @@ fn validate_update_request(
             return Err(BizError::ValidationFailed(
                 "原価は0以上で入力してください".to_string(),
             ));
-        }
-    }
-    if let Some(ref rate) = req.tax_rate {
-        if !["10", "8", "0"].contains(&rate.as_str()) {
-            return Err(BizError::ValidationFailed("税率が不正です".to_string()));
         }
     }
     if let Some(dept_id) = req.department_id {
@@ -966,8 +957,8 @@ mod tests {
             department_id: 2, // ヘア雑貨（code_prefix=HZ）
             selling_price: 500,
             cost_price: 300,
-            tax_rate: "10".to_string(),
-            stock_unit: "pcs".to_string(),
+            tax_rate: ProductTaxRate::Rate10,
+            stock_unit: ProductStockUnit::Pcs,
             initial_stock: 0,
             maker_code: None,
             supplier_id: None,
@@ -1177,28 +1168,6 @@ mod tests {
         let (_dir, mut conn) = setup_test_db();
         let mut req = default_create_request();
         req.cost_price = -1;
-        let result = create_product(&mut conn, req);
-        assert!(matches!(result, Err(BizError::ValidationFailed(_))));
-    }
-
-    #[test]
-    #[serial]
-    fn test_create_product_req101_validation_tax_rate_invalid() {
-        // REQ-101: 商品登録 — 不正税率はValidationFailed
-        let (_dir, mut conn) = setup_test_db();
-        let mut req = default_create_request();
-        req.tax_rate = "15".to_string();
-        let result = create_product(&mut conn, req);
-        assert!(matches!(result, Err(BizError::ValidationFailed(_))));
-    }
-
-    #[test]
-    #[serial]
-    fn test_create_product_req101_validation_stock_unit_invalid() {
-        // REQ-101: 商品登録 — 不正数量単位はValidationFailed
-        let (_dir, mut conn) = setup_test_db();
-        let mut req = default_create_request();
-        req.stock_unit = "kg".to_string();
         let result = create_product(&mut conn, req);
         assert!(matches!(result, Err(BizError::ValidationFailed(_))));
     }
@@ -1625,7 +1594,7 @@ mod tests {
         assert_eq!(req.department_id, Some(4));
         assert_eq!(req.selling_price, Some(1200));
         assert_eq!(req.cost_price, Some(700));
-        assert_eq!(req.tax_rate, Some("8".to_string()));
+        assert_eq!(req.tax_rate, Some(ProductTaxRate::Rate8));
         assert_eq!(req.pos_stock_sync, Some(false));
         assert_eq!(req.plu_target, Some(true));
     }
@@ -2001,6 +1970,54 @@ mod tests {
             )
             .unwrap();
         assert_eq!(count, 2);
+    }
+
+    #[test]
+    #[serial]
+    fn test_commit_import_req104_missing_or_empty_stock_unit_defaults_to_pcs() {
+        let (_dir, mut conn) = setup_test_db();
+        let missing_csv = make_csv(
+            "商品コード,商品名,部門ID,売価,原価,税率",
+            &["SU-MISSING,欠落単位,1,500,300,10"],
+        );
+        let empty_csv = make_csv(
+            "商品コード,商品名,部門ID,売価,原価,税率,在庫単位",
+            &["SU-EMPTY,空単位,1,500,300,10,"],
+        );
+        let mut rows = preview_import(&conn, &missing_csv).unwrap().valid_rows;
+        rows.extend(preview_import(&conn, &empty_csv).unwrap().valid_rows);
+
+        commit_import(&mut conn, rows, vec![]).unwrap();
+        let units: Vec<String> = {
+            let mut stmt = conn
+                .prepare(
+                    "SELECT stock_unit FROM products WHERE product_code LIKE 'SU-%' ORDER BY product_code",
+                )
+                .unwrap();
+            stmt.query_map([], |row| row.get(0))
+                .unwrap()
+                .collect::<Result<Vec<_>, _>>()
+                .unwrap()
+        };
+        assert_eq!(units, vec!["pcs", "pcs"]);
+    }
+
+    #[test]
+    #[serial]
+    fn test_commit_import_req104_nonempty_invalid_stock_unit_rolls_back() {
+        let (_dir, mut conn) = setup_test_db();
+        let mut invalid = make_import_row("SU-KG", "不正単位");
+        invalid.stock_unit = Some("kg".to_string());
+
+        assert!(commit_import(&mut conn, vec![invalid], vec![]).is_err());
+        let count: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM products WHERE product_code = 'SU-KG'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(count, 0);
     }
 
     #[test]

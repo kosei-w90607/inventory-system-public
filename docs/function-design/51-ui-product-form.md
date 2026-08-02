@@ -148,7 +148,7 @@ Frontend validation:
 - `stock_unit`: create mode で `"pcs" | "cm"` 以外 → `数量単位を選択してください`
 - `jan_code` blank + `department.code_prefix == null` → `JANコードを入力するか、独自コード発番対象の部門を選択してください`
 
-**enum 契約化（D-061）**: `tax_rate` / `stock_unit` の上記手書き値集合の SSOT は D-061 の generated union となり、手書き集合は bindings 由来型へ置換される（順14 実装 PR2）。select guard・validation 文言・UI 挙動は不変。
+**enum 契約化（D-061）**: `tax_rate` / `stock_unit` の SSOT は generated union で、frontend は bindings 由来型を利用する。select guard・validation 文言・UI 挙動は不変。
 
 Error recovery:
 

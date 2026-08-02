@@ -213,7 +213,7 @@ overwrite_confirmed: bool   // 同日データの上書き確認済みフラグ
 // BIZ-03のImportResultをそのまま使用
 struct ImportResult {
     csv_import_id: i64,
-    status: String,         // "completed" / "completed_partial"
+    status: CsvImportStatus, // "completed" / "completed_partial"
     total_items: i64,
     total_amount: i64,
     skipped_count: i64,
@@ -445,7 +445,7 @@ struct PluExcludedProductResponse {
 5. Ok → PluExportPreparedResult を PluExportPrepareResponse に変換（bytes → base64エンコード）して返す
 6. Err(BizError) → CmdError に変換して返す
 
-**設計判断 — mode の型（D-061 で改訂）**: `ExportMode` を generated enum で直受けする（D-061）。旧手動変換（文字列 → `ExportMode` の CMD 層変換、および無効値時の `validation` エラー返却）は「順14 実装 PR2 で廃止」し、不正値は serde deserialize 拒否へ統一する（UI は固定 toggle からのみ呼び出されるため到達不能）。正常値の wire 表現（`"full"` / `"diff"`）と利用者可視の挙動は不変。
+**設計判断 — mode の型（D-061 で改訂）**: `ExportMode` generated enum を直受けする。旧手動変換と無効値時の `validation` 文言は退役し、不正値は serde deserialize 拒否へ統一した（UI は固定 toggle からのみ呼び出されるため到達不能）。正常値の wire 表現（`"full"` / `"diff"`）と利用者可視の挙動は不変。
 
 **入力例**:
 ```json

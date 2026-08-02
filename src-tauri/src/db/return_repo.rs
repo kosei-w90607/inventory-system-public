@@ -10,6 +10,62 @@ use super::{DbConnection, DbError, PaginatedResult};
 // 型定義
 // ---------------------------------------------------------------------------
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, specta::Type)]
+#[serde(rename_all = "snake_case")]
+pub enum ReturnExchangeType {
+    Return,
+    Exchange,
+}
+
+impl ReturnExchangeType {
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Return => "return",
+            Self::Exchange => "exchange",
+        }
+    }
+}
+
+fn parse_return_exchange_type(value: String) -> rusqlite::Result<ReturnExchangeType> {
+    match value.as_str() {
+        "return" => Ok(ReturnExchangeType::Return),
+        "exchange" => Ok(ReturnExchangeType::Exchange),
+        _ => Err(rusqlite::Error::FromSqlConversionFailure(
+            0,
+            rusqlite::types::Type::Text,
+            format!("unknown return_type: {value}").into(),
+        )),
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, specta::Type)]
+#[serde(rename_all = "snake_case")]
+pub enum ReturnDirection {
+    In,
+    Out,
+}
+
+impl ReturnDirection {
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::In => "in",
+            Self::Out => "out",
+        }
+    }
+}
+
+fn parse_return_direction(value: String) -> rusqlite::Result<ReturnDirection> {
+    match value.as_str() {
+        "in" => Ok(ReturnDirection::In),
+        "out" => Ok(ReturnDirection::Out),
+        _ => Err(rusqlite::Error::FromSqlConversionFailure(
+            0,
+            rusqlite::types::Type::Text,
+            format!("unknown return direction: {value}").into(),
+        )),
+    }
+}
+
 /// 返品記録INSERT用
 ///
 /// 21-io-inventory-repo.md §10.3
@@ -37,7 +93,7 @@ pub struct NewReturnItem {
 #[derive(Debug, serde::Serialize, specta::Type)]
 pub struct ReturnRecordSummary {
     pub id: i64,
-    pub return_type: String,
+    pub return_type: ReturnExchangeType,
     pub return_date: String,
     pub register_processed: bool,
     pub note: Option<String>,
@@ -52,7 +108,7 @@ pub struct ReturnRecordDetailItem {
     pub product_name: String,
     pub department_name: String,
     pub stock_unit: String,
-    pub direction: String,
+    pub direction: ReturnDirection,
     pub quantity: i64,
 }
 
@@ -60,7 +116,7 @@ pub struct ReturnRecordDetailItem {
 #[derive(Debug, serde::Serialize, specta::Type)]
 pub struct ReturnRecordDetail {
     pub id: i64,
-    pub return_type: String,
+    pub return_type: ReturnExchangeType,
     pub return_date: String,
     pub register_processed: bool,
     pub receipt_image_path: Option<String>,
@@ -163,7 +219,7 @@ pub fn list_return_records(
             |row| {
                 Ok(ReturnRecordSummary {
                     id: row.get(0)?,
-                    return_type: row.get(1)?,
+                    return_type: parse_return_exchange_type(row.get(1)?)?,
                     return_date: row.get(2)?,
                     register_processed: row.get(3)?,
                     note: row.get(4)?,
@@ -211,6 +267,7 @@ pub fn get_return_record_detail(
             Err(rusqlite::Error::QueryReturnedNoRows) => return Err(DbError::NotFound),
             Err(e) => return Err(DbError::from(e)),
         };
+    let return_type = parse_return_exchange_type(return_type).map_err(DbError::from)?;
 
     let mut item_stmt = conn.prepare(
         "SELECT
@@ -235,7 +292,7 @@ pub fn get_return_record_detail(
                 product_name: row.get(2)?,
                 department_name: row.get(3)?,
                 stock_unit: row.get(4)?,
-                direction: row.get(5)?,
+                direction: parse_return_direction(row.get(5)?)?,
                 quantity: row.get(6)?,
             })
         })?
@@ -255,10 +312,10 @@ pub fn get_return_record_detail(
             Ok(MovementRecord {
                 id: row.get(0)?,
                 product_code: row.get(1)?,
-                movement_type: row.get(2)?,
+                movement_type: super::inventory_repo::parse_movement_type(row.get(2)?)?,
                 quantity: row.get(3)?,
                 stock_after: row.get(4)?,
-                reference_type: row.get(5)?,
+                reference_type: super::inventory_repo::parse_reference_type(row.get(5)?),
                 reference_id: row.get(6)?,
                 source: None,
                 note: row.get(7)?,
@@ -506,7 +563,7 @@ mod tests {
         let detail = get_return_record_detail(&conn, record_id).unwrap();
 
         assert_eq!(detail.id, record_id);
-        assert_eq!(detail.return_type, "exchange");
+        assert_eq!(detail.return_type, ReturnExchangeType::Exchange);
         assert_eq!(detail.return_date, "2026-06-27");
         assert!(!detail.register_processed);
         assert_eq!(
@@ -516,11 +573,11 @@ mod tests {
         assert_eq!(detail.note, Some("サイズ交換".to_string()));
         assert_eq!(detail.items.len(), 1);
         assert_eq!(detail.items[0].product_code, "RET-DET");
-        assert_eq!(detail.items[0].direction, "in");
+        assert_eq!(detail.items[0].direction, ReturnDirection::In);
         assert_eq!(detail.movements.len(), 1);
         assert_eq!(
-            detail.movements[0].reference_type.as_deref(),
-            Some("return_record")
+            detail.movements[0].reference_type,
+            Some(super::super::inventory_repo::ReferenceType::ReturnRecord)
         );
     }
 }

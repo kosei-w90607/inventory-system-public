@@ -5,7 +5,7 @@
 use crate::biz::plu_export_service::{
     self, ExportMode, PluExcludedReason, PluExportConfirmRequest, PluExportPrepareRequest,
 };
-use crate::cmd::{AppState, CmdError, CmdErrorKind};
+use crate::cmd::{AppState, CmdError};
 use base64::{engine::general_purpose, Engine as _};
 use tauri::State;
 
@@ -70,19 +70,6 @@ pub struct ProductResponse {
 // コマンド
 // ---------------------------------------------------------------------------
 
-fn parse_export_mode(mode: &str) -> Result<ExportMode, CmdError> {
-    match mode {
-        "full" => Ok(ExportMode::Full),
-        "diff" => Ok(ExportMode::Diff),
-        _ => Err(CmdError {
-            kind: CmdErrorKind::Validation,
-            message: "書出しモードは 'full' または 'diff' を指定してください".to_string(),
-            field: Some("mode".to_string()),
-            error_id: None,
-        }),
-    }
-}
-
 /// PLUファイルを生成して返す。DB状態は更新しない。
 ///
 /// docs/function-design/41-cmd-pos.md §17.6 prepare_plu_export
@@ -90,15 +77,13 @@ fn parse_export_mode(mode: &str) -> Result<ExportMode, CmdError> {
 #[specta::specta]
 pub fn prepare_plu_export(
     state: State<AppState>,
-    mode: String,
+    mode: ExportMode,
 ) -> Result<PluExportPrepareResponse, CmdError> {
-    let export_mode = parse_export_mode(&mode)?;
-
     let conn = state
         .db
         .lock()
         .map_err(|error| CmdError::internal("DB接続エラー", error))?;
-    let req = PluExportPrepareRequest { mode: export_mode };
+    let req = PluExportPrepareRequest { mode };
     let result = plu_export_service::prepare_plu_export(&conn, req).map_err(CmdError::from)?;
 
     Ok(PluExportPrepareResponse {
@@ -182,35 +167,5 @@ fn excluded_reason_to_snake_case(reason: &PluExcludedReason) -> &'static str {
         PluExcludedReason::InvalidJanFormat => "invalid_jan_format",
         PluExcludedReason::InvalidCheckDigit => "invalid_check_digit",
         PluExcludedReason::GroupPriceMismatch => "group_price_mismatch",
-    }
-}
-
-// ---------------------------------------------------------------------------
-// テスト
-// ---------------------------------------------------------------------------
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_export_mode_conversion_full_req402() {
-        // REQ-402: PLU書出し
-        let result = parse_export_mode("full");
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_export_mode_conversion_diff_req402() {
-        // REQ-402: PLU書出し
-        let result = parse_export_mode("diff");
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_export_mode_conversion_invalid_req402() {
-        // REQ-402: PLU書出し
-        let result = parse_export_mode("invalid");
-        assert!(result.is_err());
     }
 }

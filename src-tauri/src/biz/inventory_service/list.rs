@@ -8,7 +8,9 @@ use crate::db::disposal_repo::{
     self, DisposalRecordDetail, DisposalRecordSummary, InventoryRecordQuery, InventoryRecordSummary,
 };
 use crate::db::inventory_common::ListQuery;
-use crate::db::inventory_repo::{self, MovementQuery, MovementRecord, MovementSourceLink};
+use crate::db::inventory_repo::{
+    self, MovementQuery, MovementRecord, MovementSourceLink, ReferenceType,
+};
 use crate::db::manual_sale_repo::{self, ManualSaleRecordDetail};
 use crate::db::receiving_repo::ReceivingRecordDetail;
 use crate::db::receiving_repo::{self, ReceivingRecordWithSupplier};
@@ -187,16 +189,6 @@ pub fn get_disposal_record(
     }
 }
 
-/// movement_type の許容値
-const VALID_MOVEMENT_TYPES: &[&str] = &[
-    "sale_auto",
-    "sale_manual",
-    "receiving",
-    "return",
-    "disposal",
-    "stocktake",
-];
-
 /// 在庫変動履歴を返す
 ///
 /// 44-cmd-inventory.md §23.10
@@ -209,14 +201,6 @@ pub fn list_movements(
             "ページパラメータが不正です".to_string(),
         ));
     }
-    if let Some(ref mt) = query.movement_type {
-        if !VALID_MOVEMENT_TYPES.contains(&mt.as_str()) {
-            return Err(BizError::ValidationFailed(format!(
-                "不正な変動種別です: {}",
-                mt
-            )));
-        }
-    }
     let mut result = inventory_repo::list_movements(conn, query)?;
     for item in &mut result.items {
         item.source = resolve_movement_source(&item.reference_type, &item.reference_id);
@@ -228,19 +212,18 @@ pub fn list_movements(
 ///
 /// 65-inventory-record-traceability.md TRACE-D2 / §65.3 / §65.8.2
 pub(crate) fn resolve_movement_source(
-    reference_type: &Option<String>,
+    reference_type: &Option<ReferenceType>,
     reference_id: &Option<i64>,
 ) -> Option<MovementSourceLink> {
-    let reference_type = reference_type.as_deref()?;
+    let reference_type = reference_type.as_ref()?;
     let reference_id = (*reference_id)?;
     let (label_prefix, route_prefix) = match reference_type {
-        "receiving_record" => ("入庫記録", "/inventory/receiving/records"),
-        "return_record" => ("返品・交換", "/inventory/return/records"),
-        "manual_sale" => ("手動販売出庫", "/inventory/manual-sale/records"),
-        "disposal_record" => ("廃棄・破損", "/inventory/disposal/records"),
-        "csv_import" => ("CSV取込み", "/csv-import/records"),
-        "stocktake" => ("棚卸し", "/stocktake/records"),
-        _ => return None,
+        ReferenceType::ReceivingRecord => ("入庫記録", "/inventory/receiving/records"),
+        ReferenceType::ReturnRecord => ("返品・交換", "/inventory/return/records"),
+        ReferenceType::ManualSale => ("手動販売出庫", "/inventory/manual-sale/records"),
+        ReferenceType::DisposalRecord => ("廃棄・破損", "/inventory/disposal/records"),
+        ReferenceType::CsvImport => ("CSV取込み", "/csv-import/records"),
+        ReferenceType::Stocktake => ("棚卸し", "/stocktake/records"),
     };
 
     Some(MovementSourceLink {
@@ -383,27 +366,6 @@ mod tests {
     }
 
     #[test]
-    fn test_list_movements_req303_invalid_movement_type() {
-        // REQ-303: 在庫変動履歴 — 不正な movement_type → バリデーションエラー
-        let conn = setup_db();
-        let query = MovementQuery {
-            product_code: "TEST-001".to_string(),
-            date_from: None,
-            date_to: None,
-            movement_type: Some("invalid_type".to_string()),
-            page: 1,
-            per_page: 10,
-        };
-        let err = list_movements(&conn, &query).unwrap_err();
-        match err {
-            BizError::ValidationFailed(msg) => {
-                assert!(msg.contains("不正な変動種別"));
-            }
-            _ => panic!("expected ValidationFailed, got {:?}", err),
-        }
-    }
-
-    #[test]
     fn test_list_movements_req303_valid_movement_type() {
         // REQ-303: 在庫変動履歴 — 有効な movement_type → バリデーション通過（空結果OK）
         let conn = setup_db();
@@ -411,7 +373,7 @@ mod tests {
             product_code: "TEST-001".to_string(),
             date_from: None,
             date_to: None,
-            movement_type: Some("receiving".to_string()),
+            movement_type: Some(crate::db::inventory_repo::MovementType::Receiving),
             page: 1,
             per_page: 10,
         };
@@ -425,37 +387,46 @@ mod tests {
         // REQ-207 / TRACE-D2: movement reference から元業務記録 link を解決する
         let cases = [
             (
-                "receiving_record",
+                ReferenceType::ReceivingRecord,
                 42,
                 "入庫記録 #42",
                 "/inventory/receiving/records/42",
             ),
             (
-                "return_record",
+                ReferenceType::ReturnRecord,
                 7,
                 "返品・交換 #7",
                 "/inventory/return/records/7",
             ),
             (
-                "manual_sale",
+                ReferenceType::ManualSale,
                 9,
                 "手動販売出庫 #9",
                 "/inventory/manual-sale/records/9",
             ),
             (
-                "disposal_record",
+                ReferenceType::DisposalRecord,
                 11,
                 "廃棄・破損 #11",
                 "/inventory/disposal/records/11",
             ),
-            ("csv_import", 3, "CSV取込み #3", "/csv-import/records/3"),
-            ("stocktake", 5, "棚卸し #5", "/stocktake/records/5"),
+            (
+                ReferenceType::CsvImport,
+                3,
+                "CSV取込み #3",
+                "/csv-import/records/3",
+            ),
+            (
+                ReferenceType::Stocktake,
+                5,
+                "棚卸し #5",
+                "/stocktake/records/5",
+            ),
         ];
 
         for (reference_type, reference_id, expected_label, expected_route) in cases {
-            let source =
-                resolve_movement_source(&Some(reference_type.to_string()), &Some(reference_id))
-                    .expect("known reference should resolve");
+            let source = resolve_movement_source(&Some(reference_type), &Some(reference_id))
+                .expect("known reference should resolve");
             assert_eq!(source.label, expected_label);
             assert_eq!(source.route, expected_route);
         }
@@ -465,14 +436,7 @@ mod tests {
     fn test_resolve_movement_source_req303_null_reference() {
         // REQ-303: 初期在庫など NULL reference の movement は source なしで表示可能
         assert!(resolve_movement_source(&None, &Some(1)).is_none());
-        assert!(resolve_movement_source(&Some("receiving_record".to_string()), &None).is_none());
-    }
-
-    #[test]
-    fn test_resolve_movement_source_req303_unknown_reference() {
-        // REQ-303: legacy/corrupt reference_type は movement 行を落とさず source なしにする
-        let source = resolve_movement_source(&Some("legacy_reference".to_string()), &Some(99));
-        assert!(source.is_none());
+        assert!(resolve_movement_source(&Some(ReferenceType::ReceivingRecord), &None).is_none());
     }
 
     #[test]

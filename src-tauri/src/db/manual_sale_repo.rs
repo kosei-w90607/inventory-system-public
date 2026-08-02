@@ -9,6 +9,34 @@ use super::{DbConnection, DbError};
 // 型定義
 // ---------------------------------------------------------------------------
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, specta::Type)]
+#[serde(rename_all = "snake_case")]
+pub enum ManualSaleReason {
+    PluUnregistered,
+    Other,
+}
+
+impl ManualSaleReason {
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::PluUnregistered => "plu_unregistered",
+            Self::Other => "other",
+        }
+    }
+}
+
+fn parse_manual_sale_reason(value: String) -> rusqlite::Result<ManualSaleReason> {
+    match value.as_str() {
+        "plu_unregistered" => Ok(ManualSaleReason::PluUnregistered),
+        "other" => Ok(ManualSaleReason::Other),
+        _ => Err(rusqlite::Error::FromSqlConversionFailure(
+            0,
+            rusqlite::types::Type::Text,
+            format!("unknown manual sale reason: {value}").into(),
+        )),
+    }
+}
+
 /// 手動販売INSERT用
 ///
 /// 21-io-inventory-repo.md §10.4
@@ -47,7 +75,7 @@ pub struct ManualSaleRecordDetailItem {
 pub struct ManualSaleRecordDetail {
     pub id: i64,
     pub sale_date: String,
-    pub reason: String,
+    pub reason: ManualSaleReason,
     pub note: Option<String>,
     pub status: String,
     pub created_at: String,
@@ -125,6 +153,7 @@ pub fn get_manual_sale_record_detail(
         Err(rusqlite::Error::QueryReturnedNoRows) => return Err(DbError::NotFound),
         Err(e) => return Err(DbError::from(e)),
     };
+    let reason = parse_manual_sale_reason(reason).map_err(DbError::from)?;
 
     let mut item_stmt = conn.prepare(
         "SELECT
@@ -170,10 +199,10 @@ pub fn get_manual_sale_record_detail(
             Ok(MovementRecord {
                 id: row.get(0)?,
                 product_code: row.get(1)?,
-                movement_type: row.get(2)?,
+                movement_type: super::inventory_repo::parse_movement_type(row.get(2)?)?,
                 quantity: row.get(3)?,
                 stock_after: row.get(4)?,
-                reference_type: row.get(5)?,
+                reference_type: super::inventory_repo::parse_reference_type(row.get(5)?),
                 reference_id: row.get(6)?,
                 source: None,
                 note: row.get(7)?,
@@ -345,7 +374,7 @@ mod tests {
 
         assert_eq!(detail.id, record_id);
         assert_eq!(detail.sale_date, "2026-06-27");
-        assert_eq!(detail.reason, "plu_unregistered");
+        assert_eq!(detail.reason, ManualSaleReason::PluUnregistered);
         assert_eq!(detail.note, Some("店頭販売".to_string()));
         assert_eq!(detail.status, "active");
         assert_eq!(detail.items.len(), 1);
@@ -353,8 +382,8 @@ mod tests {
         assert_eq!(detail.total_amount, 980);
         assert_eq!(detail.movements.len(), 1);
         assert_eq!(
-            detail.movements[0].reference_type.as_deref(),
-            Some("manual_sale")
+            detail.movements[0].reference_type,
+            Some(super::super::inventory_repo::ReferenceType::ManualSale)
         );
     }
 }

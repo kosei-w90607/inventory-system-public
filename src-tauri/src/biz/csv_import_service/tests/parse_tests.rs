@@ -192,7 +192,10 @@ fn test_parse_and_validate_req401_unmatched_product() {
     .unwrap();
     assert_eq!(result.matched_rows.len(), 0);
     assert_eq!(result.error_rows.len(), 1);
-    assert_eq!(result.error_rows[0].error_type, "unmatched_product");
+    assert_eq!(
+        result.error_rows[0].error_type,
+        CsvImportErrorType::UnmatchedProduct
+    );
     assert!(result.error_rows[0].error_message.contains("4912345678901"));
 }
 
@@ -246,7 +249,7 @@ fn test_parse_and_validate_req401_parse_errors_merged() {
     let format_error = result
         .error_rows
         .iter()
-        .find(|e| e.error_type == "invalid_format");
+        .find(|e| e.error_type == CsvImportErrorType::InvalidFormat);
     assert!(format_error.is_some());
 }
 

@@ -10,6 +10,24 @@ use rusqlite::OptionalExtension;
 // 型定義
 // ---------------------------------------------------------------------------
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, specta::Type)]
+#[serde(rename_all = "snake_case")]
+pub enum CsvImportStatus {
+    Completed,
+    CompletedPartial,
+    RolledBack,
+}
+
+impl CsvImportStatus {
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Completed => "completed",
+            Self::CompletedPartial => "completed_partial",
+            Self::RolledBack => "rolled_back",
+        }
+    }
+}
+
 /// 売上レコードINSERT用
 ///
 /// 21-io-inventory-repo.md §11.1
@@ -72,7 +90,7 @@ pub struct CsvImport {
     pub total_items: i64,
     pub total_amount: i64,
     pub skipped_count: i64,
-    pub status: String,
+    pub status: CsvImportStatus,
     pub imported_at: String,
 }
 
@@ -706,6 +724,18 @@ pub fn list_daily_report_imports(
 
 /// rusqlite::Row → CsvImport の変換
 fn row_to_csv_import(row: &rusqlite::Row) -> rusqlite::Result<CsvImport> {
+    let status = match row.get::<_, String>(7)?.as_str() {
+        "completed" => CsvImportStatus::Completed,
+        "completed_partial" => CsvImportStatus::CompletedPartial,
+        "rolled_back" => CsvImportStatus::RolledBack,
+        value => {
+            return Err(rusqlite::Error::FromSqlConversionFailure(
+                7,
+                rusqlite::types::Type::Text,
+                format!("unknown csv import status: {value}").into(),
+            ))
+        }
+    };
     Ok(CsvImport {
         id: row.get(0)?,
         filename: row.get(1)?,
@@ -714,7 +744,7 @@ fn row_to_csv_import(row: &rusqlite::Row) -> rusqlite::Result<CsvImport> {
         total_items: row.get(4)?,
         total_amount: row.get(5)?,
         skipped_count: row.get(6)?,
-        status: row.get(7)?,
+        status,
         imported_at: row.get(8)?,
     })
 }
@@ -1235,7 +1265,7 @@ mod tests {
         assert_eq!(found.filename, "Z004_test");
         assert_eq!(found.settlement_date, "2026-03-21");
         assert_eq!(found.file_hash, "abc123def456");
-        assert_eq!(found.status, "completed");
+        assert_eq!(found.status, CsvImportStatus::Completed);
         assert!(!found.imported_at.is_empty());
     }
 
@@ -1296,7 +1326,7 @@ mod tests {
         assert!(updated);
 
         let found = find_csv_import_by_id(&conn, id).unwrap().unwrap();
-        assert_eq!(found.status, "rolled_back");
+        assert_eq!(found.status, CsvImportStatus::RolledBack);
     }
 
     #[test]
@@ -1314,7 +1344,7 @@ mod tests {
         assert_eq!(found.total_items, 42);
         assert_eq!(found.total_amount, 25000);
         assert_eq!(found.skipped_count, 3);
-        assert_eq!(found.status, "completed_partial");
+        assert_eq!(found.status, CsvImportStatus::CompletedPartial);
     }
 
     #[test]

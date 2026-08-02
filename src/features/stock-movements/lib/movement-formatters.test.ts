@@ -9,9 +9,8 @@ describe("movement-formatters (REQ-303)", () => {
     expect(formatMovementQuantity(0)).toEqual({ value: "0", label: "変動なし" });
   });
 
-  it("REQ-303: formatMovementType maps known types and preserves unknown values", () => {
+  it("REQ-303: formatMovementType maps generated movement types", () => {
     expect(formatMovementType("receiving")).toBe("入庫");
     expect(formatMovementType("sale_auto")).toBe("POS売上");
-    expect(formatMovementType("future_type")).toBe("future_type");
   });
 });

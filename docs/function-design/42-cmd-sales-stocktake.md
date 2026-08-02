@@ -85,7 +85,7 @@ fn get_monthly_sales(
 4. Ok → MonthlySalesReport をそのまま返す
 5. Err(BizError) → CmdError に変換して返す
 
-**設計判断 — mode の受け方（CMD-09-CONV-D1、D-061 で改訂）**: wire→内部型変換は業務 validation ではなく CMD 境界の責務である（この点は不変）。D-061 により `SalesMode` も request 側も generated enum で直受けする（`SalesReportType` A 案と同形。順14 実装 PR2 で追随。それまでの現行実装は String 受け + CMD 手動変換）。旧手動変換の validation 文言（「不正な集計モードです」）は wire 契約から除去され、不正値は serde deserialize 拒否へ統一される — UI は固定 toggle からのみ mode を送るため利用者到達不能（D-061 (b)）。
+**設計判断 — mode の受け方（CMD-09-CONV-D1、D-061 で改訂）**: wire→内部型変換は業務 validation ではなく CMD 境界の責務である。`SalesMode` を generated enum で直受けし、旧手動変換の validation 文言（「不正な集計モードです」）は wire 契約から除去した。不正値は serde deserialize 拒否となるが、UI は固定 toggle からのみ mode を送るため利用者到達不能（D-061 (b)）。
 
 #### export_sales_csv
 
@@ -122,7 +122,7 @@ struct SalesExportResponse {
 
 **設計判断 — report_type を `SalesReportType` 直受けにする理由**（PR #66 Q-6 A 案、Codex R1 P3 由来）: `SalesReportType` は `#[derive(specta::Type, serde::Deserialize)]` + `#[serde(rename_all = "snake_case")]` で snake_case literal union (`"daily" | "monthly_by_product" | "monthly_by_department"`) として bindings.ts に export される。フロントエンドは bindings 由来の `SalesReportType` を直接渡し、serde が deserialize 段階で不正値を拒否する（CMD 層の手動 String → enum 変換不要、型安全性最大化）。
 
-**設計判断 — get_monthly_sales の mode（H-1 の解消、D-061）**: 旧判断（commit `daa4fef` 時点で mode のみ String 据え置き）は D-061 で解消し、`get_monthly_sales` の mode も `SalesMode` の generated enum 直受けとする（`SalesReportType` A 案を全 family の標準形として昇格。SalesMode に serde::Deserialize + 既存 specta::Type / Serialize を揃え、CMD signature 変更 + bindings 再生成は順14 実装 PR2 で追随）。`export_sales_csv` 側で先行採用していた A 案の設計動機（frontend が bindings 由来の同型 enum を共有）を全 family に一般化した。
+**設計判断 — get_monthly_sales の mode（H-1 の解消、D-061）**: 旧判断（commit `daa4fef` 時点で mode のみ String 据え置き）は D-061 で解消し、`get_monthly_sales` は `SalesMode` generated enum を直受けする。`SalesMode` に serde::Deserialize + specta::Type / Serialize を揃え、frontend も bindings 由来の同型 enum を共有する。
 
 ---
 

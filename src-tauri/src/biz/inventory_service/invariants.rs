@@ -9,6 +9,9 @@ mod tests {
     use super::super::receiving::{create_receiving, ReceivingCreateRequest, ReceivingItemInput};
     use super::super::returns::{create_return, ReturnCreateRequest, ReturnItemInput};
     use super::super::test_support::*;
+    use crate::db::disposal_repo::DisposalType;
+    use crate::db::manual_sale_repo::ManualSaleReason;
+    use crate::db::return_repo::{ReturnDirection, ReturnExchangeType};
     fn make_receiving_req(key: &str, items: Vec<ReceivingItemInput>) -> ReceivingCreateRequest {
         ReceivingCreateRequest {
             idempotency_key: key.to_string(),
@@ -30,7 +33,7 @@ mod tests {
     fn make_return_req(key: &str, items: Vec<ReturnItemInput>) -> ReturnCreateRequest {
         ReturnCreateRequest {
             idempotency_key: key.to_string(),
-            return_type: "return".to_string(),
+            return_type: ReturnExchangeType::Return,
             return_date: "2026-04-07".to_string(),
             register_processed: false,
             receipt_image_path: None,
@@ -42,7 +45,11 @@ mod tests {
     fn return_item(code: &str, direction: &str, qty: i64) -> ReturnItemInput {
         ReturnItemInput {
             product_code: code.to_string(),
-            direction: direction.to_string(),
+            direction: match direction {
+                "in" => ReturnDirection::In,
+                "out" => ReturnDirection::Out,
+                _ => panic!("test helper received invalid direction"),
+            },
             quantity: qty,
         }
     }
@@ -51,7 +58,7 @@ mod tests {
         ManualSaleCreateRequest {
             idempotency_key: key.to_string(),
             sale_date: "2026-04-07".to_string(),
-            reason: "plu_unregistered".to_string(),
+            reason: ManualSaleReason::PluUnregistered,
             note: None,
             items,
             confirmation_token: None,
@@ -77,7 +84,7 @@ mod tests {
     fn disposal_item(code: &str, qty: i64, cost: i64, reason: &str) -> DisposalItemInput {
         DisposalItemInput {
             product_code: code.to_string(),
-            disposal_type: "disposal".to_string(),
+            disposal_type: DisposalType::Disposal,
             quantity: qty,
             cost_price: cost,
             reason: reason.to_string(),

@@ -20,11 +20,18 @@ use std::collections::BTreeMap;
 ///
 /// response serialize 時に snake_case 出力（"by_product" / "by_department"）。
 /// request 引数は `get_monthly_sales(mode: String)` で受け取り CMD 層で変換する（H-1）。
-#[derive(Debug, Clone, serde::Serialize, specta::Type)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, specta::Type)]
 #[serde(rename_all = "snake_case")]
 pub enum SalesMode {
     ByProduct,
     ByDepartment,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, specta::Type)]
+#[serde(rename_all = "snake_case")]
+pub enum DailySaleSource {
+    Auto,
+    Manual,
 }
 
 /// 日次売上アイテム（BIZ公開型。DB型からマッピング）
@@ -36,7 +43,7 @@ pub struct DailySaleItem {
     pub department_id: i64,
     pub quantity: i64,
     pub amount: i64,
-    pub source: String,
+    pub source: DailySaleSource,
 }
 
 /// 日次売上レポート
@@ -169,16 +176,26 @@ pub fn get_daily_sales(conn: &DbConnection, date: &str) -> Result<DailySalesRepo
     let db_rows = sales_repo::get_daily_sales_records(conn, date)?;
     let items: Vec<DailySaleItem> = db_rows
         .into_iter()
-        .map(|r| DailySaleItem {
-            product_code: r.product_code,
-            name: r.name,
-            department_name: r.department_name,
-            department_id: r.department_id,
-            quantity: r.quantity,
-            amount: r.amount,
-            source: r.source,
+        .map(|r| {
+            Ok(DailySaleItem {
+                product_code: r.product_code,
+                name: r.name,
+                department_name: r.department_name,
+                department_id: r.department_id,
+                quantity: r.quantity,
+                amount: r.amount,
+                source: match r.source.as_str() {
+                    "auto" => DailySaleSource::Auto,
+                    "manual" => DailySaleSource::Manual,
+                    other => {
+                        return Err(BizError::DatabaseError(crate::db::DbError::QueryFailed(
+                            format!("unknown daily sale source: {other}"),
+                        )))
+                    }
+                },
+            })
         })
-        .collect();
+        .collect::<Result<Vec<_>, BizError>>()?;
 
     // Step 3: 部門小計の計算（BTreeMap で部門ID昇順を保証）
     let mut dept_map: BTreeMap<i64, (String, i64, i64)> = BTreeMap::new();
@@ -370,11 +387,10 @@ pub fn export_sales_csv(
 // ---------------------------------------------------------------------------
 
 /// 売上記録元の日本語変換（CSV出力用）
-fn translate_source(source: &str) -> &str {
+fn translate_source(source: &DailySaleSource) -> &str {
     match source {
-        "auto" => "POS",
-        "manual" => "手動",
-        other => other,
+        DailySaleSource::Auto => "POS",
+        DailySaleSource::Manual => "手動",
     }
 }
 

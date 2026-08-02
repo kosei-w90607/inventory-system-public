@@ -3,6 +3,7 @@
 use crate::biz::BizError;
 use crate::db::inventory_repo::{MovementType, ReferenceType};
 use crate::db::manual_sale_repo;
+use crate::db::manual_sale_repo::ManualSaleReason;
 use crate::db::product_repo;
 use crate::db::sales_repo;
 use crate::db::system_repo;
@@ -18,7 +19,7 @@ use super::common::{apply_stock_change, compute_fingerprint, IDEMPOTENCY_KEY_MAX
 pub struct ManualSaleCreateRequest {
     pub idempotency_key: String,
     pub sale_date: String,
-    pub reason: String,
+    pub reason: ManualSaleReason,
     pub note: Option<String>,
     pub items: Vec<ManualSaleItemInput>,
     pub confirmation_token: Option<String>,
@@ -60,6 +61,16 @@ fn compute_confirmation_token(items_with_plu: &[String]) -> String {
     format!("{:x}", hasher.finalize())
 }
 
+fn compute_manual_sale_fingerprint(req: &ManualSaleCreateRequest) -> String {
+    let header = format!("{}|{}", req.sale_date, req.reason.as_str());
+    let item_lines: Vec<String> = req
+        .items
+        .iter()
+        .map(|item| format!("{}|{}|{}", item.product_code, item.quantity, item.amount))
+        .collect();
+    compute_fingerprint(&header, &item_lines)
+}
+
 /// 手動販売出庫を記録する
 ///
 /// PLU登録済み商品への警告チェック（confirmation_token方式）を含む。
@@ -89,21 +100,8 @@ pub fn create_manual_sale(
             "明細が1件以上必要です".to_string(),
         ));
     }
-    if req.reason != "plu_unregistered" && req.reason != "other" {
-        return Err(BizError::ValidationFailed(format!(
-            "理由が不正です: {}",
-            req.reason
-        )));
-    }
-
     // fingerprint（リクエストフィールドのみ使用、DB参照不要）
-    let header = format!("{}|{}", req.sale_date, req.reason);
-    let fp_item_lines: Vec<String> = req
-        .items
-        .iter()
-        .map(|i| format!("{}|{}|{}", i.product_code, i.quantity, i.amount))
-        .collect();
-    let fingerprint = compute_fingerprint(&header, &fp_item_lines);
+    let fingerprint = compute_manual_sale_fingerprint(&req);
 
     // 冪等性チェック（バリデーション・確認フローより優先）
     if let Some((existing_id, existing_fp)) =
@@ -203,7 +201,7 @@ pub fn create_manual_sale(
         &tx,
         &crate::db::manual_sale_repo::NewManualSale {
             sale_date: req.sale_date.clone(),
-            reason: req.reason.clone(),
+            reason: req.reason.as_str().to_string(),
             note: req.note.clone(),
             idempotency_key: normalized_key.clone(),
             request_fingerprint: fingerprint.clone(),
@@ -260,7 +258,7 @@ pub fn create_manual_sale(
                 amount: item.amount,
                 source: "manual".to_string(),
                 source_line_no: None,
-                reason: Some(req.reason.clone()),
+                reason: Some(req.reason.as_str().to_string()),
                 note: req.note.clone(),
             },
         )?;
@@ -328,7 +326,7 @@ mod tests {
         ManualSaleCreateRequest {
             idempotency_key: key.to_string(),
             sale_date: "2026-04-07".to_string(),
-            reason: "plu_unregistered".to_string(),
+            reason: ManualSaleReason::PluUnregistered,
             note: None,
             items,
             confirmation_token: None,
@@ -341,6 +339,15 @@ mod tests {
             quantity: qty,
             amount,
         }
+    }
+
+    #[test]
+    fn test_manual_sale_fingerprint_fixed_value_req203() {
+        let req = make_manual_sale_req("fp-manual-sale", vec![manual_sale_item("FP-MS", 2, 500)]);
+        assert_eq!(
+            compute_manual_sale_fingerprint(&req),
+            "32685035d322b97a54cc38d489140f962a819abecddfc5c95aae22460f9bb3fd"
+        );
     }
 
     #[test]
@@ -553,18 +560,6 @@ mod tests {
         // REQ-203: 手動販売出庫 — バリデーション: 空の明細 → エラー
         let (_dir, mut conn) = setup_test_db();
         let req = make_manual_sale_req("ms-key-9", vec![]);
-        let result = create_manual_sale(&mut conn, req);
-        assert!(matches!(result, Err(BizError::ValidationFailed(_))));
-    }
-
-    #[test]
-    fn test_create_manual_sale_req203_validation_invalid_reason() {
-        // REQ-203: 手動販売出庫 — バリデーション: 不正な reason → エラー
-        let (_dir, mut conn) = setup_test_db();
-        create_test_product(&conn, "MS-010", 10);
-
-        let mut req = make_manual_sale_req("ms-key-10", vec![manual_sale_item("MS-010", 1, 500)]);
-        req.reason = "invalid".to_string();
         let result = create_manual_sale(&mut conn, req);
         assert!(matches!(result, Err(BizError::ValidationFailed(_))));
     }

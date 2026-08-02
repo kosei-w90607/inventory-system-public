@@ -7,6 +7,8 @@ mod constants;
 // pub: dev bin (src/bin/seed_demo_data.rs) から init_database / DbError を使用する
 #[allow(dead_code)]
 pub mod db;
+#[cfg(test)]
+mod finite_enum_contract_tests;
 #[allow(dead_code)]
 mod io;
 #[allow(dead_code)]

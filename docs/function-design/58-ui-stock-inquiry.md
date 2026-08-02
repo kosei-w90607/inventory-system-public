@@ -46,10 +46,10 @@ export type Product = {
   supplier_id: number | null;
   selling_price: number;
   cost_price: number;
-  tax_rate: string;
+  tax_rate: ProductTaxRate;
   maker_code: string | null;
   stock_quantity: number;
-  stock_unit: string;        // CHECK 制約で "pcs" | "cm" の 2 値（Q-4）
+  stock_unit: ProductStockUnit; // "pcs" | "cm"（Q-4）
   is_discontinued: boolean;
   plu_dirty: boolean;
   plu_exported_at: string | null;

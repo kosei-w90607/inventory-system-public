@@ -8,7 +8,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { SegmentedControl } from "@/components/ui/segmented-control";
-import { commands, type PluExportPrepareResponse } from "@/lib/bindings";
+import { commands, type ExportMode, type PluExportPrepareResponse } from "@/lib/bindings";
 import { describeError } from "@/lib/describe-error";
 import { invalidateByContract, invalidationContract } from "@/lib/invalidation-contract";
 import { unwrapResult } from "@/lib/invoke";
@@ -17,7 +17,6 @@ import { queryKeys } from "@/lib/query-keys";
 import { save } from "@tauri-apps/plugin-dialog";
 import { writeFile } from "@tauri-apps/plugin-fs";
 
-type ExportMode = "diff" | "full";
 type FlowStatus =
   | "idle"
   | "preparing"

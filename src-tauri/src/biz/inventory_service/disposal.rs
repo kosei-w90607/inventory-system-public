@@ -2,6 +2,7 @@
 
 use crate::biz::BizError;
 use crate::db::disposal_repo;
+use crate::db::disposal_repo::DisposalType;
 use crate::db::inventory_repo::{MovementType, ReferenceType};
 use crate::db::product_repo;
 use crate::db::system_repo;
@@ -22,7 +23,7 @@ pub struct DisposalCreateRequest {
 #[derive(Debug, Clone, serde::Deserialize, specta::Type)]
 pub struct DisposalItemInput {
     pub product_code: String,
-    pub disposal_type: String,
+    pub disposal_type: DisposalType,
     pub quantity: i64,
     pub cost_price: i64,
     pub reason: String,
@@ -35,6 +36,24 @@ pub struct DisposalCreateResult {
     pub created: bool,
     pub idempotent_replay: bool,
     pub stock_warnings: Vec<String>,
+}
+
+fn compute_disposal_fingerprint(req: &DisposalCreateRequest) -> String {
+    let item_lines: Vec<String> = req
+        .items
+        .iter()
+        .map(|item| {
+            format!(
+                "{}|{}|{}|{}|{}",
+                item.product_code,
+                item.quantity,
+                item.cost_price,
+                item.disposal_type.as_str(),
+                item.reason
+            )
+        })
+        .collect();
+    compute_fingerprint(&req.disposal_date, &item_lines)
 }
 
 /// 廃棄・破損記録を登録し、在庫を減少させる
@@ -65,17 +84,7 @@ pub fn create_disposal(
     }
 
     // fingerprint（リクエストフィールドのみ使用、DB参照不要）
-    let item_lines: Vec<String> = req
-        .items
-        .iter()
-        .map(|i| {
-            format!(
-                "{}|{}|{}|{}|{}",
-                i.product_code, i.quantity, i.cost_price, i.disposal_type, i.reason
-            )
-        })
-        .collect();
-    let fingerprint = compute_fingerprint(&req.disposal_date, &item_lines);
+    let fingerprint = compute_disposal_fingerprint(&req);
 
     // 冪等性チェック（バリデーションより先に実行）
     if let Some((existing_id, existing_fp)) =
@@ -113,14 +122,6 @@ pub fn create_disposal(
             return Err(BizError::ValidationFailed(format!(
                 "明細{}: 理由は必須です",
                 i + 1
-            )));
-        }
-        let valid_types = ["disposal", "damage", "other"];
-        if !valid_types.contains(&item.disposal_type.as_str()) {
-            return Err(BizError::ValidationFailed(format!(
-                "明細{}: 廃棄種別が不正です: {}",
-                i + 1,
-                item.disposal_type
             )));
         }
         if product_repo::find_by_product_code(conn, &item.product_code)?.is_none() {
@@ -177,7 +178,7 @@ pub fn create_disposal(
             &crate::db::disposal_repo::NewDisposalItem {
                 disposal_record_id: record_id,
                 product_code: item.product_code.clone(),
-                disposal_type: item.disposal_type.clone(),
+                disposal_type: item.disposal_type.as_str().to_string(),
                 quantity: item.quantity,
                 cost_price: item.cost_price,
                 reason: item.reason.clone(),
@@ -250,11 +251,30 @@ mod tests {
     fn disposal_item(code: &str, qty: i64, cost: i64, reason: &str) -> DisposalItemInput {
         DisposalItemInput {
             product_code: code.to_string(),
-            disposal_type: "disposal".to_string(),
+            disposal_type: DisposalType::Disposal,
             quantity: qty,
             cost_price: cost,
             reason: reason.to_string(),
         }
+    }
+
+    #[test]
+    fn test_disposal_fingerprint_fixed_value_req204() {
+        let req = DisposalCreateRequest {
+            idempotency_key: "fp-disposal".to_string(),
+            disposal_date: "2026-04-07".to_string(),
+            items: vec![DisposalItemInput {
+                product_code: "FP-DSP".to_string(),
+                disposal_type: DisposalType::Damage,
+                quantity: 2,
+                cost_price: 100,
+                reason: "破損".to_string(),
+            }],
+        };
+        assert_eq!(
+            compute_disposal_fingerprint(&req),
+            "d1c78978cf52125a62b1302360649f40d771265ce4b8ed82926834b92de6a1d1"
+        );
     }
 
     #[test]
@@ -388,19 +408,6 @@ mod tests {
         create_test_product(&conn, "DSP-006", 10);
 
         let req = make_disposal_req("dsp-key-6", vec![disposal_item("DSP-006", 1, 100, "")]);
-        let result = create_disposal(&mut conn, req);
-        assert!(matches!(result, Err(BizError::ValidationFailed(_))));
-    }
-
-    #[test]
-    fn test_create_disposal_req204_validation_invalid_type() {
-        // REQ-204: 廃棄・破損記録 — 不正な disposal_type → エラー
-        let (_dir, mut conn) = setup_test_db();
-        create_test_product(&conn, "DSP-007", 10);
-
-        let mut item = disposal_item("DSP-007", 1, 100, "理由");
-        item.disposal_type = "invalid".to_string();
-        let req = make_disposal_req("dsp-key-7", vec![item]);
         let result = create_disposal(&mut conn, req);
         assert!(matches!(result, Err(BizError::ValidationFailed(_))));
     }

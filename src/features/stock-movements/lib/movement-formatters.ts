@@ -2,7 +2,9 @@
 //
 // REQ-303 / UI-06c-D4-D5: movement 種別と増減の operator-facing 表示。
 
-const movementTypeLabels: Record<string, string> = {
+import type { MovementType } from "@/lib/bindings";
+
+const movementTypeLabels: Record<MovementType, string> = {
   receiving: "入庫",
   return: "返品・交換",
   sale_auto: "POS売上",
@@ -11,8 +13,8 @@ const movementTypeLabels: Record<string, string> = {
   stocktake: "棚卸し",
 };
 
-export function formatMovementType(movementType: string): string {
-  return movementTypeLabels[movementType] ?? movementType;
+export function formatMovementType(movementType: MovementType): string {
+  return movementTypeLabels[movementType];
 }
 
 export function formatMovementQuantity(quantity: number): { value: string; label: string } {

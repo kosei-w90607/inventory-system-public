@@ -24,8 +24,8 @@ fn create_product(conn: &mut DbConnection, req: ProductCreateRequest) -> Result<
 - department_id: i64
 - selling_price: i64
 - cost_price: i64
-- tax_rate: String（"10" / "8" / "0"）
-- stock_unit: String（"pcs" / "cm"）
+- tax_rate: ProductTaxRate（"10" / "8" / "0"）
+- stock_unit: ProductStockUnit（"pcs" / "cm"）
 - initial_stock: i64（0なら在庫なし）
 - maker_code: Option<String>
 - supplier_id: Option<i64>
@@ -41,12 +41,11 @@ fn create_product(conn: &mut DbConnection, req: ProductCreateRequest) -> Result<
    a. name が空文字 → BizError::ValidationFailed("商品名は必須です")
    b. selling_price < 0 → BizError::ValidationFailed("売価は0以上で入力してください")
    c. cost_price < 0 → BizError::ValidationFailed("原価は0以上で入力してください")
-   d. tax_rate が "10","8","0" のいずれでもない → BizError::ValidationFailed("税率が不正です")
-   e. stock_unit が "pcs","cm" のいずれでもない → BizError::ValidationFailed("数量単位が不正です")
-   f. department_idの存在チェック → product_repo::find_department_by_id()。None → BizError::ValidationFailed("指定された部門が存在しません")
-   g. supplier_idがSomeの場合 → 存在チェック。None → BizError::ValidationFailed("指定された取引先が存在しません")
+   d. tax_rate / stock_unit は wire 境界で `ProductTaxRate` / `ProductStockUnit` として型検査済み
+   e. department_idの存在チェック → product_repo::find_department_by_id()。None → BizError::ValidationFailed("指定された部門が存在しません")
+   f. supplier_idがSomeの場合 → 存在チェック。None → BizError::ValidationFailed("指定された取引先が存在しません")
 
-**enum 契約化（D-061、二層化）**: D-061 で wire 経路（CMD 境界の request/response）は tax_rate/stock_unit の enum 型が置換するが、上記 d/e の validation は CSV 一括インポート（BIZ-01 の file 由来経路）の guard として維持する（文言不変）。file 由来値は wire を経由せず本 validation を通るため、wire 型置換後も本チェックは残置する。
+**enum 契約化（D-061 / D-064、二層化）**: wire 経路（CMD 境界の request/response）は tax_rate/stock_unit を generated enum で型検査する。一方、file 由来の `ImportRow.tax_rate: String` / `stock_unit: Option<String>` は維持する。file 経路の値域 guard が実在するのは tax_rate のみ。stock_unit は missing / 空文字を preview で `None` のまま保持して INSERT 時に `"pcs"` へデフォルト化し、非空の不正値は commit の DB CHECK で拒否する。
 
 2. **トランザクション開始（rusqlite::Transaction RAII）**
    - `conn.transaction()` で開始。Drop 時に自動 ROLLBACK

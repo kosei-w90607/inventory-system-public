@@ -183,7 +183,7 @@ const searchSchema = z.object({
 });
 ```
 
-**enum 契約化（D-061）**: `mode` の zod `.enum(["by_product", "by_department"])` は `SalesMode` 値集合の手動再宣言。D-061 で bindings 由来 generated union へ置換される（順14 実装 PR2）。値・fallback 挙動は不変。
+**enum 契約化（D-061）**: `mode` は bindings 由来の `SalesMode` generated union を利用する。値・fallback 挙動は不変。
 
 - `month` undefined → 当月 fallback（`useCurrentMonth` hook）
 - `mode` undefined → `"by_product"` fallback

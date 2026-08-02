@@ -25,7 +25,7 @@ sales_repo.rs に追加する（ARCHITECTURE.md: sales_repository は sale_recor
 - total_items: i64
 - total_amount: i64
 - skipped_count: i64
-- status: String（"completed" / "completed_partial" / "rolled_back"）
+- status: CsvImportStatus（"completed" / "completed_partial" / "rolled_back"）
 - imported_at: String（YYYY-MM-DDTHH:MM:SS）
 
 **NewCsvImport構造体**:

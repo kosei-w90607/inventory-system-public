@@ -5,12 +5,13 @@
 import type {
   Department,
   ProductCreateRequest,
+  ProductStockUnit,
+  ProductTaxRate,
   ProductUpdateRequest_Deserialize,
   ProductWithRelations,
 } from "@/lib/bindings";
 
-export type ProductTaxRate = "10" | "8" | "0";
-export type ProductStockUnit = "pcs" | "cm";
+export type { ProductStockUnit, ProductTaxRate };
 
 export interface ProductFormValues {
   janCode: string;

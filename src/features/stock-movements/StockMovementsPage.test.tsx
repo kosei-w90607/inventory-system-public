@@ -62,7 +62,7 @@ function makeMovement(overrides: Partial<MovementRecord> = {}): MovementRecord {
     movement_type: "disposal",
     quantity: -1,
     stock_after: 3,
-    reference_type: "disposal",
+    reference_type: "disposal_record",
     reference_id: 7,
     source: { label: "廃棄・破損 #7", route: "/inventory/disposal/records/7" },
     note: "破損",

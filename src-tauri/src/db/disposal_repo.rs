@@ -10,6 +10,37 @@ use super::{DbConnection, DbError, PaginatedResult};
 // 型定義
 // ---------------------------------------------------------------------------
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, specta::Type)]
+#[serde(rename_all = "snake_case")]
+pub enum DisposalType {
+    Disposal,
+    Damage,
+    Other,
+}
+
+impl DisposalType {
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Disposal => "disposal",
+            Self::Damage => "damage",
+            Self::Other => "other",
+        }
+    }
+}
+
+fn parse_disposal_type(value: String) -> rusqlite::Result<DisposalType> {
+    match value.as_str() {
+        "disposal" => Ok(DisposalType::Disposal),
+        "damage" => Ok(DisposalType::Damage),
+        "other" => Ok(DisposalType::Other),
+        _ => Err(rusqlite::Error::FromSqlConversionFailure(
+            0,
+            rusqlite::types::Type::Text,
+            format!("unknown disposal_type: {value}").into(),
+        )),
+    }
+}
+
 /// 廃棄記録INSERT用
 ///
 /// 21-io-inventory-repo.md §10.5
@@ -78,7 +109,7 @@ pub struct DisposalRecordDetailItem {
     pub product_name: String,
     pub department_name: String,
     pub stock_unit: String,
-    pub disposal_type: String,
+    pub disposal_type: DisposalType,
     pub quantity: i64,
     pub cost_price: i64,
     pub reason: String,
@@ -513,7 +544,7 @@ pub fn get_disposal_record_detail(
                 product_name: row.get(2)?,
                 department_name: row.get(3)?,
                 stock_unit: row.get(4)?,
-                disposal_type: row.get(5)?,
+                disposal_type: parse_disposal_type(row.get(5)?)?,
                 quantity: row.get(6)?,
                 cost_price: row.get(7)?,
                 reason: row.get(8)?,
@@ -537,10 +568,10 @@ pub fn get_disposal_record_detail(
             Ok(MovementRecord {
                 id: row.get(0)?,
                 product_code: row.get(1)?,
-                movement_type: row.get(2)?,
+                movement_type: super::inventory_repo::parse_movement_type(row.get(2)?)?,
                 quantity: row.get(3)?,
                 stock_after: row.get(4)?,
-                reference_type: row.get(5)?,
+                reference_type: super::inventory_repo::parse_reference_type(row.get(5)?),
                 reference_id: row.get(6)?,
                 source: None,
                 note: row.get(7)?,

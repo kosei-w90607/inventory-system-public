@@ -143,7 +143,7 @@ function makeManualSaleDetail(): ManualSaleRecordDetail {
       {
         id: 301,
         product_code: "MS-001",
-        movement_type: "manual_sale",
+        movement_type: "sale_manual",
         quantity: -1,
         stock_after: 4,
         reference_type: "manual_sale",

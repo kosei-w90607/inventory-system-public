@@ -263,10 +263,10 @@ pub fn get_receiving_record_detail(
             Ok(MovementRecord {
                 id: row.get(0)?,
                 product_code: row.get(1)?,
-                movement_type: row.get(2)?,
+                movement_type: super::inventory_repo::parse_movement_type(row.get(2)?)?,
                 quantity: row.get(3)?,
                 stock_after: row.get(4)?,
-                reference_type: row.get(5)?,
+                reference_type: super::inventory_repo::parse_reference_type(row.get(5)?),
                 reference_id: row.get(6)?,
                 source: None,
                 note: row.get(7)?,
@@ -604,8 +604,8 @@ mod tests {
         assert_eq!(detail.total_cost, 1000);
         assert_eq!(detail.movements.len(), 1);
         assert_eq!(
-            detail.movements[0].reference_type.as_deref(),
-            Some("receiving_record")
+            detail.movements[0].reference_type,
+            Some(super::super::inventory_repo::ReferenceType::ReceivingRecord)
         );
     }
 }

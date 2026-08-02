@@ -113,7 +113,7 @@ fn create_return(conn: &mut DbConnection, req: ReturnCreateRequest) -> Result<Re
 
 **ReturnCreateRequest構造体**:
 - idempotency_key: String
-- return_type: String（"return" / "exchange"）
+- return_type: ReturnExchangeType（"return" / "exchange"）
 - return_date: String（YYYY-MM-DD）
 - register_processed: bool
 - receipt_image_path: Option<String>
@@ -122,7 +122,7 @@ fn create_return(conn: &mut DbConnection, req: ReturnCreateRequest) -> Result<Re
 
 **ReturnItemInput構造体**:
 - product_code: String
-- direction: String（"in" / "out"）
+- direction: ReturnDirection（"in" / "out"）
 - quantity: i64（正の整数のみ）
 
 **ReturnCreateResult構造体**:
@@ -133,7 +133,7 @@ fn create_return(conn: &mut DbConnection, req: ReturnCreateRequest) -> Result<Re
 
 **処理ステップ**:
 1. **冪等性チェック**（create_receivingと同パターン）
-2. **バリデーション**: items空チェック、return_type検証、return_type と direction の組み合わせ検証、各item の direction/quantity/product_code検証
+2. **バリデーション**: items空チェック、return_type と direction の組み合わせ検証、各item の quantity/product_code検証（値域は enum 型で検査済み）
    - return_type == "return": direction は全itemで "in" のみ許可する。1件以上の "in" item が必要
    - return_type == "exchange": "in" item と "out" item を少なくとも1件ずつ要求する
    - 上記に違反した場合は BizError::ValidationFailed を返し、insert_return_record / insert_return_item / stock change は実行しない
@@ -160,7 +160,7 @@ fn create_return(conn: &mut DbConnection, req: ReturnCreateRequest) -> Result<Re
 - 交換（exchange）は「戻った商品」と「渡した商品」の対を記録するため、"in" と "out" の両方を少なくとも1件ずつ要求する。片側だけなら返品または別の出庫種別として扱う
 - UI-03 は保存前に日本語エラーを出すが、generated command はUI以外からも呼べるため、最終防御は BIZ-02 が持つ
 
-**enum 契約化（D-061）**: `return_type` / `direction` の文字列比較 validation は D-061 で enum 型に置換される。値・文言は不変、DB CHECK 防御は維持する。
+**enum 契約化（D-061 / D-064）**: `return_type` / `direction` は generated enum 型で検査し、文字列比較 validation は退役した。正常値と DB CHECK 防御は不変。
 
 ---
 
@@ -176,7 +176,7 @@ fn create_manual_sale(conn: &mut DbConnection, req: ManualSaleCreateRequest) -> 
 **ManualSaleCreateRequest構造体**:
 - idempotency_key: String
 - sale_date: String（YYYY-MM-DD）
-- reason: String（"plu_unregistered" / "other"）
+- reason: ManualSaleReason（"plu_unregistered" / "other"）
 - note: Option<String>
 - items: Vec<ManualSaleItemInput>
 - confirmation_token: Option<String>（初回はNone、警告確認後に再呼出時はSome）
@@ -241,7 +241,7 @@ fn create_disposal(conn: &mut DbConnection, req: DisposalCreateRequest) -> Resul
 
 **DisposalItemInput構造体**:
 - product_code: String
-- disposal_type: String（"disposal" / "damage" / "other"）
+- disposal_type: DisposalType（"disposal" / "damage" / "other"）
 - quantity: i64（正の整数のみ）
 - cost_price: i64
 - reason: String
@@ -254,7 +254,7 @@ fn create_disposal(conn: &mut DbConnection, req: DisposalCreateRequest) -> Resul
 
 **処理ステップ**:
 1. **冪等性チェック**（同パターン）
-2. **バリデーション**: items空、各item の quantity/cost_price/reason/disposal_type/product_code検証
+2. **バリデーション**: items空、各item の quantity/cost_price/reason/product_code検証（disposal_type 値域は enum 型で検査済み）
 3. **request_fingerprint計算**
    - ヘッダ行: "{disposal_date}"
    - item行: "{product_code}|{quantity}|{cost_price}|{disposal_type}|{reason}"
@@ -264,7 +264,7 @@ fn create_disposal(conn: &mut DbConnection, req: DisposalCreateRequest) -> Resul
 7. **操作ログ**(operation_type="disposal_create")
 8. **COMMIT**
 
-**enum 契約化（D-061）**: `disposal_type` の文字列比較 validation は D-061 で enum 型に置換される。値・文言は不変、DB CHECK 防御は維持する。
+**enum 契約化（D-061 / D-064）**: `disposal_type` は generated enum 型で検査し、文字列比較 validation は退役した。正常値と DB CHECK 防御は不変。
 
 ---
 

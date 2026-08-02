@@ -11,7 +11,7 @@ function makeMovement(overrides: Partial<MovementRecord> = {}): MovementRecord {
     movement_type: "receiving",
     quantity: 5,
     stock_after: 12,
-    reference_type: "receiving",
+    reference_type: "receiving_record",
     reference_id: 42,
     source: { label: "入庫記録 #42", route: "/inventory/receiving/records/42" },
     note: "初回入庫",

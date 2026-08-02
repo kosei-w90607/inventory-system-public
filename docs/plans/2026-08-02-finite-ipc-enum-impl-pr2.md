@@ -350,7 +350,11 @@ Contract ID: D-061 (a)(b)(c)(e)（design PR で凍結、本 PR で実装） + **
 
 ## Implementation Results
 
-（実装後に記入。exact-HEAD SHA / test 件数は PR body を正本とする — D-035/D-038）
+- domain family (2)〜(14) を方向別 derive の generated enum contract へ移行し、手動 parse と BIZ の重複値域検査を退役した。
+- DB 読出しは有限値を明示 match で復元し、REQ-303 の reference_type に限って未知値を None へフォールバックする。DB・IO 書込みと fingerprint は per-enum canonical wire 関数へ一元化した。
+- frontend の手動 alias と mock drift を generated bindings に追随させ、日次集計と movement label を網羅分岐にした。raw String rejection の正規化も回帰 test で固定した。
+- file 由来 ImportRow の String 境界と既存 DB fixture を維持し、stock_unit の default / DB CHECK rollback 境界および PLU 税率変換を回帰 test で固定した。
+- D-064 と所有設計書を実装後の現在形へ同期した。定量的な gate evidence、test 件数、exact-HEAD は PR body を正本とする。
 
 ## Review Response
 

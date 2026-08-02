@@ -34,13 +34,4 @@ describe("computeSalesLineSummary", () => {
     ];
     expect(computeSalesLineSummary(items)).toEqual({ total: 3, autoCount: 2, manualCount: 1 });
   });
-
-  it("counts unknown source in total but not in auto/manual breakdown (defensive)", () => {
-    const items = [
-      makeMockItem({ source: "auto" }),
-      makeMockItem({ source: "future_value" }),
-      makeMockItem({ source: "manual" }),
-    ];
-    expect(computeSalesLineSummary(items)).toEqual({ total: 3, autoCount: 1, manualCount: 1 });
-  });
 });

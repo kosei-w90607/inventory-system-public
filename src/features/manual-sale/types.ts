@@ -1,6 +1,6 @@
-import type { ProductWithRelations } from "@/lib/bindings";
+import type { ManualSaleReason, ProductWithRelations } from "@/lib/bindings";
 
-export type ManualSaleReason = "plu_unregistered" | "other";
+export type { ManualSaleReason };
 
 export interface ManualSaleRow {
   productCode: string;

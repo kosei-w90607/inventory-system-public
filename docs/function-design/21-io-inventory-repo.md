@@ -131,7 +131,7 @@ fn list_return_records(conn: &DbConnection, query: &ListQuery) -> Result<Paginat
 ```
 
 **ReturnRecordSummary構造体**:
-- id: i64, return_type: String, return_date: String, register_processed: bool, note: Option<String>, created_at: String
+- id: i64, return_type: ReturnExchangeType, return_date: String, register_processed: bool, note: Option<String>, created_at: String
 
 #### get_return_record_detail
 
@@ -143,13 +143,13 @@ fn get_return_record_detail(conn: &DbConnection, record_id: i64) -> Result<Retur
 ```
 
 **ReturnRecordDetail構造体**:
-- id: i64, return_type: String, return_date: String, register_processed: bool, receipt_image_path: Option<String>, note: Option<String>, status: String, created_at: String
+- id: i64, return_type: ReturnExchangeType, return_date: String, register_processed: bool, receipt_image_path: Option<String>, note: Option<String>, status: String, created_at: String
 - items: Vec<ReturnRecordDetailItem>
 - movements: Vec<MovementRecord>
 
 **ReturnRecordDetailItem構造体**:
 - id: i64, product_code: String, product_name: String, department_name: String, stock_unit: String
-- direction: String, quantity: i64
+- direction: ReturnDirection, quantity: i64
 
 **処理ステップ**:
 1. return_records のヘッダを record_id で取得する。存在しない場合は DbError::NotFound
@@ -196,7 +196,7 @@ fn get_manual_sale_record_detail(conn: &DbConnection, record_id: i64) -> Result<
 ```
 
 **ManualSaleRecordDetail構造体**:
-- id: i64, sale_date: String, reason: String, note: Option<String>, status: String, created_at: String
+- id: i64, sale_date: String, reason: ManualSaleReason, note: Option<String>, status: String, created_at: String
 - total_amount: i64
 - items: Vec<ManualSaleRecordDetailItem>
 - movements: Vec<MovementRecord>
@@ -324,7 +324,7 @@ fn get_disposal_record_detail(
 - product_name: String
 - department_name: String
 - stock_unit: String
-- disposal_type: String
+- disposal_type: DisposalType
 - quantity: i64
 - cost_price: i64
 - reason: String
