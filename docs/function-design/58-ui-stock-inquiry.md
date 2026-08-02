@@ -149,12 +149,14 @@ useStockInquiry({ status, q, dept, page, selected, navigate })
   │   ↓ StockInquiryListResult { items, totalCount, source } に正規化（UI-06a-D1: `truncated` は撤去済み）
   ├ detail useQuery（selected != null）
   │   commands.getStockDetail(selected) → StockDetail
+  ├ departmentOptions useQuery（page / q / dept / status 非依存、独立、UI-06a-D2）
+  │   commands.listDepartments() → Department[] → DepartmentOption[]（hook 内変換、round 2 P1-1）
   ↓ 派生純関数（derive-stock-state / filter-low-stock-list / format-*）
-{ listResult, detail, autoExpand }
+{ listResult, detail, departmentOptions, autoExpand }
   ↓
 StockInquiryPage（EmptySearchPlaceholder / Skeleton / Alert / EmptyState 出し分け、EmptyState は絞り込み非既定時に「絞り込みを解除」action、catalog ⑥）
   ↓ render
-SearchBar + StatusChips + DepartmentFilter + ProductListTable（状態列 + 選択行直下に StockDetailContent インライン展開）+ StockDetailCard（list 失敗時フォールバック）+ ProductPagination（status === "all" のみ、UI-06a-D1）
+SearchBar + StatusChips + DepartmentFilter（options={departmentOptions} / selected / onChange / disabled={departmentOptionsQuery.isLoading}）+ ProductListTable（状態列 + 選択行直下に StockDetailContent インライン展開）+ StockDetailCard（list 失敗時フォールバック）+ ProductPagination（status === "all" のみ、UI-06a-D1）
 ```
 
 **派生 4 純関数の責務分担**:
@@ -202,7 +204,8 @@ const searchSchema = z.object({
 #### useStockInquiry（2 useQuery 部分障害許容 + 正規化型）
 
 ```ts
-import type { ProductWithRelations, StockDetail } from "@/lib/bindings";
+import type { Department, ProductWithRelations, StockDetail } from "@/lib/bindings";
+import type { DepartmentOption } from "@/components/patterns/DepartmentFilter"; // stock-inquiry/types.ts が re-export（59 §59.3）
 
 export type StockInquiryListResult = {
   items: ProductWithRelations[];
@@ -259,6 +262,10 @@ export function useStockInquiry(params: {
 
   // UI-06a-D2（DSR-10 準拠、round 1 P1-3 対応）: 部門候補は listDepartments() の master 全件から作る。
   // page / q / dept / status のいずれにも依存しない単一 query とし、filtered result からの派生を禁止する。
+  // implementation target（round 2 P1-1 対応）: src/lib/query-keys.ts の `stockInquiry.departmentOptions`
+  // は現状 `(status, q)` 引数付き（["stock-inquiry", "department-options", { status, q }]）。本 change で
+  // 無引数・一定 key（["stock-inquiry", "department-options"] as const 相当）へ変更する。対象は
+  // src/lib/query-keys.ts / useStockInquiry.ts / useStockInquiry.test.tsx の 3 file。
   const departmentOptionsQuery = useQuery({
     queryKey: queryKeys.stockInquiry.departmentOptions(),
     queryFn: () => unwrapResult(commands.listDepartments(), {
@@ -268,6 +275,11 @@ export function useStockInquiry(params: {
     staleTime: 5 * 60_000,
     gcTime: 10 * 60_000,
   });
+  // Department[] → DepartmentOption[] の変換は hook 側の責務（画面側は options={departmentOptions} を
+  // そのまま渡すだけにする、useProductList.ts の departmentOptions 派生と同型）。
+  const departmentOptions: DepartmentOption[] = (departmentOptionsQuery.data ?? [])
+    .map((department) => ({ id: department.id, name: department.name }))
+    .sort((a, b) => a.id - b.id);
 
   const detailQuery = useQuery({
     queryKey: queryKeys.stockInquiry.detail(params.selected ?? ""),
@@ -309,13 +321,14 @@ export function useStockInquiry(params: {
     }
   }, [isAllEmpty, listQuery.isSuccess, listQuery.data, params.selected]);
 
-  return { listQuery, detailQuery, isAllEmpty };
+  return { listQuery, detailQuery, departmentOptionsQuery, departmentOptions, isAllEmpty };
 }
 ```
 
 - **正規化の契約**: 自動展開 / EmptySearchPlaceholder 判定 / ProductPagination は常に `listQuery.data.items` / `.totalCount` を参照（生 `data.total_count` / `data.items` 直接参照禁止、type narrowing 維持）
-- list query 失敗時も detail query は独立動作（部分障害許容）、逆も同様
+- list query 失敗時も detail query は独立動作（部分障害許容）、逆も同様。`departmentOptionsQuery` も同じく独立: list query の成否に関わらず候補取得は継続する
 - 部門選択肢は `listDepartments()` の master 全件から作る（UI-06a-D2、DSR-10）。`page` / `q` / `dept` / `status` のいずれを変更しても候補集合は不変で、選択中部門から別部門へ直接切り替えられる。旧実装（filtered result からの派生）は Windows native L3 feedback で「個別部門選択後に他部門へ切り替えられない」functional defect として修正済みだった経緯があり、pagination 導入でこの縮退が再発・増幅するリスクがあるため、本 change で master 全件由来へ是正する
+- **候補取得失敗時の挙動**（round 2 P1-1 対応、catalog ⑨「部門候補の取得失敗は呼び出し側で別途文言表示」の具体化）: `departmentOptionsQuery.isError` を hook が公開し、`StockInquiryPage` が `DepartmentFilter` 直下に「部門候補の取得に失敗しました」（`role="alert"`、products 画面 `ProductListPage.tsx` の既存文言と同型）を表示する。`listQuery`（一覧表示）とは完全に独立し、候補取得が失敗しても一覧表示は継続する
 
 #### CSV 取込み後の invalidation（`useCsvImportFlow.ts` への追加）
 
@@ -368,7 +381,7 @@ function StockInquiryPage() {
   const statusValue = status ?? "all";
   const pageValue = page ?? 1;
   const selectedValue = selected ?? null;
-  const { listQuery, detailQuery, isAllEmpty } = useStockInquiry({
+  const { listQuery, detailQuery, departmentOptionsQuery, departmentOptions, isAllEmpty } = useStockInquiry({
     status: statusValue, q: qValue, dept: deptValue, page: pageValue, selected: selectedValue,
     navigate: (search) => navigate({ search: (prev) => ({ ...prev, ...search }) }),
   });
@@ -382,7 +395,16 @@ function StockInquiryPage() {
     <div className="...">
       <SearchBar value={qValue} onSearchChange={(v) => navigate({ search: (p) => ({ ...p, q: v || undefined, page: undefined, selected: undefined }) })} />
       <StatusChips value={statusValue} onChange={(s) => navigate({ search: (p) => ({ ...p, status: s, page: undefined, selected: undefined }) })} />
-      <DepartmentFilter value={deptValue} onChange={(d) => navigate({ search: (p) => ({ ...p, dept: d ?? undefined, page: undefined, selected: undefined }) })} />
+      <DepartmentFilter
+        options={departmentOptions}
+        selected={deptValue}
+        onChange={(d) => navigate({ search: (p) => ({ ...p, dept: d ?? undefined, page: undefined, selected: undefined }) })}
+        disabled={departmentOptionsQuery.isLoading}
+      />
+      {/* 候補取得失敗は listQuery とは独立に別途文言表示（catalog ⑨、round 2 P1-1） */}
+      {departmentOptionsQuery.isError && (
+        <p className="text-sm text-destructive" role="alert">部門候補の取得に失敗しました</p>
+      )}
       {isAllEmpty ? (
         <EmptySearchPlaceholder />
       ) : listQuery.isLoading ? (
@@ -454,6 +476,7 @@ function StockInquiryPage() {
 
 - 共通 `src/components/patterns/DepartmentFilter.tsx`（shadcn `Select`、「すべての部門」+ `commands` 由来の部門一覧）を使う。`DepartmentOption` 型は `patterns/DepartmentFilter.tsx` が単一定義し、stock-inquiry 側は re-export を import する（[59-ui-shared-patterns.md](59-ui-shared-patterns.md) §59.3、PR-B で 3 feature 統合済み）
 - 候補は `listDepartments()` master 全件（UI-06a-D2、DSR-10）で、`page` / `q` / `dept` / `status` に関わらず不変。個別部門選択中も他部門候補が縮退しない。`DepartmentFilter` 自体は pure component とし、候補取得は `useStockInquiry` の `departmentOptionsQuery` が担う
+- **canonical props 結線**（round 2 P1-1 対応、59 §59.1 の `{options, selected, onChange, disabled?}` 準拠）: `StockInquiryPage` は `options={departmentOptions}`（hook が `Department[] → DepartmentOption[]` へ変換済みの配列）/ `selected={deptValue}`/ `onChange`（URL state `dept` 更新）/ `disabled={departmentOptionsQuery.isLoading}` を渡す。候補取得失敗時は `departmentOptionsQuery.isError` を見て `DepartmentFilter` 直下に「部門候補の取得に失敗しました」を別途表示し、`listQuery`（一覧表示）とは独立に一覧表示は継続する（§58.5）
 
 #### ProductListTable（高視認性状態表示契約 H、選択行直下インライン展開）
 
@@ -509,7 +532,7 @@ function StockInquiryPage() {
 | `format-stock-display.test.ts` | 3-4 | `"pcs"` → 「個」/ `"cm"` → 「cm」/ unexpected → 「—」（Q-4 網羅） |
 | `format-last-date.test.ts` | 3 | null → 「—」/ `YYYY-MM-DD` そのまま / 空文字扱い |
 | `filter-low-stock-list.test.ts` | 6-8 | stockout 分岐 / low_stock 分岐 / q 部分一致 / dept 絞り込み / 複合 / 空配列 |
-| `useStockInquiry.test.tsx` | 10+ | search → PaginatedResult 正規化（source/totalCount、`truncated` は撤去済み） / low_stock → 配列正規化 / status=all+q空 で enabled=false / 1 件自動展開 / status 切替 → selected clear → 新 list 1 件で再展開 / detail 部分障害 / list 成功 + selected 不在 → clear（C-P2-1） / isAllEmpty + selected → clear + detail 非発火（Round 1 P2-2） / page が queryKey とクエリ引数に反映される（SPEC-UIBB-3/4） / SPEC-UIBB-9: `departmentOptionsQuery` が `listDepartments()` を呼び、page/q/dept/status 変更後も候補が不変で選択中部門から別部門へ直接切替できる（round 1 P1-3、DSR-10） |
+| `useStockInquiry.test.tsx` | 10+ | search → PaginatedResult 正規化（source/totalCount、`truncated` は撤去済み） / low_stock → 配列正規化 / status=all+q空 で enabled=false / 1 件自動展開 / status 切替 → selected clear → 新 list 1 件で再展開 / detail 部分障害 / list 成功 + selected 不在 → clear（C-P2-1） / isAllEmpty + selected → clear + detail 非発火（Round 1 P2-2） / page が queryKey とクエリ引数に反映される（SPEC-UIBB-3/4） / SPEC-UIBB-9: `departmentOptionsQuery` が `listDepartments()` を呼び、page/q/dept/status 変更後も候補が不変で選択中部門から別部門へ直接切替できる（round 1 P1-3、DSR-10）。status 変更（all → low_stock → stockout）も候補不変であることを追加 assert（round 2 P2-3）。同一 `QueryClient` 上で page/q/dept/status を変えても `listDepartments` の call count = 1 に留まる（round 2 P2-3、query-key 安定性の mutant 検出）。`queryKeys.stockInquiry.departmentOptions()` が無引数で呼ぶたびに同一・一定の key を返す unit test（round 2 P1-1、無引数化の regression 防止） |
 | `SearchBar.test.tsx` + `StockInquiryPage.test.tsx` | 8+ | `autoFocus` 検証 / Enter で debounce flush + 即時 search / 結果 1 件で自動展開 useEffect → URL state `selected` 更新 / list 成功 + selected でインライン展開 / 行クリックで selected 更新 → 展開（stateful harness、C-P2-3）/ list 失敗 + detail 成功でフォールバックカード独立描画（部分障害許容、Codex Round 1 P2-1）/ search flow の在庫切れ label / low_stock flow の在庫少 label（RTL + user-event）/ SPEC-UIBB-1/2: 絞り込み非既定+0件で reset action 表示・押下で全条件+page 既定復帰 / SPEC-UIBB-4: q・dept・status 変更で page=1、page 移動は条件維持 / SPEC-UIBB-5: 51 件 synthetic で page 2 に到達、`TruncatedResultsAlert` 残存 0（rg 静的 sweep） / SPEC-UIBB-8: `items` 空 + `total_count > 0` + `page > 1` で範囲外 page 専用メッセージ + 「先頭ページに戻る」を表示し、filter-empty reset action より優先判定される（UI-06a-D3、round 1 P1-2） |
 | `ProductListTable.test.tsx` | 9 | 状態列の「在庫切れ」「在庫少」「通常」text / 商品コード cell `text-sm` readability guard / 選択行直下インライン展開 / nextElementSibling colSpan=6 guard（旧下部固定・旧 5 列混入検出）/ 非選択時展開なし / detail 失敗 inline（C-P2-3） / 展開行 whitespace-normal guard（Round 1 P2-1） |
 | `StatusChips.test.tsx` | 3 | selected chip の `data-state="on"` / chip click の filter value 発火 / deselect 空文字無視（常に 1 つ選択維持） |
@@ -609,3 +632,4 @@ function StockInquiryPage() {
 | 2026-07-29 | wave 4 plan-first | UI-STATE-D2に従い、status tupleと`LOW_STOCK_FILTER`をfeature-local SSOTとしてroute / navigationへ供給する契約を追加。URL値・fallback・表示は不変 |
 | 2026-08-03 | ui-polish-batch-b（本 PR） | UI-06a-D1 追加: `page` search param + 既存 canonical `ProductPagination`（02 ⑩）を結線し、「すべて」全件へページ送りで到達できるようにする（対象は `status === "all"` のみ）。`TruncatedResultsAlert` component と `truncated` flag を撤去（§58.2/§58.3/§58.5/§58.7/§58.10）。§58.7 DepartmentFilter を PR-B で統合済みの共通 `patterns/DepartmentFilter` 使用へ表記更新。§58.13 の pagination UI 行（本 change で実装）と DepartmentFilter 共通化行（PR-B で完了済み）を削除。filter-empty 0 件時の「絞り込みを解除」reset action（catalog ⑥）を追加（§58.7/§58.8） |
 | 2026-08-03 | ui-polish-batch-b round 1 是正（本 PR） | UI-06a-D2 追加: 部門候補 query を `listDepartments()` master 全件へ切替（DSR-10、round 1 P1-3）、`departmentOptionsQuery` を dept/status 非依存の単一 query へ再設計（§58.5/§58.7/§58.10）。UI-06a-D3 追加: 範囲外 page（`items` 空 + `total_count > 0` + `page > 1`）に専用回復導線「先頭ページに戻る」を新設し、filter-empty reset action より優先判定（74 UI-11c-D8 同型、round 1 P1-2、§58.4/§58.7/§58.8/§58.9/§58.10）。EmptyState 疑似コードの `message=` prop を実契約 `title=` へ是正（round 1 P2-5、§58.7/§58.8） |
+| 2026-08-03 | ui-polish-batch-b round 2 是正（本 PR） | round 2 P1-1 対応: `useStockInquiry` の return に `departmentOptionsQuery` / `departmentOptions`（`Department[] → DepartmentOption[]` 変換済み）を追加し、`StockInquiryPage` の `DepartmentFilter` を canonical props（`options` / `selected` / `onChange` / `disabled`、59 §59.1）へ結線（§58.3/§58.5/§58.7）。候補取得失敗時は `departmentOptionsQuery.isError` で「部門候補の取得に失敗しました」を listQuery と独立に表示する挙動を明記（§58.5/§58.7）。`queryKeys.stockInquiry.departmentOptions()` の無引数化（現状 `(status, q)` 引数付き）を implementation target として明示、対象は src/lib/query-keys.ts / useStockInquiry.ts / useStockInquiry.test.tsx（§58.5）。§58.9 SPEC-UIBB-9 に status 変更後の候補不変 assert / 同一 QueryClient での `listDepartments` call count = 1 / `departmentOptions()` 無引数・一定 key の unit test を追加 |

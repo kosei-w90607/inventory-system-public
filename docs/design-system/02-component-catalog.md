@@ -363,13 +363,14 @@ function FormSection({ title, description, children }: FormSectionProps) {
 - **除外(b) 期間主キーレポート** = 日付 / 月という対象選択が支配的で、絞り込み解除がデータ存在を保証しない（日報・月報系）。条件変更の案内は既存 description 文言が担う。
 - **除外(c) 業務入力の明細 0 行** = 入力明細が空なだけで絞り込み結果ではない。
 - **除外(d) 直近実績サマリ / 詳細画面の関連データ不在** = 絞り込み条件を持たない、真にデータなし系。
+- **優先規則**（round 2 P2-2 対応、分類軸の排他性）: 対象選択条件（「すべて」という既定値を持たない必須の主キー = 日報の日付、月報の月）を持つレポート画面は、副次絞り込み（例: 日次売上の部門フィルタ）があっても除外(b) を優先して reset 対象外とする。理由 = reset の統一契約は「全絞り込み条件の既定復帰」であり、対象選択は既定復帰の対象になり得ない。副次絞り込みだけを戻す部分 reset を許すと、同じ「絞り込みを解除」ボタンが site ごとに違う挙動になる。部分 reset（「部門の絞り込みを解除」等の別文言）は要望発生時に別 change で再評価する。
 - reset が戻すのは絞り込み条件のみ。並び替え（sort / dir）・表示件数（perPage）は結果集合を狭めないため対象外。
 
 - **表示条件**: 絞り込み条件が既定値以外、かつ結果が 0 件のときのみ、EmptyState の `action` に絞り込み解除ボタン（`variant="outline"`）を置く。絞り込みが既定値のまま 0 件（真にデータなし）のときは action を出さない。
 - **動作**: 押下でその画面の絞り込み条件をすべて既定値へ戻す。URL search param 画面は search param を既定値へ、local state 画面は state を既定値へ戻す。`page` を持つ画面は `page` も既定（1）へ戻す。並び替え（sort / dir）・表示件数（perPage）は変更しない（分類軸の対象外規定どおり）。
 - **文言**: 「絞り込みを解除」で全採用箇所を統一する。
 - **既存 action との共存規定**（round 1 P1-1 対応、新設）: 既存の主動線 action を持つ画面（商品一覧の「商品を登録する」）は、その action を常設のまま維持し、絞り込みが非既定のときだけ reset ボタンを `action` slot 内へ横並び（flex）で併置する。既存 action が先、reset ボタンが後。
-- **採用箇所**: 棚卸し（`StocktakePage`）/ 在庫照会（`StockInquiryPage`）/ 入出庫履歴一覧（`InventoryRecordsPage`）/ 在庫変動履歴（`StockMovementsPage`）/ 操作ログ（`OperationLogsPage`）/ 商品一覧（`ProductListPage`、round 1 P1-1 で追加）の 6 画面。商品一覧は上記共存規定に従い既存「商品を登録する」action と共存する。操作ログは既存の `defaultFilter` 判定の非既定側にのみ reset action が付く。既存の範囲外 page 回復 action「先頭ページに戻る」（§74 参照）とは対象ケースが異なり、同一画面内で共存する。
+- **採用箇所**: 棚卸し（`StocktakePage`、部門フィルタ / 未入力のみ toggle / `page` を既定へ戻す。73 §73.6 round 2 P2-1 是正と整合）/ 在庫照会（`StockInquiryPage`）/ 入出庫履歴一覧（`InventoryRecordsPage`）/ 在庫変動履歴（`StockMovementsPage`）/ 操作ログ（`OperationLogsPage`）/ 商品一覧（`ProductListPage`、round 1 P1-1 で追加）の 6 画面。商品一覧は上記共存規定に従い既存「商品を登録する」action と共存する。操作ログは既存の `defaultFilter` 判定の非既定側にのみ reset action が付く。既存の範囲外 page 回復 action「先頭ページに戻る」（§74 参照）とは対象ケースが異なり、同一画面内で共存する。
 - **適用除外**: 本節冒頭の適用除外（`EmptySearchPlaceholder` / shortcuts `emptyMessage` / 明細 0 行系）および上記分類軸の除外(a)〜(d) と同じ。これらは「絞り込み結果 0 件」ではないため reset action の対象にしない。
 
 **バリエーション: インライン選択エラー 1 スロット**（PR #125、canonical: `src/features/daily-report-import/DailyReportImportPage.tsx` の `SelectionErrorMessage`）: ファイル選択（DSR-14 の path-based 方式）など非フォーム文脈の入力検証エラーは、発生源（選択ボタン）直下の 1 スロットに `role="alert"` + destructive テキスト + アイコンで表示する。エラー state は選択試行のたびに置換し、成功で `null` にクリアする。画面上部の Alert 帯（データ安全系専用）とは役割を混ぜない（DSR-03 の 3 階層）。フォーム文脈の入力検証はパターン④の `FieldError`（入力直下）が既定で、本バリエーションは非フォーム文脈専用。
@@ -809,7 +810,7 @@ toast.error(`出力に失敗しました: ${message}`, { id: `export-${reportTyp
 
 **状態**:
 - **disabled**: `disabled` prop でボタン・dropzone とも操作不能にする（dropzone は `cursor-not-allowed opacity-50`）
-- **エラー**: 読取り失敗時、`onError` が渡されていれば呼び出し側の表示に委譲、なければ `toast.error("ファイルの選択または読み取りに失敗しました")` にフォールバックする
+- **エラー**: エラー表示はボタン / dropzone 直下（呼び出し側の表示スロット）に置く。`onError` の意味論・未指定時のフォールバック文言は behavior / API 契約であり [UI_TECH_STACK.md §6.5.4](../UI_TECH_STACK.md#654-ネイティブダイアログ) が正典（round 2 P2-4 対応、本節は visual のみ）
 - hover / focus / active: ボタン primitive の既定に従う
 
 **アクセシビリティ**: ボタンは `ariaLabel` prop（必須）で識別する。dropzone のアイコンは `aria-hidden`。

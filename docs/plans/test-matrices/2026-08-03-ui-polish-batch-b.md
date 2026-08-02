@@ -24,7 +24,7 @@ Risk: R3
 
 | site | reset で既定値へ戻す tuple | page | 共存 action |
 |---|---|---|---|
-| StocktakePage | 部門フィルタ、未入力のみ表示 toggle | なし | なし |
+| StocktakePage | 部門フィルタ、未入力のみ表示 toggle | あり（`StocktakeSearch.page` 既存 param、既定 1。round 2 P2-1 で追加） | なし |
 | StockInquiryPage | q、dept、status | あり（page=1、URL param 除去） | なし（復帰後は EmptySearchPlaceholder） |
 | InventoryRecordsPage | 65 §65.4.1 の検索条件（recordType / dateFrom / dateTo / q / recordId / departmentId / status） | あり | なし |
 | StockMovementsPage | dateFrom、dateTo、type | あり | なし |
@@ -53,12 +53,13 @@ Risk: R3
 | SPEC-UIBB-1 | 非既定 + 0 件で action 不在 | unit (RTL) | 各画面 `*Page.test.tsx` `SPEC-UIBB-1 絞り込み該当なしで解除ボタンを表示する`（6 site 各 1） | action 結線漏れ・表示条件の分岐欠落 |
 | SPEC-UIBB-1 | 既定 0 件で action 誤表示 | unit (RTL, negative) | 同 `SPEC-UIBB-1 既定条件の0件では解除ボタンを出さない`（6 site 各 1。ProductList は「登録のみ表示」を assert） | 非既定判定の欠落・恒真化 |
 | SPEC-UIBB-2 | 一部フィルタのみ復帰 | unit (RTL) | 同 `SPEC-UIBB-2 解除で全条件が既定値に戻る`（site 別 tuple 表の全項目を個別 assert） | 復帰対象の列挙漏れ（1 条件でも戻し忘れ） |
-| SPEC-UIBB-2 | page 残存 | unit (RTL) | page を持つ 4 site（stock-inquiry / inventory-records / stock-movements / operation-logs / products のうち該当）で同 test 内 page assert | page 復帰漏れ |
+| SPEC-UIBB-2 | page 残存 | unit (RTL) | reset 対象 6 site 全数（stocktake / stock-inquiry / inventory-records / stock-movements / operation-logs / products — 全 site が page を持つ、tuple 表参照）で同 test 内 page assert。部門 / toggle / page は同じ複合 fixture で個別 assert | page 復帰漏れ |
 | SPEC-UIBB-2 | 表示設定の誤リセット | unit (RTL, negative) | `ProductListPage.test.tsx` の同 test 内で sort / dir / perPage 不変 assert | reset が絞り込み以外まで戻す過剰復帰 |
 | SPEC-UIBB-1/2 | 共存 action の欠落・混入 | unit (RTL) | `ProductListPage.test.tsx` `SPEC-UIBB-1 既定0件は登録のみ・非既定0件は登録と解除の2ボタン` | 登録 action の消失 / 既定時の reset 混入 |
 | SPEC-UIBB-8 | 範囲外 page で回復導線なし | unit (RTL) | `StockInquiryPage.test.tsx` `SPEC-UIBB-8 範囲外pageで先頭ページに戻る導線を表示する`（items=[] + total_count>0 + page>1 の一意 fixture、通常 EmptyState 非表示も assert） | 範囲外判定の欠落・通常 EmptyState との優先順位逆転 |
 | SPEC-UIBB-8 | 回復押下の条件消失 | unit (RTL) | 同 test 内で「先頭ページに戻る」押下 → page=1 + q/dept/status 維持を assert | 回復が検索条件を落とす |
-| SPEC-UIBB-9 | 候補が filtered result 由来へ退行 | unit (RTL + hook) | `useStockInquiry.test.tsx` `SPEC-UIBB-9 部門候補はlistDepartments全件でpage/q/deptに依存しない`（page 2 移動・q 変更・dept 選択後も候補 assert 不変） | 候補 query の searchProducts 派生への退行（DSR-10 縮退） |
+| SPEC-UIBB-9 | 候補が filtered result 由来へ退行 | unit (RTL + hook) | `useStockInquiry.test.tsx` `SPEC-UIBB-9 部門候補はlistDepartments全件で4条件に依存しない`（同一 QueryClient 上で page 2 移動・q 変更・dept 選択・status 変更〈all → low_stock → stockout〉を順に実行し、候補 assert 不変 **かつ `listDepartments` の call count = 1 のまま**を assert） | 候補 query の searchProducts 派生への退行（DSR-10 縮退）、および query key へ 4 条件を誤再導入して毎回再取得する mutant（round 2 P2-3: 候補配列 assert だけでは同一 master 応答で素通しになるため call count で殺す） |
+| SPEC-UIBB-9 | query key の条件依存化 | unit | `query-keys` の unit test `SPEC-UIBB-9 departmentOptionsは無引数で一定keyを返す` | `queryKeys.stockInquiry.departmentOptions()` への引数再導入 |
 | SPEC-UIBB-9 | 選択中部門への縮退 | unit (RTL) | `StockInquiryPage.test.tsx` `SPEC-UIBB-9 部門選択中も他部門へ直接切替できる` | 候補縮退で他部門へ移れない行き止まり |
 | SPEC-UIBB-3 | invalid param で例外/NaN | unit (schema) | `stockInquirySearchSchema` test `SPEC-UIBB-3 pageの不正値は既定1に落ちる`（0 / -1 / 1.5 / "abc" / 欠落） | catch 欠落・境界誤り |
 | SPEC-UIBB-4 | 条件変更で page 保持 | unit (RTL) | `StockInquiryPage.test.tsx` `SPEC-UIBB-4 検索条件変更でpage=1に戻る` | reset 結線漏れ |

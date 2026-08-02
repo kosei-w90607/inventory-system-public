@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: design
+- Phase: plan-gate
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: pending
@@ -24,6 +24,8 @@
 
 2026-08-03 Codex Plan Review round 2 = FAIL（P1=1 / P2=6 / P3=1、全件 accept、round 1 closure 判定 = closed 6 / not closed 5、裁定詳細は Review Response 参照）。P1-1（UI-06a-D2 が query 宣言のみで hook return / DepartmentFilter props へ未結線 = round 1 P1-3 not closed）は 58 の design 出力改訂を要し、P2-1（stocktake の `page` 実在を分類表・73 が欠落）/ P2-2（daily-sales が reset 軸と除外軸の両方に該当 = 分類軸の排他性欠落）/ P2-4（FilePicker behavior/API 正本の分裂残存 + DSR-14 の将来形記述）も design 出力の改訂を要するため、最早影響 phase = design へ backtrack する（`plan-gate -> design`。直前 backtrack `dc91ed7` とは content commit `bb5857f` を挟み隣接しない）。
 
+2026-08-03 round 2 是正 content commit で `design -> plan-draft -> plan-gate` を再材料化する。evidence = round 2 の design 出力を source docs へ反映（58 = departmentOptions の hook return / canonical props 結線 / 失敗文言 / `queryKeys.stockInquiry.departmentOptions()` 無引数化 target〈現状 `(status, q)` 引数付きを実測確認〉/ SPEC-UIBB-9 の call count・無引数 unit 追記、73 + SCREEN_DESIGN = stocktake reset に page 追加、02 ⑥ = 除外(b) 優先規則 + stocktake page、02 ⑭ = behavior 記述の §6.5.4 移設、UI_TECH_STACK §6.5.4 = 全 props 契約集約 + 暫定例外の完了形化、01 DSR-14 = 完了形化、59 = FilePicker 帰属の visual/behavior 精密化、同一 plan-first change 内 — design→plan-draft）、packet の優先規則・stocktake tuple・SPEC-UIBB-7/9 強化・AC10・Ledger・Boundary・Risk 6 画面化・件数主張撤去と Matrix の 6 site 全数 page assert・call count oracle・無引数 key unit、Plans.md active dashboard 同期を完成・commit（plan-draft→plan-gate）。`doc-consistency-check --target plan` 全チェック通過。
+
 ## Owner Effort Budget
 
 - 介入回数上限: 3（plan 承認 / L3 目視 + Ready 承認 / merge）
@@ -42,7 +44,7 @@
 Risk: R3
 
 Reason:
-(a) 在庫照会 pagination は `page` URL search param の新設 = Risk Tiers の「route/search state」に直接該当する。(b) filter reset は 5 画面の operator 可視挙動の新設で、うち 4 画面は URL search param の書き換えを伴う（「UI route/search behavior」）。(c) batch A が Plan Review round 1 で R2→R3 再分類された前例（operator workflow の runtime 契約新設は R3）に同型。Tauri command / DTO / DB / 生成 bindings には触れない（`search_products` は既存の `page` パラメータを可変にするだけで wire shape 不変）。
+(a) 在庫照会 pagination は `page` URL search param の新設 = Risk Tiers の「route/search state」に直接該当する。(b) filter reset は分類表の 6 画面（棚卸し / 在庫照会 / 入出庫履歴一覧 / 在庫変動履歴 / 操作ログ / 商品一覧）の operator 可視挙動の新設で、いずれも URL search param または route state の書き換えを伴う（「UI route/search behavior」）。(c) batch A が Plan Review round 1 で R2→R3 再分類された前例（operator workflow の runtime 契約新設は R3）に同型。Tauri command / DTO / DB / 生成 bindings には触れない（`search_products` は既存の `page` パラメータを可変にするだけで wire shape 不変）。
 
 ## Goal
 
@@ -77,7 +79,7 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。AC や�
 
 - **reset 対象** = 結果集合を狭める任意の絞り込み条件（検索語・フィルタ・状態チップ・期間絞り込み）を持つ一覧画面の filter-empty。絞り込みの既定値復帰が「全件（既定）表示」という自明な回復になる画面のみ。
 - **除外(a) 範囲外 page 回復** = UI-11c-D8 の専用導線（「先頭ページに戻る」）が既にある別 semantic。
-- **除外(b) 期間主キーレポート** = 日付 / 月という対象選択が支配的で、絞り込み解除がデータ存在を保証しない（日報・月報系）。条件変更の案内は既存 description 文言が担う。
+- **除外(b) 期間主キーレポート** = 対象選択条件（「すべて」という既定値を持たない必須の主キー = 日報の日付、月報の月）を持つレポート画面。**優先規則（round 2 P2-2）: 副次絞り込み（日次売上の部門フィルタ等）があっても除外(b) を優先して reset 対象外とする** — reset の統一契約は「全絞り込み条件の既定復帰」だが対象選択は既定復帰の対象になり得ず、副次絞り込みだけ戻す部分 reset を許すと同じ「絞り込みを解除」ボタンが site ごとに違う挙動になるため。条件変更の案内は既存 description 文言が担い、部分 reset（「部門の絞り込みを解除」等の別文言）は要望発生時に別 change で再評価する。
 - **除外(c) 業務入力の明細 0 行** = 入力明細が空なだけで絞り込み結果ではない。
 - **除外(d) 直近実績サマリ / 詳細画面の関連データ不在** = 絞り込み条件を持たない、真にデータなし系。
 - なお reset が戻すのは絞り込み条件のみ。並び替え（sort / dir）・表示件数（perPage）は結果集合を狭めないため対象外。
@@ -86,7 +88,7 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。AC や�
 
 | 画面 / site | file / anchor | 分類 | reset 対象フィルタ（正本） |
 |---|---|---|---|
-| 棚卸し UI-10 | `StocktakePage.tsx`「この条件に一致する商品がありません」 | reset 対象 | 部門フィルタ + 未入力のみ表示（73 §73.6。page なし） |
+| 棚卸し UI-10 | `StocktakePage.tsx`「この条件に一致する商品がありません」 | reset 対象 | 部門フィルタ + 未入力のみ表示 + page（73 §73.6。`StocktakeSearch.page` は既存 param、round 2 P2-1 で追加） |
 | 在庫照会 UI-06a | `StockInquiryPage.tsx`「該当する商品がありません」 | reset 対象 | q / dept / status + page（58 §58.4。復帰後は契約 I の EmptySearchPlaceholder） |
 | 入出庫履歴一覧 | `InventoryRecordsPage.tsx`「入出庫履歴がありません」 | reset 対象 | 65 §65.4.1 の検索条件 + page |
 | 在庫変動履歴 UI-06c | `StockMovementsPage.tsx`「在庫変動履歴がありません」 | reset 対象 | dateFrom / dateTo / type + page（66 §66.3） |
@@ -115,7 +117,7 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。AC や�
 - 既存 canonical `src/features/products/components/ProductPagination.tsx` を結線し、`total_count` から最終ページを計算する。
 - **範囲外 page**（round 1 P1-2 対応）: `items` 空 かつ `total_count > 0` かつ `page > 1` のとき、通常 EmptyState ではなく専用メッセージ +「先頭ページに戻る」ボタン（`page=1` へ navigate、他条件維持）を出す。74 UI-11c-D8 と同型（clamp は採用しない — 50 / ProductPagination に clamp 契約は存在せず、既存 canonical は UI-11c-D8 のみ）。
 - `TruncatedResultsAlert` と派生 flag `truncated` は、pagination により全件到達可能になるため撤去する（58 の design 出力で decision 化。stock-inquiry `types.ts` の view-model 契約更新）。
-- **部門候補の DSR-10 準拠**（round 1 P1-3 対応）: 部門候補 query を検索結果由来（`searchProducts` 先頭 page からの派生）から `commands.listDepartments()` の master 全件へ切り替える。filtered result 由来の候補縮退は DSR-10 / 02 が禁止しており、pagination 導入で「現在 page の商品に含まれる部門」への縮退が増幅されるため、本 change で正本準拠に是正する。wire 変更なし（`listDepartments` は既存 command）。page / q / dept 変更後も候補が不変であること、選択中部門から別部門へ直接切替できることを契約化する。
+- **部門候補の DSR-10 準拠**（round 1 P1-3 対応）: 部門候補 query を検索結果由来（`searchProducts` 先頭 page からの派生）から `commands.listDepartments()` の master 全件へ切り替える。filtered result 由来の候補縮退は DSR-10 / 02 が禁止しており、pagination 導入で「現在 page の商品に含まれる部門」への縮退が増幅されるため、本 change で正本準拠に是正する。wire 変更なし（`listDepartments` は既存 command）。page / q / dept / status のいずれを変更しても候補が不変であること（`queryKeys.stockInquiry.departmentOptions()` の無引数化を含む。src/lib/query-keys.ts / hook / test が対象）、選択中部門から別部門へ直接切替できることを契約化する。hook は `Department[]` を `DepartmentOption[]` へ変換し、loading / error 状態とともに画面へ返して canonical props（options / selected / onChange / disabled）で結線する（round 2 P1-1）。候補取得失敗は一覧 query と独立で、呼び出し側文言表示（catalog ⑨ 既定）。
 
 ### (3) DepartmentOption re-export 統一
 
@@ -153,7 +155,7 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。AC や�
 - AC1: 分類表の reset 対象 6 site で「絞り込み非既定 + 0 件」時に reset action が表示され、押下で当該画面の絞り込み条件（site 別 tuple は Matrix）がすべて既定値へ戻る。商品一覧は既存「商品を登録する」action が常設のまま共存する。evidence = 各画面 RTL test `SPEC-UIBB-1 絞り込み該当なしで解除ボタンを表示する` / `SPEC-UIBB-2 解除で全条件が既定値に戻る`（Matrix 参照）+ L3 代表画面目視。
 - AC2: 既定値のまま 0 件のとき reset action は表示されない。evidence = 各画面 RTL negative test `SPEC-UIBB-1 既定条件の0件では解除ボタンを出さない`（Matrix 参照）。
 - AC9: 在庫照会の範囲外 page（`items` 空 + `total_count > 0` + `page > 1`）で専用メッセージ +「先頭ページに戻る」が表示され、押下で page=1・他条件維持。evidence = `StockInquiryPage.test.tsx` の `SPEC-UIBB-8 範囲外pageで先頭ページに戻る導線を表示する`。
-- AC10: 在庫照会の部門候補が `listDepartments()` master 全件由来になり、page / q / dept 変更後も候補が不変で、選択中部門から別部門へ直接切替できる。evidence = `useStockInquiry.test.tsx` / `StockInquiryPage.test.tsx` の `SPEC-UIBB-9` 系 test（Matrix 参照）。
+- AC10: 在庫照会の部門候補が `listDepartments()` master 全件由来になり、page / q / dept / status のいずれを変更しても候補が不変（同一 QueryClient で `listDepartments` call count = 1 のまま）で、選択中部門から別部門へ直接切替できる。evidence = `useStockInquiry.test.tsx` / `StockInquiryPage.test.tsx` の `SPEC-UIBB-9` 系 test + `queryKeys.stockInquiry.departmentOptions()` 無引数 unit test（Matrix 参照）。
 - AC3: 在庫照会「すべて」で 51 件以上の synthetic データのとき page 2 へ到達でき、`total_count` と表示ページが整合する。evidence = RTL test + L3。
 - AC4: q / dept / status の変更で page=1 に戻り、page 移動では条件が維持される。evidence = `StockInquiryPage.test.tsx` の `SPEC-UIBB-4 検索条件変更でpage=1に戻る` / `SPEC-UIBB-4 page移動で検索条件を維持する`（Matrix 参照）。
 - AC5: `TruncatedResultsAlert` の残存 0。evidence = `rg -n "TruncatedResultsAlert" src` = 0 hit。
@@ -193,7 +195,7 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。AC や�
 | SPEC-UIBB-3/4/5/8（pagination） | 50 §50.4（慣行元）、58（新設）、74 UI-11c-D8（範囲外 page 同型元） | UI-06a 系列新 D（58 design 出力で採番） | 50 慣行の踏襲で新規 UX を発明しない。truncated alert 併存は二重表現のため撤去。範囲外 page の clamp は既存 canonical 不在のため却下し UI-11c-D8 同型を採用 | stock-inquiry route/search + StockInquiryPage | RTL + L3 |
 | SPEC-UIBB-9（部門候補） | 01 DSR-10、02 SearchBar/フィルタ節 | DSR-10 の既存規定適用（新規 decision 不要） | filtered result 由来の候補は縮退禁止規定違反。pagination が縮退を増幅するため同一 change で是正 | useStockInquiry 候補 query | RTL + unit |
 | SPEC-UIBB-6（re-export） | 59 §59.3 | 59 §59.3 既存方針の実施 | 構造的サブタイプ残置は将来の定義 drift 温床。consumer import 不変の re-export が最小差分 | feature types 3 file | tsc + rg 静的 sweep |
-| SPEC-UIBB-7（FilePicker catalog） | UI_TECH_STACK §6.5.4（方針正本）、02（新節） | 59 §59.4 純表示規約により patterns/ 移動は却下、components/ 直下のまま catalog 登録 | 移動は import 8 file の変更面拡大に見合う利得がない | 02 新節 + 59 §59.3 注記 | doc-consistency + Final Review rg |
+| SPEC-UIBB-7（FilePicker catalog） | UI_TECH_STACK §6.5.4（方針正本）、02（新節） | 59 §59.4 純表示規約により patterns/ 移動は却下、components/ 直下のまま catalog 登録 | 移動は import path 変更の変更面拡大に見合う利得がない（判断は件数に依存しないため件数は記さない、D-050） | 02 新節 + 59 §59.3 注記 | doc-consistency + Final Review rg |
 
 ## Design Intent Audit
 
@@ -223,7 +225,7 @@ Minimum design checks for business-app work:
 - Persistence / transaction / audit impact: なし。
 - Operator workflow / Japanese UI wording: reset ボタン文言は 02 ⑥ で統一確定。既存 description 文言との整合を Plan Review 観点に含める。
 - Error, empty, retry, and recovery behavior: 空状態 2 系統（0 件成功 / 取得失敗）の既存区分は不変。reset は 0 件成功系のみに付く。
-- Testability and traceability IDs: SPEC-UIBB-1〜7 を Matrix / test 名に付す。
+- Testability and traceability IDs: SPEC-UIBB-1〜9 を Matrix / test 名に付す。
 
 ## Contract Probe
 
@@ -238,7 +240,7 @@ N/A — 未検証の外部前提なし。TanStack Router validateSearch の para
 | 02 ⑥ 既存 action との共存（商品一覧の登録 action 常設 + 非既定時 reset 併置） | ProductListPage | RTL（既定 0 件 = 登録のみ / 非既定 0 件 = 2 ボタン） | L3 |
 | 02 ⑥ 適用除外（分類表の除外(a)〜(d) 19 site） | 変更なしの確認 | 既存 characterization PASS + PR diff 監査 | non-scope（diff 監査） |
 | 58 新設: 範囲外 page 回復（UI-11c-D8 同型、通常 EmptyState より優先） | StockInquiryPage | RTL（items 空 + total_count>0 + page>1 の一意 oracle） | L3 |
-| DSR-10: 部門候補 = listDepartments master 全件（縮退禁止） | useStockInquiry 候補 query | RTL + unit（page/q/dept 変更で候補不変、別部門へ直接切替） | L3 |
+| DSR-10: 部門候補 = listDepartments master 全件（縮退禁止） | useStockInquiry 候補 query + `queryKeys.stockInquiry.departmentOptions()` 無引数化 + DepartmentFilter canonical props 結線 | RTL + unit（page/q/dept/status の 4 条件変更で候補不変 + call count=1、別部門へ直接切替、無引数 key unit） | L3 |
 | 58 新設: page param（>=1、invalid catch → 既定 1） | stock-inquiry search schema | schema unit test | — |
 | 58 新設: 条件変更 → page=1 / page 移動 → 条件維持 | StockInquiryPage | RTL | L3 |
 | 58 新設: truncated alert 撤去（全件ページ到達で代替） | stock-inquiry view-model | rg 残存 0 + RTL（51 件 synthetic で page 2 到達） | L3 |
@@ -265,8 +267,8 @@ Test Design Matrix: [test-matrices/2026-08-03-ui-polish-batch-b.md](test-matrice
 
 - producer: URL search param `page`（operator のページ操作 / 直接 URL）
 - consumer: `StockInquiryPage` → `commands.searchProducts({ page, per_page: 50, ... })`、部門候補は `commands.listDepartments()`（master 全件、既存 command）
-- wire type: `page: number`（`ProductSearchQuery` 既存フィールド、変更なし）
-- internal type: zod schema `number >= 1`、`.catch` で既定 1
+- wire type: `page: number`（`ProductSearchQuery` 既存フィールド、変更なし）。部門候補は `listDepartments()` の `Department[]`（既存 wire、変更なし）
+- internal type: zod schema `number >= 1`、`.catch` で既定 1。部門候補は hook 内で `Department[]` → `DepartmentOption[]` へ変換し、loading / error 状態とともに `useStockInquiry` の戻り値として画面へ伝播、`DepartmentFilter` の canonical props（options / selected / onChange / disabled）で結線（round 2 P1-1）
 - precision/range: 正整数のみ。最終ページ超過（範囲外 page）は clamp せず、UI-11c-D8 同型の専用回復導線（「先頭ページに戻る」）で page=1 へ戻す
 - round-trip path: URL → validateSearch → query → 応答 `total_count` → ProductPagination 表示 → navigate で URL 更新
 - invalid input: 非数値 / 0 / 負数 / 小数は catch で既定 1（画面エラーにしない）
@@ -291,9 +293,9 @@ Contract ID: SPEC-UIBB
 - SPEC-UIBB-4: q / dept / status 変更で page=1、page 移動のみでは条件維持。
 - SPEC-UIBB-5: 在庫照会「すべて」は全件がページ送りで到達可能、`TruncatedResultsAlert` は撤去。
 - SPEC-UIBB-6: `DepartmentOption` の定義は `patterns/DepartmentFilter.tsx` の 1 箇所のみ、feature 側は re-export（方式はファイル別、Scope(3)）。
-- SPEC-UIBB-7: FilePicker の behavior / API 正本は §6.5.4、02 ⑭ は構造 / トークン / Do-Don't のみ（二重記述なし）。
+- SPEC-UIBB-7: FilePicker の behavior / API 正本（入口 2 経路・出力契約・cancel・onError・props 既定値・禁止規定）は §6.5.4、02 ⑭ は visual（DOM 構造 / トークン / visual Do-Don't / a11y / 採用箇所）のみ（二重記述なし）。
 - SPEC-UIBB-8: 在庫照会の範囲外 page（`items` 空 + `total_count > 0` + `page > 1`）は専用メッセージ +「先頭ページに戻る」（UI-11c-D8 同型）。通常 EmptyState / reset action より優先判定。
-- SPEC-UIBB-9: 在庫照会の部門候補は `listDepartments()` master 全件由来で、page / q / dept / status に依存しない（DSR-10）。
+- SPEC-UIBB-9: 在庫照会の部門候補は `listDepartments()` master 全件由来で、page / q / dept / status のいずれにも依存しない（DSR-10）。hook が `Department[]` を `DepartmentOption[]` へ変換して loading / error 状態とともに画面へ返し、canonical props（options / selected / onChange / disabled）で結線する。`queryKeys.stockInquiry.departmentOptions()` は無引数・一定 key。同一 QueryClient 上で 4 条件を順に変更しても `listDepartments` の call は 1 回のまま。候補取得失敗は一覧 query と独立で、呼び出し側文言表示（catalog ⑨ 既定）。
 
 ## Trace Matrix
 

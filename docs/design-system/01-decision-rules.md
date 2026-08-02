@@ -242,11 +242,11 @@ font-size を全体一律に底上げする再設計は本ルールの scope 外
 
 ## DSR-14 ファイル選択はネイティブダイアログ（path-based）を優先する
 
-**ルール**: ファイル選択は `@tauri-apps/plugin-dialog` の `open()` でパスを取得し、`@tauri-apps/plugin-fs` の `readFile()` で読み込む path-based 方式を優先する。HTML `<input type="file">` を新規画面で採用しない。既存の plain input（Z004 取込み / 商品一括インポート / レシート画像）は暫定例外とし、backlog「ファイル選択 UI の共通化」で移行する。
+**ルール**: ファイル選択は `@tauri-apps/plugin-dialog` の `open()` でパスを取得し、`@tauri-apps/plugin-fs` の `readFile()` で読み込む path-based 方式を優先する。HTML `<input type="file">` の新設は禁止する（既存画面も含めて全面禁止、[UI_TECH_STACK.md §6.5.4](../UI_TECH_STACK.md#654-ネイティブダイアログ) 参照）。かつて暫定例外だった plain input（Z004 取込み / 商品一括インポート / レシート画像）は D-054（順9 PR #26）の共通 FilePicker への移行で解消済み（2026-08-03 round 2 是正、plain `<input type="file">` は src 内 0 件）。
 
 **Why**: WebView2 では HTML file input がネイティブダイアログ起動後に DOM 変化まで再描画されず白画面になるバグがある（JS 例外なし・console 無出力。PR #125 の Windows native L3 実機検証で検出、経緯は [UI_TECH_STACK.md §6.5.4](../UI_TECH_STACK.md)）。WSL2 / 机上レビューでは再現しないため、実装規約として予防するしかない。複数ファイル選択の画面は再現リスクが高く、優先移行対象とする。
 
-**判定フロー / 具体例**: 日報取込み（`useDailyReportImportFlow.ts` の `chooseFiles`）が移行第一号。`open({ multiple: true, filters: [{ name: "CSV", extensions: ["csv", "CSV"] }] })` でパス取得 → `readFile(path)` でバイト読込み。capability は `dialog:allow-open` + `fs:allow-read-file`。`open()` のキャンセルは `null` を返すので state 据え置きで安全に扱える。選択エラーの表示は DSR-03 のインライン 1 スロットに従う。共通 `FilePicker` パターン部品は backlog の共通化完了後に [02-component-catalog.md](02-component-catalog.md) へ登録する。
+**判定フロー / 具体例**: 日報取込み（`useDailyReportImportFlow.ts` の `chooseFiles`）が移行第一号。`open({ multiple: true, filters: [{ name: "CSV", extensions: ["csv", "CSV"] }] })` でパス取得 → `readFile(path)` でバイト読込み。capability は `dialog:allow-open` + `fs:allow-read-file`。`open()` のキャンセルは `null` を返すので state 据え置きで安全に扱える。選択エラーの表示は DSR-03 のインライン 1 スロットに従う。共通 `FilePicker` パターン部品（`src/components/FilePicker.tsx`）は D-054（順9 PR #26）で登録済み。visual / 実装規約は [02-component-catalog.md ⑭](02-component-catalog.md) が、behavior / API 契約は [UI_TECH_STACK.md §6.5.4](../UI_TECH_STACK.md#654-ネイティブダイアログ) が正典。
 
 **関連**: パターン⑥空状態・エラー・ローディング（インライン選択エラー）。review-checklist カテゴリ 9 対応（操作の起点が予測通り動くか）。
 
