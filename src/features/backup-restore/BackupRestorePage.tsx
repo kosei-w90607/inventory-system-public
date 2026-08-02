@@ -305,6 +305,10 @@ export function BackupRestorePage() {
       } catch (navigateError) {
         clearRestoreSuccessPending();
         console.warn("復元成功後のホーム遷移に失敗しました:", navigateError);
+        // navigate 失敗時は home Alert が出せないため、成功 feedback が operator に
+        // 一切届かなくなる（無通知への劣化）のを避けるフォールバックとしてのみ toast を出す。
+        // primary path（navigate 成功時）は home Alert に一本化し、二重通知にしない。
+        toast.success("バックアップから復元しました");
       }
     } catch (error) {
       const kind = restoreErrorKind(error);

@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { toast } from "sonner";
 import { commands } from "@/lib/bindings";
 import type { CmdErrorKind } from "@/lib/bindings";
 import { open } from "@tauri-apps/plugin-dialog";
@@ -47,6 +48,7 @@ const mockListBackups = vi.mocked(commands.listBackups);
 const mockGetEffectiveBackupDir = vi.mocked(commands.getEffectiveBackupDir);
 const mockRestoreBackup = vi.mocked(commands.restoreBackup);
 const mockOpen = vi.mocked(open);
+const mockToastSuccess = vi.mocked(toast.success);
 
 function ok<T>(data: T) {
   return { status: "ok" as const, data };
@@ -132,6 +134,7 @@ beforeEach(() => {
   mockGetEffectiveBackupDir.mockReset();
   mockRestoreBackup.mockReset();
   mockOpen.mockReset();
+  mockToastSuccess.mockReset();
   mockDefaultCommands();
   clearRestoreSuccessPending();
 });
@@ -300,6 +303,8 @@ describe("BackupRestorePage (UI-11b / QR-05 / REQ-905)", () => {
       expect(clearSpy).toHaveBeenCalled();
     });
     expect(mockNavigate).toHaveBeenCalledWith({ to: "/" });
+    // primary path (navigate 成功) は home Alert に一本化し、toast との二重通知にしない。
+    expect(mockToastSuccess).not.toHaveBeenCalled();
   });
 
   it("test_ui11b_d11_sets_restore_success_pending_flag_before_navigate", async () => {
@@ -330,6 +335,9 @@ describe("BackupRestorePage (UI-11b / QR-05 / REQ-905)", () => {
     });
     // navigate reject 後は次回到達での誤表示を防ぐため flag が消去されている。
     expect(consumeRestoreSuccessPending()).toBe(false);
+    // home Alert を出せない reject fallback として、成功 feedback の toast が発火する
+    // （無通知への劣化を防ぐ。coordinator 裁定 2026-08-03、要裁定 #2 是正）。
+    expect(mockToastSuccess).toHaveBeenCalledWith("バックアップから復元しました");
   });
 
   it("QR-05 REQ-905 shows created backup file path after manual backup", async () => {
