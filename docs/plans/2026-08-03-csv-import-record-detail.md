@@ -4,7 +4,7 @@ PR #57 owner L3（2026-08-03）で確認された既存不具合の是正: 在�
 
 ## Workflow State
 
-- Phase: implementing
+- Phase: human-confirm
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: d25990c
@@ -13,7 +13,7 @@ PR #57 owner L3（2026-08-03）で確認された既存不具合の是正: 在�
 - Writer: Codex (GPT-5.6、発注書駆動)
 - Plan Reviewer: Claude Sonnet 5 (independent fresh context)
 - Final Reviewer: Claude Sonnet 5 (independent fresh context) + Coordinator mutation 独立再実測
-- Reviewed Content HEAD: e1b2158
+- Reviewed Content HEAD: 00097c3
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
 - Human Gate: L3 視認確認（在庫変動履歴 → 「CSV取込み #n」click → 詳細表示、synthetic fixture 使用）、Ready 承認
@@ -301,6 +301,14 @@ Fill after review.
 - L3 P3 finding: 取込み画面 `ErrorRowsTable.tsx` の accordion trigger「エラー N 件」が展開可能な操作部と認識できない（chevron が右端、owner 自身が当初見落とし）。owner 裁定 = **別 follow-up へ送らず本 PR で是正**（Post-Freeze の content correction、Ready 保留）。
 - 正規 backtrack: human-confirm → implementing（L3 finding のコード修正のため、遷移表の correction 規則どおり最先影響 phase へ復帰）。是正対象は元 Scope 外（取込み画面 UI-07 側の既存 component）のため、owner 裁定に基づく Scope 追加を gated Amendment 2 として記録する。
 - 再 L3 の範囲: 当該 accordion の collapsed / open の発見性に限定（owner 指定）。
+
+### L3 P3 是正の再走 evidence（2026-08-03、append-only）
+
+- 是正 content commit `00097c3`（ErrorRowsTable の明示的操作文言 + 文言隣接 chevron + T17 + 55 §55.5 同期。gated Amendment 2 は `989d352`）。X8 相当の mutation（開閉切替の欠落）を Coordinator が実注入し T17 の 2 test red → 復元を確認。
+- Post-Freeze closure（Sonnet 独立 fresh context、3 体目）: 検査 6 項目全 PASS（owner 指定 4 点適合 / T17 の Would-fail 4 種検出可能・tautology なし / 55 同期・旧文言残存 0 / scope 漏れなし / PreviewStep 回帰リスクなし / Amendment 2 整合）。findings 0、P1/P2 = 0。
+- `b29fefb` は T17 の REQ-401 token 追加に伴う 90-traceability 機械的再生成のみ（+1/-1、生成コマンド決定的出力）。Coordinator が diff 検分済み。audited content 実質は `00097c3` から不変のため Reviewed Content HEAD は `00097c3`。
+- implementing → local-verified: L1 `local-ci.sh full` PASS（exact HEAD `b29fefb` / CLEAN / MERGE_EVIDENCE_VALID=true、evidence は PR body 所管）。local-verified → independent-review → human-confirm: 上記 closure P1/P2=0。
+- STATECAP: 本遷移で forward state-only 3/3 消費。ready-hosted-final 遷移は Implementation Results 記入の content commit に同乗させる（前 change の運用教訓を最初から適用）。
 
 ### Plan Review rally 記録（2026-08-03、append-only）
 
