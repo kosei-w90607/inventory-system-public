@@ -211,7 +211,7 @@ export const navigation: readonly NavArea[] = [
     items: [
       {
         id: "ui-11b",
-        label: "バックアップ",
+        label: "バックアップ・復元",
         title: "バックアップ・復元",
         to: "/settings/backup",
         icon: DatabaseBackup,

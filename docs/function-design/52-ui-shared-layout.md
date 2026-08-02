@@ -133,7 +133,7 @@ export const navigation: readonly NavArea[] = [...] as const;
 | 毎日の業務 | `Sun` | 5 | ホーム / CSV取込み / 日次売上 / 在庫照会 / 月次売上 |
 | 商品管理 | `Package` | 4 | 商品検索・一覧 / 商品登録 / 一括インポート / PLU書出し |
 | 入出庫 | `ArrowLeftRight` | 7 | 入庫記録 / 返品・交換 / 手動販売出庫 / 廃棄・破損 / 入出庫履歴 / 在庫少一覧 / **棚卸し**（末尾、年次作業） |
-| システム管理 | `Wrench` | 4 | バックアップ / 操作ログ / 閾値設定 / 整合性検証 |
+| システム管理 | `Wrench` | 4 | バックアップ・復元 / 操作ログ / 閾値設定 / 整合性検証 |
 
 #### 各項目アイコン（lucide-react ^1.8.0）
 
@@ -145,7 +145,7 @@ export const navigation: readonly NavArea[] = [...] as const;
 | 在庫照会 | `Search` | 廃棄・破損 | `Trash2` |
 | 月次売上 | `BarChartBig` | 棚卸し | `ClipboardList` |
 | 商品検索・一覧 | `PackageSearch` | 在庫少一覧 | `AlertTriangle` |
-| 商品登録 | `PackagePlus` | バックアップ | `DatabaseBackup` |
+| 商品登録 | `PackagePlus` | バックアップ・復元 | `DatabaseBackup` |
 | 一括インポート | `FileSpreadsheet` | 操作ログ | `ScrollText` |
 | PLU書出し | `FileDown` | 閾値設定 | `SlidersHorizontal` |
 | | | 整合性検証 | `ShieldCheck` |
