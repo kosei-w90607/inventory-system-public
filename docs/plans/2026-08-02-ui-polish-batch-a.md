@@ -84,7 +84,7 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
   - `sourceHref()` / `buildDetailHref()` 等の href 組み立て helper は `<Link>` props へ渡せる形へ追随変更する（DTO は不変）
 - `src/features/backup-restore/BackupRestorePage.tsx` の復元成功時（現状 `toast.success` + `navigate({ to: "/" })`）を、UI-11b-D11 の in-memory one-shot flag 機構でホーム遷移後の success Alert 表示へ是正する
 - 設計正本 sync（本 plan-first change 内で実施済み）: 68-ui-backup-restore.md へ UI-11b-D11 新設（round 2 で mount 中表示維持の寿命契約へ改訂）+ §68.7 `restore_succeeded` 行へ D11 参照付記、UI_TECH_STACK.md §5.4 を outcome 契約 + 実装 2 系統（shadcn primitive / SidebarLink 系統①、catalog 規定の date・month input 等 系統②）へ改訂、52 §52.1 SidebarLink 行へ focus ring 規定追加（pending は focus 対象外）
-- 上記の test 追随（既存 test の削除・無効化なし）。Affected Surfaces 節の 9 test file を含む
+- 上記の test 追随（既存 test の削除・無効化なし）。Affected Surfaces 節の 11 test file（original group + amendment 2）を含む
 
 ## Non-scope
 
@@ -132,7 +132,7 @@ file:line は本 manifest 作成時点（HEAD `3578518`）の実測。実装時�
 
 ## Affected Surfaces
 
-`<Link>` 化により Router context が必要になり得る既存 test file（実在確認済み、9 file）:
+`<Link>` 化により Router context が必要になり得る既存 test file（plan 時点で当初列挙した実在確認済み group）:
 
 - `src/features/operation-logs/OperationLogsPage.test.tsx`
 - `src/features/stock-movements/StockMovementsPage.test.tsx`
