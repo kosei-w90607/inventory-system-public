@@ -4,7 +4,7 @@ PR #57 owner L3（2026-08-03）で確認された既存不具合の是正: 在�
 
 ## Workflow State
 
-- Phase: human-confirm
+- Phase: ready-hosted-final
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: d25990c
@@ -16,7 +16,7 @@ PR #57 owner L3（2026-08-03）で確認された既存不具合の是正: 在�
 - Reviewed Content HEAD: 00097c3
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
-- Human Gate: L3 視認確認（在庫変動履歴 → 「CSV取込み #n」click → 詳細表示、synthetic fixture 使用）、Ready 承認
+- Human Gate: none（初回 L3 主要動線 PASS + 再 L3 accordion 発見性 PASS + Ready 承認済み 2026-08-03。残る owner 操作は merge のみ）
 
 編成注記: 前セッション引き継ぎは「Codex Plan Review」としていたが、本 change の Writer は Codex であり、D-062 (c)「Writer が Codex の packet では Plan Reviewer が Writer と別 vendor でなければならない（codex-only でも免除されない）」により Plan Reviewer を Claude Sonnet 5 独立 context に是正した。引き継ぎ案は batch A（Writer = Sonnet / Reviewer = Codex 鏡像分担）の編成の持ち越しであり、本 packet の編成が D-062 適合形。
 
@@ -281,6 +281,8 @@ Contract ID: SPEC-UI06C-CSV-DETAIL-2026-08-03
 
 IO / BIZ / CMD の `get_csv_import_record`、generated bindings、CSV取込み詳細 route / Page、rollback invalidation、T1-T16 を実装した。gated Amendment 1 に従って CSV取込み画面を layout + index route へ再構成し、詳細 link の runtime 遷移と既存 `/csv-import` 直接進入を両方固定した。生成物 3 種の drift 確認、L1 full、X1-X7 実注入を完了し、Draft PR [#58](https://github.com/kosei-w90607/inventory-system-public/pull/58) を作成した。独立 Final Review と Windows native L3 は pending。
 
+（2026-08-03 完了時追記）独立 Final Review = Ledger 22/22 適合・P1/P2=0・P3×1（JAN 列 pre-existing → Plans.md backlog）、Coordinator mutation 独立再実測 = X1-X7 全 red（X7 は注入形を変えて label/route 両面感度を確認）。owner 初回 L3 = 主要動線 PASS + P3（ErrorRowsTable accordion の発見性）→ owner 裁定の同 PR 是正を正規 backtrack + gated Amendment 2 で処理し、明示的操作文言 + 文言隣接 chevron + T17 + 55 §55.5 同期 + X8 相当 red を追加、Post-Freeze closure 6/6 PASS（findings 0）。再 L3（accordion 発見性限定）PASS + owner Ready 承認により ready-hosted-final へ遷移（本 content commit に同乗、STATECAP 3/3 消費済みのため）。exact-HEAD evidence と hosted run は PR body 所管。
+
 Do not transcribe exact-HEAD SHA or test counts here (D-035/D-038 Evidence Ownership). Record a qualitative summary and the PR link only.
 
 ## Review Response
@@ -309,6 +311,11 @@ Fill after review.
 - `b29fefb` は T17 の REQ-401 token 追加に伴う 90-traceability 機械的再生成のみ（+1/-1、生成コマンド決定的出力）。Coordinator が diff 検分済み。audited content 実質は `00097c3` から不変のため Reviewed Content HEAD は `00097c3`。
 - implementing → local-verified: L1 `local-ci.sh full` PASS（exact HEAD `b29fefb` / CLEAN / MERGE_EVIDENCE_VALID=true、evidence は PR body 所管）。local-verified → independent-review → human-confirm: 上記 closure P1/P2=0。
 - STATECAP: 本遷移で forward state-only 3/3 消費。ready-hosted-final 遷移は Implementation Results 記入の content commit に同乗させる（前 change の運用教訓を最初から適用）。
+
+### 再 L3 PASS と ready-hosted-final 遷移（2026-08-03、append-only）
+
+- owner 再 L3（accordion の collapsed / open 発見性限定）: PASS（「テストＯＫ」、介入 3/3 の decision point = 再 L3 PASS + Ready 承認）。
+- human-confirm → ready-hosted-final の evidence: Human Gate 全項目解決（初回 L3 主要動線 PASS + 再 L3 PASS）+ owner Ready 承認。遷移は本 Implementation Results 追記 content commit に同乗（STATECAP 3/3 消費済みの正規手段）。Ready 化・exact-HEAD L1 full・PR body refresh は遷移 commit 後に実施し、evidence は PR body 所管。
 
 ### Plan Review rally 記録（2026-08-03、append-only）
 
