@@ -8,7 +8,7 @@ PR #57 owner L3（2026-08-03）で確認された既存不具合の是正: 在�
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: d25990c
-- Amendments: 9b24376
+- Amendments: 9b24376 989d352
 - Coordinator: Claude Fable 5 (main session)
 - Writer: Codex (GPT-5.6、発注書駆動)
 - Plan Reviewer: Claude Sonnet 5 (independent fresh context)

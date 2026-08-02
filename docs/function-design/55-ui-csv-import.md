@@ -234,7 +234,7 @@ Phase 2 closeout で `typedInvoke` fallback / baseline 監視は撤去済み。C
 **プレビュー確認**:
 
 6. `StepIndicator` "2/3 プレビュー" + `PreviewStep` mount
-7. `FileInfo` セクション（精算日 + 元ファイル名 + file_hash 先頭 8 文字）+ `MatchedSummary`（紐付け成功 N 件 / 合計 M 円 / 警告 K 件）+ `ErrorSummary`（エラー N 件、`ErrorRowsTable` 展開可能）+ `DuplicateCheck` 表示
+7. `FileInfo` セクション（精算日 + 元ファイル名 + file_hash 先頭 8 文字）+ `MatchedSummary`（紐付け成功 N 件 / 合計 M 円 / 警告 K 件）+ `ErrorSummary`（「エラー詳細を見る（N件）」trigger で展開可能な `ErrorRowsTable`）+ `DuplicateCheck` 表示
 8. `duplicate_check.status === "NoDuplicate"` → 「取り込む」CTA 即押下可能
 9. `duplicate_check.status === "OverwriteRequired"` → 「取り込む」CTA 押下時に `OverwriteConfirmDialog` 表示、OK で `confirm_import (overwriteConfirmed=true)`、Cancel で preview 維持
 10. 「ファイルを選び直す」CTA → `dispatch({ type: "select_file" })` で再 parse（旧 preview を破棄）
@@ -283,7 +283,7 @@ shadcn `<Alert variant="destructive">` でアイコン + タイトル + 本文 +
 
 #### `ErrorRowsTable.tsx` の描画ロジック
 
-`PreviewStep` 内で展開可能な `<Accordion>`（shadcn）で表示、初期は折りたたみ。`ErrorSummary.items` は最大 100 件（BIZ-03 制限）、超過時は「他 N 件は CSV ログ参照」と末尾に表示。各行は `<TableRow>` で表示し、`error_type` 4 値ごとに `<Badge>` variant で色分けする。
+`PreviewStep` 内で展開可能な `<Accordion>`（shadcn）で表示、初期は折りたたみ。trigger は件数のみの表示にせず明示的な操作文言とする — 閉時「エラー詳細を見る（N件）」/ 開時「エラー詳細を閉じる（N件）」で切り替え、展開 chevron は文言隣接に置き、行全体 click と keyboard focus を維持する（2026-08-03 owner Windows native L3 P3 起源: 件数のみの trigger + 右端 chevron は非 IT operator が展開可能な操作部と認識できない）。`ErrorSummary.items` は最大 100 件（BIZ-03 制限）、超過時は「他 N 件は CSV ログ参照」と末尾に表示。各行は `<TableRow>` で表示し、`error_type` 4 値ごとに `<Badge>` variant で色分けする。
 
 | error_type | Badge variant | ラベル | 表示時の特記 |
 |---|---|---|---|
@@ -482,3 +482,4 @@ memory `tauri2-linux-ime-limitation.md` 準拠、Phase 2 以降 Windows native �
 | 日付 | PR | 内容 |
 |---|---|---|
 | 2026-05-13 | 8-2 UI-07（本 PR commit 1） | 新規作成。実装プラン [2026-05-13-phase-2-ui-07.md](../archive/plans/2026-05-13-phase-2-ui-07.md) §5 関数設計書骨子 + §2 確定済の前提 8 項目を関数設計書形式（業務ロジックあり版テンプレ、3 useMutation + reducer 駆動 + `useBlocker` 排他制御パターンの初適用）で転記。CMD 呼び出しは BIZ-03 / CMD-07 設計書（[32-biz-csv-import-service.md](32-biz-csv-import-service.md) / [41-cmd-pos.md §17.5](41-cmd-pos.md)）と整合 |
+| 2026-08-03 | PR #58（gated Amendment 2） | §55.5 ErrorRowsTable の accordion trigger を明示的操作文言（閉「エラー詳細を見る（N件）」/ 開「エラー詳細を閉じる（N件）」）+ 文言隣接 chevron へ改訂。owner Windows native L3 P3 起源（件数のみ trigger は展開可能な操作部と認識できない） |
