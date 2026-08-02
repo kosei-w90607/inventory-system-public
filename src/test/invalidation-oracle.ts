@@ -92,6 +92,7 @@ export const d052InvalidationOracle = {
   ],
   csvImportRollback: () => [
     queryKeys.csvImportLists(),
+    queryKeys.inventoryRecords.root(),
     queryKeys.dailySalesRoot(),
     queryKeys.lowStock(false),
     queryKeys.stockInquiryRoot(),

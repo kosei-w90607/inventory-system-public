@@ -417,6 +417,35 @@ fn list_csv_imports(
 
 ---
 
+### 15.6a get_csv_import_record
+
+**関数要求**: CSV取込み記録詳細を wire DTO として返す。[31-biz-inventory-service.md](31-biz-inventory-service.md) §12.6a 業務記録詳細 read 関数と同じ read-only パターンで、movements への source link 補完と NotFound 変換を BIZ が担う。CSV取込み詳細画面（`/csv-import/records/$importId`、[65-inventory-record-traceability.md](65-inventory-record-traceability.md) §65.3 / §65.5）用
+
+**シグネチャ**:
+```
+fn get_csv_import_record(
+    conn: &DbConnection,
+    import_id: i64,
+) -> Result<CsvImportRecordDetail, BizError>
+```
+
+**CsvImportRecordDetail構造体**（wire DTO。CSV import family の他 wire 型と同じく BIZ-03 が所有する）:
+- id: i64, filename: String, settlement_date: String, total_items: i64, total_amount: i64, skipped_count: i64, status: CsvImportStatus, imported_at: String
+- items: Vec\<CsvImportRecordDetailItem\>（IO 型を再利用、[24-io-csv-import-repo.md](24-io-csv-import-repo.md) §14.13a）
+- error_rows: Vec\<ErrorRow\>（§15.2 既存 wire 型を再利用し、取込みプレビューのエラー表示と同一意味論にする）
+- movements: Vec\<MovementRecord\>（source 補完済み）
+
+file_hash は重複取込み判定の内部値であり operator 向け情報ではないため wire DTO に載せない。
+
+**処理ステップ**:
+1. sales_repo::get_csv_import_record_detail(conn, import_id) を呼ぶ。IO 層の NotFound は「CSV取込み記録が見つかりません」を含む BizError::NotFound、その他の IO エラーは BizError::DatabaseError に変換する
+2. sales_repo::list_csv_import_error_rows(conn, import_id) を呼ぶ
+3. エラー行を ErrorRow へ写像する（line_no=source_line_no、name=raw_name、error_type は raw TEXT から `CsvImportErrorType` へ変換。DB CHECK により4値保証のため想定外値は BizError::DatabaseError で fail-fast）
+4. movements の各行に `biz::inventory_service` の `resolve_movement_source` と同一実装で source(label, route) を補完する（label/route 規則の独自複製を作らず、共有関数を再利用する）。共有のため `inventory_service/mod.rs` へ `pub(crate) use list::resolve_movement_source;` の re-export を 1 行追加する（`mod list` は private のため sibling module から現状 unreachable。同 file の `pub(crate) use common::apply_stock_change` と同型の既存慣習）
+5. CsvImportRecordDetail を構成して返す
+
+---
+
 ### 15.7 非目的
 
 このモジュールが**やらないこと**を明示する。責務境界の誤解を防ぐため。
@@ -501,3 +530,4 @@ enum BizError {
 | 2026-04-11 | PR #14 | 初版作成（BIZ-03 CSV取込みパイプライン: parse_and_validate / commit_csv_import / rollback_csv_import / list_csv_imports） |
 | 2026-04-11 | PR #14 | 設計書定義に対し実装欠落していた sales_repo::find_csv_import_by_id を併せて実装。rollback_csv_import のステップ1（対象確認）が当初は別アプローチで検討されたが、設計書に明記された find_csv_import_by_id を採用 |
 | 2026-04-13 | PR #22 | preview キャッシュ管理の所有責務を明確化（BIZ層→CMD層）。ロック区間最小化のため CachedPreview を CMD層 AppState に保持し、commit時に BIZ層へ渡す |
+| 2026-08-03 | CSV取込み詳細 Design Phase | §15.6a get_csv_import_record を追加（CSV取込み詳細画面用 wire DTO、31 §12.6a read-only パターン、ErrorRow 再利用、resolve_movement_source 共有） |

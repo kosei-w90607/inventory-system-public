@@ -123,6 +123,45 @@ pub struct NewCsvImportError {
     pub error_message: String,
 }
 
+/// CSV取込み詳細の sale_records 明細行。
+///
+/// 24-io-csv-import-repo.md §14.13a
+#[derive(Debug, Clone, serde::Serialize, specta::Type)]
+pub struct CsvImportRecordDetailItem {
+    pub id: i64,
+    pub product_code: String,
+    pub product_name: String,
+    pub department_name: String,
+    pub stock_unit: String,
+    pub quantity: i64,
+    pub amount: i64,
+    pub is_voided: bool,
+}
+
+/// CSV取込み詳細の IO 内部型。file_hash を含む header は BIZ で wire DTO へ縮約する。
+///
+/// 24-io-csv-import-repo.md §14.13a
+#[derive(Debug)]
+pub struct CsvImportRecordDetailCore {
+    pub header: CsvImport,
+    pub items: Vec<CsvImportRecordDetailItem>,
+    pub movements: Vec<super::inventory_repo::MovementRecord>,
+}
+
+/// csv_import_errors の IO 行。有限値への変換は BIZ-03 が所有する。
+///
+/// 24-io-csv-import-repo.md §14.13a
+#[derive(Debug, Clone)]
+pub struct CsvImportErrorRecord {
+    pub source_line_no: i64,
+    pub normalized_jan: Option<String>,
+    pub raw_name: String,
+    pub raw_quantity: String,
+    pub raw_amount: String,
+    pub error_type: String,
+    pub error_message: String,
+}
+
 /// ロールバック時の逆補正用（product_code + 元のquantity）
 ///
 /// 24-io-csv-import-repo.md §14.2
@@ -444,6 +483,102 @@ pub fn list_csv_imports(
         page,
         per_page,
     })
+}
+
+/// CSV取込み記録のヘッダ、明細、関連在庫変動を取得する。
+///
+/// 24-io-csv-import-repo.md §14.13a / REQ-206 / REQ-207
+pub fn get_csv_import_record_detail(
+    conn: &DbConnection,
+    import_id: i64,
+) -> Result<CsvImportRecordDetailCore, DbError> {
+    let header = find_csv_import_by_id(conn, import_id)?.ok_or(DbError::NotFound)?;
+
+    let mut item_stmt = conn.prepare(
+        "SELECT sr.id, sr.product_code, p.name, d.name, p.stock_unit,
+                sr.quantity, sr.amount, sr.is_voided
+         FROM sale_records sr
+         JOIN products p ON p.product_code = sr.product_code
+         JOIN departments d ON d.id = p.department_id
+         WHERE sr.csv_import_id = ?1
+         ORDER BY sr.id ASC",
+    )?;
+    let items = item_stmt
+        .query_map(rusqlite::params![import_id], |row| {
+            Ok(CsvImportRecordDetailItem {
+                id: row.get(0)?,
+                product_code: row.get(1)?,
+                product_name: row.get(2)?,
+                department_name: row.get(3)?,
+                stock_unit: row.get(4)?,
+                quantity: row.get(5)?,
+                amount: row.get(6)?,
+                is_voided: row.get(7)?,
+            })
+        })?
+        .collect::<Result<Vec<_>, _>>()?;
+
+    let mut movement_stmt = conn.prepare(
+        "SELECT id, product_code, movement_type, quantity, stock_after,
+                reference_type, reference_id, note, created_at
+         FROM inventory_movements
+         WHERE reference_type = 'csv_import'
+           AND reference_id = ?1
+           AND is_voided = 0
+         ORDER BY created_at ASC, id ASC",
+    )?;
+    let movements = movement_stmt
+        .query_map(rusqlite::params![import_id], |row| {
+            Ok(super::inventory_repo::MovementRecord {
+                id: row.get(0)?,
+                product_code: row.get(1)?,
+                movement_type: super::inventory_repo::parse_movement_type(row.get(2)?)?,
+                quantity: row.get(3)?,
+                stock_after: row.get(4)?,
+                reference_type: super::inventory_repo::parse_reference_type(row.get(5)?),
+                reference_id: row.get(6)?,
+                source: None,
+                note: row.get(7)?,
+                created_at: row.get(8)?,
+            })
+        })?
+        .collect::<Result<Vec<_>, _>>()?;
+
+    Ok(CsvImportRecordDetailCore {
+        header,
+        items,
+        movements,
+    })
+}
+
+/// CSV取込み記録に紐づくエラー行を元ファイル順で取得する。
+///
+/// 24-io-csv-import-repo.md §14.13a / REQ-206
+pub fn list_csv_import_error_rows(
+    conn: &DbConnection,
+    csv_import_id: i64,
+) -> Result<Vec<CsvImportErrorRecord>, DbError> {
+    let mut stmt = conn.prepare(
+        "SELECT source_line_no, normalized_jan, raw_name, raw_quantity, raw_amount,
+                error_type, error_message
+         FROM csv_import_errors
+         WHERE csv_import_id = ?1
+         ORDER BY source_line_no ASC, id ASC",
+    )?;
+    let rows = stmt
+        .query_map(rusqlite::params![csv_import_id], |row| {
+            Ok(CsvImportErrorRecord {
+                source_line_no: row.get(0)?,
+                normalized_jan: row.get(1)?,
+                raw_name: row.get(2)?,
+                raw_quantity: row.get(3)?,
+                raw_amount: row.get(4)?,
+                error_type: row.get(5)?,
+                error_message: row.get(6)?,
+            })
+        })?
+        .collect::<Result<Vec<_>, _>>()?;
+    Ok(rows)
 }
 
 // ---------------------------------------------------------------------------
@@ -1395,6 +1530,153 @@ mod tests {
         let (_dir, conn) = setup_test_db();
         let result = insert_csv_import_errors(&conn, &[]);
         assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_get_csv_import_record_detail_req206_not_found() {
+        // REQ-206 / 24 §14.13a: 存在しない取込みIDは NotFound。
+        let (_dir, conn) = setup_test_db();
+
+        let result = get_csv_import_record_detail(&conn, 99_999);
+
+        assert!(matches!(result, Err(DbError::NotFound)));
+    }
+
+    #[test]
+    fn test_get_csv_import_record_detail_req206_items_include_voided() {
+        // REQ-206 / 24 §14.13a: rollback 後も明細を取込み順で表示する。
+        let (_dir, conn) = setup_test_db();
+        seed_product(&conn, "DETAIL-A");
+        seed_product(&conn, "DETAIL-B");
+        let import_id = seed_csv_import(&conn, "hash_detail_items", "rolled_back");
+
+        let first_id = insert_sale_record(
+            &conn,
+            &NewSaleRecord {
+                csv_import_id: Some(import_id),
+                product_code: "DETAIL-A".to_string(),
+                sale_date: "2026-08-03".to_string(),
+                quantity: 2,
+                amount: 400,
+                source: "auto".to_string(),
+                source_line_no: Some(7),
+                reason: None,
+                note: None,
+            },
+        )
+        .unwrap();
+        let second_id = insert_sale_record(
+            &conn,
+            &NewSaleRecord {
+                csv_import_id: Some(import_id),
+                product_code: "DETAIL-B".to_string(),
+                sale_date: "2026-08-03".to_string(),
+                quantity: 1,
+                amount: 300,
+                source: "auto".to_string(),
+                source_line_no: Some(8),
+                reason: None,
+                note: None,
+            },
+        )
+        .unwrap();
+        conn.execute(
+            "UPDATE sale_records SET is_voided = 1 WHERE id = ?1",
+            rusqlite::params![first_id],
+        )
+        .unwrap();
+
+        let detail = get_csv_import_record_detail(&conn, import_id).unwrap();
+
+        assert_eq!(
+            detail.items.iter().map(|item| item.id).collect::<Vec<_>>(),
+            vec![first_id, second_id]
+        );
+        assert!(detail.items[0].is_voided);
+        assert!(!detail.items[1].is_voided);
+    }
+
+    #[test]
+    fn test_get_csv_import_record_detail_req207_movements_filter() {
+        // REQ-207 / 24 §14.13a: 同じ csv_import の active movement だけを返す。
+        let (_dir, conn) = setup_test_db();
+        seed_product(&conn, "DETAIL-MOVE");
+        let import_id = seed_csv_import(&conn, "hash_detail_movements", "completed");
+        let other_import_id = seed_csv_import(&conn, "hash_detail_other", "completed");
+
+        for (reference_id, is_voided, created_at) in [
+            (import_id, 0, "2026-08-03T10:00:00"),
+            (import_id, 1, "2026-08-03T10:01:00"),
+            (other_import_id, 0, "2026-08-03T10:02:00"),
+        ] {
+            conn.execute(
+                "INSERT INTO inventory_movements
+                 (product_code, movement_type, quantity, stock_after, reference_type, reference_id, note, is_voided, created_at)
+                 VALUES ('DETAIL-MOVE', 'sale_auto', -1, 9, 'csv_import', ?1, NULL, ?2, ?3)",
+                rusqlite::params![reference_id, is_voided, created_at],
+            )
+            .unwrap();
+        }
+        conn.execute(
+            "INSERT INTO inventory_movements
+             (product_code, movement_type, quantity, stock_after, reference_type, reference_id, note, is_voided, created_at)
+             VALUES ('DETAIL-MOVE', 'receiving', 1, 10, 'receiving_record', ?1, NULL, 0, '2026-08-03T10:03:00')",
+            rusqlite::params![import_id],
+        )
+        .unwrap();
+
+        let detail = get_csv_import_record_detail(&conn, import_id).unwrap();
+
+        assert_eq!(detail.movements.len(), 1);
+        assert_eq!(detail.movements[0].reference_id, Some(import_id));
+        assert!(detail.movements[0].source.is_none());
+    }
+
+    #[test]
+    fn test_list_csv_import_error_rows_req206_order_and_empty() {
+        // REQ-206 / 24 §14.13a: 非空 oracle と空 Vec の両方を固定する。
+        let (_dir, conn) = setup_test_db();
+        let import_id = seed_csv_import(&conn, "hash_detail_errors", "completed_partial");
+        let empty_id = seed_csv_import(&conn, "hash_detail_empty", "completed");
+        insert_csv_import_errors(
+            &conn,
+            &[
+                NewCsvImportError {
+                    csv_import_id: import_id,
+                    source_line_no: 9,
+                    normalized_jan: None,
+                    raw_name: "後の行".to_string(),
+                    raw_quantity: "x".to_string(),
+                    raw_amount: "100".to_string(),
+                    error_type: "invalid_number".to_string(),
+                    error_message: "数量不正".to_string(),
+                },
+                NewCsvImportError {
+                    csv_import_id: import_id,
+                    source_line_no: 3,
+                    normalized_jan: Some("4900000000000".to_string()),
+                    raw_name: "先の行".to_string(),
+                    raw_quantity: "1".to_string(),
+                    raw_amount: "100".to_string(),
+                    error_type: "unmatched_product".to_string(),
+                    error_message: "商品なし".to_string(),
+                },
+            ],
+        )
+        .unwrap();
+
+        let rows = list_csv_import_error_rows(&conn, import_id).unwrap();
+
+        assert_eq!(
+            rows.iter()
+                .map(|row| row.source_line_no)
+                .collect::<Vec<_>>(),
+            vec![3, 9]
+        );
+        assert_eq!(rows[0].raw_name, "先の行");
+        assert!(list_csv_import_error_rows(&conn, empty_id)
+            .unwrap()
+            .is_empty());
     }
 
     #[test]

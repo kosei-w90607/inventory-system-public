@@ -89,6 +89,7 @@ export const invalidationContract = {
   ],
   csvImportRollback: () => [
     queryKeys.csvImportLists(),
+    queryKeys.inventoryRecords.root(),
     queryKeys.dailySalesRoot(),
     queryKeys.lowStock(false),
     queryKeys.stockInquiryRoot(),

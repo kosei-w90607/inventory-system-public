@@ -60,6 +60,8 @@ export const queryKeys = {
       ["inventory-records", "manual-sale-detail", { recordId }] as const,
     disposalDetail: (recordId: number) =>
       ["inventory-records", "disposal-detail", { recordId }] as const,
+    csvImportDetail: (importId: number) =>
+      ["inventory-records", "csv-import-detail", { importId }] as const,
   },
   // UI-01a 商品検索・一覧
   // 設計: docs/function-design/50-ui-product-list.md §50.5

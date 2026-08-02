@@ -243,6 +243,7 @@ pub fn export_specta_bindings() {
         cmd::csv_import_cmd::commit_csv_import,
         cmd::csv_import_cmd::rollback_csv_import,
         cmd::csv_import_cmd::list_csv_imports,
+        cmd::csv_import_cmd::get_csv_import_record,
         // CMD-12: 日報取込み
         cmd::daily_report_import_cmd::parse_and_validate_daily_report,
         cmd::daily_report_import_cmd::commit_daily_report_import,
@@ -772,6 +773,7 @@ pub fn run() {
             cmd::csv_import_cmd::commit_csv_import,
             cmd::csv_import_cmd::rollback_csv_import,
             cmd::csv_import_cmd::list_csv_imports,
+            cmd::csv_import_cmd::get_csv_import_record,
             // CMD-12: 日報取込み
             cmd::daily_report_import_cmd::parse_and_validate_daily_report,
             cmd::daily_report_import_cmd::commit_daily_report_import,

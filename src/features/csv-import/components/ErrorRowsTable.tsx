@@ -3,6 +3,8 @@
 // PreviewStep 内で展開可能な ErrorSummary 表示。最大 100 件、超過時は末尾に「他 N 件...」表示。
 // 設計: docs/function-design/55-ui-csv-import.md §55.5 ErrorRowsTable 描画ロジック
 
+import { useState } from "react";
+
 import {
   Accordion,
   AccordionContent,
@@ -27,14 +29,22 @@ export interface ErrorRowsTableProps {
 
 /// errorSummary.items を Accordion + Table で表示。`error_type` 4 値で Badge variant 色分け。
 /// `normalized_jan === null` のセルは「(不明)」表示 (§55.5 ErrorRow 表)。
+/// trigger は件数表示ではなく明示的な操作文言で開閉を示し、chevron は文言隣接に置く
+/// (§55.5、非 IT operator が展開可能な操作部と認識できなかった owner L3 起源)。
 export function ErrorRowsTable({ errorSummary }: ErrorRowsTableProps) {
   const { count, items } = errorSummary;
   const remaining = count - items.length;
+  const [openValue, setOpenValue] = useState("");
+  const countLabel = count.toLocaleString();
 
   return (
-    <Accordion type="single" collapsible>
+    <Accordion type="single" collapsible value={openValue} onValueChange={setOpenValue}>
       <AccordionItem value="errors">
-        <AccordionTrigger>エラー {count.toLocaleString()} 件</AccordionTrigger>
+        <AccordionTrigger className="justify-start gap-2">
+          {openValue === "errors"
+            ? `エラー詳細を閉じる（${countLabel}件）`
+            : `エラー詳細を見る（${countLabel}件）`}
+        </AccordionTrigger>
         <AccordionContent>
           <Table>
             <TableHeader>

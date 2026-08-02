@@ -389,6 +389,32 @@ PaginatedResult<CsvImport> {
 
 ---
 
+#### get_csv_import_record
+
+**関数要求**: CSV取込み記録詳細を取得し、ヘッダ、sale_records 明細、エラー行、関連在庫変動、rollback 状態を表示できる形で返す（[65-inventory-record-traceability.md](65-inventory-record-traceability.md) §65.3 `/csv-import/records/$importId` / §65.5 CSV取込み列）
+
+**シグネチャ（Tauriコマンド）**:
+```
+#[tauri::command]
+fn get_csv_import_record(
+    state: State<AppState>,
+    import_id: i64,
+) -> Result<CsvImportRecordDetail, CmdError>
+```
+
+**出力型**: [32-biz-csv-import-service.md](32-biz-csv-import-service.md) §15.6a の CsvImportRecordDetail（movements は source 補完済み）
+
+**処理ステップ**:
+1. state.db.lock() でDB接続を取得
+2. biz::csv_import_service::get_csv_import_record(&conn, import_id) を呼ぶ
+3. Ok → CsvImportRecordDetail をそのまま返す
+4. Err(BizError::NotFound) → CmdError.kind="not_found" に変換して返す
+5. Err(other) → 17.4 の変換表に従い CmdError に変換して返す
+
+read-only command であり、preview キャッシュ・idempotency・operation log 記録には関与しない（[31-biz-inventory-service.md](31-biz-inventory-service.md) §12.6a の read-only 責務分離と同じ）。
+
+---
+
 ### 17.6 CMD-08 コマンド
 
 #### prepare_plu_export
@@ -618,9 +644,12 @@ CMD-07/CMD-08が**やらないこと**を明示する。
     cmd::csv_import_cmd::commit_csv_import,
     cmd::csv_import_cmd::rollback_csv_import,
     cmd::csv_import_cmd::list_csv_imports,
+    cmd::csv_import_cmd::get_csv_import_record,
     // CMD-08（新規）
     cmd::plu_export_cmd::prepare_plu_export,
     cmd::plu_export_cmd::confirm_plu_export_saved,
     cmd::plu_export_cmd::list_plu_dirty,
 ])
 ```
+
+現行実装（`lib.rs`）では command 登録は 2 箇所に分離している: `export_specta_bindings()` 内の `collect_commands![...]`（bindings 生成用）と `.invoke_handler(tauri::generate_handler![...])`（実行時 dispatch 用）。新規 command は**両方**へ登録する。collect_commands のみでは bindings diff が clean のまま IPC 実呼出しが「command not found」になる（CSV取込み詳細 Design Phase、Plan Review round 1 P2 起源）。

@@ -385,6 +385,43 @@ fn list_csv_imports(conn: &DbConnection, page: u32, per_page: u32) -> Result<Pag
 
 ---
 
+### 14.13a get_csv_import_record_detail / list_csv_import_error_rows
+
+**関数要求**: CSV取込み記録詳細（ヘッダ、sale_records 明細、関連 `inventory_movements`）とエラー行を取得する。CSV取込み詳細画面（`/csv-import/records/$importId`、[65-inventory-record-traceability.md](65-inventory-record-traceability.md) §65.3 / §65.5）用
+
+**シグネチャ**:
+```
+fn get_csv_import_record_detail(conn: &DbConnection, import_id: i64) -> Result<CsvImportRecordDetailCore, DbError>
+fn list_csv_import_error_rows(conn: &DbConnection, csv_import_id: i64) -> Result<Vec<CsvImportErrorRecord>, DbError>
+```
+
+**CsvImportRecordDetailCore構造体**（IO 内部型。wire DTO は BIZ-03 側 [32-biz-csv-import-service.md](32-biz-csv-import-service.md) §15.6a が所有）:
+- header: CsvImport（§14.2 既存型を再利用。file_hash を含むが wire DTO には載せない）
+- items: Vec\<CsvImportRecordDetailItem\>
+- movements: Vec\<MovementRecord\>（source=None のまま）
+
+**CsvImportRecordDetailItem構造体**（sale_records 行）:
+- id: i64, product_code: String, product_name: String, department_name: String, stock_unit: String
+- quantity: i64, amount: i64, is_voided: bool
+
+**CsvImportErrorRecord構造体**（csv_import_errors 行。error_type は DB raw TEXT のまま返す — enum `CsvImportErrorType` は BIZ-03 所有のため IO 層では変換しない）:
+- source_line_no: i64, normalized_jan: Option\<String\>, raw_name: String, raw_quantity: String, raw_amount: String, error_type: String, error_message: String
+
+**処理ステップ**（get_csv_import_record_detail）:
+1. csv_imports のヘッダを import_id で取得する。存在しない場合は DbError::NotFound
+2. sale_records を csv_import_id で products / departments と JOIN し、商品名・部門名・単位を付ける。is_voided を含め、ORDER BY id ASC（取込み順）で全行返す（rolled_back 取込みの明細も表示対象のため is_voided で絞らない）
+3. inventory_movements から `reference_type='csv_import'` かつ `reference_id=import_id` かつ `is_voided=0` の行を取得する（[21-io-inventory-repo.md](21-io-inventory-repo.md) §10.2 get_receiving_record_detail と同パターン。rollback 済み取込みは movements が void 済みのため 0 件になり、rollback 状態はヘッダ status で表示する）
+4. movements の source link は BIZ 層で補完するため、IO 層では source=None のまま返す
+
+**処理ステップ**（list_csv_import_error_rows）:
+1. csv_import_errors を csv_import_id で ORDER BY source_line_no ASC, id ASC で取得する（該当なしは空 Vec で正常）
+
+**エラーハンドリング**:
+- ヘッダ不存在 → DbError::NotFound
+- SQL実行失敗 → DbError::QueryFailed(詳細)
+
+---
+
 ### 14.14 insert_daily_report_import
 
 **関数要求**: `daily_report_imports` に1行INSERTし、IDを返す。
