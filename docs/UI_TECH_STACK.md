@@ -519,6 +519,8 @@ CMD層の `CmdError` は `kind: string` / `message: string` / `field?` / `error_
 
 `internal` の場合の原因詳細はファイルログ（MNT-04）に記録され、ユーザーは UI-11 の操作ログ画面 + ログファイルディレクトリから追跡可能。
 
+**UI-ERR-D2（新設、2026-08-04）**: `useQuery` / `useMutation` の `error`（`InvokeError`）を利用者向けに表示する場合も `describeError` 経由 MUST。`InvokeError` の `.message` はデバッグ用フォーマット（`[source:cmd] kind: message`）であり利用者向け表示に使わない。
+
 ### 6.5 Tauri 特有の決定
 
 #### 6.5.1 WebView2（Windows）と WebKit（macOS/Linux）の互換性
