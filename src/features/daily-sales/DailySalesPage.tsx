@@ -27,6 +27,7 @@ import {
 import { useDailySalesReport } from "./hooks/useDailySalesReport";
 import { useExportDailySalesCsv } from "./hooks/useExportDailySalesCsv";
 import { useTodayDate } from "./lib/date-nav";
+import { describeError } from "@/lib/describe-error";
 import type { OfficialDailyReportSummary } from "@/lib/bindings";
 import type { DailySalesSearch, SortColumn, SortDirection } from "./types";
 
@@ -92,7 +93,7 @@ export function DailySalesPage({ search, onSearchChange }: DailySalesPageProps) 
         <Alert variant="destructive">
           <AlertTitle>当日の売上データを取得できませんでした</AlertTitle>
           <AlertDescription className="flex items-center justify-between gap-2">
-            <span>{todayQ.error.message}</span>
+            <span>{describeError(todayQ.error)}</span>
             <Button
               type="button"
               variant="outline"

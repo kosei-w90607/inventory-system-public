@@ -279,7 +279,7 @@ Phase 2 closeout で `typedInvoke` fallback / baseline 監視は撤去済み。C
 
 #### `ErrorState.tsx` の描画ロジック
 
-shadcn `<Alert variant="destructive">` でアイコン + タイトル + 本文 + ボタン。タイトルは kind 別固定文言（「プレビューが利用できません」/「入力に問題があります」/「エラーが発生しました」）、本文は `error.message` をそのまま表示。
+shadcn `<Alert variant="destructive">` でアイコン + タイトル + 本文 + ボタン。タイトルは kind 別固定文言（「プレビューが利用できません」/「入力に問題があります」/「エラーが発生しました」）、本文は `describeError(error)` 経由（UI-ERR-D1、describe-error-adoption packet A18 是正）。`import_error` / `validation` は §6.4 の素通し semantics により表示文言は従来と不変、recoverTo 分岐も不変。
 
 #### `ErrorRowsTable.tsx` の描画ロジック
 

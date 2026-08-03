@@ -27,8 +27,9 @@ import { PageHeader } from "@/components/patterns/PageHeader";
 import { UnsavedChangesDialog } from "@/components/patterns/UnsavedChangesDialog";
 import { useUnsavedChangesWarning } from "@/hooks/useUnsavedChangesWarning";
 import { commands, type ProductWithRelations, type ReceivingCreateResult } from "@/lib/bindings";
+import { describeError } from "@/lib/describe-error";
 import { invalidateByContract, invalidationContract } from "@/lib/invalidation-contract";
-import { isInvokeError, toCmdError, unwrapResult } from "@/lib/invoke";
+import { unwrapResult } from "@/lib/invoke";
 import { scrollPageToTop } from "@/lib/page-scroll";
 import { queryKeys } from "@/lib/query-keys";
 import {
@@ -170,8 +171,7 @@ export function ReceivingPage() {
     onError: (error) => {
       if (error instanceof Error && error.message === "validation") return;
       scrollPageToTop();
-      const cmdError = isInvokeError(error) ? error.cmdError : toCmdError(error);
-      setSaveError(cmdError.message);
+      setSaveError(describeError(error));
     },
   });
 
@@ -239,8 +239,7 @@ export function ReceivingPage() {
       setCandidates(products.items);
       setSearchMessage("候補から入庫する商品を選んでください");
     } catch (error) {
-      const cmdError = isInvokeError(error) ? error.cmdError : toCmdError(error);
-      setSearchMessage(cmdError.message);
+      setSearchMessage(describeError(error));
     }
   }
 

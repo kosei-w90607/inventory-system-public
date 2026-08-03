@@ -1017,4 +1017,26 @@ describe("UI-11c REQ-902", () => {
     });
     expect(listLogs.mock.calls[1]?.[0].operation_type).toBe("future_type");
   });
+
+  // describe-error-adoption packet（2026-08-04）AC2 / B3 是正: query error 時に InvokeError の
+  // デバッグ文字列（`[commands: ...]`）が表示に漏れず、describeError 出力が表示されることを
+  // assert する（UI-ERR-D2、B3 は retry: 0 のため単発 reject で即 error 状態に落ちる）。
+  it("shows describeError output on query error without leaking the InvokeError debug message", async () => {
+    listLogs.mockResolvedValue({
+      status: "error",
+      error: {
+        kind: "internal",
+        message: "操作ログの取得に失敗しました",
+        field: null,
+        error_id: "E-20260710-090000-syn3",
+      },
+    });
+    renderPage();
+    expect(
+      await screen.findByText(
+        "操作ログの取得に失敗しました（エラーID: E-20260710-090000-syn3）。詳細は診断ログに記録されています。",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/\[commands:/)).not.toBeInTheDocument();
+  });
 });

@@ -309,7 +309,9 @@ describe("DisposalPage (UI-05 / REQ-204)", () => {
     renderWithClient(<DisposalPage />);
     await addSingleProduct(user);
     await user.click(screen.getByRole("button", { name: "廃棄・破損を保存" }));
-    expect(await screen.findByText("一時的なエラー")).toBeInTheDocument();
+    expect(
+      await screen.findByText("一時的なエラー。詳細は診断ログに記録されています。"),
+    ).toBeInTheDocument();
     await waitFor(() => {
       expect(mockScrollTo).toHaveBeenCalledWith({ top: 0, behavior: "smooth" });
     });
@@ -532,7 +534,9 @@ describe("DisposalPage (UI-05 / REQ-204)", () => {
     await addSingleProduct(user);
 
     await user.click(screen.getByRole("button", { name: "廃棄・破損を保存" }));
-    expect(await screen.findByText("保存command失敗")).toBeInTheDocument();
+    expect(
+      await screen.findByText("保存command失敗。詳細は診断ログに記録されています。"),
+    ).toBeInTheDocument();
 
     mockSearchProducts.mockResolvedValueOnce({
       status: "ok",
@@ -550,5 +554,33 @@ describe("DisposalPage (UI-05 / REQ-204)", () => {
     });
     await user.type(screen.getByLabelText("廃棄・破損商品検索"), "DP-002{enter}");
     expect(await screen.findByText("command失敗後の商品")).toBeInTheDocument();
+  });
+
+  // describe-error-adoption packet（2026-08-04）AC4 / A群代表: internal kind fixture
+  // （error_id 付き）で保存失敗 → describeError 出力に `エラーID:` が含まれることを assert する
+  // （UI-ERR-D1、A1 是正）。
+  it("REQ-204 shows the diagnostic error ID for an internal kind save failure", async () => {
+    const user = userEvent.setup();
+    mockCreateDisposal.mockResolvedValue({
+      status: "error",
+      error: {
+        kind: "internal",
+        message: "廃棄・破損の保存でエラーが発生しました",
+        field: null,
+        error_id: "E-20260627-101500-syn5",
+      },
+    });
+    renderWithClient(<DisposalPage />);
+    await addSingleProduct(user);
+
+    await user.click(screen.getByRole("button", { name: "廃棄・破損を保存" }));
+
+    expect(
+      await screen.findByText(
+        "廃棄・破損の保存でエラーが発生しました（エラーID: E-20260627-101500-syn5）。詳細は診断ログに記録されています。",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/エラーID:/)).toBeInTheDocument();
+    expect(screen.queryByText(/\[commands:/)).not.toBeInTheDocument();
   });
 });

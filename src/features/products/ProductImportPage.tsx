@@ -4,6 +4,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageHeader } from "@/components/patterns/PageHeader";
+import { describeError } from "@/lib/describe-error";
 import { ProductImportDropzone } from "./import/ProductImportDropzone";
 import { ProductImportPreview } from "./import/ProductImportPreview";
 import { useProductImportFlow } from "./import/useProductImportFlow";
@@ -102,7 +103,7 @@ export function ProductImportPage() {
         <Alert variant="destructive">
           <AlertTitle>インポートに失敗しました</AlertTitle>
           <AlertDescription className="space-y-3">
-            <p>{state.error.cmdError.message}</p>
+            <p>{describeError(state.error)}</p>
             <Button type="button" variant="outline" onClick={flow.dismissError}>
               戻る
             </Button>

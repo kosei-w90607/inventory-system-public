@@ -290,7 +290,9 @@ describe("ManualSalePage (UI-04 / REQ-203)", () => {
     await addSingleProduct(user);
     await user.click(screen.getByRole("button", { name: "手動販売を保存" }));
 
-    expect(await screen.findByText("一時的なエラー")).toBeInTheDocument();
+    expect(
+      await screen.findByText("一時的なエラー。詳細は診断ログに記録されています。"),
+    ).toBeInTheDocument();
     await waitFor(() => {
       expect(mockScrollTo).toHaveBeenCalledWith({ top: 0, behavior: "smooth" });
     });

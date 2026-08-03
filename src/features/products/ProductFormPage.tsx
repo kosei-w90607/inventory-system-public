@@ -14,8 +14,9 @@ import { PageHeader } from "@/components/patterns/PageHeader";
 import { UnsavedChangesDialog } from "@/components/patterns/UnsavedChangesDialog";
 import { useUnsavedChangesWarning } from "@/hooks/useUnsavedChangesWarning";
 import { commands, type ProductWithRelations } from "@/lib/bindings";
+import { describeError } from "@/lib/describe-error";
 import { invalidateByContract, invalidationContract } from "@/lib/invalidation-contract";
-import { isInvokeError, toCmdError, unwrapResult } from "@/lib/invoke";
+import { unwrapResult } from "@/lib/invoke";
 import { queryKeys } from "@/lib/query-keys";
 import { ProductForm } from "./components/ProductForm";
 import { useProductFormOptions } from "./hooks/useProductFormOptions";
@@ -113,8 +114,7 @@ export function ProductFormPage({
     },
     onError: (error) => {
       if (error instanceof Error && error.message === "validation") return;
-      const cmdError = isInvokeError(error) ? error.cmdError : toCmdError(error);
-      setSaveError(cmdError.message);
+      setSaveError(describeError(error));
     },
   });
 
@@ -150,8 +150,7 @@ export function ProductFormPage({
     },
     onError: (error) => {
       if (error instanceof Error && error.message === "validation") return;
-      const cmdError = isInvokeError(error) ? error.cmdError : toCmdError(error);
-      setSaveError(cmdError.message);
+      setSaveError(describeError(error));
     },
   });
 
@@ -171,8 +170,7 @@ export function ProductFormPage({
       );
     },
     onError: (error) => {
-      const cmdError = isInvokeError(error) ? error.cmdError : toCmdError(error);
-      setSaveError(cmdError.message);
+      setSaveError(describeError(error));
     },
   });
 

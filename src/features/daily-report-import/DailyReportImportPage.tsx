@@ -17,6 +17,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { DailyReportImportResult, DailyReportPreviewData } from "@/lib/bindings";
+import { describeError } from "@/lib/describe-error";
 import { useDailyReportImportFlow } from "./hooks/useDailyReportImportFlow";
 
 export function DailyReportImportPage() {
@@ -63,7 +64,7 @@ export function DailyReportImportPage() {
           <Alert variant="destructive">
             <AlertTitle>処理できませんでした</AlertTitle>
             <AlertDescription className="space-y-3">
-              <p>{state.error.cmdError.message}</p>
+              <p>{describeError(state.error)}</p>
               <Button variant="outline" onClick={flow.dismissError}>
                 戻る
               </Button>
