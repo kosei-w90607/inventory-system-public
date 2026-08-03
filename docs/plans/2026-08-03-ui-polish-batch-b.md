@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: implementing
+- Phase: human-confirm
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: 1c40453
@@ -11,7 +11,7 @@
 - Writer: Claude (Sonnet 5 subagent、worktree isolation)
 - Plan Reviewer: Codex (cross-vendor)
 - Final Reviewer: Codex (cross-vendor、fresh context)
-- Reviewed Content HEAD: 3d1c67e
+- Reviewed Content HEAD: b88f5b1
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
 - Human Gate: L3 Windows native 目視（filter reset 代表画面 / 在庫照会 pagination）、Ready 承認、merge
@@ -45,6 +45,8 @@
 2026-08-03 amendment round 1 是正 content commit で `design -> plan-draft -> plan-gate` を再材料化する。evidence = 50 UI-01a-D9 へ controlled value 責務分離（SearchBar の value は raw `search.q ?? ""`、`normalizedSearch.q` は CMD query・filter 既定判定・returnTo 専用）を追補（design→plan-draft）、packet の Ledger 是正 + Design Intent Trace / Audit / Test Plan / Review Focus 同期と Matrix の clear 経路 + trim 再描画 harness test 行を完成・commit（plan-draft→plan-gate）。
 
 2026-08-03 amendment 実装 content commit（本 commit）で `plan-gate -> plan-approved -> implementing` を材料化する（圧縮記録、STATECAP は消費しない content 同乗）。evidence = 独立 Plan Reviewer（Codex）が amendment Plan Review round 2 で「Amendment Plan Review PASS P1/P2=0」を報告し round 1 の 4 件全 closed（plan-gate→plan-approved）、owner の実装再実施指示は L3 comment（PR #59）で既得のため実装を開始（plan-approved→implementing）。`Amendments` 行へレビュー済み amendment content 系列 `dfd1b38` / `7b701bb` を append（`Plan Commit` = 1c40453 は不変、PK5）。実装 = ProductListPage の SearchBar live 型化（raw `search.q` 結線、UI-01a-D9）+ EmptyState action wrapper の中央揃え + SPEC-UIBB-10 test 5 本 / SPEC-UIBB-11 test 1 本 + 旧 commit 型 id 契約 assert の live 型化更新。付随: 既存 test「shows department loading failure」の flake 根本（departmentsQuery の production `retry: 1` が QueryClient default を上書きし、失敗確定が findByText 既定 timeout と同着）を特定し timeout 延長で安定化（PR body の flake note の根本解明。Findings Freeze 後の非契約 test 安定化として本記録で追跡）。
+
+2026-08-03 state-only 遷移 commit で `implementing -> local-verified -> independent-review -> human-confirm` を再材料化する（圧縮記録、STATECAP 3/3）。evidence = amendment 後 content candidate `b88f5b1`（実装 `d194101` + lint 是正 `b88f5b1`）の L1 full PASS / TREE CLEAN / MERGE_EVIDENCE_VALID=true（PR #59 body に evidence 収録。実装後初回 L1 は frontend-lint 5 件で FAIL → `b88f5b1` で是正）（implementing→local-verified）。Final Reviewer（Codex）が amendment 差分（3d1c67e..b88f5b1、src 変更は 2 file のみを実測確認）を独立監査 — SPEC-UIBB-10/11 の契約×実装突合、mutation 6 種実注入全 red・全復元 clean、旧 id 契約の UI-01a-D9 への契約置換妥当判定、flake 是正の production 無副作用確認 + 5 回安定実行、gate 独立再実行（tsc / eslint / vitest 全 suite / doc-consistency）全 green（local-verified→independent-review）、「Final Review PASS P1/P2=0」宣言 + PR body / L1 evidence 三点整合確認（independent-review→human-confirm）。`Reviewed Content HEAD` = b88f5b1 へ更新。Human Gate 残 = owner L3 再確認（3-B 中央揃え / 商品一覧 live 型挙動 / 3-E `q="0"`+`page=99` 手順）+ Ready 承認 + merge。
 
 ## Owner Effort Budget
 
