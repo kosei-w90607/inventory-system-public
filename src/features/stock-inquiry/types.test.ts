@@ -6,7 +6,7 @@
 import { describe, expect, it } from "vitest";
 import { stockInquirySearchSchema } from "./types";
 
-describe("stockInquirySearchSchema (SPEC-UIBB-3)", () => {
+describe("stockInquirySearchSchema (REQ-301 / SPEC-UIBB-3)", () => {
   it.each([
     ["0", { page: 0 }],
     ["負数", { page: -1 }],
