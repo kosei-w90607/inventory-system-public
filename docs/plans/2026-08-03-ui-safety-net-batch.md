@@ -2,11 +2,11 @@
 
 ## Workflow State
 
-- Phase: design
+- Phase: plan-gate
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: bfc770c
-- Amendments: none
+- Amendments: 7067123 96cae97
 - Coordinator: Claude (Fable 5)
 - Writer: Codex（owner relay。D-062 (c) 適合形〈Codex Writer + Sonnet Plan/Final Reviewer〉の 2 回目 dogfood、PR #58 closeout の次 dogfood 指定に従う）
 - Plan Reviewer: Claude (Sonnet 5 subagent、独立 context)
@@ -299,5 +299,7 @@ Fill after implementation.
 - residual risk 採用: T17 sweep の除外側個別列挙（自動除外型実装の禁止）を Matrix に明記。61〜64 の保存成功後に stale 警告文が残る既存 quirk は本 change の scope 外の pre-existing として記録のみ（ガードの発火判定に影響なし。是正するなら別 change）。
 
 2026-08-03 Plan Review round 3（Sonnet 5、fresh 独立 context、対象 = bfc770c〜e781f9a 累積）: P1/P2/P3 = 0、round 2 closure (a)(b)(c) 全 closed。独立検証 = 分類表と `src/features/**/*Page.tsx` 実在 26 file の 1:1 全数一致、4b10d55 の hunk レベル state-only 適合、機械 gate（check-workflow-git / doc-consistency-check --target plan）の独立再実行 PASS。**Plan Gate 収束、P1/P2 = 0**。
+
+2026-08-03 Amendment 1 focused review（Sonnet 5、独立 context、対象 = 3fa958c / 7067123 / 96cae97）: 事実是正の内容 = 妥当（DisposalPage 画像 state 不在 / ReturnExchangePage `receipt` 実在 / 64 Non-scope 整合を独立裏取り、「画像」残存 sweep = クリーン、Goal/Scope/AC/適用 6 画面 = 64 行文言以外 byte-identical で owner 再承認トリガーなし）。機構 P1×2 = accept: (1) Amendment commit が遷移記録の主張どおりに Phase を復帰させていない、(2) Amendments field 未記録。是正 = 本 commit で Phase を plan-gate へ復帰 + `Amendments: 7067123 96cae97` を記録し、`design -> plan-draft -> plan-gate` の再材料化を完成させる（evidence = Amendment 1 内容の review PASS）。
 
 - Findings Freeze: not yet frozen; post-freeze exceptions: none.
