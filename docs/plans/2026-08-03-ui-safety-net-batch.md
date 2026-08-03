@@ -34,6 +34,8 @@
 
 2026-08-03 Amendment 1 content commit で `design -> plan-draft -> plan-gate` を再材料化する。evidence = 64 §表示/操作の該当行から「（画像選択を含む）」を削除し Non-scope と整合化、packet 分類表 64 行を「result panel 型（明細 or 入力〈廃棄日等〉差分）・画像機能なし」へ是正（63 行は `receipt` state 実在確認済みのため画像維持、design→plan-draft）、packet 内「画像」全 sweep で追随漏れなしを確認・commit（plan-draft→plan-gate）。amendment review（Sonnet 独立 context、focused）を経て plan-approved 以降を再材料化する。
 
+## Owner Effort Budget
+
 - 介入回数上限: 3（plan 承認 / L3 目視 + Ready 承認 / merge）
 - 実働時間上限: 30分
 - relay 往復上限: 4（batch A 実績 6/4・batch B 実績 10/4 を踏まえた調整値。Codex Writer 発注 + Plan Review 複数 round + Final Review を見込む。超過が見えた時点で Coordinator が停止し owner の事前明示承認を得る）
