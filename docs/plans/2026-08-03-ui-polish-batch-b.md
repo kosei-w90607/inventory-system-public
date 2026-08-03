@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: plan-gate
+- Phase: design
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: 1c40453
@@ -39,6 +39,10 @@
 2026-08-03 owner L3 実施（PR #59 comment）: 3-A / 3-C / 3-D は PASS。指摘 2 件 — (1) 商品一覧 EmptyState の 2 ボタン（登録 + reset）が `action` slot の flex 既定 `justify-start` で左寄せになり中央揃えの EmptyState 内で不整合（L3 NG、`justify-center` 化 + 順序・機能維持が是正案）。(2) owner 判断の gated design amendment = 商品一覧検索欄を在庫照会と同じ live 型へ統一（commit 型を残す業務理由が調査で確認できず、過去の SearchBar 共通化時の既存挙動温存だったため。期待仕様 = debounceMs 200 / type="search" + native clear / 外付け Label・検索ボタン非表示 / aria-label「商品検索」維持 / Enter 即時 flush / IME composing 無視 / 入力・クリア時に page・selected reset。既存 source contract が commit 型を明記するため既存不具合でなく gated design amendment 扱い）。3-E（範囲外 page）は fixture 手順を確定（`q="0"` を明示エンコード + `page=99` 直開き → 回復導線 → 押下後 q 維持・page のみ除去）し是正後 L3 で再確認。両是正の最早影響 phase = design（(2) が 50 / 59 / 02 ⑨ の source contract 変更を要する）のため `human-confirm -> design` へ backtrack する。
 
 2026-08-03 amendment content commit で `design -> plan-draft -> plan-gate` を再材料化する（gated amendment、owner 判断により独立 Plan Review round を挟む再走）。evidence = amendment の design 出力を source docs へ反映 — 50 = UI-01a-D9 新設（live 型統一、trim は CMD 変換時のみの意味論込み）+ §50.4/§50.6/§50.7/§50.8 sync、59 §59.1 = SearchBar 採用箇所を両画面 live 型へ（commit 型は機能残置・採用箇所なし）、02 = ⑨ 採用 sync + ⑥ 複数ボタン中央揃え規定（同一 amendment change 内 — design→plan-draft）、packet の Scope(6)(7) / SPEC-UIBB-10・11 / AC11・12 / Ledger・Trace 行と Matrix の test 行を完成・commit（plan-draft→plan-gate）。Writer 差し戻しの是正 1 件を含む: owner 期待仕様の「selected reset」は在庫照会契約からの転写で、商品一覧 URL schema に `selected` は不在（Coordinator 実測 0 hit）のため page reset のみへ統一した。本 commit の SHA は Amendments 行へ次の遷移 commit で append する（tracked file は自身の SHA を持てない、D-035）。
+
+2026-08-03 Codex amendment Plan Review round 1 = FAIL（件数は Codex 報告の転記 = `P1=1 / P2=3 / P3=0`）。P1-1 = live 型の no-trim 契約が main path で未保証（現行 `ProductListPage` の controlled value が `normalizedSearch.q` 経由 = trim 済み値の再描画書き戻し。Coordinator が `search.ts` の `normalizeString` trim と結線を実読確認）。design 出力（50 への controlled value 責務分離の追補）を要するため `plan-gate -> design` へ backtrack する（直前 backtrack `4280c96` とは content commit `dfd1b38` を挟み隣接しない）。P2-1 = Ledger の selected 残存（Coordinator sweep 漏れ）/ P2-2 = clear 経路の page reset mutant 生存 / P2-3 = Design Intent Trace の amendment 行欠落、いずれも同一是正 commit で処置。全 4 件 accept。
+
+2026-08-03 amendment round 1 是正 content commit で `design -> plan-draft -> plan-gate` を再材料化する。evidence = 50 UI-01a-D9 へ controlled value 責務分離（SearchBar の value は raw `search.q ?? ""`、`normalizedSearch.q` は CMD query・filter 既定判定・returnTo 専用）を追補（design→plan-draft）、packet の Ledger 是正 + Design Intent Trace / Audit / Test Plan / Review Focus 同期と Matrix の clear 経路 + trim 再描画 harness test 行を完成・commit（plan-draft→plan-gate）。
 
 ## Owner Effort Budget
 
