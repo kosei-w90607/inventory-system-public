@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: design
+- Phase: plan-gate
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: 1c40453
@@ -37,6 +37,8 @@
 2026-08-03 state-only 遷移 commit で `implementing -> local-verified -> independent-review -> human-confirm` を材料化する（圧縮記録、STATECAP 2/3）。evidence = content candidate `3d1c67e`（Sonnet writer 実装 `e2df6f7`/`0b72435`/`406ad68` + traceability 是正 `d8ecf95` + 整形 `c344e15` + Final Review P2 是正 `3d1c67e`）の L1 full PASS / TREE CLEAN / MERGE_EVIDENCE_VALID=true（PR #59 body に evidence SHA と log path 収録。実装後初回 L1 の traceability T1/T4 検出と是正、部分並列 vitest の既知 flake note も PR body 記録）（implementing→local-verified）。Final Reviewer（Codex、fresh context）一次実施 = Ledger 全行の source docs×src 実読突合 + mutation 7 種実注入全 red + 静的 sweep / gate 独立再実行、P2=1（SPEC-UIBB-4 の dept/status 経路 test 欠落、survivor 2 種実証）（local-verified→independent-review）。P2 是正 `3d1c67e` の survivor kill を Coordinator と Final Reviewer が各々 clean tree 再注入で独立再現し、closure round で「Final Review PASS P1/P2=0」確定（independent-review→human-confirm）。`Reviewed Content HEAD` = 3d1c67e（Final Reviewer closure が実監査した content commit）。Human Gate 残 = owner L3 Windows native 目視（PR #59 body の 4 手順、synthetic 商品 51 件以上を要準備）+ Ready 承認 + merge。
 
 2026-08-03 owner L3 実施（PR #59 comment）: 3-A / 3-C / 3-D は PASS。指摘 2 件 — (1) 商品一覧 EmptyState の 2 ボタン（登録 + reset）が `action` slot の flex 既定 `justify-start` で左寄せになり中央揃えの EmptyState 内で不整合（L3 NG、`justify-center` 化 + 順序・機能維持が是正案）。(2) owner 判断の gated design amendment = 商品一覧検索欄を在庫照会と同じ live 型へ統一（commit 型を残す業務理由が調査で確認できず、過去の SearchBar 共通化時の既存挙動温存だったため。期待仕様 = debounceMs 200 / type="search" + native clear / 外付け Label・検索ボタン非表示 / aria-label「商品検索」維持 / Enter 即時 flush / IME composing 無視 / 入力・クリア時に page・selected reset。既存 source contract が commit 型を明記するため既存不具合でなく gated design amendment 扱い）。3-E（範囲外 page）は fixture 手順を確定（`q="0"` を明示エンコード + `page=99` 直開き → 回復導線 → 押下後 q 維持・page のみ除去）し是正後 L3 で再確認。両是正の最早影響 phase = design（(2) が 50 / 59 / 02 ⑨ の source contract 変更を要する）のため `human-confirm -> design` へ backtrack する。
+
+2026-08-03 amendment content commit で `design -> plan-draft -> plan-gate` を再材料化する（gated amendment、owner 判断により独立 Plan Review round を挟む再走）。evidence = amendment の design 出力を source docs へ反映 — 50 = UI-01a-D9 新設（live 型統一、trim は CMD 変換時のみの意味論込み）+ §50.4/§50.6/§50.7/§50.8 sync、59 §59.1 = SearchBar 採用箇所を両画面 live 型へ（commit 型は機能残置・採用箇所なし）、02 = ⑨ 採用 sync + ⑥ 複数ボタン中央揃え規定（同一 amendment change 内 — design→plan-draft）、packet の Scope(6)(7) / SPEC-UIBB-10・11 / AC11・12 / Ledger・Trace 行と Matrix の test 行を完成・commit（plan-draft→plan-gate）。Writer 差し戻しの是正 1 件を含む: owner 期待仕様の「selected reset」は在庫照会契約からの転写で、商品一覧 URL schema に `selected` は不在（Coordinator 実測 0 hit）のため page reset のみへ統一した。本 commit の SHA は Amendments 行へ次の遷移 commit で append する（tracked file は自身の SHA を持てない、D-035）。
 
 ## Owner Effort Budget
 
@@ -154,6 +156,15 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。AC や�
 - **UI_TECH_STACK.md §6.5.4**: FilePicker の behavior / API 正本としての位置付けを明確化（02 ⑭ との責務分離、Scope(4) と同時是正）。
 - **Plans.md**（round 1 P2-3 対応): 後回し Backlog 節の旧 defer 行（pagination / DepartmentFilter 共通化）を本 batch 消化 / 完了済みへ更新。
 
+### (6) 商品一覧検索欄の live 型統一（gated amendment、owner L3 判断 2026-08-03）
+
+- 商品一覧の SearchBar を在庫照会と同型の live 型へ: `debounceMs={200}` / `type="search"` + native clear / 外付け Label・検索ボタン非表示 / `aria-label="商品検索"` 維持 / Enter は debounce を待たず即時反映 / IME composing 中の Enter 無視 / 入力・クリア時に page を reset（owner 期待仕様の「selected reset」は在庫照会契約からの転写であり、商品一覧の URL schema に `selected` は存在しない — Coordinator 実測 `rg -c "selected" src/features/products/search.ts` = 0 hit — ため本画面では対象外。UI-01a-D9 は page reset のみで記録）。
+- 既存 source contract（50 / 59 / 02 ⑨）が商品一覧を commit 型と明記するため、既存不具合ではなく gated design amendment として扱う（design 出力 = 50 の UI-01a-D 新決定 + 59 §59.1 / 02 ⑨ の採用箇所 sync。commit 型モードは SearchBar の機能として残置）。
+
+### (7) EmptyState action 複数ボタンの中央揃え（owner L3 NG 是正）
+
+- `action` slot に複数ボタンを置く場合の wrapper を `flex flex-wrap items-center justify-center gap-2` とし、中央揃えの EmptyState 本体と整合させる（02 ⑥ へ規定追記）。「商品を登録する」先・「絞り込みを解除」後の順序と機能は維持。
+
 ## Non-scope
 
 - daily-report-import / backup-restore / plu-export の FilePicker 統合。Coordinator 実査（2026-08-03）: plu-export は `save()`（書き出し先選択）、backup-restore は `open({directory: true})`（フォルダ選択）で読込み契約 `{bytes, filename, size}` の対象外。daily-report-import は `open({multiple: true})` + Z001/Z002/Z005 ちょうど 3 ファイル検証 + 直前フォルダ記憶で、統合には FilePicker の multiple 契約拡張が必要 = 別 R3 規模。将来拡張候補として Plans.md へ disposition を残す。
@@ -170,6 +181,8 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。AC や�
 - AC2: 既定値のまま 0 件のとき reset action は表示されない。evidence = 各画面 RTL negative test `SPEC-UIBB-1 既定条件の0件では解除ボタンを出さない`（Matrix 参照）。
 - AC9: 在庫照会の範囲外 page（`items` 空 + `total_count > 0` + `page > 1`）で専用メッセージ +「先頭ページに戻る」が表示され、押下で page=1・他条件維持。evidence = `StockInquiryPage.test.tsx` の `SPEC-UIBB-8 範囲外pageで先頭ページに戻る導線を表示する`。
 - AC10: 在庫照会の部門候補が `listDepartments()` master 全件由来になり、page / q / dept / status のいずれを変更しても候補が不変（同一 QueryClient で `listDepartments` call count = 1 のまま）で、選択中部門から別部門へ直接切替できる。evidence = `useStockInquiry.test.tsx` / `StockInquiryPage.test.tsx` の `SPEC-UIBB-9` 系 test + `queryKeys.stockInquiry.departmentOptions()` 無引数 unit test（Matrix 参照）。
+- AC11（amendment）: 商品一覧の検索入力が 200ms debounce で URL `q` に反映され、Enter で即時 flush、IME 変換確定 Enter では発火せず、入力・クリア時に page が reset される（本画面の URL schema に `selected` は存在しないため対象外、Scope(6) 参照）。外付け Label・検索ボタンは表示されない。evidence = `ProductListPage.test.tsx` の `SPEC-UIBB-10` 系 RTL test（在庫照会の live 型 test パターン移植、Matrix 参照）。
+- AC12（amendment）: 商品一覧 EmptyState の 2 ボタンが中央揃え。evidence = `ProductListPage.test.tsx` の `SPEC-UIBB-11` DOM 構造 assert（wrapper class）+ L3 再目視。
 - AC3: 在庫照会「すべて」で 51 件以上の synthetic データのとき page 2 へ到達でき、`total_count` と表示ページが整合する。evidence = RTL test + L3。
 - AC4: q / dept / status の変更で page=1 に戻り、page 移動では条件が維持される。evidence = `StockInquiryPage.test.tsx` の `SPEC-UIBB-4 検索条件変更でpage=1に戻る` / `SPEC-UIBB-4 page移動で検索条件を維持する`（Matrix 参照）。
 - AC5: `TruncatedResultsAlert` の残存 0。evidence = `rg -n "TruncatedResultsAlert" src` = 0 hit。
@@ -256,6 +269,8 @@ N/A — 未検証の外部前提なし。TanStack Router validateSearch の para
 | 58 新設: 範囲外 page 回復（UI-11c-D8 同型、通常 EmptyState より優先） | StockInquiryPage | RTL（items 空 + total_count>0 + page>1 の一意 oracle） | L3 |
 | DSR-10: 部門候補 = listDepartments master 全件（縮退禁止） | useStockInquiry 候補 query + `queryKeys.stockInquiry.departmentOptions()` 無引数化 + DepartmentFilter canonical props 結線 | RTL + unit（page/q/dept/status の 4 条件変更で候補不変 + call count=1、別部門へ直接切替、無引数 key unit） | L3 |
 | SPEC-UIBB-9: 候補 loading の disabled 結線 / 候補失敗文言と一覧独立 | StockInquiryPage（disabled={isLoading} / isError alert） | RTL 2 本（pending → trigger disabled / reject + list 成功 → exact alert 文言と一覧の同時表示、retry 無効化 harness。Matrix 参照、round 3 P2-3） | — |
+| SPEC-UIBB-10（amendment）: 商品一覧検索欄 live 型（50 UI-01a-D 新決定） | ProductListPage の SearchBar 呼び出し | RTL（200ms live 反映 / Enter 即時 / IME composing 無視 / 入力・クリアで page・selected reset、在庫照会 live 型 test パターン移植） | L3 再確認 |
+| SPEC-UIBB-11（amendment）: action 複数ボタン中央揃え（02 ⑥） | ProductListPage EmptyState action wrapper | DOM 構造 assert（wrapper class） | L3 再確認 |
 | 58 新設: page param（>=1、invalid catch → 既定 1） | stock-inquiry search schema | schema unit test | — |
 | 58 新設: 条件変更 → page=1 / page 移動 → 条件維持 | StockInquiryPage | RTL | L3 |
 | 58 新設: truncated alert 撤去（全件ページ到達で代替） | stock-inquiry view-model | rg 残存 0 + RTL（51 件 synthetic で page 2 到達） | L3 |
@@ -312,6 +327,8 @@ Contract ID: SPEC-UIBB
 - SPEC-UIBB-7: FilePicker の behavior / API 正本（入口 2 経路・出力契約・cancel・onError・props 既定値・禁止規定）は §6.5.4、02 ⑭ は visual（DOM 構造 / トークン / visual Do-Don't / a11y / 採用箇所）のみ（二重記述なし）。
 - SPEC-UIBB-8: 在庫照会の範囲外 page（`items` 空 + `total_count > 0` + `page > 1`）は専用メッセージ +「先頭ページに戻る」（UI-11c-D8 同型）。通常 EmptyState / reset action より優先判定。
 - SPEC-UIBB-9: 在庫照会の部門候補は `listDepartments()` master 全件由来で、page / q / dept / status のいずれにも依存しない（DSR-10）。hook が `Department[]` を `DepartmentOption[]` へ変換して loading / error 状態とともに画面へ返し、canonical props（options / selected / onChange / disabled）で結線する。`queryKeys.stockInquiry.departmentOptions()` は無引数・一定 key。同一 QueryClient 上で 4 条件を順に変更しても `listDepartments` の call は 1 回のまま。候補取得失敗は一覧 query と独立で、呼び出し側文言表示（catalog ⑨ 既定）。
+- SPEC-UIBB-10（amendment）: 商品一覧の検索欄は live 型 — `debounceMs={200}` / `type="search"` + native clear / 外付け Label・検索ボタンなし / `aria-label="商品検索"` 維持 / Enter 即時 flush / IME composing 中の Enter 無視 / 入力・クリアで page reset（`selected` は本画面 URL schema に不在のため対象外。50 UI-01a-D9 が正本）。
+- SPEC-UIBB-11（amendment）: EmptyState `action` slot の複数ボタンは wrapper `justify-center` で中央揃え、既存 action 先・reset 後の順序維持（02 ⑥）。
 
 ## Trace Matrix
 
@@ -326,6 +343,8 @@ Contract ID: SPEC-UIBB
 | SPEC-UIBB-7 | Scope(4) | doc-consistency | 二重記述 | AC7 |
 | SPEC-UIBB-8 | Scope(2) | 範囲外 page RTL | 通常 EmptyState との優先判定 | AC9 |
 | SPEC-UIBB-9 | Scope(2) | 候補不変 RTL + unit | 候補縮退の再発 | AC10 |
+| SPEC-UIBB-10 | Scope(6) amendment | live 型 RTL（debounce / Enter 即時 / IME / reset） | commit 型残存・reset 欠落 | AC11 |
+| SPEC-UIBB-11 | Scope(7) amendment | DOM 構造 assert + L3 | 左寄せ回帰 | AC12 |
 
 ## Data Safety
 

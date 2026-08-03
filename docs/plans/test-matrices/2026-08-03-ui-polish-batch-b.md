@@ -15,6 +15,8 @@ Risk: R3
 - SPEC-UIBB-7: FilePicker catalog 登録の責務分離（02 = 構造/トークン/Do-Don't、§6.5.4 = behavior/API 正本、二重記述なし）
 - SPEC-UIBB-8: 在庫照会の範囲外 page 回復（UI-11c-D8 同型、通常 EmptyState / reset より優先判定）
 - SPEC-UIBB-9: 部門候補 = `listDepartments()` master 全件（DSR-10、page/q/dept/status 非依存）
+- SPEC-UIBB-10（amendment）: 商品一覧検索欄の live 型統一（debounce 200 / Enter 即時 / IME guard / page reset — `selected` は本画面 URL schema に不在のため対象外 / 外付け UI なし）
+- SPEC-UIBB-11（amendment）: EmptyState action 複数ボタンの中央揃え + 順序維持
 - 02 ⑥ 適用除外の非回帰（分類表除外(a)〜(d) 19 site。packet Scope(1) の全数分類表を正とする）
 - 50 §50.4 非破壊（products 画面の既存 page 挙動不変）
 
@@ -62,6 +64,9 @@ Risk: R3
 | SPEC-UIBB-9 | query key の条件依存化 | unit | `query-keys` の unit test `SPEC-UIBB-9 departmentOptionsは無引数で一定keyを返す` | `queryKeys.stockInquiry.departmentOptions()` への引数再導入 |
 | SPEC-UIBB-9 | loading 結線の欠落 | unit (RTL) | `StockInquiryPage.test.tsx` `SPEC-UIBB-9 候補ロード中はDepartmentFilterがdisabled`（候補 query を pending に固定し trigger の disabled を assert） | `disabled={false}` 固定・loading 結線削除の mutant（round 3 P2-3） |
 | SPEC-UIBB-9 | error 表示と一覧独立の退行 | unit (RTL) | `StockInquiryPage.test.tsx` `SPEC-UIBB-9 候補取得失敗でも一覧は表示され失敗文言が出る`（`listDepartments` reject + list query 成功の fixture で、`role="alert"`「部門候補の取得に失敗しました」の exact 文言と商品一覧行の**同時表示**を assert。test harness は QueryClient retry を無効化して失敗状態を一意確定） | isError alert の削除・文言変更、候補失敗で一覧まで非表示にする結合退行（round 3 P2-3） |
+| SPEC-UIBB-10（amendment） | commit 型残存 / live 反映欠落 | unit (RTL) | `ProductListPage.test.tsx` `SPEC-UIBB-10 検索入力が200msデバウンスでqに反映される`（入力後 debounce 経過で updater の q 反映 + page reset を assert）+ `SPEC-UIBB-10 検索ボタンとLabelを表示しない`（外付け UI 不在 + `type="search"` + aria-label 維持） | live 化の未実装・部分実装（Label / ボタン残存） |
+| SPEC-UIBB-10（amendment） | Enter 即時 / IME 誤発火 | unit (RTL) | 同 `SPEC-UIBB-10 Enterで即時flushしIME変換確定Enterでは発火しない`（在庫照会 SearchBar の既存 live 型 test パターン移植、isComposing guard assert） | debounce 待ちへの退行・IME guard 欠落 |
+| SPEC-UIBB-11（amendment） | 複数ボタン左寄せ回帰 | unit (RTL, DOM 構造) | `ProductListPage.test.tsx` `SPEC-UIBB-11 空状態の2ボタンは中央揃えで登録が先` （wrapper の `justify-center` class + ボタン順序を assert） | wrapper class 消失・順序逆転 |
 | SPEC-UIBB-9 | 選択中部門への縮退 | unit (RTL) | `StockInquiryPage.test.tsx` `SPEC-UIBB-9 部門選択中も他部門へ直接切替できる` | 候補縮退で他部門へ移れない行き止まり |
 | SPEC-UIBB-3 | invalid param で例外/NaN | unit (schema) | `stockInquirySearchSchema` test `SPEC-UIBB-3 pageの不正値は既定1に落ちる`（0 / -1 / 1.5 / "abc" / 欠落） | catch 欠落・境界誤り |
 | SPEC-UIBB-4 | 条件変更で page 保持 | unit (RTL) | `StockInquiryPage.test.tsx` `SPEC-UIBB-4 検索条件変更でpage=1に戻る` | reset 結線漏れ |

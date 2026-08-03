@@ -21,7 +21,7 @@
 | `src/components/patterns/SummaryCard.tsx` | `{title, isLoading, isError, onRetry, loadingSkeleton?, children}` | HomePage 3 カード（独立/共有 query × per-card retry） | ② |
 | `src/components/patterns/FormSection.tsx` | `{title, description?, children}`（description 未指定時 `<p>` 非描画） | ProductForm 4 セクション | ④ |
 | `src/components/patterns/EmptyState.tsx` | `{icon?, title, description?, action?}` | 件数は断定せず `rg -n --glob '!**/*.test.tsx' '<EmptyState' src` で実測する（round 1 P2-4、D-050 準拠）。filter-empty reset の対象/除外分類は [02-component-catalog.md](../design-system/02-component-catalog.md) ⑥ が正本 | ⑥ |
-| `src/components/patterns/SearchBar.tsx` | `{value, onSearchChange, label?, id?, placeholder?, ariaLabel?, debounceMs?, showSubmitButton?, type?, wrapperClassName?, inputClassName?}` | 商品一覧（commit 型）/ 在庫照会（live 型 debounceMs=200） | ⑨ |
+| `src/components/patterns/SearchBar.tsx` | `{value, onSearchChange, label?, id?, placeholder?, ariaLabel?, debounceMs?, showSubmitButton?, type?, wrapperClassName?, inputClassName?}` | 商品一覧・在庫照会（ともに live 型、`debounceMs=200`）。commit 型は現在の採用箇所なし（機能残置、撤去は別判断、2026-08-03 owner L3 是正） | ⑨ |
 | `src/components/patterns/DepartmentFilter.tsx` | `{options, selected, onChange, disabled?, allLabel?, widthClass?, idPrefix?}`（allLabel 既定「すべての部門」） | daily / products / stock / stocktake | ⑨ |
 
 各 component の DOM 構造・トークン・Do/Don't の正典は [02-component-catalog.md](../design-system/02-component-catalog.md) の該当パターン。本書は props 契約と採用箇所の対応表を担い、二重記述しない。
@@ -55,3 +55,4 @@
 | 2026-08-03 | ui-polish-batch-b（本 PR） | §59.1 DepartmentFilter 採用箇所を stocktake 追加の 4 画面へ、EmptyState 採用箇所を実測 19 画面/component へ sync。§59.3 `DepartmentOption` re-export 統一を実施済みの記述へ更新（feature 側ローカル定義 3 file 削除）。§59.3 に FilePicker（`components/FilePicker.tsx`）の §59.4 対象外注記を追加（02-component-catalog.md ⑭ が実装規約を管理） |
 | 2026-08-03 | ui-polish-batch-b round 1 是正（本 PR） | §59.1 EmptyState / DepartmentFilter の採用箇所を件数断定（19 画面/component、4 画面）から検索式参照へ是正（round 1 P2-4、D-050 準拠）。§59.3 re-export 方式をファイル別（`useProductList.ts` = import type + export type の 2 文、他 2 file = 直接 re-export 1 文）へ明記（round 1 P1-5 対応） |
 | 2026-08-03 | ui-polish-batch-b round 2 是正（本 PR） | round 2 P2-4 対応: §59.3 FilePicker 適用除外注記の帰属を「visual（DOM 構造・トークン・visual Do/Don't）は catalog ⑭、behavior / API 契約は UI_TECH_STACK §6.5.4」へ精密化（旧「方針・経緯の正典」という曖昧表現を是正） |
+| 2026-08-03 | ui-polish-batch-b owner L3 是正（本 PR） | §59.1 SearchBar 採用箇所を「商品一覧・在庫照会ともに live 型（`debounceMs=200`）」へ統一。commit 型は現在の採用箇所なし（機能残置、撤去は別判断）と注記（owner L3 判断 2026-08-03、gated design amendment、50 UI-01a-D9 / 02 ⑨ と同時是正） |

@@ -369,7 +369,7 @@ function FormSection({ title, description, children }: FormSectionProps) {
 - **表示条件**: 絞り込み条件が既定値以外、かつ結果が 0 件のときのみ、EmptyState の `action` に絞り込み解除ボタン（`variant="outline"`）を置く。絞り込みが既定値のまま 0 件（真にデータなし）のときは action を出さない。
 - **動作**: 押下でその画面の絞り込み条件をすべて既定値へ戻す。URL search param 画面は search param を既定値へ、local state 画面は state を既定値へ戻す。`page` を持つ画面は `page` も既定（1）へ戻す。並び替え（sort / dir）・表示件数（perPage）は変更しない（分類軸の対象外規定どおり）。
 - **文言**: 「絞り込みを解除」で全採用箇所を統一する。
-- **既存 action との共存規定**（round 1 P1-1 対応、新設）: 既存の主動線 action を持つ画面（商品一覧の「商品を登録する」）は、その action を常設のまま維持し、絞り込みが非既定のときだけ reset ボタンを `action` slot 内へ横並び（flex）で併置する。既存 action が先、reset ボタンが後。
+- **既存 action との共存規定**（round 1 P1-1 対応、新設）: 既存の主動線 action を持つ画面（商品一覧の「商品を登録する」）は、その action を常設のまま維持し、絞り込みが非既定のときだけ reset ボタンを `action` slot 内へ横並び（flex）で併置する。既存 action が先、reset ボタンが後。`action` slot に複数ボタンを置く場合は wrapper を `flex flex-wrap items-center justify-center gap-2` とし中央揃えにする（EmptyState 本体の中央揃えと整合させる。owner L3 2026-08-03）。
 - **採用箇所**: 棚卸し（`StocktakePage`、部門フィルタ / 未入力のみ toggle / `page` を既定へ戻す。73 §73.6 round 2 P2-1 是正と整合）/ 在庫照会（`StockInquiryPage`）/ 入出庫履歴一覧（`InventoryRecordsPage`）/ 在庫変動履歴（`StockMovementsPage`）/ 操作ログ（`OperationLogsPage`）/ 商品一覧（`ProductListPage`、round 1 P1-1 で追加）の 6 画面。商品一覧は上記共存規定に従い既存「商品を登録する」action と共存する。操作ログは既存の `defaultFilter` 判定の非既定側にのみ reset action が付く。既存の範囲外 page 回復 action「先頭ページに戻る」（§74 参照）とは対象ケースが異なり、同一画面内で共存する。
 - **適用除外**: 本節冒頭の適用除外（`EmptySearchPlaceholder` / shortcuts `emptyMessage` / 明細 0 行系）および上記分類軸の除外(a)〜(d) と同じ。これらは「絞り込み結果 0 件」ではないため reset action の対象にしない。
 
@@ -521,21 +521,19 @@ toast.error(`出力に失敗しました: ${message}`, { id: `export-${reportTyp
 
 **使いどころ**: 一覧画面上部の検索欄 + 部門フィルタ。HID バーコードスキャナの Enter 確定に対応し、選択状態を URL state に連動させる。
 
-**canonical**: `src/components/patterns/SearchBar.tsx`（検索欄。`debounceMs` 未指定 = commit 型（Enter/ボタン確定 + trim、商品一覧）/ 指定 = live 型（debounce + Enter flush、在庫照会）。両モードとも `event.isComposing` ガードで IME 変換確定 Enter の誤発火を防止）、`src/components/patterns/DepartmentFilter.tsx`（部門フィルタ。allLabel 既定「すべての部門」）
+**canonical**: `src/components/patterns/SearchBar.tsx`（検索欄。`debounceMs` 未指定 = commit 型（Enter/ボタン確定 + trim、現在の採用箇所なし・機能残置）/ 指定 = live 型（debounce + Enter flush、商品一覧・在庫照会、`debounceMs=200`）。両モードとも `event.isComposing` ガードで IME 変換確定 Enter の誤発火を防止。商品一覧は 2026-08-03 owner L3 是正で commit 型から live 型へ統一）、`src/components/patterns/DepartmentFilter.tsx`（部門フィルタ。allLabel 既定「すべての部門」）
 
 **構造**:
 
 ```tsx
-// 検索欄（commit 型）: draft 内部保持 + Enter/検索ボタンで確定（trim あり）。
-// id は呼び出し側で旧 contract を維持する（商品一覧 = "product-search-input"。
-// 未指定時の既定は "search-input" — 既存画面の置換では必ず明示する）
+// 検索欄（commit 型、現在の採用箇所なし・機能残置）: draft 内部保持 + Enter/検索ボタンで確定（trim あり）。
+// 未指定時の id 既定は "search-input" — 採用時は呼び出し側で明示する
 <SearchBar
-  id="product-search-input"
   value={q}
   onSearchChange={(value) => updateSearch({ q: value })}
 />
 
-// 検索欄（live 型）: debounce + Enter 即時 flush（trim なし）。Label / id / ボタンなし、type="search"
+// 検索欄（live 型、商品一覧・在庫照会）: debounce + Enter 即時 flush（trim なし）。Label / id / ボタンなし、type="search"
 <SearchBar
   debounceMs={200}
   value={q}
