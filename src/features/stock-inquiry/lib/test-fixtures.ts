@@ -3,7 +3,7 @@
 // Vitest 用 factory（DRY）。DTO（ProductWithRelations）+ 詳細（StockDetail）を生成。
 // 設計: docs/function-design/58-ui-stock-inquiry.md §58.6
 
-import type { ProductWithRelations, StockDetail } from "@/lib/bindings";
+import type { Department, ProductWithRelations, StockDetail } from "@/lib/bindings";
 
 /** ProductWithRelations の factory。Product フィールドは flatten でトップレベル。 */
 export function makeMockProductWithRelations(
@@ -40,6 +40,19 @@ export function makeMockStockDetail(overrides: Partial<StockDetail> = {}): Stock
     product: makeMockProductWithRelations(),
     last_receiving_date: "2026-03-20",
     last_sale_date: "2026-03-22",
+    ...overrides,
+  };
+}
+
+/** Department の factory（UI-06a-D2、部門候補 listDepartments 化の test 用）。 */
+export function makeMockDepartment(overrides: Partial<Department> = {}): Department {
+  return {
+    id: 1,
+    name: "毛糸",
+    z005_name: null,
+    code_prefix: "Y",
+    next_seq: 1,
+    created_at: "2026-01-01T10:00:00",
     ...overrides,
   };
 }

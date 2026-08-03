@@ -31,6 +31,9 @@ export const stockInquirySearchSchema = z.object({
   q: z.string().min(1).max(100).optional().catch(undefined),
   dept: z.coerce.number().int().positive().optional().catch(undefined),
   status: z.enum(STOCK_FILTER_VALUES).optional().catch(undefined),
+  // UI-06a-D1（2026-08-03 batch B）: page search param。50 §50.4 と同型
+  // （number >= 1、既定は呼び出し側で `page ?? 1`、invalid は catch で吸収）。
+  page: z.coerce.number().int().positive().optional().catch(undefined),
   selected: z.string().min(1).max(20).optional().catch(undefined),
 });
 
@@ -39,23 +42,24 @@ export const stockInquirySearchSchema = z.object({
  *
  * `search_products` は `PaginatedResult<T>`、`list_low_stock` は `T[]` で形状が
  * 異なるため、hook 内でこの型に正規化する（§58.5 Round 6 P2(a)）。
- * 自動展開 / EmptySearchPlaceholder 判定 / TruncatedResultsAlert は常に
- * `items` / `truncated` を参照する（生 DTO 直接参照禁止、type narrowing 維持）。
+ * 自動展開 / EmptySearchPlaceholder 判定 / ProductPagination は常に
+ * `items` / `totalCount` を参照する（生 DTO 直接参照禁止、type narrowing 維持）。
+ *
+ * UI-06a-D1（2026-08-03 batch B）: `truncated` field は撤去済み。pagination 導入により
+ * 全件へページ送りで到達できるため、打ち切り告知フラグを持つ理由がなくなった。
  */
 export interface StockInquiryListResult {
   items: ProductWithRelations[];
-  /** source="search" 時は total_count、source="low_stock" 時は null。 */
+  /** source="search" 時のみ数値、source="low_stock" 時 null。 */
   totalCount: number | null;
   source: "search" | "low_stock";
-  /** source="search" かつ total_count > items.length。pagination UI は Phase 2 非実装。 */
-  truncated: boolean;
 }
 
-/** 部門フィルタの選択肢（UI-06a 用ローカル再定義、daily-sales 横依存禁止）。 */
-export interface DepartmentOption {
-  id: number;
-  name: string;
-}
+/**
+ * 部門フィルタの選択肢。`patterns/DepartmentFilter.tsx` を唯一の定義とし、本 module 内では
+ * 使用しないため直接 re-export とする（59 §59.3、SPEC-UIBB-6）。
+ */
+export type { DepartmentOption } from "@/components/patterns/DepartmentFilter";
 
 /** URL search params（zod 4 validateSearch で検証）。 */
 export type StockInquirySearch = z.output<typeof stockInquirySearchSchema>;
