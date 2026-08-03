@@ -28,12 +28,32 @@ const ALLOWLIST = new Set<string>(["src/components/patterns/RouteErrorFallback.t
 // useCsvImportFlow.ts / useDailyReportImportFlow.ts / useProductImportFlow.ts の
 // ensureInvokeError() が Error → InvokeError 正規化のため message を抽出する行
 // （`message: error instanceof Error ? error.message : String(error),`）は表示コードではない。
-const LINE_EXCLUSION_PATTERNS: RegExp[] = [
-  /error instanceof Error \? error\.message : String\(error\)/,
+//
+// path を限定しない pattern 単独除外は、正規化 idiom と同じ行の形を「利用者表示」として
+// 他 file（例: DisposalPage.tsx）に置いた場合も隠してしまう（Codex closure round survivor:
+// DisposalPage の表示を idiom 形へ書き換えても sweep が green のまま survive した実証）。
+// (path, pattern) の組に限定し、対象 3 flow hook 以外では idiom と同形の行も違反として
+// 検出させる。
+const NORMALIZATION_IDIOM = /error instanceof Error \? error\.message : String\(error\)/;
+
+interface LineExclusion {
+  path: string;
+  pattern: RegExp;
+}
+
+const LINE_EXCLUSIONS: LineExclusion[] = [
+  { path: "src/features/csv-import/hooks/useCsvImportFlow.ts", pattern: NORMALIZATION_IDIOM },
+  {
+    path: "src/features/daily-report-import/hooks/useDailyReportImportFlow.ts",
+    pattern: NORMALIZATION_IDIOM,
+  },
+  { path: "src/features/products/import/useProductImportFlow.ts", pattern: NORMALIZATION_IDIOM },
 ];
 
-function isExcludedLine(line: string): boolean {
-  return LINE_EXCLUSION_PATTERNS.some((pattern) => pattern.test(line));
+function isExcludedLine(relPath: string, line: string): boolean {
+  return LINE_EXCLUSIONS.some(
+    (exclusion) => exclusion.path === relPath && exclusion.pattern.test(line),
+  );
 }
 
 interface ViolationPattern {
@@ -62,11 +82,13 @@ interface Violation {
   text: string;
 }
 
-function findViolations(content: string): Violation[] {
+// relPath は呼び出し側が必ず明示する（既定値なし）。synthetic case も「どの path を
+// 模した content か」を書き手に意識させ、除外がうっかり全 path に効くことを防ぐ。
+function findViolations(content: string, relPath: string): Violation[] {
   const lines = content.split("\n");
   const violations: Violation[] = [];
   lines.forEach((line, index) => {
-    if (isExcludedLine(line)) return;
+    if (isExcludedLine(relPath, line)) return;
     for (const pattern of VIOLATION_PATTERNS) {
       if (pattern.regex.test(line)) {
         violations.push({ pattern: pattern.name, line: index + 1, text: line.trim() });
@@ -102,7 +124,7 @@ describe("describeError adoption sweep (REQ-700 / UI-ERR-D1 / UI-ERR-D2)", () =>
         const relPath = toPosixRelative(repoRoot, path);
         if (ALLOWLIST.has(relPath)) return [];
         const content = readFileSync(path, "utf8");
-        return findViolations(content).map(
+        return findViolations(content, relPath).map(
           (violation) =>
             `${relPath}:${String(violation.line)} [${violation.pattern}] ${violation.text}`,
         );
@@ -114,12 +136,25 @@ describe("describeError adoption sweep (REQ-700 / UI-ERR-D1 / UI-ERR-D2)", () =>
 
   // Codex Final Review F1（P2、2026-08-04）: file 粒度 ALLOWLIST 7 entry は広すぎ、
   // allowlisted file 内の real regression（IntegrityCheckPage.tsx への raw query error
-  // 表示注入）を隠す survivor が実証された。ALLOWLIST / LINE_EXCLUSION_PATTERNS の内容を
+  // 表示注入）を隠す survivor が実証された。ALLOWLIST / LINE_EXCLUSIONS の内容を
   // 固定 assert し、Matrix X6（ALLOWLIST への不正追加）を review 検分依存から自動 red 化へ格上げ。
-  it("keeps the file-level ALLOWLIST and line-exclusion patterns pinned to their justified minimum", () => {
+  it("keeps the file-level ALLOWLIST and (path, pattern) line-exclusions pinned to their justified minimum", () => {
     expect(Array.from(ALLOWLIST)).toEqual(["src/components/patterns/RouteErrorFallback.tsx"]);
-    expect(LINE_EXCLUSION_PATTERNS.map((pattern) => pattern.source)).toEqual([
-      String.raw`error instanceof Error \? error\.message : String\(error\)`,
+    expect(
+      LINE_EXCLUSIONS.map((exclusion) => ({ ...exclusion, pattern: exclusion.pattern.source })),
+    ).toEqual([
+      {
+        path: "src/features/csv-import/hooks/useCsvImportFlow.ts",
+        pattern: NORMALIZATION_IDIOM.source,
+      },
+      {
+        path: "src/features/daily-report-import/hooks/useDailyReportImportFlow.ts",
+        pattern: NORMALIZATION_IDIOM.source,
+      },
+      {
+        path: "src/features/products/import/useProductImportFlow.ts",
+        pattern: NORMALIZATION_IDIOM.source,
+      },
     ]);
   });
 
@@ -138,7 +173,31 @@ describe("describeError adoption sweep (REQ-700 / UI-ERR-D1 / UI-ERR-D2)", () =>
       "}",
     ].join("\n");
 
-    const violations = findViolations(syntheticFormerAllowlistedPathBypass);
+    const violations = findViolations(
+      syntheticFormerAllowlistedPathBypass,
+      "src/features/integrity-check/IntegrityCheckPage.tsx",
+    );
+
+    expect(violations.length).toBeGreaterThan(0);
+    expect(violations.some((v) => v.pattern.includes("UI-ERR-D2"))).toBe(true);
+  });
+
+  // Codex closure round survivor（2026-08-04）: path を限定しない pattern 単独除外では、
+  // DisposalPage.tsx（flow hook ではない = LINE_EXCLUSIONS 対象外）の利用者表示を
+  // 正規化 idiom と同じ行の形へ書き換えても sweep が検出できなかった。(path, pattern) 限定後は
+  // 対象 3 flow hook 以外の path では idiom と同形の行も違反として検出されることを確認する。
+  it("detects the normalization idiom shape as a violation on a non-exempted path (DisposalPage.tsx, Codex closure round survivor)", () => {
+    const syntheticDisposalPageIdiomShapedBypass = [
+      "// synthetic content modeled on src/features/disposal/DisposalPage.tsx (not a flow hook)",
+      "onError: (error) => {",
+      "  setSaveError(error instanceof Error ? error.message : String(error));",
+      "},",
+    ].join("\n");
+
+    const violations = findViolations(
+      syntheticDisposalPageIdiomShapedBypass,
+      "src/features/disposal/DisposalPage.tsx",
+    );
 
     expect(violations.length).toBeGreaterThan(0);
     expect(violations.some((v) => v.pattern.includes("UI-ERR-D2"))).toBe(true);
@@ -167,7 +226,10 @@ describe("describeError adoption sweep (REQ-700 / UI-ERR-D1 / UI-ERR-D2)", () =>
       "}",
     ].join("\n");
 
-    const violations = findViolations(syntheticFlowHookShapedContent);
+    const violations = findViolations(
+      syntheticFlowHookShapedContent,
+      "src/features/csv-import/hooks/useCsvImportFlow.ts",
+    );
 
     expect(violations.length).toBe(1);
     expect(violations[0]?.pattern).toContain("cmdError");
@@ -204,10 +266,13 @@ describe("describeError adoption sweep (REQ-700 / UI-ERR-D1 / UI-ERR-D2)", () =>
       'if (error instanceof Error && error.message === "validation") return;',
     ].join("\n");
 
-    const cmdErrorViolations = findViolations(syntheticCmdErrorBypass);
-    const rawErrorViolations = findViolations(syntheticRawErrorBypass);
-    const optionalChainingViolations = findViolations(syntheticOptionalChainingBypass);
-    const guardViolations = findViolations(validationGuardOnly);
+    // どの LINE_EXCLUSIONS / ALLOWLIST にも該当しない generic path。除外設定の有無に
+    // 依存せず検出ロジック自体の感度を検証する。
+    const genericPath = "src/features/synthetic/SyntheticPage.tsx";
+    const cmdErrorViolations = findViolations(syntheticCmdErrorBypass, genericPath);
+    const rawErrorViolations = findViolations(syntheticRawErrorBypass, genericPath);
+    const optionalChainingViolations = findViolations(syntheticOptionalChainingBypass, genericPath);
+    const guardViolations = findViolations(validationGuardOnly, genericPath);
 
     expect(cmdErrorViolations.length).toBeGreaterThan(0);
     expect(cmdErrorViolations.some((v) => v.pattern.includes("cmdError"))).toBe(true);
