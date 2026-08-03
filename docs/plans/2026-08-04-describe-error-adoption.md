@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: human-confirm
+- Phase: ready-hosted-final
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: 4186798
@@ -308,4 +308,6 @@ Do not transcribe exact-HEAD SHA or test counts here (D-035/D-038 Evidence Owner
 - 遷移 evidence（closure round P2 是正後の記録）: local-verified の evidence は `scripts/local-ci.sh full` の RESULT=PASS で、正本は `.local/ci-evidence/` の該当 log と PR body — tracked packet へは exact HEAD SHA・PASS 回数を転記しない（D-035/D-038 Evidence Ownership。当初記録はこれに違反し `392f1a2` の state-backtrack で処理）。independent-review = cross-vendor Final Review round 1 / round 2 / closure round 実施済み。Ready 段階の exact-HEAD L1 は従来どおり別途実施する。
 - Codex FR closure round（Amendment 1 込み HEAD 対象）: NOT CLOSED、P1=0/P2=3/P3=0。旧 survivor（IntegrityCheckPage 注入）と X6 自動 red は CLOSED 判定。(1) F1 残差 = 行除外が path 非限定で、flow hook 以外の file に置いた正規化 idiom 形の利用者表示が素通り（survivor 実証）→ `442b789` で行除外を (path, pattern) 組へ限定 + 内容固定 assertion を組の pin へ更新 + cross-path synthetic regression 追加。survivor 再現実験は Writer と Coordinator が独立に「注入 → sweep red → 復元」を実測。(2) AC9 一覧の X4/X5 が件数表記で test 名一覧を満たさず → 本 commit で正式名へ置換。(3) 遷移記録の Workflow State 契約違反（state-only 相当 commit の非 canonical subject + L1 exact HEAD/PASS 回数の packet 転記 = D-035/D-038 違反）→ canonical `state-backtrack independent-review->implementing`（`392f1a2`、履歴書き換えなし）で最早影響 phase へ復帰し、本 commit で volatile evidence を除去。再前進は L1 後の canonical 遷移で行う。
 - Codex FR closure round 2（再前進 HEAD 対象）: **CLOSED、P1=0/P2=0/P3=0**。F1 残差 = `442b789` の (path, pattern) 限定・内容固定 assertion の組 pin・cross-path regression を適合確認し、survivor 再実験（DisposalPage への idiom 形表示注入）が red になることを Reviewer 自身が実測（Writer・Coordinator に続く 3 系統目）。F2' = AC9 の test 正式名化を確認、件数のみ表記の消滅を確認。F3'' = canonical backtrack（`392f1a2`）・volatile evidence 除去（`bde27df`）・canonical 再前進（`ba53eed`）を検分し、`check-workflow-git.sh` exit 0・当該遷移 WARN 0。是正 diff は範囲外変更なし、新規 finding なし。
+- owner L3（2026-08-04、介入 2/3）: L3-1（日次売上の internal 表示 = message + エラーID + 診断ログ誘導）PASS / L3-2（廃棄・破損 商品検索での非デバッグ表示、`[commands:` 露出なし）PASS。synthetic fixture（unwrapResult への一時 throw）使用・視認後復元・clean tree・実データ / 実ログ不使用・所見なし。L3 対象 HEAD と exact-HEAD evidence は PR body に記録（D-035）。
+- 遷移（human-confirm → ready-hosted-final、本 content commit 同乗）: evidence = owner L3 全項目 PASS。Ready の exact-HEAD L1 / hosted final 三点一致は PR body を正とする。
 - Findings Freeze: frozen after closure round 2（2026-08-04）; post-freeze exceptions: none.
