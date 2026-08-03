@@ -99,7 +99,8 @@ describe("describeError adoption sweep (REQ-700 / UI-ERR-D1 / UI-ERR-D2)", () =>
         if (ALLOWLIST.has(relPath)) return [];
         const content = readFileSync(path, "utf8");
         return findViolations(content).map(
-          (violation) => `${relPath}:${String(violation.line)} [${violation.pattern}] ${violation.text}`,
+          (violation) =>
+            `${relPath}:${String(violation.line)} [${violation.pattern}] ${violation.text}`,
         );
       }),
     );
@@ -118,7 +119,7 @@ describe("describeError adoption sweep (REQ-700 / UI-ERR-D1 / UI-ERR-D2)", () =>
     ].join("\n");
     const syntheticRawErrorBypass = [
       "function Component() {",
-      '  return <span>{query.error.message}</span>;',
+      "  return <span>{query.error.message}</span>;",
       "}",
     ].join("\n");
     // optional chaining 変種（`?.`）。word boundary が `?.` token で切れて素通しする gap の
@@ -126,7 +127,7 @@ describe("describeError adoption sweep (REQ-700 / UI-ERR-D1 / UI-ERR-D2)", () =>
     // 新規 case として追加する（empty-set-oracle-collision の教訓）。
     const syntheticOptionalChainingBypass = [
       "function Component() {",
-      '  return <span>{query.error?.message}</span>;',
+      "  return <span>{query.error?.message}</span>;",
       "}",
       "function onError(error: unknown) {",
       "  const cmdError = isInvokeError(error) ? error.cmdError : toCmdError(error);",
