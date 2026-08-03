@@ -2,11 +2,11 @@
 
 ## Workflow State
 
-- Phase: plan-gate
+- Phase: implementing
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: 1c40453
-- Amendments: none
+- Amendments: dfd1b38 7b701bb
 - Coordinator: Claude (Fable 5)
 - Writer: Claude (Sonnet 5 subagent、worktree isolation)
 - Plan Reviewer: Codex (cross-vendor)
@@ -43,6 +43,8 @@
 2026-08-03 Codex amendment Plan Review round 1 = FAIL（件数は Codex 報告の転記 = `P1=1 / P2=3 / P3=0`）。P1-1 = live 型の no-trim 契約が main path で未保証（現行 `ProductListPage` の controlled value が `normalizedSearch.q` 経由 = trim 済み値の再描画書き戻し。Coordinator が `search.ts` の `normalizeString` trim と結線を実読確認）。design 出力（50 への controlled value 責務分離の追補）を要するため `plan-gate -> design` へ backtrack する（直前 backtrack `4280c96` とは content commit `dfd1b38` を挟み隣接しない）。P2-1 = Ledger の selected 残存（Coordinator sweep 漏れ）/ P2-2 = clear 経路の page reset mutant 生存 / P2-3 = Design Intent Trace の amendment 行欠落、いずれも同一是正 commit で処置。全 4 件 accept。
 
 2026-08-03 amendment round 1 是正 content commit で `design -> plan-draft -> plan-gate` を再材料化する。evidence = 50 UI-01a-D9 へ controlled value 責務分離（SearchBar の value は raw `search.q ?? ""`、`normalizedSearch.q` は CMD query・filter 既定判定・returnTo 専用）を追補（design→plan-draft）、packet の Ledger 是正 + Design Intent Trace / Audit / Test Plan / Review Focus 同期と Matrix の clear 経路 + trim 再描画 harness test 行を完成・commit（plan-draft→plan-gate）。
+
+2026-08-03 amendment 実装 content commit（本 commit）で `plan-gate -> plan-approved -> implementing` を材料化する（圧縮記録、STATECAP は消費しない content 同乗）。evidence = 独立 Plan Reviewer（Codex）が amendment Plan Review round 2 で「Amendment Plan Review PASS P1/P2=0」を報告し round 1 の 4 件全 closed（plan-gate→plan-approved）、owner の実装再実施指示は L3 comment（PR #59）で既得のため実装を開始（plan-approved→implementing）。`Amendments` 行へレビュー済み amendment content 系列 `dfd1b38` / `7b701bb` を append（`Plan Commit` = 1c40453 は不変、PK5）。実装 = ProductListPage の SearchBar live 型化（raw `search.q` 結線、UI-01a-D9）+ EmptyState action wrapper の中央揃え + SPEC-UIBB-10 test 5 本 / SPEC-UIBB-11 test 1 本 + 旧 commit 型 id 契約 assert の live 型化更新。付随: 既存 test「shows department loading failure」の flake 根本（departmentsQuery の production `retry: 1` が QueryClient default を上書きし、失敗確定が findByText 既定 timeout と同着）を特定し timeout 延長で安定化（PR body の flake note の根本解明。Findings Freeze 後の非契約 test 安定化として本記録で追跡）。
 
 ## Owner Effort Budget
 

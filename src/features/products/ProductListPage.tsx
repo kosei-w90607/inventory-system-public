@@ -69,9 +69,13 @@ export function ProductListPage({ search, onSearchChange }: ProductListPageProps
       />
 
       <div className="flex flex-wrap items-center gap-3">
+        {/* live 型（UI-01a-D9、owner L3 2026-08-03）。controlled value は raw search.q — trim 済みの
+            normalizedSearch.q を結線すると live 反映のたびに trim 済み値が書き戻され「trim なし」契約が破れる。
+            trim は CMD query 変換（buildProductSearchQuery）でのみ行う。page reset は updateSearch の
+            pageOnlyChange 機構が担う。 */}
         <SearchBar
-          id="product-search-input"
-          value={normalizedSearch.q ?? ""}
+          value={search.q ?? ""}
+          debounceMs={200}
           onSearchChange={(value) => {
             updateSearch({ q: value === "" ? undefined : value });
           }}
@@ -183,7 +187,8 @@ export function ProductListPage({ search, onSearchChange }: ProductListPageProps
           title="該当する商品がありません"
           description="検索条件を変更するか、新しい商品を登録してください"
           action={
-            <div className="flex flex-wrap items-center gap-2">
+            // 複数ボタンは中央揃え（catalog ⑥、owner L3 2026-08-03 是正、SPEC-UIBB-11）
+            <div className="flex flex-wrap items-center justify-center gap-2">
               <Button type="button" asChild variant="outline">
                 <Link to="/products/new" search={{ returnTo }}>
                   商品を登録する
