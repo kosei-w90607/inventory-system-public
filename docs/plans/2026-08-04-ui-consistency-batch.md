@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: local-verified
+- Phase: human-confirm
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: a433e44
@@ -11,7 +11,7 @@
 - Writer: Codex（GPT-5.6）
 - Plan Reviewer: Claude Sonnet 5（independent subagent）
 - Final Reviewer: Claude Sonnet 5（independent subagent）
-- Reviewed Content HEAD: pending
+- Reviewed Content HEAD: 324e9c7
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
 - Human Gate: L3（到達: サイドバー「入出庫」→「入出庫履歴」→ 検索欄。live 動作 + IME 確認 = 変換確定後の最終文字列で絞り込まれ、変換確定 Enter で誤動作しないこと。変換中の一時的な絞り込み更新は live 型既定挙動として許容。label 撤去後の filter 行の視覚整合も目視、Windows native）/ Ready 承認
@@ -245,7 +245,7 @@ Do not transcribe exact-HEAD SHA or test counts here (D-035/D-038 Evidence Owner
 
 ## Review Response
 
-- Findings Freeze: not yet frozen; post-freeze exceptions: none.
+- Findings Freeze: frozen after Independent Review（2026-08-04、P1/P2=0 裁定後）; post-freeze exceptions: none.
 - If R3 review-only sub-agent is skipped, record an explicit line beginning with `Review-only skipped because:` and the reason.
 
 **Plan Gate round 1**（2026-08-04、Sonnet Plan Reviewer 独立 context、P1=2 / P2=3 / P3=1）
@@ -286,6 +286,13 @@ Do not transcribe exact-HEAD SHA or test counts here (D-035/D-038 Evidence Owner
 - 事象: TRACE-D12 の 65 doc 追加により `90-traceability.md`（AUTO-GENERATED）の再生成義務が発生し、`local-ci.sh changed` の traceability gate が drift を検出。Scope 未列挙のため Writer が正しく fail-closed 停止（true positive）
 - 裁定: 選択肢 A 採択 = `90-traceability.md` の自動再生成を Scope へ追加（B = TRACE-D12 撤回は Plan Gate 5 round で確定した明示契約の放棄のため不採用）。Registration / Generation Obligations の起票時「該当なし」誤判定も併せて是正
 - Review Focus へ「再生成 diff が TRACE-D12 起因 delta のみ」を追加し、Final Review の検分対象とする
+
+**Independent Review**（2026-08-04、content candidate `324e9c7`）
+
+- Coordinator mutation 独立再実測（隔離 worktree、Writer 記録非参照の独立導出）: M-A1〜M-A8 / M-B1〜M-B2 = **red 10/10、survivor 0**。M-A7 は最終 candidate の q 単独 fixture 化により一発 red を独立確認（Writer 自己申告の初回 survivor は補強済みで再現せず）。各 mutant 復元後の clean 確認済み
+- Final Review 一次（独立 Sonnet）: Contract Coverage Ledger 10 行全行適合（M-A1/A5/A7 は Reviewer 側でも独立注入で red 確認）、AC1〜AC10 全て実測 green、Scope 境界遵守（SearchBar 本体・5 取引画面・backend diff 0）、90-traceability delta は REQ-206 単一セルのみ、state commit の hunk は allowlist 内。**P1=0 / P2=1 / P3=0**
+- P2-1 accept（Coordinator 実見で confirmed）: local-verified 遷移 commit `6e04284` の subject が canonical `docs(plans): state-only遷移 <from>-><to>` 形式でなく、STATECAP 計数から不可視。**disposition = 履歴書き換えなし**（rename の force-push は Draft PR HEAD 変更と L1 再取得の手戻り、canonical 化は cap 4 本目化のリスク。実害〈cap 超過〉なし）。以降の遷移 commit は canonical subject で作成し、本遷移（local-verified → independent-review → human-confirm）から適用。Writer 向けの再発防止は Post-Merge Closeout で発注書 template への追記を判断
+- 上記により findings 裁定後 P1/P2=0。本 commit で `local-verified → independent-review → human-confirm` を materialize、`Reviewed Content HEAD = 324e9c7` を設定（Freeze は節冒頭の Findings Freeze 行を更新）
 
 **Writer local verification**（2026-08-04）
 
