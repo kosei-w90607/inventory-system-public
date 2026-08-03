@@ -122,3 +122,29 @@ describe("DailySalesPage REQ-501 official daily report", () => {
     ).toBeInTheDocument();
   });
 });
+
+// describe-error-adoption packet（2026-08-04）AC2 / B1 是正: query error 時に
+// InvokeError のデバッグ文字列（`[commands: ...]`）が表示に漏れず、describeError 出力が
+// 表示されることを assert する（UI-ERR-D2）。
+describe("DailySalesPage describeError adoption (B1, UI-ERR-D2)", () => {
+  it("shows describeError output on query error without leaking the InvokeError debug message", async () => {
+    mockGetDailySales.mockResolvedValue({
+      status: "error",
+      error: {
+        kind: "internal",
+        message: "日次売上の取得に失敗しました",
+        field: null,
+        error_id: "E-20260321-090000-syn1",
+      },
+    });
+
+    renderPage();
+
+    expect(
+      await screen.findByText(
+        "日次売上の取得に失敗しました（エラーID: E-20260321-090000-syn1）。詳細は診断ログに記録されています。",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/\[commands:/)).not.toBeInTheDocument();
+  });
+});

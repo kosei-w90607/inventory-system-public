@@ -184,3 +184,34 @@ describe("MonthlySalesPage (REQ-502 sort URL state 接続)", () => {
     });
   });
 });
+
+// describe-error-adoption packet（2026-08-04）AC2 / B2 是正: query error 時に
+// InvokeError のデバッグ文字列（`[commands: ...]`）が表示に漏れず、describeError 出力が
+// 表示されることを assert する（UI-ERR-D2）。
+describe("MonthlySalesPage describeError adoption (B2, UI-ERR-D2)", () => {
+  it("shows describeError output on query error without leaking the InvokeError debug message", async () => {
+    mockGetMonthlySales.mockResolvedValue({
+      status: "error",
+      error: {
+        kind: "internal",
+        message: "月次売上の取得に失敗しました",
+        field: null,
+        error_id: "E-20260501-090000-syn2",
+      },
+    });
+
+    renderPage({ month: "2026-05", mode: "by_product" });
+
+    // useMonthlySalesReport の query は production 設計で retry: 1 を明示（QueryClient
+    // default を上書き）するため、失敗確定まで retry delay 約 1s を要する
+    // （ProductListPage.test.tsx の同型 departmentsQuery 実測に倣い timeout を延長）。
+    expect(
+      await screen.findByText(
+        "月次売上の取得に失敗しました（エラーID: E-20260501-090000-syn2）。詳細は診断ログに記録されています。",
+        {},
+        { timeout: 4000 },
+      ),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/\[commands:/)).not.toBeInTheDocument();
+  });
+});

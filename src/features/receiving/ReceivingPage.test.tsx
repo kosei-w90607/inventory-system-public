@@ -414,7 +414,9 @@ describe("ReceivingPage (UI-02 / REQ-201)", () => {
     renderWithClient(<ReceivingPage />);
     await addSingleProduct(user);
     await user.click(screen.getByRole("button", { name: "入庫を保存" }));
-    expect(await screen.findByText("一時的なエラー")).toBeInTheDocument();
+    expect(
+      await screen.findByText("一時的なエラー。詳細は診断ログに記録されています。"),
+    ).toBeInTheDocument();
     await waitFor(() => {
       expect(mockScrollTo).toHaveBeenCalledWith({ top: 0, behavior: "smooth" });
     });
@@ -443,7 +445,9 @@ describe("ReceivingPage (UI-02 / REQ-201)", () => {
     renderWithClient(<ReceivingPage />);
     await addSingleProduct(user);
     await user.click(screen.getByRole("button", { name: "入庫を保存" }));
-    expect(await screen.findByText("一時的なエラー")).toBeInTheDocument();
+    expect(
+      await screen.findByText("一時的なエラー。詳細は診断ログに記録されています。"),
+    ).toBeInTheDocument();
     const firstKey = mockCreateReceiving.mock.calls[0][0].idempotency_key;
 
     await user.type(screen.getByLabelText("備考"), "納品書あり");

@@ -330,7 +330,9 @@ describe("ReturnExchangePage (UI-03 / REQ-202)", () => {
       "blob:receipt-preview",
     );
     await user.click(screen.getByRole("button", { name: "返品・交換を保存" }));
-    expect(await screen.findByText("一時的なエラー")).toBeInTheDocument();
+    expect(
+      await screen.findByText("一時的なエラー。詳細は診断ログに記録されています。"),
+    ).toBeInTheDocument();
     await waitFor(() => {
       expect(mockScrollTo).toHaveBeenCalledWith({ top: 0, behavior: "smooth" });
     });
@@ -388,7 +390,9 @@ describe("ReturnExchangePage (UI-03 / REQ-202)", () => {
     renderWithClient(<ReturnExchangePage />);
     await addSingleProduct(user);
     await user.click(screen.getByRole("button", { name: "返品・交換を保存" }));
-    expect(await screen.findByText("一時的なエラー")).toBeInTheDocument();
+    expect(
+      await screen.findByText("一時的なエラー。詳細は診断ログに記録されています。"),
+    ).toBeInTheDocument();
     const firstKey = mockCreateReturn.mock.calls[0][0].idempotency_key;
 
     const file = new File(["receipt"], "added-after-failure.png", { type: "image/png" });
@@ -429,7 +433,9 @@ describe("ReturnExchangePage (UI-03 / REQ-202)", () => {
       status: "error",
       error: { kind: "internal", message: "一時的なエラー", field: null, error_id: null },
     });
-    expect(await screen.findByText("一時的なエラー")).toBeInTheDocument();
+    expect(
+      await screen.findByText("一時的なエラー。詳細は診断ログに記録されています。"),
+    ).toBeInTheDocument();
   });
 
   it("retry after create failure reuses saved receipt path without saving the same image again", async () => {
@@ -455,7 +461,9 @@ describe("ReturnExchangePage (UI-03 / REQ-202)", () => {
     expect(await screen.findByText("receipt.png")).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "返品・交換を保存" }));
-    expect(await screen.findByText("一時的なエラー")).toBeInTheDocument();
+    expect(
+      await screen.findByText("一時的なエラー。詳細は診断ログに記録されています。"),
+    ).toBeInTheDocument();
     const firstKey = mockCreateReturn.mock.calls[0][0].idempotency_key;
     await user.click(screen.getByRole("button", { name: "返品・交換を保存" }));
 
@@ -484,7 +492,9 @@ describe("ReturnExchangePage (UI-03 / REQ-202)", () => {
     renderWithClient(<ReturnExchangePage />);
     await addSingleProduct(user);
     await user.click(screen.getByRole("button", { name: "返品・交換を保存" }));
-    expect(await screen.findByText("一時的なエラー")).toBeInTheDocument();
+    expect(
+      await screen.findByText("一時的なエラー。詳細は診断ログに記録されています。"),
+    ).toBeInTheDocument();
     const firstKey = mockCreateReturn.mock.calls[0][0].idempotency_key;
 
     await user.type(screen.getByLabelText("備考"), "備考を追記");
