@@ -40,7 +40,7 @@ Risk: R3
 | SPEC-UIBB-1/2 | filter-empty 判定破壊 | regression | 既存: filter-empty reset action test | M-A7: `isFilterDefault` から `q` 判定を欠落 |
 | SPEC-UICB-6（AC10） | label 撤去漏れ / 文言 drift | unit + CLI | 既存 `findByLabelText("商品検索")` green 維持 + placeholder assert 追加 + `rg -n "records-keyword" src/` 0 hit | M-A8: aria-label を別文言へ変更、または外付け label を残置 |
 | SPEC-UICB-4 | 52 是正漏れ / 新 drift | CLI (review 手順) | `rg -n "/pos/" docs/function-design/` = 0 hit + §52.3 全行を `src/routeTree.gen.ts` と突合 | M-B1: 52 の 1 行だけ旧 URL に戻す |
-| SPEC-UICB-5 | 65 同期漏れ / 過剰削除 | review | §65.5 JAN 行と 5 DTO（bindings.ts の 5 DetailItem 型）の突合 + 変更履歴の裁定記録確認 | M-B2: JAN 行を削除だけして裁定記録を残さない |
+| SPEC-UICB-5 | 65 同期漏れ / 過剰削除 | review | §65.5 JAN 行と全 6 DTO（bindings.ts の 5 `*RecordDetailItem` 型 + `StocktakeItemDetail`）の突合 + 変更履歴の裁定記録確認 | M-B2: JAN 行を削除だけして裁定記録を残さない |
 
 ## State Lifecycle Matrix
 

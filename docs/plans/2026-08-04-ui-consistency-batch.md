@@ -46,7 +46,7 @@ Goal Invariant:
 ### 最小完了条件
 
 - 入出庫履歴（`/inventory/records`）の商品検索欄が、商品一覧・在庫照会と同じ共有 SearchBar live 型（`debounceMs=200`、Enter 即時 flush、IME composing guard、no-trim URL 結線）で動作する。
-- 52 §52.3 のルーティング表・URL 設計根拠段落、および 65 §65.5 の JAN 行が、実装の実態（実 route / 5 詳細画面の JAN 非表示）と一致する。
+- 52 §52.3 のルーティング表・URL 設計根拠段落、および 65 §65.5 の JAN 行が、実装の実態（実 route / 5 詳細画面 + 棚卸し列 `StocktakeItemDetail` の全 6 DTO に JAN field なし）と一致する。
 
 ### 失敗定義
 
@@ -68,7 +68,7 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 
 - `src/features/inventory-records/InventoryRecordsPage.tsx`: 商品検索欄（`records-keyword`）を自前実装（`keywordDraft` state + 自前 IME composing guard + 即時 `updateKeywordSearch`）から共有 `SearchBar`（`src/components/patterns/SearchBar.tsx`、live 型 `debounceMs=200`）へ置換。value 結線は raw `search.q ?? ""`（UI-01a-D9 同型、normalized 値を value に渡さない）。`q` 変更時の page 既定 reset（現行 `updateKeywordSearch` の `resetPage = true`）は維持。IME 意味論は SearchBar live 実態へ統一する（Plan Gate round 1 P1-2 裁定 = 案 a）: SearchBar の composing guard は Enter keydown のみで、変換中の中間文字列が debounce 経由で `q` へ一時反映されることは商品一覧・在庫照会と同一の live 型既定挙動として許容。現行の「全 onChange を composing 中ブロック」する自前 guard は統一のため意図的に廃止する。`placeholder` prop は指定せず SearchBar 既定値へ統一する（表示文言は現行「商品コード・JAN・商品名」→「商品コード・商品名・JANで検索」へ変化し、商品一覧・在庫照会と同一文言になる — round 2 P2-A 裁定）。外付け `<label htmlFor="records-keyword">商品検索</label>` は UI-01a-D9 同型に倣い撤去する（`LiveSearchBar` は `id` を受け取らず label が宙に浮くため。アクセシブルネームは SearchBar 既定 aria-label「商品検索」が維持 — round 2 P2-B 裁定）。
 - `src/features/inventory-records/InventoryRecordsPage.test.tsx`: live 結線（debounce 発火 / Enter 即時 flush / 変換確定 Enter の誤発火なし / compositionend 後の最終文字列反映 / no-trim / page reset）の regression test を追加・更新。既存の「composing 中 onChange 非発火」assert は本 batch の契約変更（SearchBar live 意味論への統一）に伴う新契約への**改稿**であり、test の削除・skip ではない（PR body で明示する）。
-- `docs/function-design/65-inventory-record-traceability.md`: **TRACE-D12** の正式エントリを §65.2 設計判断 table（TRACE-D1〜D11 と同構造: Spec / Decision ID / 決定 / 理由）へ追加し、§65.4.1 共通フィルタは備考で「live 型（TRACE-D12）」を参照する形に留め、§65.8.1 の該当記述を同期、§65.11 Test Focus へ TRACE-D12 の bullet を追加。§65.5 詳細項目表は「商品コード / JAN / 商品名 / 部門」の 1 行を「商品コード / 商品名 / 部門」（全列 yes 維持）と「JAN」（全列 no）の 2 行へ**分割**して実態（5 詳細画面 JAN 非表示・DTO に field なし。商品コード / 商品名 / 部門は表示中）へ同期し、変更履歴に owner 裁定（選択肢 A、2026-08-04）を記録。
+- `docs/function-design/65-inventory-record-traceability.md`: **TRACE-D12** の正式エントリを §65.2 設計判断 table（TRACE-D1〜D11 と同構造: Spec / Decision ID / 決定 / 理由）へ追加し、§65.4.1 共通フィルタは備考で「live 型（TRACE-D12）」を参照する形に留め、§65.8.1 の該当記述を同期、§65.11 Test Focus へ TRACE-D12 の bullet を追加。§65.5 詳細項目表は「商品コード / JAN / 商品名 / 部門」の 1 行を「商品コード / 商品名 / 部門」（全列 yes 維持）と「JAN」（全列 no）の 2 行へ**分割**して実態（5 詳細画面 + 棚卸し列 `StocktakeItemDetail` の全 6 DTO に JAN field なし・5 詳細画面で JAN 非表示。商品コード / 商品名 / 部門は表示中）へ同期し、変更履歴に owner 裁定（選択肢 A、2026-08-04）を記録。
 - `docs/function-design/59-ui-shared-patterns.md`: §59.1 SearchBar 採用箇所表へ入出庫履歴（live 型）を追加。
 - `docs/function-design/52-ui-shared-layout.md`: §52.3 の UI-07 行（URL `/pos/csv-import` → `/csv-import`、route file `src/routes/pos/csv-import.tsx` → `src/routes/csv-import.tsx`〈layout〉+ `src/routes/csv-import/index.tsx`〈index〉、備考「URL ドメインは POS」の是正含む）/ UI-08 行（URL `/pos/plu-export` → `/products/plu-export`、route file `src/routes/pos/plu-export.tsx` → `src/routes/products/plu-export.tsx`、備考是正含む）/ UI-10 行（route file `src/routes/stocktake/index.tsx` → `src/routes/stocktake.tsx`）+ 「URL 設計の根拠」段落の `/pos/*` 列挙削除。
 - `docs/function-design/73-ui-stocktake.md`: route file 表記 `src/routes/stocktake/index.tsx` → `src/routes/stocktake.tsx` の是正（52 §52.3 UI-10 行と同根 drift）。
@@ -175,7 +175,7 @@ N/A — 未検証の外部前提なし。SearchBar は repo 内既存部品（�
 | UI-01a-D9 同型: 外付け label / `id` 撤去 + 既定 aria-label「商品検索」維持 + placeholder 既定値統一 | `InventoryRecordsPage.tsx` | AC10 assert（`findByLabelText` + placeholder + `rg "records-keyword"` 0 hit） | L3: label 撤去後の filter 行視覚整合 |
 | 59 §59.1 採用箇所表 = 実採用と一致 | `59-ui-shared-patterns.md` | — | Plan/Final Review の doc 突合 |
 | 52 §52.3 表 = 実 route と一致、`/pos/*` 記載 0 | `52-ui-shared-layout.md` / `73-ui-stocktake.md` | AC5 rg sweep（review 手順） | Final Review の routeTree 突合 |
-| 65 §65.5 JAN 行 = 5 詳細画面 DTO 実態と一致 + 裁定記録 | `65-inventory-record-traceability.md` | — | Final Review の DTO 突合 |
+| 65 §65.5 JAN 行 = 5 詳細画面 + 棚卸し列 `StocktakeItemDetail`（全 6 DTO）実態と一致 + 裁定記録 | `65-inventory-record-traceability.md` | — | Final Review の DTO 突合 |
 
 ## Test Plan
 
@@ -215,7 +215,7 @@ Contract ID: SPEC-UICB
 - SPEC-UICB-2: 変換確定 Enter（`isComposing`）は search flush を誤発火しない。変換確定後は最終文字列が `q` へ反映される。変換中の中間文字列の一時反映は live 型既定挙動として許容（商品一覧・在庫照会と同一意味論）。
 - SPEC-UICB-3: `q` の変更（クリア含む）は page を既定へ reset する（現行意味論維持）。
 - SPEC-UICB-4: `docs/function-design/` 配下に `/pos/` 由来の陳腐化 URL 記載が存在しない（archive 除外）。52 §52.3 の URL / route file 列は実 route と一致する。
-- SPEC-UICB-5: 65 §65.5 の JAN 行は 5 詳細画面の実態（JAN 非表示・DTO field なし)と一致し、選択肢 B 不採用の owner 裁定（2026-08-04）が変更履歴に残る。
+- SPEC-UICB-5: 65 §65.5 の JAN 行は 5 詳細画面 + 棚卸し列 `StocktakeItemDetail`（全 6 DTO）の実態（JAN field なし・5 詳細画面で JAN 非表示）と一致し、選択肢 B 不採用の owner 裁定（2026-08-04）が変更履歴に残る。
 - SPEC-UICB-6: 検索欄は外付け label / `id` を持たず、SearchBar 既定 aria-label「商品検索」と既定 placeholder「商品コード・商品名・JANで検索」を用いる（商品一覧・在庫照会と同一）。
 
 ## Trace Matrix
@@ -268,3 +268,8 @@ Do not transcribe exact-HEAD SHA or test counts here (D-035/D-038 Evidence Owner
 - P1 accept（Coordinator 自packet 突合で confirmed。round 2 是正を AC10 / M-A8 へ反映した際、同契約の Ledger / Spec Contract / Trace Matrix への sweep を漏らした packet-correction-full-sweep の再発型）→ Ledger へ UI-01a-D9 label/placeholder サブ契約行、SPEC-UICB-6 新設、Trace Matrix 行追加、Matrix 側の参照 ID 同期
 - P3 accept → AC7 の DTO 突合対象へ `StocktakeItemDetail` を追加列挙（§65.5 全 6 列と検証範囲を一致させる）
 - round 4（収束確認 focused round）を fresh 独立 context で実施する
+
+**Plan Gate round 4**（2026-08-04、fresh Sonnet Plan Reviewer 独立 context、round 3 是正 2 項目 = 全 OK、新規 P1=1 / P2=0 / P3=0、未収束判定）
+
+- P1 accept（Coordinator 自packet 突合で confirmed。round 3 の 6 列化を AC7 のみに適用し、SPEC-UICB-5 / Ledger / M-B2 を「5」のまま残した同型 sweep 漏れの 2 度目）→ 「5 詳細画面 / 5 DTO」系表現を `rg` で全 7 出現を機械列挙し、AC7（是正済み）と Non-scope の B 案説明（5 画面が正確）を除く 5 箇所（Goal / Scope / Ledger / SPEC-UICB-5 / M-B2）を「5 詳細画面 + 棚卸し列 StocktakeItemDetail（全 6 DTO）」へ一括改稿
+- round 5（収束確認 focused round）を fresh 独立 context で実施する
