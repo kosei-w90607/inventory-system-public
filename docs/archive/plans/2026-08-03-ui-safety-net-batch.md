@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: ready-hosted-final
+- Phase: archive
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: bfc770c
@@ -39,6 +39,8 @@
 2026-08-03 本 content commit で `implementing -> local-verified -> independent-review` を材料化する。evidence = Writer 実装完了報告 + 全 gate green + L1 full exact-HEAD CLEAN（定量記録は PR #60 body を正、Final Review が evidence log を実確認 — implementing→local-verified）、Coordinator mutation 独立再実測 X1〜X9 全 red + Final Review P1/P2=0（Review Response 参照 — local-verified→independent-review）。Final Review P3×2 は本 commit で是正済み。次 = `independent-review -> human-confirm` の state-only 遷移（Reviewed Content HEAD 設定を含む）→ owner L3（Windows native 目視）+ Ready 承認（介入 2/3）。
 
 2026-08-04 owner L3 PASS + Ready 承認（介入 2/3、Review Response 参照）。本 content commit で L3 記録と backlog 起票を確定し、続く state-only 遷移で `human-confirm -> ready-hosted-final` を材料化する。以後の段取り = 最終 tracked HEAD で L1 full exact-HEAD CLEAN を再取得（packet 記録 commit が実装 HEAD 63cf1c6 より後のため）→ PR body へ最終 evidence 記載（tracked 外）→ PR Ready 化 → hosted CI 三点一致 → owner merge（介入 3/3）。
+
+2026-08-04 最終 tracked HEAD で L1 full exact-HEAD CLEAN（MERGE_EVIDENCE_VALID=true、記録は PR body 正）→ PR Ready 化 → hosted CI run success で三点一致成立 → owner merge 承認（介入 3/3）→ PR #60 squash merge `40d8575`。本 archive 化 commit で `ready-hosted-final -> merge -> archive` を材料化する。evidence = merge 実確認（state MERGED / mergeCommit 40d8575、pre-existing）+ 本 commit での archive 移動と Plans.md 完了記録。
 
 ## Owner Effort Budget
 
@@ -235,7 +237,7 @@ Minimum design checks:
 
 ## Test Plan
 
-Test Design Matrix: `docs/plans/test-matrices/2026-08-03-ui-safety-net-batch.md`
+Test Design Matrix: `docs/archive/plans/test-matrices/2026-08-03-ui-safety-net-batch.md`（archive 化に伴い path 更新）
 
 - targeted tests: T1〜T14（hook / fallback / 6 画面配線）
 - negative tests: 誤発火防止（isDirty=false、保存成功後遷移の非 block — UI-USW-D1 MUST の baseline 同期を含む）
