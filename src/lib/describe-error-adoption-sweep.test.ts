@@ -86,7 +86,7 @@ function toPosixRelative(repoRoot: string, path: string): string {
   return relative(repoRoot, path).split(sep).join("/");
 }
 
-describe("describeError adoption sweep (UI-ERR-D1 / UI-ERR-D2)", () => {
+describe("describeError adoption sweep (REQ-700 / UI-ERR-D1 / UI-ERR-D2)", () => {
   it("finds zero raw CmdError/InvokeError message display bypasses in production UI code", () => {
     const repoRoot = resolve(import.meta.dirname, "../..");
     const roots = ["src/features", "src/components", "src/lib/hooks"].map((dir) =>
