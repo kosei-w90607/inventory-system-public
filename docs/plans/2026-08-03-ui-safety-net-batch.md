@@ -30,7 +30,9 @@
 
 2026-08-03 owner plan 承認（介入 1/3、承認取得の interactive 記録あり。承認文言 = 「承認する」）。本 content commit で `plan-gate -> plan-approved -> implementing` を材料化する。evidence = Plan Review 3 round 収束・P1/P2=0（plan-gate→plan-approved、上記 round 3 記録が pre-existing evidence）、Codex Writer 発注書の交付準備完了 + Plan Commit 記入済み bfc770c（plan-approved→implementing）。発注書は owner relay（外部端末、cwd = public-writer clone 固定）で交付する。
 
-## Owner Effort Budget
+2026-08-03 Codex Writer fail-closed 停止（true positive、relay 1/4 消化）: packet 分類表 64 行の「入力差分に画像選択済みを含む」が実装（`DisposalPage.tsx` の form state は disposalDate / rows 系のみ、画像 state なし）および 64 Non-scope「画像添付」と矛盾 — Coordinator の design 出力の事実誤り（63 返品・交換の `receipt: ReceiptImageState` との対称性を誤仮定。Plan Review 3 round も未検出、Writer の実装時実査が捕捉）。最早影響 phase = design へ backtrack する（`state-backtrack implementing->design` = 3fa958c、state-only）。
+
+2026-08-03 Amendment 1 content commit で `design -> plan-draft -> plan-gate` を再材料化する。evidence = 64 §表示/操作の該当行から「（画像選択を含む）」を削除し Non-scope と整合化、packet 分類表 64 行を「result panel 型（明細 or 入力〈廃棄日等〉差分）・画像機能なし」へ是正（63 行は `receipt` state 実在確認済みのため画像維持、design→plan-draft）、packet 内「画像」全 sweep で追随漏れなしを確認・commit（plan-draft→plan-gate）。amendment review（Sonnet 独立 context、focused）を経て plan-approved 以降を再材料化する。
 
 - 介入回数上限: 3（plan 承認 / L3 目視 + Ready 承認 / merge）
 - 実働時間上限: 30分
@@ -91,7 +93,7 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 | 入庫（61） | `ReceivingPage` | 適用 | result panel 型: `isDirty = (明細 ≥1 行 or ヘッダ入力差分) && !isFormLocked`。保存成功後（result panel、`isFormLocked`）は非 block で、result panel 内の遷移導線も block しない |
 | 手動販売（62） | `ManualSalePage` | 適用 | 61 と同じ result panel 型（`!isFormLocked` を明示的に含める。result panel 内「詳細を見る」「日次売上へ」導線は非 block） |
 | 返品・交換（63） | `ReturnExchangePage` | 適用 | 61 と同じ result panel 型 + 入力差分に画像選択済みを含む |
-| 廃棄・破損（64） | `DisposalPage` | 適用 | 61 と同じ result panel 型 + 入力差分に画像選択済みを含む |
+| 廃棄・破損（64） | `DisposalPage` | 適用 | 61 と同じ result panel 型（明細 ≥1 行 or 入力〈廃棄日等〉が初期値と差分）。**画像機能は存在しない**（64 Non-scope「画像添付」どおり — Amendment 1 で「画像選択済みを含む」の事実誤りを是正、Writer fail-closed 起源） |
 | 閾値設定（69） | `ThresholdSettingsPage` | 適用 | 既存 isDirty（values ≠ savedValues の descriptor 比較）を hook へ接続。`onSuccess` の `setSavedValues(submittedValues)` が UI-USW-D1 MUST の既存正例 |
 | 棚卸し（73） | `StocktakePage` | 除外 (c) | カウントは `useUpdateCount`（「数を保存」）で行単位の即時 DB 保存（`StocktakePage.tsx` `saveCount`）。蓄積未保存 state がなく、未保存は単一入力欄のみで再入力コスト極小 |
 | 在庫変動履歴 + 記録詳細 5 画面（65） | `InventoryRecordsPage`、`CsvImportRecordDetailPage` / `DisposalRecordDetailPage` / `ManualSaleRecordDetailPage` / `ReceivingRecordDetailPage` / `ReturnRecordDetailPage` | 除外 (e) | 照会・表示のみ。`InventoryRecordsPage` の検索フィルタ draft は URL search state 相当で編集 state なし、詳細 5 画面は入力なし（round 1 P1-3 で追補） |
