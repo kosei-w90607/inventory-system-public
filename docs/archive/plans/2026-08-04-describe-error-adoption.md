@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: ready-hosted-final
+- Phase: archive
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: 4186798
@@ -276,9 +276,7 @@ Contract ID: SPEC-UI-ERR-ADOPTION-1
 
 ## Implementation Results
 
-Fill after implementation.
-
-Do not transcribe exact-HEAD SHA or test counts here (D-035/D-038 Evidence Ownership). Record a qualitative summary and the PR link only.
+PR #63（squash merge、2026-08-04）で完了。22 site（A群 18 + B群 4）を describeError 経由へ統一し、UI-ERR-D2 を §6.4 へ新設、再導入防止 sweep test（file 免除 = RouteErrorFallback のみ / (path, pattern) 行単位除外 / 内容固定 assertion / synthetic positive case）と型別代表 regression・useExportFile test を追加した。既存 internal fixture assertion 10 件は fixture 無変更・期待文字列のみ実出力へ更新（IntegrityCheckPage 方式）。§55.5 の実装同期と 90-traceability 再生成（REQ-700 参照）を含む。exact-HEAD evidence / hosted final 三点一致 / owner L3 の詳細は PR #63 body を正とする。merge → archive の遷移は本 closeout content commit に同乗。
 
 ## Review Response
 
