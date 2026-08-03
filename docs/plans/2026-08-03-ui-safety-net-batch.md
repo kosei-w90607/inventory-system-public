@@ -14,7 +14,7 @@
 - Reviewed Content HEAD: 63cf1c6
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
-- Human Gate: plan 承認、L3 Windows native 目視（crash fallback 画面 / 破棄確認ダイアログ）、Ready 承認、merge
+- Human Gate: merge のみ（plan 承認 2026-08-03 / L3 Windows native 目視 PASS + Ready 承認 2026-08-04 は消化済み）
 
 遷移記録（append-only、初回分）: 本 packet を追加する content commit で `kickoff -> spec-check -> design -> plan-draft -> plan-gate` を材料化する。evidence = task scoped + Risk R3 判定を本 packet に記録（kickoff→spec-check）、設計正本の不足を識別 — Error Boundary 戦略は DEV_SETUP_CHECKLIST 7-8a と 52 §52.7 が UI_TECH_STACK §6.10 を指すが §6.10 本文が不在（番号予約のみ）、unsaved changes ガードは DEV_SETUP_CHECKLIST 7-8c の 1 行（`useUnsavedChangesWarning` + isDirty 連動）のみで正本節が不在、61/62/63/64 の「商品登録へ」導線注意書きが hook 前提でないアドホック文言のまま、69 §69.13 に 7-8c backlog 注記が残存（spec-check→design）、design 出力を同一 plan-first change 内で source docs へ反映 — UI_TECH_STACK §6.10（Error Boundary 戦略）/ §6.11（未保存編集の離脱ガード）新設、52 §52.7 行更新、61 §61.5 / 62 / 63 / 64 の該当行置換、69 §69.13 行更新（design→plan-draft）、packet + Test Design Matrix 完成・commit（plan-draft→plan-gate）。
 
@@ -37,6 +37,8 @@
 2026-08-03 本 content commit で `plan-gate -> plan-approved -> implementing` を再材料化する。evidence = Amendment 1 review PASS + 機構是正完了 8dd533d（plan-gate 通過）、原 owner plan 承認（介入 1/3）が有効 — Amendment 1 は Goal / Scope / AC / 適用 6 画面構成を変えない事実是正であることを amendment review が byte-identical 検証で確認済み、Plan Commit bfc770c 維持（plan-approved→implementing）。Codex Writer へ再開発注（前提是正の追記発注、relay 2/4 消化見込み）。
 
 2026-08-03 本 content commit で `implementing -> local-verified -> independent-review` を材料化する。evidence = Writer 実装完了報告 + 全 gate green + L1 full exact-HEAD CLEAN（定量記録は PR #60 body を正、Final Review が evidence log を実確認 — implementing→local-verified）、Coordinator mutation 独立再実測 X1〜X9 全 red + Final Review P1/P2=0（Review Response 参照 — local-verified→independent-review）。Final Review P3×2 は本 commit で是正済み。次 = `independent-review -> human-confirm` の state-only 遷移（Reviewed Content HEAD 設定を含む）→ owner L3（Windows native 目視）+ Ready 承認（介入 2/3）。
+
+2026-08-04 owner L3 PASS + Ready 承認（介入 2/3、Review Response 参照）。本 content commit で L3 記録と backlog 起票を確定し、続く state-only 遷移で `human-confirm -> ready-hosted-final` を材料化する。以後の段取り = 最終 tracked HEAD で L1 full exact-HEAD CLEAN を再取得（packet 記録 commit が実装 HEAD 63cf1c6 より後のため）→ PR body へ最終 evidence 記載（tracked 外）→ PR Ready 化 → hosted CI 三点一致 → owner merge（介入 3/3）。
 
 ## Owner Effort Budget
 
@@ -311,4 +313,6 @@ Contract ID: SPEC-UISN
 2026-08-03 Final Review（Sonnet 5、fresh 独立 context、対象 = 実装 commit + PR #60 body）: P1/P2 = 0、P3 = 2、Coordinator 裁定 = 全件 accept・即時是正（本 commit: Implementation Results の D-038 準拠 backfill / Matrix T15 の実名転記）。Contract Coverage Ledger 全行適合（UI-USW-D1 MUST の navigate 前 baseline 同期を実コード確認）、negative space クリーン、State Lifecycle 3 系統の追加 audit pass PASS（round 1 P3-1 採用分）、X2/X9 の抜き打ち再注入 red、sweep manifest と実在 26 page の 1:1 一致、PR body freshness 整合、L1 evidence（exact-HEAD CLEAN / MERGE_EVIDENCE_VALID）実 log 確認。
 
 - 観察記録（pre-existing、scope 外）: `useDailyReportImportFlow` の useBlocker regression coverage が csv-import 側より薄い（mock のみで shouldBlockFn/enableBeforeUnload の assert なし）。必要なら別 change で補強。
+2026-08-04 owner L3（Windows native 目視、介入 2/3 = L3 + Ready 承認）: child fallback PASS / root fallback PASS / 未保存変更 6 画面 PASS / 保存成功後・result panel 非 block PASS。観察事項 = 一部検索欄が live 検索型へ未統一（UI-01a-D9 は商品一覧のみ適用済み）— 本 change の安全網 scope 外で L3 結果を妨げない follow-up 候補として Plans.md backlog へ起票。
+
 - Findings Freeze: frozen after Final Review（2026-08-03）; post-freeze exceptions: none.
