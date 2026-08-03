@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: plan-gate
+- Phase: implementing
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: bfc770c
@@ -33,6 +33,8 @@
 2026-08-03 Codex Writer fail-closed 停止（true positive、relay 1/4 消化）: packet 分類表 64 行の「入力差分に画像選択済みを含む」が実装（`DisposalPage.tsx` の form state は disposalDate / rows 系のみ、画像 state なし）および 64 Non-scope「画像添付」と矛盾 — Coordinator の design 出力の事実誤り（63 返品・交換の `receipt: ReceiptImageState` との対称性を誤仮定。Plan Review 3 round も未検出、Writer の実装時実査が捕捉）。最早影響 phase = design へ backtrack する（`state-backtrack implementing->design` = 3fa958c、state-only）。
 
 2026-08-03 Amendment 1 content commit で `design -> plan-draft -> plan-gate` を再材料化する。evidence = 64 §表示/操作の該当行から「（画像選択を含む）」を削除し Non-scope と整合化、packet 分類表 64 行を「result panel 型（明細 or 入力〈廃棄日等〉差分）・画像機能なし」へ是正（63 行は `receipt` state 実在確認済みのため画像維持、design→plan-draft）、packet 内「画像」全 sweep で追随漏れなしを確認・commit（plan-draft→plan-gate）。amendment review（Sonnet 独立 context、focused）を経て plan-approved 以降を再材料化する。
+
+2026-08-03 本 content commit で `plan-gate -> plan-approved -> implementing` を再材料化する。evidence = Amendment 1 review PASS + 機構是正完了 8dd533d（plan-gate 通過）、原 owner plan 承認（介入 1/3）が有効 — Amendment 1 は Goal / Scope / AC / 適用 6 画面構成を変えない事実是正であることを amendment review が byte-identical 検証で確認済み、Plan Commit bfc770c 維持（plan-approved→implementing）。Codex Writer へ再開発注（前提是正の追記発注、relay 2/4 消化見込み）。
 
 ## Owner Effort Budget
 
