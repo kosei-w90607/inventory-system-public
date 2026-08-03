@@ -6,7 +6,7 @@
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: a433e44
-- Amendments: none
+- Amendments: 0ff2d7f
 - Coordinator: Claude Fable 5（main thread）
 - Writer: Codex（GPT-5.6）
 - Plan Reviewer: Claude Sonnet 5（independent subagent）
