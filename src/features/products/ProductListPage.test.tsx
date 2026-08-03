@@ -313,7 +313,7 @@ describe("ProductListPage SPEC-UIBB-10/11（live 型検索 + 複数ボタン中�
     expect(updater({ page: 2 }).page).toBe(1);
   });
 
-  it("SPEC-UIBB-10 検索ボタンとLabelを表示しない", async () => {
+  it("SPEC-UIBB-10 検索ボタンとLabelを表示しない", () => {
     renderWithClient(<ProductListPage search={{}} onSearchChange={vi.fn()} />);
     const input = screen.getByLabelText("商品検索");
     expect(input).toHaveAttribute("type", "search");
@@ -321,7 +321,7 @@ describe("ProductListPage SPEC-UIBB-10/11（live 型検索 + 複数ボタン中�
     expect(screen.queryByText("検索", { selector: "label" })).not.toBeInTheDocument();
   });
 
-  it("SPEC-UIBB-10 Enterで即時flushしIME変換確定Enterでは発火しない", async () => {
+  it("SPEC-UIBB-10 Enterで即時flushしIME変換確定Enterでは発火しない", () => {
     const onSearchChange = vi.fn();
     renderWithClient(<ProductListPage search={{}} onSearchChange={onSearchChange} />);
     const input = screen.getByLabelText("商品検索");
@@ -395,10 +395,10 @@ describe("ProductListPage SPEC-UIBB-10/11（live 型検索 + 複数ボタン中�
     });
     // CMD payload の keyword だけが trim される
     await waitFor(() => {
-      const keywords = mockSearchProducts.mock.calls.map((c) => c[0]?.keyword);
+      const keywords = mockSearchProducts.mock.calls.map((c) => c[0].keyword);
       expect(keywords).toContain("はさみ");
     });
-    expect(mockSearchProducts.mock.calls.map((c) => c[0]?.keyword)).not.toContain("  はさみ  ");
+    expect(mockSearchProducts.mock.calls.map((c) => c[0].keyword)).not.toContain("  はさみ  ");
   });
 
   it("SPEC-UIBB-11 空状態の2ボタンは中央揃えで登録が先", async () => {
@@ -409,8 +409,11 @@ describe("ProductListPage SPEC-UIBB-10/11（live 型検索 + 複数ボタン中�
     renderWithClient(<ProductListPage search={{ q: "存在しない" }} onSearchChange={vi.fn()} />);
     const resetButton = await screen.findByRole("button", { name: "絞り込みを解除" });
     const wrapper = resetButton.parentElement;
+    if (wrapper === null) {
+      throw new Error("reset button has no parent wrapper");
+    }
     expect(wrapper).toHaveClass("justify-center");
-    const registerLink = within(wrapper as HTMLElement).getByRole("link", {
+    const registerLink = within(wrapper).getByRole("link", {
       name: "商品を登録する",
     });
     // 「商品を登録する」が先、「絞り込みを解除」が後（DOM 順序）
