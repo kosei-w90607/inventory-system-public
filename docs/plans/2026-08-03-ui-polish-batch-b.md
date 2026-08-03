@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: human-confirm
+- Phase: ready-hosted-final
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: 1c40453
@@ -47,6 +47,10 @@
 2026-08-03 amendment 実装 content commit（本 commit）で `plan-gate -> plan-approved -> implementing` を材料化する（圧縮記録、STATECAP は消費しない content 同乗）。evidence = 独立 Plan Reviewer（Codex）が amendment Plan Review round 2 で「Amendment Plan Review PASS P1/P2=0」を報告し round 1 の 4 件全 closed（plan-gate→plan-approved）、owner の実装再実施指示は L3 comment（PR #59）で既得のため実装を開始（plan-approved→implementing）。`Amendments` 行へレビュー済み amendment content 系列 `dfd1b38` / `7b701bb` を append（`Plan Commit` = 1c40453 は不変、PK5）。実装 = ProductListPage の SearchBar live 型化（raw `search.q` 結線、UI-01a-D9）+ EmptyState action wrapper の中央揃え + SPEC-UIBB-10 test 5 本 / SPEC-UIBB-11 test 1 本 + 旧 commit 型 id 契約 assert の live 型化更新。付随: 既存 test「shows department loading failure」の flake 根本（departmentsQuery の production `retry: 1` が QueryClient default を上書きし、失敗確定が findByText 既定 timeout と同着）を特定し timeout 延長で安定化（PR body の flake note の根本解明。Findings Freeze 後の非契約 test 安定化として本記録で追跡）。
 
 2026-08-03 state-only 遷移 commit で `implementing -> local-verified -> independent-review -> human-confirm` を再材料化する（圧縮記録、STATECAP 3/3）。evidence = amendment 後 content candidate `b88f5b1`（実装 `d194101` + lint 是正 `b88f5b1`）の L1 full PASS / TREE CLEAN / MERGE_EVIDENCE_VALID=true（PR #59 body に evidence 収録。実装後初回 L1 は frontend-lint 5 件で FAIL → `b88f5b1` で是正）（implementing→local-verified）。Final Reviewer（Codex）が amendment 差分（3d1c67e..b88f5b1、src 変更は 2 file のみを実測確認）を独立監査 — SPEC-UIBB-10/11 の契約×実装突合、mutation 6 種実注入全 red・全復元 clean、旧 id 契約の UI-01a-D9 への契約置換妥当判定、flake 是正の production 無副作用確認 + 5 回安定実行、gate 独立再実行（tsc / eslint / vitest 全 suite / doc-consistency）全 green（local-verified→independent-review）、「Final Review PASS P1/P2=0」宣言 + PR body / L1 evidence 三点整合確認（independent-review→human-confirm）。`Reviewed Content HEAD` = b88f5b1 へ更新。Human Gate 残 = owner L3 再確認（3-B 中央揃え / 商品一覧 live 型挙動 / 3-E `q="0"`+`page=99` 手順）+ Ready 承認 + merge。
+
+2026-08-03 owner L3 再確認 = 全項目 PASS（商品一覧 live 型の 200ms 反映・外付け UI なし・native clear・前後空白の表示保持 / EmptyState 2 ボタンの中央揃えと順序・reset 動作 / 範囲外 page の専用回復導線と押下後の q 維持・page のみ除去）。owner が Ready を承認（介入 3 回目/予算 3 回、budget 内で完了）。本 content commit で `human-confirm -> ready-hosted-final` を材料化する。この commit の resulting exact HEAD で L1 full を実行し PR body を更新、owner の Ready 化 → hosted 三点一致 → merge へ進む。本実績記録と遷移を載せる本 commit は STATECAP 上限（forward state-only 3 本消化済み）のため content commit として作成する gated amendment であり、tracked file は自身の SHA を持てない（D-035）ため本 commit の SHA は PR body の Amendments 補記で追跡する。
+
+実績（Ready 承認時点の確定値）: 介入 3/3（plan 承認 / L3 一次目視 / L3 再確認 + Ready 承認）、relay 10/4（Plan Review 5 round + Final Review 一次・closure + amendment Plan Review 2 round + amendment Final Review。超過 6 の経緯 = Plan Review 収束が 11→7→3→1→0 の 5 round を要したこと、Final Review 系の survivor 是正 closure と owner 判断の gated amendment 再走が代替不可の独立検証を伴ったこと。各超過は発生時点で owner へ事前明示し、owner の relay 実施をもって承認済み — Owner Effort Budget 節の現況記録参照）。
 
 ## Owner Effort Budget
 
