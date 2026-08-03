@@ -35,7 +35,7 @@ Risk: R3
 | §6.4 internal 戦略 | F3 | integration | `DisposalPage.test.tsx` へ追加: internal kind fixture（error_id 付き synthetic CmdError）で保存失敗 → `エラーID:` を含む表示 | A群で describeError 非経由のまま internal の error_id が落ちる |
 | §6.4 internal 戦略 | F3 | unit（既存） | `describe-error.test.ts`（無変更 green 維持） | describeError 本体の internal 分岐が壊れる |
 | §6.4 素通し戦略 | F4 | regression（既存） | A群各画面の既存 error 表示 test（validation/duplicate 系 fixture）が無改変で green | describeError 化で素通し kind の文言が変わる |
-| UI-ERR-D1 | F1 | evidence | AC5: `rg -n "cmdError\.message" src/features src/components src/lib/hooks` の production hit = allowlist のみ（PR body 添付） | 置換漏れが残る |
+| UI-ERR-D1 | F1 | evidence | AC5: `rg -n "cmdError\.message" src/features src/components src/lib/hooks -g '!*.test.*'` の hit = 0 件（PR body 添付） | 置換漏れが残る |
 | UI-EB-D3 / 68 §68.7 | F7 | evidence + 既存 test | RouteErrorFallback / BackupRestorePage の diff 0（PR diff 検分）+ 両者の既存 test green | 除外境界を誤って書き換える |
 | UI-ERR-D1（既存防御） | F1 | unit（既存） | `describe-error-no-local-duplicates.test.ts`（無変更 green 維持） | 画面ローカル describeError の重複定義が再導入される |
 
@@ -43,7 +43,7 @@ Risk: R3
 
 | State / subject | Initial | Pending | Success | Invalidate | Refetch | Revisit | Restart | Failure | Retry | Evidence |
 |---|---|---|---|---|---|---|---|---|---|---|
-| query error 表示（B1-B3） | 非表示 | loading 表示（不変） | データ表示（不変） | 既存 invalidation（不変） | error 消去→再表示（既存挙動） | 既存挙動 | 既存挙動 | **describeError 出力を表示（本 change）** | 既存 retry 設定（production `retry: 1`、不変） | page test |
+| query error 表示（B1-B3） | 非表示 | loading 表示（不変） | データ表示（不変） | 既存 invalidation（不変） | error 消去→再表示（既存挙動） | 既存挙動 | 既存挙動 | **describeError 出力を表示（本 change）** | 既存 retry 設定（不変。**per-page 実測値**: B1 DailySalesPage = global default `retry: 1`〈main.tsx〉/ B2 MonthlySalesPage = 明示 `retry: 1`〈useMonthlySalesReport.ts〉/ B3 OperationLogsPage = 明示 `retry: 0`〈OperationLogsPage.tsx、261・279 行の両 query〉。test の mock reject 回数設計は各値に従う） | page test |
 | mutation error 表示（A群 saveError / B4 toast） | 非表示 | 送信中（不変） | 成功表示（不変） | — | — | — | — | **describeError 出力を表示（本 change）** | 手動再操作（不変） | page test + useExportFile test |
 
 状態機械そのものは変更せず、Failure 列の表示内容のみが変わる。restore_* の state machine（68 §68.7）は non-scope。

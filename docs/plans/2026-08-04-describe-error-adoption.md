@@ -16,7 +16,7 @@
 - Hosted CI Requirement: required
 - Human Gate: L3 視認（internal kind の エラーID 併記表示 + B群画面の非デバッグ表示。synthetic fixture 手順を Ready 依頼時に添付 — L3 fixture prep の教訓）/ merge / closeout
 
-編成注記: D-062 (c)（Codex 起草 packet の Plan Reviewer 別 vendor 必須）は本 packet が Fable 起草のため非該当。Codex slot は依存 hygiene PR + owner 重量級作業で占有中（owner 裁定 2026-08-04）のため Writer / Reviewer とも Sonnet 5 だが、相互に独立 context の別 subagent であり writer の自己承認は発生しない。WER 2026-08-04（D-062 (c) 編成 WER）改善 1・3・4 の初適用対象: Reviewer 発注書に「各 finding へ修正案必須添付」、Coordinator 是正時の同 packet 内 full sweep、Writer の STATECAP canonical subject。
+編成注記: D-062 (c)（**Writer が Codex である packet** の Plan Reviewer は Writer と同一 vendor 禁止、DEV_WORKFLOW `Review Rules` 実文言）は本 packet の Writer が Claude Sonnet 5 subagent（非 Codex）であるため非該当。Codex slot は依存 hygiene PR + owner 重量級作業で占有中（owner 裁定 2026-08-04）のため Writer / Reviewer とも Sonnet 5 だが、相互に独立 context の別 subagent であり writer の自己承認は発生しない。WER 2026-08-04（D-062 (c) 編成 WER）改善 1・3・4 の初適用対象: Reviewer 発注書に「各 finding へ修正案必須添付」、Coordinator 是正時の同 packet 内 full sweep、Writer の STATECAP canonical subject。
 
 ## Owner Effort Budget
 
@@ -126,7 +126,7 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。AC や�
 - AC2: B群 3 画面（DailySales / MonthlySales / OperationLogs）の page test に「query error 時、DOM に `[commands:` を含む文字列が現れない」negative assert と describeError 出力の表示 assert が存在し green
 - AC3: `useExportFile` の test（新設）で onError toast 引数が describeError 出力であることを assert し green
 - AC4: A群代表（DisposalPage）の test に internal kind fixture → `エラーID:` を含む表示の assert が存在し green
-- AC5: `rg -n "cmdError\.message" src/features src/components src/lib/hooks` の production hit が明示除外 file のみ（PR body へ出力添付）
+- AC5: `rg -n "cmdError\.message" src/features src/components src/lib/hooks -g '!*.test.*'` の hit が 0 件（PR body へ出力添付。走査 3 dir に `cmdError.message` を含む明示除外 file はなく、`src/lib` 直下の定義側 token〈describe-error.ts / invoke.ts〉は走査対象外）
 - AC6: `docs/UI_TECH_STACK.md` §6.4 に UI-ERR-D2 行が存在（`rg -n "UI-ERR-D2" docs/UI_TECH_STACK.md` で 1+ hit）
 - AC7: 既存 `describe-error.test.ts` / `describe-error-no-local-duplicates.test.ts` は無変更のまま green
 - AC8: `scripts/local-ci.sh full` green（L1）、exact-HEAD hosted final 三点一致
@@ -282,6 +282,9 @@ Do not transcribe exact-HEAD SHA or test counts here (D-035/D-038 Evidence Owner
 
 ## Review Response
 
-Fill after review.
-If R3 review-only sub-agent is skipped, record an explicit line beginning with `Review-only skipped because:` and the reason.
+- Round 1（Plan Review、独立 Sonnet 5、2026-08-04）: Verdict PASS、P1=0 / P2=2 / P3=1。manifest 22 site は reviewer の独立再 enumerate で過不足なし確認。
+  - F1（P2、AC5 走査範囲）: **前提棄却** — reviewer は AC5 の command を `src/lib` 走査と引用したが、実文言は `src/lib/hooks`（packet AC5 / Matrix evidence 行の双方）。棄却 evidence = 実文言 rg + `src/lib/hooks` 走査では describe-error.ts / invoke.ts が対象外であることの実測。ただし隣接残差（test file 除外の欠落、allowlist 表現の曖昧さ）は採用し、AC5 を `-g '!*.test.*'` 付き 0 件 oracle へ明確化。
+  - F2（P2、B1-B3 retry 一律主張）: **accept** — B3 OperationLogsPage は `retry: 0` 明示（261・279 行、Coordinator 実読で再現）。Matrix State Lifecycle 行を per-page 実測値へ是正。
+  - F3（P3、D-062 (c) 条件の誤 paraphrase）: **accept** — DEV_WORKFLOW Review Rules 実文言は「Writer が Codex である packet」基準（Coordinator 実読で確認）。編成注記を Writer 基準の文言へ是正。結論（非該当）は不変。
+  - 是正は同 packet 内 full sweep（`cmdError\.message` / `src/lib` / `retry` / `D-062` の全出現）を実施のうえ適用（WER 2026-08-04 改善 3 の初適用）。
 - Findings Freeze: not yet frozen; post-freeze exceptions: none.
