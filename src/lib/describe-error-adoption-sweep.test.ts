@@ -15,23 +15,26 @@ import { readFileSync, readdirSync } from "node:fs";
 import { extname, join, relative, resolve, sep } from "node:path";
 import { describe, expect, it } from "vitest";
 
-// 明示除外（packet Scope の理由付き個別列挙。pattern 単位の自動除外は行わない）:
-// - RouteErrorFallback.tsx: render 例外の最終防衛層。UI-EB-D3 により対象外
-//   （折り畳み「技術詳細」節の error.message は契約どおり）
-// - BackupRestorePage.tsx: restore_* 表示所有権は 68 §68.7。describeError 不使用が契約
-// - IntegrityCheckPage.tsx: 既に describeError 経由で message 生成済み（対応済み）
-// - ThresholdSettingsPage.tsx: issue.message は Zod validation issue で CmdError と無関係
-// - useCsvImportFlow.ts / useDailyReportImportFlow.ts / useProductImportFlow.ts:
-//   ensureInvokeError() は表示コードではなく InvokeError 正規化 infra
-const ALLOWLIST = new Set<string>([
-  "src/components/patterns/RouteErrorFallback.tsx",
-  "src/features/backup-restore/BackupRestorePage.tsx",
-  "src/features/integrity-check/IntegrityCheckPage.tsx",
-  "src/features/threshold-settings/ThresholdSettingsPage.tsx",
-  "src/features/csv-import/hooks/useCsvImportFlow.ts",
-  "src/features/daily-report-import/hooks/useDailyReportImportFlow.ts",
-  "src/features/products/import/useProductImportFlow.ts",
-]);
+// file 粒度の明示除外は、file 全体が describeError 対象外という契約を持つ場合にのみ正当化される。
+// 該当するのは RouteErrorFallback.tsx（render 例外の最終防衛層。UI-EB-D3 により対象外。
+// 折り畳み「技術詳細」節の error.message は契約どおり）のみ。
+// BackupRestorePage / IntegrityCheckPage / ThresholdSettingsPage は現行実装で violation
+// pattern に 0 hit のため file 免除は不要（Codex Final Review F1: file 全体免除は
+// allowlisted file 内の real regression を隠す — IntegrityCheckPage への raw query error 表示
+// 注入が sweep green のまま survive した実証を受けた是正）。
+const ALLOWLIST = new Set<string>(["src/components/patterns/RouteErrorFallback.tsx"]);
+
+// 行単位の除外（file 全体免除ではなく、正規化 idiom の行の形のみを除外する）。
+// useCsvImportFlow.ts / useDailyReportImportFlow.ts / useProductImportFlow.ts の
+// ensureInvokeError() が Error → InvokeError 正規化のため message を抽出する行
+// （`message: error instanceof Error ? error.message : String(error),`）は表示コードではない。
+const LINE_EXCLUSION_PATTERNS: RegExp[] = [
+  /error instanceof Error \? error\.message : String\(error\)/,
+];
+
+function isExcludedLine(line: string): boolean {
+  return LINE_EXCLUSION_PATTERNS.some((pattern) => pattern.test(line));
+}
 
 interface ViolationPattern {
   name: string;
@@ -63,6 +66,7 @@ function findViolations(content: string): Violation[] {
   const lines = content.split("\n");
   const violations: Violation[] = [];
   lines.forEach((line, index) => {
+    if (isExcludedLine(line)) return;
     for (const pattern of VIOLATION_PATTERNS) {
       if (pattern.regex.test(line)) {
         violations.push({ pattern: pattern.name, line: index + 1, text: line.trim() });
@@ -106,6 +110,67 @@ describe("describeError adoption sweep (REQ-700 / UI-ERR-D1 / UI-ERR-D2)", () =>
     );
 
     expect(offenders).toEqual([]);
+  });
+
+  // Codex Final Review F1（P2、2026-08-04）: file 粒度 ALLOWLIST 7 entry は広すぎ、
+  // allowlisted file 内の real regression（IntegrityCheckPage.tsx への raw query error
+  // 表示注入）を隠す survivor が実証された。ALLOWLIST / LINE_EXCLUSION_PATTERNS の内容を
+  // 固定 assert し、Matrix X6（ALLOWLIST への不正追加）を review 検分依存から自動 red 化へ格上げ。
+  it("keeps the file-level ALLOWLIST and line-exclusion patterns pinned to their justified minimum", () => {
+    expect(Array.from(ALLOWLIST)).toEqual(["src/components/patterns/RouteErrorFallback.tsx"]);
+    expect(LINE_EXCLUSION_PATTERNS.map((pattern) => pattern.source)).toEqual([
+      String.raw`error instanceof Error \? error\.message : String\(error\)`,
+    ]);
+  });
+
+  // Codex Final Review F1（P2、2026-08-04）: file 粒度 ALLOWLIST に IntegrityCheckPage.tsx を
+  // 含めていた旧設計では、この path の実 file に raw query error 表示を注入しても sweep が
+  // green のまま survive した（cross-vendor Final Review 実証）。当該 path を file 免除から
+  // 除去した後も、その path を模した content に raw message 表示があれば検出されることを
+  // 恒久 test 化する（実 file は書き換えない、content 検出ロジックの独立検証）。
+  it("detects a raw query error display shaped like the removed IntegrityCheckPage.tsx allowlist entry (Codex survivor regression)", () => {
+    const syntheticFormerAllowlistedPathBypass = [
+      "// synthetic content modeled on the former file-level ALLOWLIST entry",
+      "// src/features/integrity-check/IntegrityCheckPage.tsx",
+      "function IntegrityCheckPage() {",
+      "  const latestCheckQuery = useQuery(queryOptions);",
+      "  return latestCheckQuery.isError ? <p>{latestCheckQuery.error.message}</p> : null;",
+      "}",
+    ].join("\n");
+
+    const violations = findViolations(syntheticFormerAllowlistedPathBypass);
+
+    expect(violations.length).toBeGreaterThan(0);
+    expect(violations.some((v) => v.pattern.includes("UI-ERR-D2"))).toBe(true);
+  });
+
+  // F1 是正で file 粒度免除から行単位除外へ切替えたため、ensureInvokeError() 正規化 idiom の
+  // 行のみが除外され、同じ「file」内の他の real violation は隠されないことを確認する
+  // （行単位除外が file 免除へ退化していないことの検証）。
+  it("excludes only the ensureInvokeError normalization idiom line, not the whole file", () => {
+    const syntheticFlowHookShapedContent = [
+      "function ensureInvokeError(error: unknown, cmd: string): InvokeError {",
+      "  if (isInvokeError(error)) return error;",
+      "  return new InvokeError(",
+      "    {",
+      '      kind: "internal",',
+      "      message: error instanceof Error ? error.message : String(error),",
+      "      field: null,",
+      "      error_id: null,",
+      "    },",
+      '    { source: "commands", cmd },',
+      "  );",
+      "}",
+      "function onError(error: unknown) {",
+      "  const cmdError = isInvokeError(error) ? error.cmdError : toCmdError(error);",
+      "  setSaveError(cmdError.message);",
+      "}",
+    ].join("\n");
+
+    const violations = findViolations(syntheticFlowHookShapedContent);
+
+    expect(violations.length).toBe(1);
+    expect(violations[0]?.pattern).toContain("cmdError");
   });
 
   it("detects a synthetic violation fixture (sweep sensitivity guard, empty-set-oracle-collision)", () => {
