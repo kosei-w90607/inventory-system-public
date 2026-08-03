@@ -2,11 +2,11 @@
 
 ## Workflow State
 
-- Phase: implementing
+- Phase: independent-review
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: 4186798
-- Amendments: none
+- Amendments: 6066a3f
 - Coordinator: Claude Fable 5（main session）
 - Writer: Claude Sonnet 5 subagent（worktree isolation）
 - Plan Reviewer: Claude Sonnet 5 subagent（起草非関与の独立 context）
@@ -305,4 +305,5 @@ Do not transcribe exact-HEAD SHA or test counts here (D-035/D-038 Evidence Owner
   - X6: 旧設計では自動無反応（W/S/C 一致、Matrix 旧記載どおり）→ `c4730e5` の内容固定 assertion「keeps the file-level ALLOWLIST and line-exclusion patterns pinned to their justified minimum」で自動 red 化、F が実注入 red を確認（初回試行は sd pattern 不一致の no-op を diff --stat 確認で検出し再実測 — 実注入の diff 実確認は必須手順）。closure round で C 検証予定
   - X7: sweep red + MonthlySalesPage positive assert が単独で red（negative assert 削除併用でも素通りせず。Matrix 想定より強い方向の divergence、W/S 実測一致）
 - relay 予算超過の記録: cross-vendor Final Review の rally 往復により relay 3/予算 2。超過理由を事前明示し owner 承認済み（2026-08-04）。
+- 遷移 evidence（compression 記録、本 commit で implementing → local-verified → independent-review を実体化）: local-verified = `scripts/local-ci.sh full` RESULT=PASS ×2（`8569b9a`〈Writer 実施、F1/F6 是正後〉/ `6066a3f`〈Coordinator 実施、Amendment 1 込み〉、evidence log は `.local/ci-evidence/` の該当 file）。independent-review = cross-vendor Final Review round 1（`540add9`）/ round 2（`8569b9a`）実施済み + closure round を確定 HEAD で発注。Ready 段階の exact-HEAD L1 は従来どおり別途実施する。
 - Findings Freeze: not yet frozen; post-freeze exceptions: none.
