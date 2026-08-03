@@ -10,7 +10,7 @@
 - Coordinator: Claude Fable 5（main session）
 - Writer: Claude Sonnet 5 subagent（worktree isolation）
 - Plan Reviewer: Claude Sonnet 5 subagent（起草非関与の独立 context）
-- Final Reviewer: Claude Sonnet 5 subagent（Writer / Plan Reviewer と別の独立 context）
+- Final Reviewer: Codex（owner 提案 2026-08-04 により Sonnet から切替。cross-vendor の Final Contract Audit、役割変更のみで packet 契約無変更）
 - Reviewed Content HEAD: pending
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
@@ -290,4 +290,8 @@ Do not transcribe exact-HEAD SHA or test counts here (D-035/D-038 Evidence Owner
 - Round 2（closure、同 reviewer、2026-08-04）: Verdict **CLOSED、P1/P2=0**。F1 棄却は reviewer が round 1 HEAD（`4186798`）の実文言を独立再読して誤引用を確認・追認。F2/F3 是正と同 packet 内 sweep の残存 drift なしを独立検証。新規 finding なし。
 - 遷移 evidence（compression 記録）: plan-gate → plan-approved = Plan Review round 2 CLOSED（P1/P2=0）+ owner plan 承認 2026-08-04（介入 1 回目/予算 3 回）。plan-approved → implementing = Plan Commit `4186798` 記入 + Writer 発注（Sonnet subagent、本 worktree）。
 - 実装時裁定（2026-08-04、Writer fail-closed 起点、gated amendment 非該当）: A群 4 画面（Disposal / Receiving / ManualSale / ReturnExchange）の既存 test に internal kind fixture の生 message 完全一致 assertion が 10 件あり、describeError 化（= internal の表示が意図どおり変わる）と両立しない衝突を Writer が実装前実査で検出（Coordinator が DisposalPage.test.tsx 該当行を実読で再現確認）。裁定 = **assertion 更新を許可**（fixture は無変更、期待文字列のみ describeError の実出力へ完全一致で更新 — IntegrityCheckPage.test.tsx の確立方式）。これは「意図した表示変更への追随」であり Goal 失敗定義の「test 削除・無効化・skip」に非該当。packet 契約は無変更（AC7 の無変更対象は lib 2 test のみ、Matrix F4 行の無改変対象は素通し kind fixture のみ、Review Focus は internal 表示変化を明示許容）— 衝突の実体は Writer 発注書の「既存 test ほか全部無改変」という Coordinator の過剰一般化であり、packet を正とする。
+- Coordinator 独立再実測（2026-08-04、記録非参照の fresh Sonnet verifier へ委譲、注入形は Matrix から独立導出）: **X1-X7 全件で防御成立を再現**。baseline 全 suite green + AC5 0 hit、X5 = sweep 盲点を AC3 unit test が独立補足（設計どおり）、X6 = 自動 test 無反応・review 検分依存（Matrix 明記どおり）、各 cycle 後 clean tree 復元確認。
+- 追加検出と是正（独立再実測起点）: sweep regex が `?.` optional chaining 変種（`query.error?.message` 等）を素通しする真の gap を verifier が検出 → Writer 是正 `ada5233`（regex を `\??` 許容へ強化 + synthetic positive case 追加〈既存 case 非改変〉+ 実 file 一時注入で red を実証、production scan 0 件維持）。
+- X7 実測 divergence（Writer・独立 verifier の実測一致）: Matrix の想定「negative assert 弱体化で page test が素通り」は再現せず、positive assert（describeError 出力の完全一致 findByText）が単独で red 化 — 防御は想定より強い方向の差異。Matrix 本文は非改変とし、本欄の実測記録を正とする。
+- Final Reviewer 変更（2026-08-04）: owner 提案（Codex slot 空き）を受け Sonnet → Codex の cross-vendor Final Contract Audit へ切替。same-vendor（Writer=Sonnet / Final Reviewer=Sonnet）構成の独立性補強。役割変更のみで Scope / AC / 契約は無変更（gated amendment 非該当）。
 - Findings Freeze: not yet frozen; post-freeze exceptions: none.
