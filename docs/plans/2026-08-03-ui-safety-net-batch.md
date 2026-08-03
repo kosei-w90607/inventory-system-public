@@ -5,7 +5,7 @@
 - Phase: plan-gate
 - Risk: R3
 - Execution Mode: fable-window
-- Plan Commit: pending
+- Plan Commit: bfc770c
 - Amendments: none
 - Coordinator: Claude (Fable 5)
 - Writer: Codex（owner relay。D-062 (c) 適合形〈Codex Writer + Sonnet Plan/Final Reviewer〉の 2 回目 dogfood、PR #58 closeout の次 dogfood 指定に従う）
@@ -16,7 +16,11 @@
 - Hosted CI Requirement: required
 - Human Gate: plan 承認、L3 Windows native 目視（crash fallback 画面 / 破棄確認ダイアログ）、Ready 承認、merge
 
-遷移記録（append-only）: 本 packet を追加する content commit で `kickoff -> spec-check -> design -> plan-draft -> plan-gate` を材料化する。evidence = task scoped + Risk R3 判定を本 packet に記録（kickoff→spec-check）、設計正本の不足を識別 — Error Boundary 戦略は DEV_SETUP_CHECKLIST 7-8a と 52 §52.7 が UI_TECH_STACK §6.10 を指すが §6.10 本文が不在（番号予約のみ）、unsaved changes ガードは DEV_SETUP_CHECKLIST 7-8c の 1 行（`useUnsavedChangesWarning` + isDirty 連動）のみで正本節が不在、61/62/63/64 の「商品登録へ」導線注意書きが hook 前提でないアドホック文言のまま、69 §69.13 に 7-8c backlog 注記が残存（spec-check→design）、design 出力を同一 plan-first change 内で source docs へ反映 — UI_TECH_STACK §6.10（Error Boundary 戦略）/ §6.11（未保存編集の離脱ガード）新設、52 §52.7 行更新、61 §61.5 / 62 / 63 / 64 の該当行置換、69 §69.13 行更新（design→plan-draft）、packet + Test Design Matrix 完成・commit（plan-draft→plan-gate）。
+遷移記録（append-only、初回分）: 本 packet を追加する content commit で `kickoff -> spec-check -> design -> plan-draft -> plan-gate` を材料化する。evidence = task scoped + Risk R3 判定を本 packet に記録（kickoff→spec-check）、設計正本の不足を識別 — Error Boundary 戦略は DEV_SETUP_CHECKLIST 7-8a と 52 §52.7 が UI_TECH_STACK §6.10 を指すが §6.10 本文が不在（番号予約のみ）、unsaved changes ガードは DEV_SETUP_CHECKLIST 7-8c の 1 行（`useUnsavedChangesWarning` + isDirty 連動）のみで正本節が不在、61/62/63/64 の「商品登録へ」導線注意書きが hook 前提でないアドホック文言のまま、69 §69.13 に 7-8c backlog 注記が残存（spec-check→design）、design 出力を同一 plan-first change 内で source docs へ反映 — UI_TECH_STACK §6.10（Error Boundary 戦略）/ §6.11（未保存編集の離脱ガード）新設、52 §52.7 行更新、61 §61.5 / 62 / 63 / 64 の該当行置換、69 §69.13 行更新（design→plan-draft）、packet + Test Design Matrix 完成・commit（plan-draft→plan-gate）。
+
+2026-08-03 Sonnet Plan Review round 1 = FAIL（P1=3 / P2=0 / P3=2、全件 accept、裁定詳細は Review Response 参照）。P1-1（Contract Probe CP1/CP2 が pending のまま plan-gate 確定 — DEV_WORKFLOW「before Plan Gate」要件の自己解釈による緩和）/ P1-2（isDirty 解除タイミングの設計契約欠落 — 51 の create/update `onSuccess` は baseline 未 reset のまま navigate するため、規定なしでは保存成功パスが毎回誤発火する）/ P1-3（分類表に 65 系 6 page が未列挙 + sweep が全数性を機械検証しない）は design 出力の改訂を要するため、最早影響 phase = design へ backtrack する（`plan-gate -> design`）。
+
+2026-08-03 round 1 是正 content commit で `design -> plan-draft -> plan-gate` を再材料化する。evidence = CP1/CP2 probe を throwaway harness で実施し PASS を Contract Probe 節へ記録（`@tanstack/react-router` 1.168.23 実測、P1-1 是正 — 以後の probe は plan-gate 遷移前実施を厳守）、§6.11 UI-USW-D1 へ「保存成功時の誤発火防止 MUST」（`onSuccess` 内 navigate 前の baseline 同期 / result panel 型の `!isFormLocked` 明示式）を追記し分類表 51/61〜64/69 行を補強（P1-2 是正）、65 系 6 page の除外行追加 + 60 表記是正 + T17 の全数性 sweep 化 + X9 追加（P1-3 是正）、P3 2 件反映（Final Review の 2 回目 Contract Audit pass 明記 / 60 component 名）、Plan Commit 欄へ bfc770c 転記（design→plan-draft）、`doc-consistency-check --target plan` 通過・commit（plan-draft→plan-gate）。
 
 ## Owner Effort Budget
 
@@ -66,7 +70,7 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 1. **Error Boundary 2 層**（UI-EB-D1〜D3、UI_TECH_STACK §6.10 新設）: router `defaultErrorComponent`（RootLayout 保持で `<main>` 領域に fallback）+ root route `errorComponent`（RootLayout 自体の render 例外向け全画面 fallback）+ 共通 fallback component（日本語見出し / データ非消失の説明 / 再試行 / ホームへ戻る / 技術詳細折りたたみ）。npm 依存追加なし。
 2. **`useUnsavedChangesWarning(isDirty: boolean)` hook**（UI-USW-D1、§6.11 新設）: TanStack Router `useBlocker`（`shouldBlockFn` + `withResolver`）+ `enableBeforeUnload` 連動。共通破棄確認 AlertDialog（UI-USW-D2）を hook とセットで提供。
 3. **適用画面の全数分類と配線**(UI-USW-D3、下記分類表): 適用 6 画面（51 / 61 / 62 / 63 / 64 / 69）へ isDirty 計算 + hook 配線。
-4. **再導入防止 sweep test**: `useBlocker` 直接使用を 3 hook（csv-import / daily-report-import / useUnsavedChangesWarning）に限定 + 分類表の適用画面全てに hook 配線があることを検証（batch B `describe-error-no-local-duplicates` 同型）。
+4. **再導入防止 sweep test**: `useBlocker` 直接使用を 3 hook（csv-import / daily-report-import / useUnsavedChangesWarning）に限定 + 分類表の適用画面全てに hook 配線があること + `src/features/**/*Page.tsx` 実在集合と分類（適用 + 除外）の全数一致を検証（batch B `describe-error-no-local-duplicates` 同型 + 全数性 diff）。
 5. **docs sync**: §6.10 / §6.11 新設、52 §52.7 行更新、61/62/63/64 文言置換、69 §69.13 行更新（以上は本 plan-first change で反映済み）。DEV_SETUP_CHECKLIST 7-8a / 7-8c の消化更新、適用各 function-design への適用 1 行追記と更新履歴、UI_TECH_STACK §7.4 更新履歴は実装 commit で行う。
 
 ### 適用画面 全数分類表
@@ -75,20 +79,21 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 
 | 画面（design doc） | component | 分類 | isDirty 定義 / 除外理由 |
 |---|---|---|---|
-| 商品登録・編集（51） | `ProductFormPage` | 適用 | values が初期値と不一致（新規 = 空 form 初期値、編集 = 読込み値）。保存成功時は dirty 解除後に遷移（非 block） |
-| 入庫（61） | `ReceivingPage` | 適用 | 明細 ≥1 行 or ヘッダ入力（取引先 / 備考）が初期値と差分。保存成功後（result panel、フォーム操作不可）は解除 |
-| 手動販売（62） | `ManualSalePage` | 適用 | 同型（明細 or 入力差分） |
-| 返品・交換（63） | `ReturnExchangePage` | 適用 | 同型 + 画像選択済みを含む |
-| 廃棄・破損（64） | `DisposalPage` | 適用 | 同型 + 画像選択済みを含む |
-| 閾値設定（69） | `ThresholdSettingsPage` | 適用 | 既存 isDirty（values ≠ savedValues の descriptor 比較）を hook へ接続 |
+| 商品登録・編集（51） | `ProductFormPage` | 適用 | values が初期値と不一致（新規 = 空 form 初期値、編集 = 読込み値）。**現行実装は create/update の `onSuccess` が baseline 未 reset のまま `onNavigateToList` を呼ぶため、UI-USW-D1 MUST（navigate 前の baseline 同期）の実装追加が必須**（round 1 P1-2） |
+| 入庫（61） | `ReceivingPage` | 適用 | result panel 型: `isDirty = (明細 ≥1 行 or ヘッダ入力差分) && !isFormLocked`。保存成功後（result panel、`isFormLocked`）は非 block で、result panel 内の遷移導線も block しない |
+| 手動販売（62） | `ManualSalePage` | 適用 | 61 と同じ result panel 型（`!isFormLocked` を明示的に含める。result panel 内「詳細を見る」「日次売上へ」導線は非 block） |
+| 返品・交換（63） | `ReturnExchangePage` | 適用 | 61 と同じ result panel 型 + 入力差分に画像選択済みを含む |
+| 廃棄・破損（64） | `DisposalPage` | 適用 | 61 と同じ result panel 型 + 入力差分に画像選択済みを含む |
+| 閾値設定（69） | `ThresholdSettingsPage` | 適用 | 既存 isDirty（values ≠ savedValues の descriptor 比較）を hook へ接続。`onSuccess` の `setSavedValues(submittedValues)` が UI-USW-D1 MUST の既存正例 |
 | 棚卸し（73） | `StocktakePage` | 除外 (c) | カウントは `useUpdateCount`（「数を保存」）で行単位の即時 DB 保存（`StocktakePage.tsx` `saveCount`）。蓄積未保存 state がなく、未保存は単一入力欄のみで再入力コスト極小 |
+| 在庫変動履歴 + 記録詳細 5 画面（65） | `InventoryRecordsPage`、`CsvImportRecordDetailPage` / `DisposalRecordDetailPage` / `ManualSaleRecordDetailPage` / `ReceivingRecordDetailPage` / `ReturnRecordDetailPage` | 除外 (e) | 照会・表示のみ。`InventoryRecordsPage` の検索フィルタ draft は URL search state 相当で編集 state なし、詳細 5 画面は入力なし（round 1 P1-3 で追補） |
 | CSV 取込み（55）/ 日報取込み | 2 flow | 除外 (a)(b) | importing 中は §55.7 既設 `useBlocker` ガードが所有（確認ダイアログなし常時 block の既存設計判断）。preview は file 再選択で再導出可能 |
-| 商品CSV取込み（60） | `ProductImportPreview` 系 | 除外 (b) | preview は file 再選択で再導出可能 |
+| 商品CSV取込み（60） | `ProductImportPage`（子: `ProductImportPreview`） | 除外 (b) | preview は file 再選択で再導出可能 |
 | PLU 書出し（67） | `PluExportPage` | 除外 (d) | §6.5「外部ツールをまたぐ未完了状態」の localStorage 復帰設計が所有 |
 | バックアップ・復元（68） | `BackupRestorePage` | 除外 (e) | 即実行操作系。backup_path 選択は保存操作単位で完結、蓄積編集 state なし |
 | 一覧・照会・表示系（50/53/54/56/57/58/66/74/75 等） | — | 除外 (e) | URL search state / 表示のみで編集 state なし |
 
-全数性の検証: Writer は `src/features/` 直下の全 page component を列挙し、本分類表との過不足を Final Review 前に確認する（漏れは fail-closed で Coordinator へ報告）。
+全数性の検証: sweep test（T17）が `src/features/**/*Page.tsx` の実在集合と本分類表の記載（適用 manifest + 除外 list）の diff を機械検証する — 新規 page 追加時に未分類のままだと test が red になる（round 1 P1-3 の是正で plan 段階の目視から機械検証へ昇格）。Writer は実装時に分類表との不一致を発見したら fail-closed で Coordinator へ報告する。
 
 ## Non-scope
 
@@ -102,7 +107,7 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 
 - AC1: 新設 hook / fallback の unit・integration test（Matrix T1〜T8）が `npm test` で green
 - AC2: 適用 6 画面の配線 test（T9〜T14、各画面 dirty→block + 保存成功後の非 block。`src/features/<feature>/` 配下の `*unsaved-guard*.test.tsx` 命名）を含む `npm test` が exit 0
-- AC3: sweep test（`unsaved-changes-guard-sweep.test.ts`）が「useBlocker 直接使用 3 hook 限定」+「分類表適用画面の hook 配線一致」を検証し green
+- AC3: sweep test（`unsaved-changes-guard-sweep.test.ts`）が「useBlocker 直接使用 3 hook 限定」+「分類表適用画面の hook 配線一致」+「`src/features/**/*Page.tsx` 実在集合と分類（適用 + 除外）の全数一致」を検証し green
 - AC4: 既存 importing ガードの回帰（T15。引用する既存 test 名は `rg -l "useBlocker" src` で実在確認してから Matrix に転記）を含む既存 suite 全体の `npm test` が exit 0
 - AC5: `bash scripts/local-ci.sh full` が exact-HEAD で CLEAN（L1）
 - AC6: `bash scripts/doc-consistency-check.sh --target plan` PASS
@@ -114,7 +119,7 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 - Architecture: `docs/architecture/ui-task-specs.md`
 - Function / command / DTO: なし（frontend-only）
 - DB: なし
-- Screen / UI: `docs/UI_TECH_STACK.md` §6.10 / §6.11（本 change 新設）・§2.7・§5.5.1、`docs/function-design/` 52 / 51 / 61 / 62 / 63 / 64 / 69 / 73 / 55、`docs/design-system/01-decision-rules.md`（DSR-03 / DSR-07）、`docs/design-system/02-component-catalog.md`（⑥）
+- Screen / UI: `docs/UI_TECH_STACK.md` §6.10 / §6.11（本 change 新設）・§2.7・§5.5.1、`docs/function-design/` 52 / 51 / 61 / 62 / 63 / 64 / 65 / 69 / 73 / 55、`docs/design-system/01-decision-rules.md`（DSR-03 / DSR-07）、`docs/design-system/02-component-catalog.md`（⑥）
 - Decision log / ADR: D-053（describeError / error_id 境界 — 名称類似の別概念）、D-062（編成契約）
 
 ## Required Design Artifacts
@@ -142,7 +147,7 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 | 7-8a | UI_TECH_STACK §6.10 | UI-EB-D3 | describeError（UI-ERR-D1 / D-053）は CmdError 専用で render 例外は対象外。query isError 経路（02 ⑥）は不変で Error Boundary は最終防衛層のみ担う | fallback component（describeError 非経由） | T6、回帰 suite |
 | 7-8c | UI_TECH_STACK §6.11 | UI-USW-D1 | hook API は `isDirty: boolean` 受け取りの薄い形。却下: form library 依存の dirty 追跡（§2.7 方針違反）、画面ごとの useBlocker 直書き（sweep で禁止） | `src/hooks/useUnsavedChangesWarning.ts` | T1〜T5、X1 / X3 |
 | 7-8c | UI_TECH_STACK §6.11 | UI-USW-D2 | 破棄確認 AlertDialog（「編集を続ける」既定 / 「破棄して移動」destructive）。DSR-07 適合 = 未保存内容の破棄は復元不能な不可逆操作 | 共通 dialog component | T2〜T4、X2 |
-| 7-8c | UI_TECH_STACK §6.11 | UI-USW-D3 | 適用範囲の分類軸（蓄積編集 state 基準 + 除外軸 a〜e）。importing ガードと相互排他 | 適用 6 画面 + sweep test | T9〜T14 / T16、X7 |
+| 7-8c | UI_TECH_STACK §6.11 | UI-USW-D1 MUST / UI-USW-D3 | 保存成功時の baseline 同期（誤発火防止 MUST、round 1 P1-2）+ 適用範囲の分類軸（蓄積編集 state 基準 + 除外軸 a〜e）。importing ガードと相互排他 | 適用 6 画面 + sweep test | T9〜T14 / T16 / T17、X7 / X9 |
 | 7-8c | UI_TECH_STACK §6.11 | UI-USW-D4 | native window close は非保証と明文化（beforeunload 連動はベストエフォート）。却下: onCloseRequested 実装（検証コスト大、別 backlog） | §6.11 記載のみ | — |
 
 ## Design Intent Audit
@@ -183,8 +188,8 @@ Minimum design checks:
 
 前提 = 未検証の外部ライブラリ挙動 2 点。**plan-approved 遷移前に最小実験を完了し結果を本節へ追記する**（fail した場合は design へ backtrack）。実験は throwaway test file で行い commit しない。
 
-- CP1: 子 route component の render throw が router `defaultErrorComponent` で捕捉され、RootLayout（sidebar）を保持したまま `<main>` 内に fallback が render される（root へ escalate しない）: 最小 vitest harness（memory history + throw する route） -> pending
-- CP2: `useBlocker({ shouldBlockFn, withResolver: true })` が block 時に resolver 状態を返し、proceed() で遷移続行 / reset() で遷移中止できる（`@tanstack/react-router` 実 version）: 最小 vitest harness -> pending
+- CP1: 子 route component の render throw が router `defaultErrorComponent` で捕捉され、RootLayout（sidebar）を保持したまま `<main>` 内に fallback が render される（root へ escalate しない）: 最小 vitest harness（memory history + throw する route、throwaway file で実施後削除） -> **PASS（2026-08-03 実施）**。sidebar マーカー保持を確認、root `errorComponent` 併設時も子 route throw は defaultErrorComponent に捕捉（`@tanstack/react-router` 1.168.23 / vitest 実行）
+- CP2: `useBlocker({ shouldBlockFn, withResolver: true })` が block 時に resolver 状態を返し、proceed() で遷移続行 / reset() で遷移中止できる（`@tanstack/react-router` 実 version）: 最小 vitest harness -> **PASS（2026-08-03 実施）**。`status: 'blocked'` → `proceed()` で遷移続行 / `reset()` で中止 + `status: 'idle'` 復帰、`shouldBlockFn` false 時は非 block を確認。resolver 実 shape = `action / current / next / proceed / reset / status`
 - CP3: beforeunload が Tauri native close で発火するか: 実証しない（UI-USW-D4 で非保証を明文化）-> N/A
 
 ## Contract Coverage Ledger
@@ -196,7 +201,8 @@ Minimum design checks:
 | UI-EB-D3（describeError 境界不変） | fallback は describeError 非経由 | T6 + 既存 describeError suite 不変 | non-scope（挙動不変） |
 | UI-USW-D1（hook API / beforeunload 連動） | useUnsavedChangesWarning.ts | T1〜T5（X1 / X3） | — |
 | UI-USW-D2（破棄確認 dialog・DSR-07 適合） | 共通 dialog | T2〜T4（X2） | L3 目視 |
-| UI-USW-D3（分類軸・6 画面適用・相互排他） | 適用 6 画面 + sweep | T9〜T14 / T16 / T17（X7） | — |
+| UI-USW-D3（分類軸・6 画面適用・相互排他・全数一致） | 適用 6 画面 + sweep | T9〜T14 / T16 / T17（X7 / X9） | — |
+| UI-USW-D1 MUST（保存成功時の baseline 同期 = 誤発火防止） | 適用 6 画面の `onSuccess` / result panel lock | T9〜T14 の保存成功後非 block case | — |
 | UI-USW-D4（native close 非保証） | §6.11 記載 | —（文書契約） | non-scope 明記 |
 | 55 §55.7 importing ガード不変 | 変更なし | T15（既存 test 回帰） | — |
 | 02 ⑥ EmptyState / Alert 2 系統不変 | 変更なし | 既存 suite 回帰 | — |
@@ -213,11 +219,12 @@ Minimum design checks:
 Test Design Matrix: `docs/plans/test-matrices/2026-08-03-ui-safety-net-batch.md`
 
 - targeted tests: T1〜T14（hook / fallback / 6 画面配線）
-- negative tests: 誤発火防止（isDirty=false、保存成功後遷移の非 block）
+- negative tests: 誤発火防止（isDirty=false、保存成功後遷移の非 block — UI-USW-D1 MUST の baseline 同期を含む）
 - compatibility checks: T15（importing ガード回帰）+ 既存 suite 全 green
 - data safety checks: synthetic 入力のみ、実店舗データ不使用
-- main wiring/integration checks: T17 sweep（manifest 一致 + useBlocker 直接使用禁止）
+- main wiring/integration checks: T16/T17 sweep（useBlocker 直接使用禁止 + 配線 manifest 一致 + `*Page.tsx` 全数分類一致）
 - L3 を含むため Writer 完了条件に `cargo check --release` を含める（CI gate ではない）
+- Final Review では 2 回目の Contract Audit pass を実施し、State Lifecycle Matrix の 3 系統（isDirty / blocker resolver / ErrorFallback）の遷移再検証を明示対象とする（DEV_WORKFLOW の operator-visible state lifecycle recommend を採用 — round 1 P3-1）
 
 ## Boundary / Wire Contract
 
@@ -264,6 +271,12 @@ Fill after implementation.
 
 ## Review Response
 
-Fill after review.
+2026-08-03 Plan Review round 1（Sonnet 5、独立 context、対象 = bfc770c）: P1=3 / P2=0 / P3=2、Coordinator 裁定 = 全件 accept（各 P1 は引用 file:line を Coordinator が実読裏取り — DEV_WORKFLOW L63 原文 / `ProductFormPage.tsx` onSuccess の baseline 未 reset / 65 系 6 page 実在）。
+
+- P1-1（probe 時機違反）: accept。CP1/CP2 を実施し PASS を記録（是正 commit）。probe 自体は両方 PASS のため設計変更なし。
+- P1-2（isDirty 解除契約欠落）: accept。§6.11 UI-USW-D1 へ MUST 追記 + 分類表補強。
+- P1-3（分類表 65 系未列挙 / 全数性の機械検証欠如）: accept。65 行追加 + T17 全数性 sweep 化 + X9。
+- P3-1（Contract Audit の追加 pass）: accept。Test Plan に Final Review での実施を明記（DEV_WORKFLOW の operator-visible state lifecycle recommend 採用）。
+- P3-2（60 component 名表記）: accept。`ProductImportPage`（子: `ProductImportPreview`）へ是正。
 
 - Findings Freeze: not yet frozen; post-freeze exceptions: none.

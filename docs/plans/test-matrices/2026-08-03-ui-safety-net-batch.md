@@ -41,7 +41,7 @@ Risk: R3
 | UI-USW-D3 | 未配線 | integration | T9〜T14 適用 6 画面（51/61/62/63/64/69）各 dirty→block + 保存成功後の非 block | 画面の isDirty 計算破壊（X7 代表）/ hook 未配線 |
 | 55 §55.7 不変 | 回帰 | regression | T15 既存 importing ガード test（Writer が rg で実在確認し test 名転記） | 既存 useBlocker 2 hook への干渉 |
 | UI-USW-D3 | 再導入 | sweep | T16 `unsaved-changes-guard-sweep.test.ts` useBlocker 直接使用が 3 hook 限定 | 画面が useBlocker を直書き |
-| UI-USW-D3 | 分類 drift | sweep | T17 同 sweep: 分類表適用 6 画面すべてに hook 配線が存在 | 適用画面の配線漏れ / 分類表と実装の乖離 |
+| UI-USW-D3 | 分類 drift | sweep | T17 同 sweep: 分類表適用 6 画面すべてに hook 配線が存在 + `src/features/**/*Page.tsx` 実在集合が test 内の分類（適用 manifest + 除外 list）と全数一致 | 適用画面の配線漏れ / 未分類の新規 page 追加 / 分類表と実装の乖離（round 1 P1-3 是正で全数性を機械検証化） |
 
 Mutation 検証（実装後、clean tree で実注入・独立再実測。kill 主張は Coordinator が独立再現する）:
 
@@ -55,12 +55,13 @@ Mutation 検証（実装後、clean tree で実注入・独立再実測。kill �
 | X6 | 再試行 handler を no-op 化 | T8 |
 | X7 | 代表画面（ProductFormPage）の isDirty を恒 false 化 | T9 |
 | X8 | fallback 見出し文言を別文言へ破壊 | T6（anchor 一意性を rg -c で事前確認） |
+| X9 | 適用 1 画面（ProductFormPage）から hook 配線を削除 | T17（sweep の配線検出力）+ T9 |
 
 ## State Lifecycle Matrix
 
 | State / subject | Initial | Pending | Success | Invalidate | Refetch | Revisit | Restart | Failure | Retry | Evidence |
 |---|---|---|---|---|---|---|---|---|---|---|
-| isDirty（適用画面） | false | 入力で true | 保存成功で false（遷移非 block） | — | — | 再訪で false（初期値再計算） | app 再起動で消失（native close 非保証 = UI-USW-D4） | 保存失敗は true 維持（block 継続） | — | T1〜T4 / T9〜T14 |
+| isDirty（適用画面） | false | 入力で true | 保存成功で false — `onSuccess` 内 navigate 前の baseline 同期 or `!isFormLocked`（UI-USW-D1 MUST、遷移非 block） | — | — | 再訪で false（初期値再計算） | app 再起動で消失（native close 非保証 = UI-USW-D4） | 保存失敗は true 維持（block 継続） | — | T1〜T4 / T9〜T14 |
 | blocker resolver | idle | blocked（dialog 表示） | proceed で遷移 | reset で idle へ | — | — | — | — | — | T2〜T4 |
 | ErrorFallback | 非表示 | — | throw で表示 | 再試行で reset・再 render | — | 別 route 遷移で解除 | — | 再 throw で再表示 | 再試行 | T6〜T8 |
 
