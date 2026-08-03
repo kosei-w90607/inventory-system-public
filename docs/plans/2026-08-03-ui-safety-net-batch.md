@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: independent-review
+- Phase: human-confirm
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: bfc770c
@@ -11,7 +11,7 @@
 - Writer: Codex（owner relay。D-062 (c) 適合形〈Codex Writer + Sonnet Plan/Final Reviewer〉の 2 回目 dogfood、PR #58 closeout の次 dogfood 指定に従う）
 - Plan Reviewer: Claude (Sonnet 5 subagent、独立 context)
 - Final Reviewer: Claude (Sonnet 5 subagent、fresh context)
-- Reviewed Content HEAD: pending
+- Reviewed Content HEAD: 63cf1c6
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
 - Human Gate: plan 承認、L3 Windows native 目視（crash fallback 画面 / 破棄確認ダイアログ）、Ready 承認、merge
