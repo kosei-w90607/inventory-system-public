@@ -671,6 +671,27 @@ Vite の読み込み順序は `.env` → `.env.{mode}` → `.env.{mode}.local` �
 
 <!-- reviewed: 2026-04-21 -->
 
+### 6.10 Error Boundary 戦略（render 例外の最終防衛層）
+
+7-8a の消化。render 中の未捕捉例外で operator を白画面に遭遇させないための全画面共通戦略。
+
+- **UI-EB-D1（2 層構成・layout 保持優先）**: TanStack Router の router 単位 `defaultErrorComponent` で route component の render 例外を捕捉し、RootLayout（サイドバー + `<main>` 枠）を保持したまま `<main>` 領域に fallback を表示する。root route（`__root.tsx`）には別途 `errorComponent` を設定し、RootLayout 自体の render 例外という稀ケースを全画面 fallback（404 `notFoundComponent` と同型の配置）で捕捉する。npm 依存は追加しない（`react-error-boundary` 不採用 — Router 標準機構で要件を満たせるため。npm 供給網防御ルールとも整合）。
+- **UI-EB-D2（fallback 画面の構成）**: (1) 日本語見出し「画面の表示中に問題が発生しました」、(2) 保存済みデータは失われていない旨の短い説明、(3) 操作導線 = 「再試行」（error boundary reset）と「ホームへ戻る」、(4) 技術詳細（`Error` の message）は折りたたみ表示。icon + 文言併用で色だけに依存しない（§5.5.1）。
+- **UI-EB-D3（既存エラー経路との責務境界）**: `describeError`（§6.4 UI-ERR-D1 / D-053）は `CmdError`（backend IPC error）の日本語化専用であり、render 例外は対象外 — fallback は describeError を経由しない。query の `isError` 経路（ページ側 Alert / EmptyState 差し替え、02 ⑥）も従来どおりで、Error Boundary はこれらを代替しない。純粋に「throw が component tree を突き抜けた」場合の最終防衛層である。
+
+<!-- reviewed: 2026-08-03 -->
+
+### 6.11 未保存編集の離脱ガード（useUnsavedChangesWarning）
+
+7-8c の消化。手入力した未保存の編集内容を、確認なしの画面遷移で失わせないための共通 hook 契約。
+
+- **UI-USW-D1（hook API）**: `useUnsavedChangesWarning(isDirty: boolean)` を共通 hook として提供する。form library 非依存（§2.7 の feature-local controlled state + Zod 方針に従い、dirty 判定は各画面が明示計算して boolean を渡す）。内部は TanStack Router `useBlocker`（`shouldBlockFn` + `withResolver`）+ `enableBeforeUnload` 連動（§55.7 importing ガードと同基盤）。画面側での `useBlocker` 直接使用は禁止し、sweep test で機械強制する（既存例外 = CSV 取込み / 日報取込みの importing ガード 2 hook のみ）。**保存成功時の誤発火防止（MUST）**: 派生比較で isDirty を導出する画面は、保存成功 mutation の `onSuccess` 内で navigate / 遷移導線の提示より前に、比較 baseline を提出値へ同期更新して isDirty を false 化する（69 `ThresholdSettingsPage` の `setSavedValues(submittedValues)` が正例）。保存後に result panel へ移りフォームを lock する画面は `isDirty = (入力差分) && !isFormLocked` の形で lock 状態を明示的に含め、result panel 内の遷移導線を block しない。
+- **UI-USW-D2（破棄確認ダイアログ）**: block 時は共通 AlertDialog を表示する — 見出し「編集内容が保存されていません」、説明「このまま移動すると、入力した内容は破棄されます。」、操作 = 「編集を続ける」（既定 focus）/「破棄して移動」（destructive）。DSR-07（不可逆操作のみ確認）に適合 — 未保存内容の破棄は復元不能。beforeunload 側は platform 既定ダイアログのみ（カスタム文言不可）。
+- **UI-USW-D3（適用範囲の分類軸）**: 適用対象 = 「利用者の手入力で構築され、保存前に画面遷移で失われると再入力が必要な蓄積編集 state を持つ画面」。除外 = (a) 進行中処理ガード既設（§55.7 所有、相互排他で併用しない）、(b) file・DB 等からの再実行で再導出可能な導出 state — 値の記入を伴わない選択 state を含む（取込み preview 系、整合性チェックの結果と補正対象選択）、(c) 行単位の即時 DB 保存で蓄積未保存が生じない画面（棚卸し）、(d) 外部ツールまたぎの専用復帰設計が所有（§6.5 PLU 書出し）、(e) 編集 state を持たない画面。適用画面は各 function-design の該当節に明記する。
+- **UI-USW-D4（native close は非保証）**: `enableBeforeUnload` は webview の beforeunload に連動するが、Tauri native window close（×ボタン）で確実に発火する保証はしない。native close の破棄防止（`onCloseRequested`）は別 backlog。
+
+<!-- reviewed: 2026-08-03 -->
+
 ---
 
 ## 7. リスクと保留事項 / 更新履歴
@@ -797,6 +818,7 @@ Vite の読み込み順序は `.env` → `.env.{mode}` → `.env.{mode}.local` �
 
 | 日付 | 内容 | 担当 |
 |------|------|------|
+| 2026-08-03 | UI-EB-D1〜D3 / UI-USW-D1〜D4 の実装を反映。route error fallback 2 層、共通離脱警告 hook / AlertDialog、対象 6 画面配線と全 Page 分類 sweep を追加 | Codex |
 | 2026-07-23 | UI-REF-D1 を追加。render-phase `ref.current` access を禁止し、state / effect / event 境界への同期と `react-hooks/refs` の限定導入方針を明記 | Codex |
 | 2026-04-16 | 初版作成。v0.6.0 タグ後、UI層実装準備。技術スタック7パート確定、デザインシステム4本柱＋補助3原則＋観点借用1件を定義 | kosei-w90607 + Claude |
 

@@ -16,6 +16,14 @@ import {
 } from "./lib/test-fixtures";
 import { ProductFormPage } from "./ProductFormPage";
 
+vi.mock("@/hooks/useUnsavedChangesWarning", () => ({
+  useUnsavedChangesWarning: () => ({
+    isBlocked: false,
+    continueEditing: vi.fn(),
+    discardAndProceed: vi.fn(),
+  }),
+}));
+
 vi.mock("@/lib/bindings", () => ({
   commands: {
     listDepartments: vi.fn(),

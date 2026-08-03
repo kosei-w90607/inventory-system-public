@@ -113,7 +113,7 @@ UI-04 実装 PR では以下を generated binding に出す。
 - PageHeader title は `手動販売出庫`、subtitle はレジCSVに入らない販売を手入力し、在庫と売上へ反映する作業であることを短く示す。
 - ヘッダは `販売日`（既定は今日）、`理由`（既定「PLU未登録商品の販売」）、`備考`（任意）を置く。
 - 商品追加欄は `商品コード・JAN・商品名で追加` とし、Enter で検索する。候補が複数ある場合は商品名、商品コード、部門、現在庫、売価を見せる。
-- 商品が見つからない場合は `商品登録へ` 導線を出す。未登録商品は商品マスタに登録してから手動販売へ戻ること、既存明細がある場合は未保存の入力が残らないことを日本語で示す。
+- 商品が見つからない場合は `商品登録へ` 導線を出す。未登録商品は商品マスタに登録してから手動販売へ戻ることを日本語で示す。既存明細・入力がある状態での離脱（`商品登録へ` 導線を含む）は未保存編集の離脱ガード（UI_TECH_STACK §6.11 `useUnsavedChangesWarning`）が破棄確認を出す。
 - 明細表は商品名、商品コード、現在庫、数量、販売金額、単位、行削除を表示する。生地は `cm` 単位を主表示にする。
 - 明細が 0 件の場合、保存ボタンは disabled にし、理由を「商品が追加されていません」と表示する。
 - 保存ボタンは通常 `手動販売を保存`、PLU確認待ちでは `確認して保存` とする。
@@ -141,6 +141,7 @@ UI-04 実装 PR では以下を generated binding に出す。
 - `navigation.ts` の UI-04 は `to: "/inventory/manual-sale"`, `status: "active"` に切り替える。
 - result panel の `詳細を見る` は `/inventory/manual-sale/records/{sale_id}` へ遷移する。`sale_id=null` の PLU確認待ちでは表示しない。
 - result panel の `日次売上へ` は `/reports/daily?date={saleDate}` へ遷移する。
+- 明細または header 入力が初期値と異なる間だけ共通 `useUnsavedChangesWarning` を有効にし、保存中 / result panel 表示中は `!isFormLocked` により解除する。
 
 ## 62.8 Non-scope / Follow-up
 
@@ -172,6 +173,7 @@ UI-04 実装 PR では以下を generated binding に出す。
 
 | 日付 | 版 | 内容 |
 |---|---|---|
+| 2026-08-03 | UI safety net implementation | 手動販売 form の dirty 判定を共通離脱ガードへ接続し、保存中 / 保存結果の非 block を実装。 |
 | 2026-06-28 | Save result visibility follow-up | 保存成功、PLU確認待ち、command 失敗時はページ先頭へスクロールし、result panel / Alert が画面内に入るようにした。frontend validation は近傍表示のためスクロールしない。 |
 | 2026-06-26 | UI-04 Design Phase | route、generated command 方針、商品追加/スキャン前提、明細 validation、PLU警告二段階確認、冪等キー、query invalidation、Windows native L3 を整理。 |
 | 2026-06-27 | Record detail expansion | 保存結果から手動販売詳細へ遷移する導線と、入出庫履歴 query invalidation を追記。 |

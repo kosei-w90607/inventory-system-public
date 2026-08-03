@@ -3,6 +3,7 @@
 // UI-01b 商品登録・修正 page。
 
 import { useEffect, useState } from "react";
+import { flushSync } from "react-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
@@ -10,6 +11,8 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PageHeader } from "@/components/patterns/PageHeader";
+import { UnsavedChangesDialog } from "@/components/patterns/UnsavedChangesDialog";
+import { useUnsavedChangesWarning } from "@/hooks/useUnsavedChangesWarning";
 import { commands, type ProductWithRelations } from "@/lib/bindings";
 import { invalidateByContract, invalidationContract } from "@/lib/invalidation-contract";
 import { isInvokeError, toCmdError, unwrapResult } from "@/lib/invoke";
@@ -42,6 +45,7 @@ export function ProductFormPage({
   const safeReturnTo = sanitizeProductListReturnTo(returnTo);
   const { departmentsQuery, suppliersQuery, departments, suppliers } = useProductFormOptions();
   const [values, setValues] = useState<ProductFormValues>(createProductFormDefaults);
+  const [savedValues, setSavedValues] = useState<ProductFormValues>(createProductFormDefaults);
   const [formErrors, setFormErrors] = useState<Partial<Record<keyof ProductFormValues, string>>>(
     {},
   );
@@ -66,13 +70,16 @@ export function ProductFormPage({
   useEffect(() => {
     if (mode === "create") {
       setValues(createProductFormDefaults);
+      setSavedValues(createProductFormDefaults);
       setCurrentProduct(null);
       setPluTargetTouched(false);
       return;
     }
     if (productQuery.data !== undefined) {
+      const nextValues = productToFormValues(productQuery.data);
       setCurrentProduct(productQuery.data);
-      setValues(productToFormValues(productQuery.data));
+      setValues(nextValues);
+      setSavedValues(nextValues);
       setPluTargetTouched(false);
     }
   }, [mode, productQuery.data]);
@@ -89,6 +96,10 @@ export function ProductFormPage({
     },
     onSuccess: async (result) => {
       setSaveError(null);
+      // UI-USW-D1: 保存成功後の画面遷移を離脱ガードで遮らないよう、先に基準値を同期する。
+      flushSync(() => {
+        setSavedValues({ ...values });
+      });
       // UI-01b-D14: 保存成功 toast は navigate より前に発火する
       toast.success(
         `商品「${values.name.trim()}」を登録しました（商品コード: ${result.product_code}）`,
@@ -122,6 +133,10 @@ export function ProductFormPage({
     },
     onSuccess: async () => {
       setSaveError(null);
+      // UI-USW-D1: 保存成功後の画面遷移を離脱ガードで遮らないよう、先に基準値を同期する。
+      flushSync(() => {
+        setSavedValues({ ...values });
+      });
       // UI-01b-D14: 保存成功 toast は navigate より前に発火する
       toast.success(`商品「${values.name.trim()}」を保存しました`, {
         id: "product-save-success",
@@ -166,6 +181,10 @@ export function ProductFormPage({
     ? "取引先を指定しない登録・保存は続行できます。"
     : null;
   const saveDisabled = departmentsQuery.isError || departmentsQuery.isLoading;
+  const isDirty = (Object.keys(values) as (keyof ProductFormValues)[]).some(
+    (field) => values[field] !== savedValues[field],
+  );
+  const unsavedChanges = useUnsavedChangesWarning(isDirty);
 
   if (mode === "edit" && productQuery.isLoading) {
     return (
@@ -199,6 +218,7 @@ export function ProductFormPage({
 
   return (
     <div className="space-y-4 p-6">
+      <UnsavedChangesDialog warning={unsavedChanges} />
       <PageHeader title={title} />
       {departmentsQuery.isError ? (
         <Alert variant="destructive">

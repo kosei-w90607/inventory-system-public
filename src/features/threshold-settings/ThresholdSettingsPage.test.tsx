@@ -14,6 +14,14 @@ import { d052InvalidationOracle, expectExactInvalidations } from "@/test/invalid
 
 import { ThresholdSettingsPage } from "./ThresholdSettingsPage";
 
+vi.mock("@/hooks/useUnsavedChangesWarning", () => ({
+  useUnsavedChangesWarning: () => ({
+    isBlocked: false,
+    continueEditing: vi.fn(),
+    discardAndProceed: vi.fn(),
+  }),
+}));
+
 vi.mock("sonner", () => ({
   toast: { success: vi.fn(), error: vi.fn() },
 }));

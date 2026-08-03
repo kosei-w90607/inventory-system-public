@@ -157,6 +157,7 @@ Error recovery:
 - `getProduct` not found: form を出さず「商品が見つかりません」を表示し、一覧へ戻る導線を出す。
 - save validation / duplicate: field error または form-level alert を出し、入力値は保持する。
 - save internal error: form-level alert を出し、保存ボタンを再度押せる状態に戻す。
+- 商品 form の初期値 / 読込み値を baseline として `useUnsavedChangesWarning` へ接続し、create / update 成功時は一覧遷移前に提出値へ baseline を同期して離脱ガードを解除する（UI-USW-D1）。
 
 ## 7.7 Non-scope / Follow-up
 
@@ -188,6 +189,7 @@ Error recovery:
 
 | 日付 | 版 | 内容 |
 |---|---|---|
+| 2026-08-03 | UI safety net implementation | 商品 form の dirty 判定を共通離脱ガードへ接続し、保存成功時の baseline 同期を実装。 |
 | 2026-06-09 | UI-01b Design Phase | TanStack Router route、generated command 方針、supplier 候補、JANなし商品コード、edit read-only fields、cm / m defer、Windows native L3 を Design Phase 基準で整理。 |
 | 2026-06-12 | UI-01b polish | UI-01b-D10〜D12 を追加（4 セクション分割、read-only 表示、必須項目ラベル）。§7.2 を実装構成へ更新。 |
 | 2026-06-12 | UI-01b polish | UI-01b-D13 を追加（廃番にするの確認ダイアログ、表示に戻すは直接実行）。§7.5 step 5 を整合。 |

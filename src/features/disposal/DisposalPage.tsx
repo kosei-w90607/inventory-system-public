@@ -24,6 +24,8 @@ import {
 } from "@/components/ui/table";
 import { EmptyState } from "@/components/patterns/EmptyState";
 import { PageHeader } from "@/components/patterns/PageHeader";
+import { UnsavedChangesDialog } from "@/components/patterns/UnsavedChangesDialog";
+import { useUnsavedChangesWarning } from "@/hooks/useUnsavedChangesWarning";
 import { commands, type DisposalCreateResult, type ProductWithRelations } from "@/lib/bindings";
 import { invalidateByContract, invalidationContract } from "@/lib/invalidation-contract";
 import { isInvokeError, toCmdError, unwrapResult } from "@/lib/invoke";
@@ -122,7 +124,8 @@ export function DisposalPage() {
   const queryClient = useQueryClient();
   const searchInputRef = useRef<HTMLInputElement>(null);
   const isFormLockedRef = useRef(false);
-  const [values, setValues] = useState<DisposalFormValues>(createEmptyForm);
+  const [initialValues, setInitialValues] = useState<DisposalFormValues>(createEmptyForm);
+  const [values, setValues] = useState<DisposalFormValues>(initialValues);
   const [errors, setErrors] = useState<DisposalFormErrors>({});
   const [saveError, setSaveError] = useState<string | null>(null);
   const [searchText, setSearchText] = useState("");
@@ -178,6 +181,9 @@ export function DisposalPage() {
   const lossTotal = calculateLossTotal(values.rows);
   const canSubmit = values.rows.length > 0 && values.disposalDate.trim() !== "" && !isFormLocked;
   const recentRecords = recentQuery.data?.items ?? [];
+  const hasInputChanges =
+    values.rows.length > 0 || values.disposalDate !== initialValues.disposalDate;
+  const unsavedChanges = useUnsavedChangesWarning(hasInputChanges && !isFormLocked);
 
   useEffect(() => {
     if (recentQuery.isError) {
@@ -243,7 +249,9 @@ export function DisposalPage() {
 
   function resetForm() {
     isFormLockedRef.current = false;
-    setValues(createEmptyForm());
+    const emptyValues = createEmptyForm();
+    setInitialValues(emptyValues);
+    setValues(emptyValues);
     setErrors({});
     setSaveError(null);
     setSearchText("");
@@ -257,6 +265,7 @@ export function DisposalPage() {
 
   return (
     <div className="space-y-5 p-6">
+      <UnsavedChangesDialog warning={unsavedChanges} />
       <PageHeader
         title="廃棄・破損"
         subtitle="販売ではない理由で在庫を減らし、ロス理由と原価を記録します"

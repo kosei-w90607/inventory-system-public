@@ -24,6 +24,8 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PageHeader } from "@/components/patterns/PageHeader";
 import { FormSection } from "@/components/patterns/FormSection";
+import { UnsavedChangesDialog } from "@/components/patterns/UnsavedChangesDialog";
+import { useUnsavedChangesWarning } from "@/hooks/useUnsavedChangesWarning";
 import { invalidateByContract, invalidationContract } from "@/lib/invalidation-contract";
 
 import {
@@ -87,6 +89,7 @@ export function ThresholdSettingsPage() {
   const isDirty = THRESHOLD_FIELD_DESCRIPTORS.some(
     ({ field }) => values[field] !== savedValues[field],
   );
+  const unsavedChanges = useUnsavedChangesWarning(isDirty);
 
   function handleChange(field: ThresholdField, next: string) {
     setValues((prev) => ({ ...prev, [field]: next }));
@@ -178,6 +181,7 @@ export function ThresholdSettingsPage() {
 
   return (
     <div className="min-h-screen space-y-6 p-6">
+      <UnsavedChangesDialog warning={unsavedChanges} />
       <PageHeader
         title="在庫少の基準"
         subtitle="在庫がこの数以下になったら「在庫少」としてお知らせします"

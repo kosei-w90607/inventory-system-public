@@ -104,7 +104,7 @@ UI-02 実装 PR では以下を generated binding に出す。
 - PageHeader title は `入庫記録`、subtitle は仕入れ商品の到着時に在庫へ反映する作業であることを短く示す。
 - ヘッダは `入庫日`（既定は今日）、`取引先`（任意）、`備考`（任意）を置く。取引先取得失敗時は警告を出し、取引先未指定の保存は許可する。
 - 商品追加欄は `商品コード・JAN・商品名で追加` とし、Enter で検索する。候補が複数ある場合は小さな候補リストで商品名、商品コード、部門、現在庫を見せる。
-- 商品が見つからない場合は `商品登録へ` 導線を出す。現在の入庫フォームを自動保存しないため、別画面へ移動する前に未保存であることを日本語で示す。
+- 商品が見つからない場合は `商品登録へ` 導線を出す。入庫フォームは自動保存しないため、明細・入力がある状態での離脱（`商品登録へ` 導線を含む）は未保存編集の離脱ガード（UI_TECH_STACK §6.11 `useUnsavedChangesWarning`）が破棄確認を出す。
 - 明細表は商品名、商品コード、現在庫、入庫数量、原価、単位、行削除を表示する。生地は `cm` 単位を主表示にする。
 - 明細が 0 件の場合、保存ボタンは disabled にし、理由を「商品が追加されていません」と表示する。
 - 保存ボタンは `入庫を記録`。保存成功後は result panel へ移り、フォーム本文は操作不可にする。保存結果や保存系エラーの Alert はページ先頭側に出るため、保存成功または command 失敗時はページ先頭へスクロールする。
@@ -126,6 +126,7 @@ UI-02 実装 PR では以下を generated binding に出す。
 - 保存成功時は D-052-C4 の SSOT helper を適用する。具体的な query key 集合は `src/lib/invalidation-contract.ts` だけに置く。
 - `navigation.ts` の UI-02 は `to: "/inventory/receiving"`, `status: "active"` に切り替える。
 - 在庫照会の詳細カードから入庫へ遷移する場合、将来 `?productCode=...` で初期商品追加する余地を残す。ただし初回実装では query 初期追加は非 scope とし、route だけ active にする。
+- 明細または header 入力が初期値と異なる間だけ共通 `useUnsavedChangesWarning` を有効にし、保存中 / result panel 表示中は `!isFormLocked` により解除する。
 
 ## 61.8 Non-scope / Follow-up
 
@@ -156,5 +157,6 @@ UI-02 実装 PR では以下を generated binding に出す。
 
 | 日付 | 版 | 内容 |
 |---|---|---|
+| 2026-08-03 | UI safety net implementation | 入庫 form の dirty 判定を共通離脱ガードへ接続し、保存中 / 保存結果の非 block を実装。 |
 | 2026-06-28 | Save result visibility follow-up | 保存成功または command 失敗時はページ先頭へスクロールし、result panel / Alert が画面内に入るようにした。frontend validation は近傍表示のためスクロールしない。 |
 | 2026-06-25 | UI-02 Design Phase | route、generated command 方針、商品追加/スキャン前提、明細 validation、冪等キー、query invalidation、recent list、Windows native L3 を整理。 |

@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import "./styles/globals.css";
 import { routeTree } from "./routeTree.gen";
+import { RouteErrorFallback } from "./components/patterns/RouteErrorFallback";
 
 /// TanStack Router + Query 初期化（ADR-001 / ADR-003 / 2026-04-20 採用）
 const queryClient = new QueryClient({
@@ -24,6 +25,7 @@ const queryClient = new QueryClient({
 const router = createRouter({
   routeTree,
   defaultPreload: "intent",
+  defaultErrorComponent: RouteErrorFallback,
 });
 
 declare module "@tanstack/react-router" {

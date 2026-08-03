@@ -108,7 +108,7 @@ UI-05 実装 PR では以下を generated binding に出す。
 - PageHeader title は `廃棄・破損`、subtitle は販売ではない理由で在庫を減らし、ロス理由と原価を残す作業であることを短く示す。
 - ヘッダは `廃棄日`（既定は今日）のみを置く。理由は明細単位に置く。
 - 商品追加欄は `商品コード・JAN・商品名で追加` とし、Enter で検索する。候補が複数ある場合は商品名、商品コード、部門、現在庫、原価を見せる。
-- 商品が見つからない場合は `商品登録へ` 導線を出す。未登録商品は商品マスタに登録してから廃棄・破損へ戻ること、既存明細がある場合は未保存の入力が残らないことを日本語で示す。
+- 商品が見つからない場合は `商品登録へ` 導線を出す。未登録商品は商品マスタに登録してから廃棄・破損へ戻ることを日本語で示す。既存明細・入力がある状態での離脱（`商品登録へ` 導線を含む）は未保存編集の離脱ガード（UI_TECH_STACK §6.11 `useUnsavedChangesWarning`）が破棄確認を出す。
 - 明細表は商品名、商品コード、部門、現在庫、種別、数量、原価、理由、単位、行削除を表示する。生地は `cm` 単位を主表示にする。
 - 種別は日本語ラベルで `廃棄` / `破損` / `その他` と表示する。wire value の英語は画面に出さない。
 - 理由欄は明細ごとに入力し、空白なら保存前 validation で止める。
@@ -132,6 +132,7 @@ UI-05 実装 PR では以下を generated binding に出す。
 - 保存成功時は D-052-C7 の SSOT helper を適用する。具体的な query key 集合は `src/lib/invalidation-contract.ts` だけに置く。
 - `navigation.ts` の UI-05 は `to: "/inventory/disposal"`, `status: "active"` に切り替える。
 - 在庫照会の詳細カードから廃棄・破損へ遷移する場合、将来 `?productCode=...` で初期商品追加する余地を残す。ただし初回実装では query 初期追加は非 scope とし、route だけ active にする。
+- 明細または廃棄日の初期値との差分がある間だけ共通 `useUnsavedChangesWarning` を有効にし、保存中 / result panel 表示中は `!isFormLocked` により解除する（画像条件は持たない）。
 
 ## 64.8 Non-scope / Follow-up
 
@@ -163,6 +164,7 @@ UI-05 実装 PR では以下を generated binding に出す。
 
 | 日付 | 版 | 内容 |
 |---|---|---|
+| 2026-08-03 | UI safety net implementation | 廃棄・破損 form の dirty 判定を共通離脱ガードへ接続し、保存中 / 保存結果の非 block を実装。 |
 | 2026-07-23 | UI-05-D15 | form lock ref をrender同期から保存/失敗/reset event同期へ移し、非同期商品検索結果の採否タイミングを固定。 |
 | 2026-06-28 | Save result visibility follow-up | 保存成功または command 失敗時はページ先頭へスクロールし、result panel / Alert が画面内に入るようにした。frontend validation は近傍表示のためスクロールしない。 |
 | 2026-06-27 | UI-05 Design Phase | route、generated command 方針、商品追加/スキャン前提、明細単位の種別/理由、validation、冪等キー、query invalidation、recent list、Windows native L3 を整理。 |

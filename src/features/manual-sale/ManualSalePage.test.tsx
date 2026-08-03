@@ -9,6 +9,14 @@ import { commands } from "@/lib/bindings";
 import { d052InvalidationOracle, expectExactInvalidations } from "@/test/invalidation-oracle";
 import { ManualSalePage } from "./ManualSalePage";
 
+vi.mock("@/hooks/useUnsavedChangesWarning", () => ({
+  useUnsavedChangesWarning: () => ({
+    isBlocked: false,
+    continueEditing: vi.fn(),
+    discardAndProceed: vi.fn(),
+  }),
+}));
+
 const mockNavigate = vi.fn();
 
 vi.mock("@tanstack/react-router", () => ({

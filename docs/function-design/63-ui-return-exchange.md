@@ -121,7 +121,7 @@ UI-03 実装 PR では以下を generated binding に出す。
 - ヘッダは `返品日`（既定は今日）、`種別`（返品 / 交換）、`レジ戻し済み`（既定 true）、`備考`（任意）を置く。備考は単一行 input ではなく複数行欄にし、返品理由・交換理由・顧客対応メモを 200 文字以内で読めるようにする。
 - `レジ戻し済み` true では `CSV取込みで反映`、false では `この保存で反映` の日本語 Badge を各選択肢内に出し、説明文も同じ選択肢内で読めるようにする。色だけで状態を表さない。
 - 商品追加欄は `商品コード・JAN・商品名で追加` とし、Enter で検索する。候補が複数ある場合は商品名、商品コード、部門、現在庫を見せる。
-- 商品が見つからない場合は `商品登録へ` 導線を出す。未登録商品は商品マスタに登録してから返品・交換へ戻ること、既存明細がある場合は未保存の入力が残らないことを日本語で示す。
+- 商品が見つからない場合は `商品登録へ` 導線を出す。未登録商品は商品マスタに登録してから返品・交換へ戻ることを日本語で示す。既存明細・入力（画像選択を含む）がある状態での離脱（`商品登録へ` 導線を含む）は未保存編集の離脱ガード（UI_TECH_STACK §6.11 `useUnsavedChangesWarning`）が破棄確認を出す。
 - 明細表は商品名、商品コード、部門、現在庫、方向（戻り / 渡し）、数量、単位、行削除を表示する。生地は `cm` 単位を主表示にする。
 - 返品種別が `返品` の場合、方向は `戻り` 固定にし、渡し行がある場合は保存前 validation で止める。
 - 交換種別では戻り行と渡し行を両方要求する。方向の表示は `戻り（在庫+）` / `渡し（在庫-）` とし、在庫視点を文言で示す。
@@ -149,6 +149,7 @@ UI-03 実装 PR では以下を generated binding に出す。
 - 保存成功時は D-052-C5 の SSOT helper を `register_processed` とともに適用する。具体的な query key 集合は `src/lib/invalidation-contract.ts` だけに置く。
 - `navigation.ts` の UI-03 は `to: "/inventory/return"`, `status: "active"` に切り替える。
 - 在庫照会の詳細カードから返品・交換へ遷移する場合、将来 `?productCode=...&direction=in` で初期商品追加する余地を残す。ただし初回実装では query 初期追加は非 scope とし、route だけ active にする。
+- 明細、header 入力、または receipt 画像選択に差分がある間だけ共通 `useUnsavedChangesWarning` を有効にし、保存中 / result panel 表示中は `!isFormLocked` により解除する。
 
 ## 63.8 Non-scope / Follow-up
 
@@ -183,6 +184,7 @@ UI-03 実装 PR では以下を generated binding に出す。
 
 | 日付 | 版 | 内容 |
 |---|---|---|
+| 2026-08-03 | UI safety net implementation | 返品・交換 form（receipt 画像選択を含む）の dirty 判定を共通離脱ガードへ接続し、保存中 / 保存結果の非 block を実装。 |
 | 2026-06-30 | UI-03 note visibility Design Phase | 備考を確認優先度が高い項目として複数行入力、保存結果、recent list、詳細画面で独立ラベル付き・通常本文色で表示する UI-03-D19 を追加。入力なしの場合は「備考なし」と表示する。 |
 | 2026-06-28 | UI-03 visibility follow-up | Windows native L3 で備考が項目立てされておらず、文字が薄く内容を判別しづらいことを確認。返品・交換では備考の必要性が高いため、次回改善で独立項目化とコントラストを見直す。 |
 | 2026-06-28 | Save result visibility follow-up | 保存成功または command 失敗時はページ先頭へスクロールし、result panel / Alert が画面内に入るようにした。frontend validation は近傍表示のためスクロールしない。 |
