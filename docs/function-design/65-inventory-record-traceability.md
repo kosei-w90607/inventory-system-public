@@ -41,6 +41,7 @@
 | REQ-206 / image | TRACE-D9 | 画像添付は返品・交換のレシート画像に限らず、廃棄・破損の破損品写真・廃棄根拠写真にも拡張できる設計にする。 | 画像は業務記録の補助証跡。操作ログや在庫変動履歴に直接持たせない。 |
 | REQ-206 / duplicate | TRACE-D10 | 同日・同商品・同数量・同理由/同金額に近い記録がある場合、保存前に注意表示する。ブロックではなく確認制にする。 | 二重登録は防ぎたいが、同じ商品が同日に複数回入庫・廃棄されることはあり得る。 |
 | REQ-206 / return | TRACE-D11 | 入出庫履歴一覧から業務記録詳細へ遷移した場合、詳細画面の「前の画面へ戻る」は遷移元の検索条件付き一覧へ戻す。戻り先はアプリ内 path のみ許可し、不正な値は `/inventory/records` にフォールバックする。 | 月末確認や原因調査では、ID・日付・商品・部門などで絞った一覧から複数記録を確認する。検索状態が失われると調査をやり直す必要がある。`returnTo` は URL 由来の入力なので、外部 URL や想定外 path をそのまま使わない。 |
+| REQ-206 / search | TRACE-D12 | 入出庫履歴の商品検索欄は共有 `SearchBar` の live 型（`debounceMs=200`）を使い、raw の URL `q` と結線する。Enter は debounce を待たず即時反映し、IME 変換確定中の Enter は検索確定と取り違えない。 | 商品一覧・在庫照会との操作一貫性を保ち、自前の draft / IME guard による挙動 drift をなくす。commit 型や画面固有実装を残す案は、一覧 filter 間で確定方法が分裂するため採用しない。 |
 
 ## 65.3 完成形ルート
 
@@ -74,7 +75,7 @@
 |---|---|---|
 | 日付範囲 | 全業務記録 | 業務日付で検索。created_at ではない |
 | 記録ID | 全業務記録 | ID exact match |
-| 商品コード / JAN / 商品名 | 全業務記録 | 明細 JOIN。商品名は部分一致 |
+| 商品コード / JAN / 商品名 | 全業務記録 | 明細 JOIN。商品名は部分一致。商品検索欄は共有 `SearchBar` の live 型（TRACE-D12）を使う |
 | 部門 | 全業務記録 | 商品 master JOIN。完全な部門 master を選択肢に使う |
 | 状態 | 全業務記録 | active / canceled / corrected |
 | 種別 | return / disposal / movement | return/exchange、disposal/damage/other、movement_type |
@@ -95,7 +96,8 @@
 |---|---:|---:|---:|---:|---:|---:|
 | 記録ID / 業務日付 / 作成日時 / 状態 | yes | yes | yes | yes | yes | yes |
 | 明細数 | yes | yes | yes | yes | yes | yes |
-| 商品コード / JAN / 商品名 / 部門 | yes | yes | yes | yes | yes | yes |
+| 商品コード / 商品名 / 部門 | yes | yes | yes | yes | yes | yes |
+| JAN | no | no | no | no | no | no |
 | 数量 / 単位 | yes | yes | yes | yes | yes | yes |
 | 原価 / ロス原価 | yes | no | no | yes | no | yes |
 | 金額 | no | no | yes | no | yes | no |
@@ -193,7 +195,7 @@ UI-03 の既存 `return_records.receipt_image_path` は互換維持し、共通�
 
 `/inventory/records` は調査用画面である。作成導線ではなく、過去記録の検索・詳細確認・出力への入口とする。
 
-- 上部: 日付範囲、種別、記録ID、商品検索、部門、状態。
+- 上部: 日付範囲、種別、記録ID、商品検索、部門、状態。商品検索は共有 `SearchBar` の live 型（`debounceMs=200`、TRACE-D12）とし、URL `q` の変更時は `page` を既定へ戻す。
 - 結果: 記録種別、記録ID、業務日付、代表商品、明細数、状態、記録日時、詳細ボタン。
 - 各行は詳細 route へ遷移する。行内に取消/訂正ボタンは置かず、詳細画面で確認してから行う。
 - 詳細 route へ遷移するリンクは、現在の `/inventory/records` search state を `returnTo` に含める。詳細画面から戻ると、遷移前の検索条件とページを保持した一覧に戻る。
@@ -263,6 +265,7 @@ CSV は UTF-8 BOM 付きとし、既存 report export 方針に合わせる。�
 - REQ-303 / TRACE-D6: 取消戻し movement は通常作成 movement と区別して表示できる。
 - REQ-206 / TRACE-D8/D9: CSV出力、印刷、画像添付は業務記録に紐づく。
 - REQ-206 / TRACE-D11: 入出庫履歴一覧から詳細へ遷移し、詳細から戻ると、遷移前の一覧検索条件とページが保持される。不正な戻り先は `/inventory/records` にフォールバックする。
+- REQ-206 / TRACE-D12: 商品検索欄は `debounceMs=200` の live 型で raw `q` と結線し、Enter 即時反映、IME 変換確定 Enter の誤発火防止、`q` 変更時の page reset を維持する。
 
 ## 65.12 変更履歴
 
@@ -276,3 +279,4 @@ CSV は UTF-8 BOM 付きとし、既存 report export 方針に合わせる。�
 | 2026-07-11 | UI-11c Design Phase | §65.8.3 に [74-ui-operation-logs.md](74-ui-operation-logs.md) への正典リンクと、関連記録リンクの明示 contract（許可リスト・record_type未対応。record_idはreceiving/disposal/returnsの3 producerが書き込み済み）を追記。 |
 | 2026-08-03 | CSV取込み詳細 Design Phase | §65.10 に slice 4b（CSV取込み詳細 route + `getCsvImportRecord(id)`。PR #57 owner L3 の 404 backlog 起源）を追記。詳細表示項目・route・command 契約は既存 §65.3 / §65.5 / §65.7.1 を変更せず正とする。 |
 | 2026-08-03 | ui-polish-batch-b（本 PR） | §65.8.1 に入出庫履歴ハブの filter-empty reset action（catalog ⑥、絞り込み非既定 + 0 件時の「絞り込みを解除」）を追記。 |
+| 2026-08-04 | ui-consistency-batch | TRACE-D12 として商品検索欄を共有 `SearchBar` live 型へ統一。§65.5 は owner 裁定の選択肢 A（実態同期）に従い、「商品コード / 商品名 / 部門」を全列 yes のまま維持し、JAN を全列 no の独立行へ分割した。5 詳細画面への JAN 列追加（選択肢 B）は業務上の必要性が生じた場合に再検討する。 |

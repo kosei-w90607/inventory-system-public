@@ -114,7 +114,7 @@
 ## 73.4 Route / 状態遷移 / Components（future）
 
 ```
-src/routes/stocktake/index.tsx          … route 定義（search param: dept/counted_only/page）
+src/routes/stocktake.tsx                … route 定義（search param: dept/counted_only/page）
 src/features/stocktake/
   StocktakePage.tsx                     … 画面本体（状態分岐のエントリポイント）
   StocktakeStartPanel.tsx               … 未開始時: 開始CTA + 前回完了サマリ

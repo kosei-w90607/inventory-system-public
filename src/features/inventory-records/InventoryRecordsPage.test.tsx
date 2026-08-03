@@ -1,13 +1,14 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import type { ReactNode } from "react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { useState, type ReactNode } from "react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { commands } from "@/lib/bindings";
 import type { InventoryRecordSummary } from "@/lib/bindings";
 import { renderWithRouter } from "@/test/render-with-router";
 import { InventoryRecordsPage } from "./InventoryRecordsPage";
+import type { InventoryRecordsSearch } from "./types";
 
 vi.mock("@/lib/bindings", () => ({
   commands: {
@@ -56,6 +57,10 @@ beforeEach(() => {
       },
     ],
   });
+});
+
+afterEach(() => {
+  vi.useRealTimers();
 });
 
 describe("InventoryRecordsPage (REQ-206)", () => {
@@ -179,7 +184,7 @@ describe("InventoryRecordsPage (REQ-206)", () => {
     });
   });
 
-  it("REQ-206: 商品検索はIME合成中にURL検索条件を更新せず確定後に反映する", async () => {
+  it("REQ-206 / TRACE-D12: 商品検索を200ms後に反映しpageを1へ戻す", async () => {
     mockListInventoryRecords.mockResolvedValue({
       status: "ok",
       data: { items: [], total_count: 0, page: 2, per_page: 20 },
@@ -194,26 +199,192 @@ describe("InventoryRecordsPage (REQ-206)", () => {
     );
 
     const keywordInput = await screen.findByLabelText("商品検索");
-    fireEvent.compositionStart(keywordInput);
+    vi.useFakeTimers();
     fireEvent.change(keywordInput, { target: { value: "ボタン" } });
 
     expect(onSearchChange).not.toHaveBeenCalled();
-
-    fireEvent.compositionEnd(keywordInput);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(199);
+    });
+    expect(onSearchChange).not.toHaveBeenCalled();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1);
+    });
 
     expect(onSearchChange).toHaveBeenCalledTimes(1);
-    const lastCall = onSearchChange.mock.calls[0] as [
-      (prev: { recordType?: string; q?: string; page?: number }) => {
-        recordType?: string;
-        q?: string;
-        page?: number;
-      },
-    ];
-    expect(lastCall[0]({ recordType: "disposal_record", page: 2 })).toEqual({
+    const updater = onSearchChange.mock.calls[0]?.[0] as (prev: {
+      recordType?: string;
+      q?: string;
+      page?: number;
+    }) => { recordType?: string; q?: string; page?: number };
+    expect(updater({ recordType: "disposal_record", page: 2 })).toEqual({
       recordType: "disposal_record",
       q: "ボタン",
       page: 1,
     });
+  });
+
+  it("REQ-206 / TRACE-D12: Enterはdebounceを待たず商品検索を即時反映する", async () => {
+    mockListInventoryRecords.mockResolvedValue({
+      status: "ok",
+      data: { items: [], total_count: 0, page: 2, per_page: 20 },
+    });
+    const onSearchChange = vi.fn();
+
+    renderWithClient(
+      <InventoryRecordsPage
+        search={{ recordType: "disposal_record", page: 2 }}
+        onSearchChange={onSearchChange}
+      />,
+    );
+
+    const keywordInput = await screen.findByLabelText("商品検索");
+    fireEvent.change(keywordInput, { target: { value: "ボタン" } });
+    expect(onSearchChange).not.toHaveBeenCalled();
+
+    fireEvent.keyDown(keywordInput, { key: "Enter" });
+
+    expect(onSearchChange).toHaveBeenCalledTimes(1);
+    const updater = onSearchChange.mock.calls[0]?.[0] as (prev: {
+      recordType?: string;
+      q?: string;
+      page?: number;
+    }) => { recordType?: string; q?: string; page?: number };
+    expect(updater({ recordType: "disposal_record", page: 2 })).toEqual({
+      recordType: "disposal_record",
+      q: "ボタン",
+      page: 1,
+    });
+  });
+
+  it("REQ-206 / TRACE-D12: 商品検索のクリアでqを外しpageを1へ戻す", async () => {
+    mockListInventoryRecords.mockResolvedValue({
+      status: "ok",
+      data: { items: [], total_count: 0, page: 3, per_page: 20 },
+    });
+    const onSearchChange = vi.fn();
+
+    renderWithClient(
+      <InventoryRecordsPage search={{ q: "ボタン", page: 3 }} onSearchChange={onSearchChange} />,
+    );
+
+    const keywordInput = await screen.findByLabelText("商品検索");
+    vi.useFakeTimers();
+    fireEvent.change(keywordInput, { target: { value: "" } });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(200);
+    });
+
+    const updater = onSearchChange.mock.calls[0]?.[0] as (
+      prev: InventoryRecordsSearch,
+    ) => InventoryRecordsSearch;
+    expect(updater({ q: "ボタン", page: 3 })).toEqual({ q: undefined, page: 1 });
+  });
+
+  it("REQ-206 / TRACE-D12: IME変換確定Enterはflushせず確定後の最終文字列を反映する", async () => {
+    mockListInventoryRecords.mockResolvedValue({
+      status: "ok",
+      data: { items: [], total_count: 0, page: 2, per_page: 20 },
+    });
+    const onSearchChange = vi.fn();
+
+    renderWithClient(
+      <InventoryRecordsPage
+        search={{ recordType: "disposal_record", page: 2 }}
+        onSearchChange={onSearchChange}
+      />,
+    );
+
+    const keywordInput = await screen.findByLabelText("商品検索");
+    vi.useFakeTimers();
+    fireEvent.compositionStart(keywordInput);
+    fireEvent.change(keywordInput, { target: { value: "ボタ" } });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(200);
+    });
+
+    expect(onSearchChange).toHaveBeenCalledTimes(1);
+    const intermediateUpdater = onSearchChange.mock.calls[0]?.[0] as (prev: {
+      recordType?: string;
+      q?: string;
+      page?: number;
+    }) => { recordType?: string; q?: string; page?: number };
+    expect(intermediateUpdater({ recordType: "disposal_record", page: 2 }).q).toBe("ボタ");
+
+    fireEvent.change(keywordInput, { target: { value: "ボタン" } });
+    const composingEnter = new KeyboardEvent("keydown", {
+      key: "Enter",
+      bubbles: true,
+      cancelable: true,
+    });
+    Object.defineProperty(composingEnter, "isComposing", { value: true, configurable: true });
+    keywordInput.dispatchEvent(composingEnter);
+
+    expect(onSearchChange).toHaveBeenCalledTimes(1);
+    fireEvent.compositionEnd(keywordInput);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(199);
+    });
+    expect(onSearchChange).toHaveBeenCalledTimes(1);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1);
+    });
+
+    expect(onSearchChange).toHaveBeenCalledTimes(2);
+    const finalUpdater = onSearchChange.mock.calls[1]?.[0] as (prev: {
+      recordType?: string;
+      q?: string;
+      page?: number;
+    }) => { recordType?: string; q?: string; page?: number };
+    expect(finalUpdater({ recordType: "disposal_record", page: 2 })).toEqual({
+      recordType: "disposal_record",
+      q: "ボタン",
+      page: 1,
+    });
+  });
+
+  it("REQ-206 / TRACE-D12: raw qの前後空白を入力表示に保持しqueryだけtrimする", async () => {
+    mockListInventoryRecords.mockResolvedValue({
+      status: "ok",
+      data: { items: [], total_count: 0, page: 2, per_page: 20 },
+    });
+
+    function Harness() {
+      const [search, setSearch] = useState<InventoryRecordsSearch>({ page: 2 });
+      return <InventoryRecordsPage search={search} onSearchChange={setSearch} />;
+    }
+
+    renderWithClient(<Harness />);
+    const keywordInput = await screen.findByLabelText("商品検索");
+    fireEvent.change(keywordInput, { target: { value: "  ボタン  " } });
+    fireEvent.keyDown(keywordInput, { key: "Enter" });
+
+    await waitFor(() => {
+      expect(keywordInput).toHaveValue("  ボタン  ");
+    });
+    await waitFor(() => {
+      expect(mockListInventoryRecords.mock.calls.map(([query]) => query.product_keyword)).toContain(
+        "ボタン",
+      );
+    });
+    expect(
+      mockListInventoryRecords.mock.calls.map(([query]) => query.product_keyword),
+    ).not.toContain("  ボタン  ");
+  });
+
+  it("REQ-206 / SPEC-UICB-6: live型既定の名前・placeholderを使い外付けlabelを持たない", async () => {
+    mockListInventoryRecords.mockResolvedValue({
+      status: "ok",
+      data: { items: [], total_count: 0, page: 1, per_page: 20 },
+    });
+
+    renderWithClient(<InventoryRecordsPage search={{}} onSearchChange={vi.fn()} />);
+
+    const keywordInput = await screen.findByLabelText("商品検索");
+    expect(keywordInput).toHaveAttribute("type", "search");
+    expect(keywordInput).toHaveAttribute("placeholder", "商品コード・商品名・JANで検索");
+    expect(screen.queryByText("商品検索", { selector: "label" })).not.toBeInTheDocument();
+    expect(keywordInput).not.toHaveAttribute("id");
   });
 });
 
@@ -223,12 +394,7 @@ describe("InventoryRecordsPage SPEC-UIBB-1/2（filter-empty reset action、65 §
       status: "ok",
       data: { items: [], total_count: 0, page: 1, per_page: 20 },
     });
-    renderWithClient(
-      <InventoryRecordsPage
-        search={{ recordType: "disposal_record", q: "該当なし" }}
-        onSearchChange={vi.fn()}
-      />,
-    );
+    renderWithClient(<InventoryRecordsPage search={{ q: "該当なし" }} onSearchChange={vi.fn()} />);
     expect(await screen.findByRole("button", { name: "絞り込みを解除" })).toBeInTheDocument();
   });
 

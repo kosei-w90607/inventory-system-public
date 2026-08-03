@@ -3,7 +3,6 @@
 // REQ-206: 入出庫履歴ハブ。初回実装は廃棄・破損記録を具体例にする。
 
 import { Eye, PackageSearch } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 
@@ -21,6 +20,7 @@ import {
 } from "@/components/ui/table";
 import { EmptyState } from "@/components/patterns/EmptyState";
 import { PageHeader } from "@/components/patterns/PageHeader";
+import { SearchBar } from "@/components/patterns/SearchBar";
 import { ProductPagination } from "@/features/products/components/ProductPagination";
 import { commands } from "@/lib/bindings";
 import { unwrapResult } from "@/lib/invoke";
@@ -71,14 +71,6 @@ function buildDetailLinkProps(
 export function InventoryRecordsPage({ search, onSearchChange }: InventoryRecordsPageProps) {
   const normalized = normalizeInventoryRecordsSearch(search);
   const returnTo = buildInventoryRecordsReturnTo(normalized);
-  const [keywordDraft, setKeywordDraft] = useState(normalized.q ?? "");
-  const isKeywordComposingRef = useRef(false);
-
-  useEffect(() => {
-    if (!isKeywordComposingRef.current) {
-      setKeywordDraft(normalized.q ?? "");
-    }
-  }, [normalized.q]);
 
   const departmentsQuery = useQuery({
     queryKey: queryKeys.inventoryRecords.departments(),
@@ -206,35 +198,7 @@ export function InventoryRecordsPage({ search, onSearchChange }: InventoryRecord
               }}
             />
           </div>
-          <div className="grid min-w-[18rem] flex-1 gap-1">
-            <label className="text-sm text-muted-foreground" htmlFor="records-keyword">
-              商品検索
-            </label>
-            <input
-              id="records-keyword"
-              className="h-9 rounded-md border border-input bg-background px-3 text-sm"
-              value={keywordDraft}
-              placeholder="商品コード・JAN・商品名"
-              onChange={(event) => {
-                const next = event.currentTarget.value;
-                const nativeEvent = event.nativeEvent as InputEvent;
-                setKeywordDraft(next);
-                if (isKeywordComposingRef.current || nativeEvent.isComposing) {
-                  return;
-                }
-                updateKeywordSearch(next);
-              }}
-              onCompositionStart={() => {
-                isKeywordComposingRef.current = true;
-              }}
-              onCompositionEnd={(event) => {
-                isKeywordComposingRef.current = false;
-                const next = event.currentTarget.value;
-                setKeywordDraft(next);
-                updateKeywordSearch(next);
-              }}
-            />
-          </div>
+          <SearchBar value={search.q ?? ""} debounceMs={200} onSearchChange={updateKeywordSearch} />
           <div className="grid gap-1">
             <label className="text-sm text-muted-foreground" htmlFor="records-id">
               記録ID
