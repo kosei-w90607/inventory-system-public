@@ -11,6 +11,7 @@ Risk: R3
 - SPEC-UICB-3: q 変更（クリア含む）で page 既定 reset
 - SPEC-UICB-4: function-design 配下 `/pos/` 記載 0、52 §52.3 = 実 route
 - SPEC-UICB-5: 65 §65.5 JAN 行 = 実装実態 + owner 裁定 A 記録
+- SPEC-UICB-6: 外付け label / `id` なし、既定 aria-label「商品検索」+ 既定 placeholder 統一
 - 現行維持契約: TRACE-D11（条件保持）/ SPEC-UIBB-1/2（filter-empty reset）
 
 ## Failure Modes
@@ -37,7 +38,7 @@ Risk: R3
 | SPEC-UICB-3 | page reset 消失 | unit | 新設または既存拡張: q 変更時 page reset test | M-A4: `updateKeywordSearch` の `resetPage` を false へ変更 |
 | TRACE-D11 | 条件保持破壊 | regression | 既存: 一覧⇄詳細の検索条件・page 保持 test（実在を rg で確認してから引用） | M-A6: 検索欄置換で search param merge を破壊 |
 | SPEC-UIBB-1/2 | filter-empty 判定破壊 | regression | 既存: filter-empty reset action test | M-A7: `isFilterDefault` から `q` 判定を欠落 |
-| AC10（アクセシブルネーム + placeholder 統一） | label 撤去漏れ / 文言 drift | unit + CLI | 既存 `findByLabelText("商品検索")` green 維持 + placeholder assert 追加 + `rg -n "records-keyword" src/` 0 hit | M-A8: aria-label を別文言へ変更、または外付け label を残置 |
+| SPEC-UICB-6（AC10） | label 撤去漏れ / 文言 drift | unit + CLI | 既存 `findByLabelText("商品検索")` green 維持 + placeholder assert 追加 + `rg -n "records-keyword" src/` 0 hit | M-A8: aria-label を別文言へ変更、または外付け label を残置 |
 | SPEC-UICB-4 | 52 是正漏れ / 新 drift | CLI (review 手順) | `rg -n "/pos/" docs/function-design/` = 0 hit + §52.3 全行を `src/routeTree.gen.ts` と突合 | M-B1: 52 の 1 行だけ旧 URL に戻す |
 | SPEC-UICB-5 | 65 同期漏れ / 過剰削除 | review | §65.5 JAN 行と 5 DTO（bindings.ts の 5 DetailItem 型）の突合 + 変更履歴の裁定記録確認 | M-B2: JAN 行を削除だけして裁定記録を残さない |
 

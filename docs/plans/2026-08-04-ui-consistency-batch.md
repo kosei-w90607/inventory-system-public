@@ -90,7 +90,7 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 - AC4: `q` 変更（クリア含む）で page が既定へ reset される（現行挙動維持） — page reset test。
 - AC5: `rg -n "/pos/" docs/function-design/` が 0 hit（52 是正後、function-design 配下から陳腐化 URL が消える）。
 - AC6: 52 §52.3 の URL 列・route ファイル列が `src/routeTree.gen.ts` の実 route と一致する — Plan/Final Review の実 route 突合。
-- AC7: 65 §65.5 詳細項目表で「商品コード / JAN / 商品名 / 部門」行が「商品コード / 商品名 / 部門」（全列 yes 維持）と「JAN」（全列 no）の 2 行へ分割される — 5 つの `*RecordDetailItem` 型（Receiving / Return / ManualSale / Disposal / CsvImport、`src/lib/bindings.ts`）の型定義に JAN field 0 hit のまま + 変更履歴に owner 裁定 A（2026-08-04）の行が存在。
+- AC7: 65 §65.5 詳細項目表で「商品コード / JAN / 商品名 / 部門」行が「商品コード / 商品名 / 部門」（全列 yes 維持）と「JAN」（全列 no）の 2 行へ分割される — 5 つの `*RecordDetailItem` 型（Receiving / Return / ManualSale / Disposal / CsvImport、`src/lib/bindings.ts`）+ 棚卸し列の対応型 `StocktakeItemDetail` の型定義に JAN field 0 hit のまま + 変更履歴に owner 裁定 A（2026-08-04）の行が存在（棚卸しの record detail 画面自体は未実装だが §65.5 の列としては存在するため DTO 突合対象に含める）。
 - AC8: 既存 filter（種別 / 日付 / 記録ID / 部門 / 状態）、filter-empty reset action（SPEC-UIBB-1/2）、一覧⇄詳細の条件保持（TRACE-D11）が不変 — `npm test -- InventoryRecordsPage` exit code 0（既存 test 削除・skip なし）。
 - AC9: `bash scripts/local-ci.sh full` CLEAN（L1）、`bindings.ts` diff ゼロ。
 - AC10: 検索欄のアクセシブルネームが「商品検索」のまま到達可能（`findByLabelText("商品検索")` green）+ placeholder が SearchBar 既定「商品コード・商品名・JANで検索」である assert、外付け `<label>` / `id="records-keyword"` の残存 0（`rg -n "records-keyword" src/` 0 hit）。
@@ -172,6 +172,7 @@ N/A — 未検証の外部前提なし。SearchBar は repo 内既存部品（�
 | 現行意味論維持: q 変更で page 既定 reset | 同上 | page reset test | — |
 | TRACE-D11: 一覧⇄詳細の検索条件・page 保持 | 既存実装（不変） | 既存 test 維持 | — |
 | SPEC-UIBB-1/2: filter-empty reset action の isFilterDefault 判定に q が含まれ続ける | 既存実装（不変） | 既存 test 維持 | — |
+| UI-01a-D9 同型: 外付け label / `id` 撤去 + 既定 aria-label「商品検索」維持 + placeholder 既定値統一 | `InventoryRecordsPage.tsx` | AC10 assert（`findByLabelText` + placeholder + `rg "records-keyword"` 0 hit） | L3: label 撤去後の filter 行視覚整合 |
 | 59 §59.1 採用箇所表 = 実採用と一致 | `59-ui-shared-patterns.md` | — | Plan/Final Review の doc 突合 |
 | 52 §52.3 表 = 実 route と一致、`/pos/*` 記載 0 | `52-ui-shared-layout.md` / `73-ui-stocktake.md` | AC5 rg sweep（review 手順） | Final Review の routeTree 突合 |
 | 65 §65.5 JAN 行 = 5 詳細画面 DTO 実態と一致 + 裁定記録 | `65-inventory-record-traceability.md` | — | Final Review の DTO 突合 |
@@ -215,6 +216,7 @@ Contract ID: SPEC-UICB
 - SPEC-UICB-3: `q` の変更（クリア含む）は page を既定へ reset する（現行意味論維持）。
 - SPEC-UICB-4: `docs/function-design/` 配下に `/pos/` 由来の陳腐化 URL 記載が存在しない（archive 除外）。52 §52.3 の URL / route file 列は実 route と一致する。
 - SPEC-UICB-5: 65 §65.5 の JAN 行は 5 詳細画面の実態（JAN 非表示・DTO field なし)と一致し、選択肢 B 不採用の owner 裁定（2026-08-04）が変更履歴に残る。
+- SPEC-UICB-6: 検索欄は外付け label / `id` を持たず、SearchBar 既定 aria-label「商品検索」と既定 placeholder「商品コード・商品名・JANで検索」を用いる（商品一覧・在庫照会と同一）。
 
 ## Trace Matrix
 
@@ -225,6 +227,7 @@ Contract ID: SPEC-UICB
 | SPEC-UICB-3 | updateKeywordSearch 維持 | page reset test（M-A4） | reset 意味論 | test 名 |
 | SPEC-UICB-4 | 52 / 73 是正 | rg sweep（M-B1） | 実 route 突合 | review 記録 |
 | SPEC-UICB-5 | 65 §65.5 同期 | —（doc） | DTO 突合 | review 記録 |
+| SPEC-UICB-6 | 外付け label 撤去 + 既定値統一 | AC10 assert（M-A8） | アクセシブルネーム維持 | test 名 + L3 |
 
 ## Data Safety
 
@@ -259,3 +262,9 @@ Do not transcribe exact-HEAD SHA or test counts here (D-035/D-038 Evidence Owner
 - P2-B accept（実読裏取り: `LiveSearchBar` は `Omit<..., "id">` で `id` を受け取らず、商品一覧は外付け label なし）→ 外付け label 撤去を Scope へ明記、アクセシブルネームは既定 aria-label「商品検索」が維持
 - P3 accept → Human Gate へ到達手順を追記
 - round 3 を fresh 独立 context で再審査する
+
+**Plan Gate round 3**（2026-08-04、fresh Sonnet Plan Reviewer 独立 context、round 2 是正 3 項目 = 全 OK、新規 P1=1 / P2=0 / P3=1）
+
+- P1 accept（Coordinator 自packet 突合で confirmed。round 2 是正を AC10 / M-A8 へ反映した際、同契約の Ledger / Spec Contract / Trace Matrix への sweep を漏らした packet-correction-full-sweep の再発型）→ Ledger へ UI-01a-D9 label/placeholder サブ契約行、SPEC-UICB-6 新設、Trace Matrix 行追加、Matrix 側の参照 ID 同期
+- P3 accept → AC7 の DTO 突合対象へ `StocktakeItemDetail` を追加列挙（§65.5 全 6 列と検証範囲を一致させる）
+- round 4（収束確認 focused round）を fresh 独立 context で実施する
