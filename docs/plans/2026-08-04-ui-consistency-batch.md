@@ -1,0 +1,243 @@
+# Plan Packet — UI consistency batch（検索欄 live 統一 / 52 §52.3 routing 表 / 65 §65.5 JAN 行）
+
+## Workflow State
+
+- Phase: plan-gate
+- Risk: R3
+- Execution Mode: fable-window
+- Plan Commit: pending
+- Amendments: none
+- Coordinator: Claude Fable 5（main thread）
+- Writer: Codex（GPT-5.6）
+- Plan Reviewer: Claude Sonnet 5（independent subagent）
+- Final Reviewer: Claude Sonnet 5（independent subagent）
+- Reviewed Content HEAD: pending
+- Final Exact-HEAD Evidence: PR body
+- Hosted CI Requirement: required
+- Human Gate: L3（入出庫履歴 検索欄の live 動作 + IME 入力確認、Windows native）/ Ready 承認
+
+起票時の状態遷移: kickoff → spec-check → plan-draft → plan-gate を本 plan-first commit で materialize する。spec-check → plan-draft の skip 根拠 = Design Readiness が既存設計書（50 UI-01a-D9 / 59 §59.1-59.2 / 65 / 52 / 73）で実装十分と引用（設計新設なし、既存契約の適用と docs 実態同期のみ）。
+
+## Owner Effort Budget
+
+- 介入回数上限: 3
+- 実働時間上限: 30分
+- relay 往復上限: 2
+
+既定値と超過時の Coordinator 責務は `docs/DEV_WORKFLOW.md` `Owner Effort Budget` 参照。
+承認依頼フォーマット: `この change での介入 N 回目 / 予算 M 回` + `承認すると利用者から見て何が完了するか1文`。
+
+## Consultation Relay
+
+- Review Order Artifact: none
+- Review Order Ref: none
+
+## Risk
+
+Risk: R3
+
+Reason:
+入出庫履歴の検索欄 live 統一は URL search state（`q` param）と operator-facing UI 挙動に触れる（DEV_WORKFLOW Risk Tiers: route/search state / operator workflow は R3）。52 §52.3 と 65 §65.5 は docs-only（単独なら R0-R2 相当）だが、batch 全体の tier は最高値の R3 を採る。
+
+## Goal
+
+Goal Invariant:
+
+### 最小完了条件
+
+- 入出庫履歴（`/inventory/records`）の商品検索欄が、商品一覧・在庫照会と同じ共有 SearchBar live 型（`debounceMs=200`、Enter 即時 flush、IME composing guard、no-trim URL 結線）で動作する。
+- 52 §52.3 のルーティング表・URL 設計根拠段落、および 65 §65.5 の JAN 行が、実装の実態（実 route / 5 詳細画面の JAN 非表示）と一致する。
+
+### 失敗定義
+
+- 検索欄の既存機能（キーワード絞り込み、URL 復元、IME 入力、q 変更時の page reset、他 filter との併用）のいずれかが退行する。
+- docs 同期が実装と新たな乖離を生む（誤った URL / route file / 項目規定を書き込む）。
+
+### 非目的
+
+- 取引 4 画面（入庫 / 返品交換 / 手動販売 / 廃棄）+ 棚卸しの商品追加欄・対象確認欄の live 化 / autocomplete 化。これらは UI-04-D4 / UI-05-D5 系列の明示的 commit 型設計（scan-like flow）であり、live 候補プレビュー化は別 change 候補として `Plans.md` backlog に記録済み（owner 裁定 2026-08-04）。
+- 5 詳細画面への JAN 列追加（選択肢 B）。owner 裁定（2026-08-04）で選択肢 A =「§65.5 を実態同期」を採用。B は要望発生時に別 change。
+- 記録ID（`type="number"`）等、自由テキスト検索欄でない入力の変更。
+- 在庫少一覧（実体 = 在庫照会 `/stock`、live 型適用済み）への変更。
+- raw message 直接表示の describeError 化（別 R3 として起票予定）。
+- `docs/archive/` 配下の陳腐化 URL 是正（設計合意時点のスナップショットとして凍結）。
+
+Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
+
+## Scope
+
+- `src/features/inventory-records/InventoryRecordsPage.tsx`: 商品検索欄（`records-keyword`）を自前実装（`keywordDraft` state + 自前 IME composing guard + 即時 `updateKeywordSearch`）から共有 `SearchBar`（`src/components/patterns/SearchBar.tsx`、live 型 `debounceMs=200`）へ置換。value 結線は raw `search.q ?? ""`（UI-01a-D9 同型、normalized 値を value に渡さない）。`q` 変更時の page 既定 reset（現行 `updateKeywordSearch` の `resetPage = true`）は維持。
+- `src/features/inventory-records/InventoryRecordsPage.test.tsx`: live 結線（debounce 発火 / Enter 即時 flush / IME composing 中の非発火 / no-trim / page reset）の regression test を追加・更新。
+- `docs/function-design/65-inventory-record-traceability.md`: §65.4.1 共通フィルタに商品検索欄の live 型契約を新 decision ID **TRACE-D12** として明記、§65.8.1 の該当記述同期、§65.5 詳細項目表の JAN 行を実態（5 詳細画面 JAN 非表示・DTO に field なし）へ同期し、変更履歴に owner 裁定（選択肢 A、2026-08-04）を記録。
+- `docs/function-design/59-ui-shared-patterns.md`: §59.1 SearchBar 採用箇所表へ入出庫履歴（live 型）を追加。
+- `docs/function-design/52-ui-shared-layout.md`: §52.3 の UI-07 行（`/pos/csv-import` → `/csv-import`、route file・備考含む）/ UI-08 行（`/pos/plu-export` → `/products/plu-export`、備考含む）/ UI-10 行（route file `src/routes/stocktake/index.tsx` → `src/routes/stocktake.tsx`）+ 「URL 設計の根拠」段落の `/pos/*` 列挙削除。
+- `docs/function-design/73-ui-stocktake.md`: route file 表記 `src/routes/stocktake/index.tsx` → `src/routes/stocktake.tsx` の是正（52 §52.3 UI-10 行と同根 drift）。
+- `Plans.md`: active packet link の登録 + 商品追加欄 live 候補プレビュー（autocomplete）化の backlog 起票（plan-first commit）。消化項目の打ち消しは Post-Merge Closeout で実施。
+
+## Non-scope
+
+- 商品追加欄 / 対象確認欄（5 画面）の挙動変更（上記 非目的参照）。
+- `SearchBar` 部品本体の変更（既存 2 画面で採用実績のある部品をそのまま使う。部品規約は §59.2 / catalog ⑨ 不変）。
+- backend（Rust / CMD / BIZ / IO）・DB・bindings の変更（本 batch は frontend 1 file + docs のみ。`bindings.ts` diff ゼロ）。
+- 記録種別 / 日付 / 記録ID / 部門 / 状態 filter の挙動変更。
+- `docs/archive/` 配下の記述変更。
+
+## Acceptance Criteria
+
+- AC1: 入出庫履歴の商品検索欄に入力すると、debounce 200ms 経過後に URL `q` param と一覧 query が更新される。Enter は debounce を待たず即時反映する — `InventoryRecordsPage.test.tsx` の live 結線 test（fake timer で 200ms 前後の発火有無を assert）。
+- AC2: IME composing 中の入力では search 更新が発火せず、変換確定（compositionend）で反映される。変換確定 Enter（`isComposing`）は誤発火しない — 同 test file の IME test。
+- AC3: `q` は raw のまま URL に結線され、value にも raw `search.q` が渡る（trim は query 構築時の normalized 側のみ、UI-01a-D9 同型） — 前後空白入りキーワードでの no-trim assert。
+- AC4: `q` 変更（クリア含む）で page が既定へ reset される（現行挙動維持） — page reset test。
+- AC5: `rg -n "/pos/" docs/function-design/` が 0 hit（52 是正後、function-design 配下から陳腐化 URL が消える）。
+- AC6: 52 §52.3 の URL 列・route ファイル列が `src/routeTree.gen.ts` の実 route と一致する — Plan/Final Review の実 route 突合。
+- AC7: 65 §65.5 の JAN 行が 5 詳細画面 DTO の実態と一致する — `rg -n "jan" src/lib/bindings.ts` の 5 DetailItem 型（Receiving / Return / ManualSale / Disposal / CsvImport）に JAN field が 0 hit のまま、§65.5 該当行が「no」表記 + 変更履歴に owner 裁定 A（2026-08-04）の行が存在。
+- AC8: 既存 filter（種別 / 日付 / 記録ID / 部門 / 状態）、filter-empty reset action（SPEC-UIBB-1/2）、一覧⇄詳細の条件保持（TRACE-D11）が不変 — `npm test -- InventoryRecordsPage` exit code 0（既存 test 削除・skip なし）。
+- AC9: `bash scripts/local-ci.sh full` CLEAN（L1）、`bindings.ts` diff ゼロ。
+
+## Design Sources
+
+- Requirements / spec: `docs/spec/requirements.md` REQ-206（一覧検索）
+- Architecture: 変更なし（UI 層内の部品置換のみ）
+- Function / command / DTO: `docs/function-design/65-inventory-record-traceability.md` §65.4.1 / §65.5 / §65.8.1、`docs/function-design/59-ui-shared-patterns.md` §59.1-59.2、`docs/function-design/50-ui-product-list.md` UI-01a-D9（live 型契約の原型）、`docs/function-design/52-ui-shared-layout.md` §52.3、`docs/function-design/73-ui-stocktake.md`
+- DB: 変更なし
+- Screen / UI: `docs/design-system/02-component-catalog.md` ⑨（SearchBar）
+- Decision log / ADR: JAN 裁定（選択肢 A）は本 packet + 65 変更履歴に記録（decision-log 昇格は不要規模と判断）
+
+## Required Design Artifacts
+
+| Area touched by upcoming work | Required source doc / artifact | Status |
+|---|---|---|
+| Backend function / command / repository / validation / error | 変更なし | 該当なし |
+| Command / DTO / generated binding / wire shape | 変更なし（bindings diff ゼロを AC9 で確認） | 該当なし |
+| DB / transaction / audit / rollback / migration | 変更なし | 該当なし |
+| Screen / UI / route state / Japanese wording | 65 §65.4.1（TRACE-D12 新設）/ §65.5 / §65.8.1、59 §59.1、52 §52.3、73 | updated in this PR |
+| CSV / TSV / report / import / export format | 変更なし | 該当なし |
+| Durable decision / ADR | JAN 裁定 A は 65 変更履歴 + 本 packet | updated in this PR |
+
+## Registration / Generation Obligations
+
+該当なし（新規 command / route / 画面 / function-design doc の追加なし。REQ token は既存 test の維持のみで、FE test file の REQ 参照 baseline〈WF-TRACE-01 T4〉が変わる場合は `cargo run --bin generate_traceability` で再生成する）。
+
+## Design Intent Trace
+
+| Spec / requirement ID | Source design doc section | Decision ID | Why / rejected alternatives | Implementation target | Test target |
+|---|---|---|---|---|---|
+| REQ-206 | 65 §65.4.1 | TRACE-D12（新設） | 商品検索欄を SearchBar live 型（debounceMs=200）へ統一。理由 = 商品一覧・在庫照会との操作一貫性（UI-01a-D9 同型）+ 自前 IME guard 実装の drift 解消。rejected = 自前実装の維持（部品規約の二重管理）、commit 型化（live 型が filter 欄の全社契約） | `InventoryRecordsPage.tsx` | live 結線 / IME / no-trim / page reset test |
+| REQ-206 | 59 §59.1 | （表更新のみ） | SearchBar 採用箇所表へ入出庫履歴を追加し採用実態と一致させる | `59-ui-shared-patterns.md` | doc review |
+| — | 52 §52.3 | （実態同期のみ） | UI-07/UI-08/UI-10 行と URL 設計根拠段落を実 route へ同期。rejected = route 側を doc に合わせる変更（既存 URL は PR #57 batch A 等で確定済み） | `52-ui-shared-layout.md` / `73-ui-stocktake.md` | AC5 rg sweep + review |
+| REQ-206 | 65 §65.5 | （owner 裁定 A、2026-08-04） | JAN 行を実態同期。rejected = 選択肢 B（5 画面 JAN 列追加。技術コストは小さいが operator 業務上の必要性を示す記録が皆無 — 現店舗は部門キー運用） | `65-inventory-record-traceability.md` | doc review + DTO 突合 |
+
+## Design Intent Audit
+
+- Source docs can answer what is being built and why without chat history or archived Plan Packets: yes（TRACE-D12 を 65 に、採用箇所を 59 に、JAN 裁定を 65 変更履歴に明記する）
+- Plan-only durable decisions found and promoted to source docs / decision-log / ADR: JAN 裁定 A → 65 変更履歴。autocomplete 化の見送りと候補記録 → `Plans.md` backlog
+- Assumptions and constraints: SearchBar 部品の live 型挙動（debounce / Enter flush / IME guard）は既存 2 画面 + 部品単体 test で固定済み。現行 `updateKeywordSearch` は trim なし・page reset ありで、live 統一後も同意味論を保持する
+- Deferred design gaps, risk, and follow-up target: 商品追加欄の autocomplete 化（variant B: Enter commit 経路維持 + 入力中候補プレビュー）は backlog 起票のみ。keywordDraft 初期値が normalized.q 由来という現行の軽微 drift は SearchBar 置換（raw 結線）で同時解消
+- Test Design Matrix can cite design decision IDs or source doc sections: yes（TRACE-D12 / UI-01a-D9 / §59.2 / SPEC-UICB-*）
+- Absolute guarantee / escape hatch self-check completed: yes（例外なし。既存挙動の意味論変更は「即時更新 → debounce 200ms」の統一のみで、これは TRACE-D12 の意図した変更）
+
+## Impact Review Lenses
+
+not applicable — 本 batch は field 調査 / 実機挙動 / 外部 tool / POS 連携 / フォーマット変更を起点としない（repo 内実査と owner 裁定のみが入力）。環境・再現性 lens: 新設の環境依存なし（既存部品の適用と docs 同期のみ、toolchain / CI 変更なし）。
+
+## Design Readiness
+
+- Existing design docs are sufficient because: live 型契約は UI-01a-D9（50）と §59.1-59.2（59）で確立済みで、本 batch はその適用先追加。52 / 65 は記述の実態同期であり新設計なし
+- Source docs updated in this PR: 65（TRACE-D12 新設 + §65.5 同期）、59（採用箇所表）、52（§52.3）、73（route file 表記）
+- Design gaps intentionally deferred: 商品追加欄 autocomplete 化（backlog）、JAN 列追加 B 案（不採用、要望発生時に再考）
+- Durable decisions discovered in this plan and promoted to source docs: TRACE-D12、JAN 裁定 A
+
+Minimum design checks for business-app work:
+
+- Layer ownership (`UI -> CMD -> BIZ -> IO/MNT`): UI 層内のみ。CMD 以下不変
+- Backend function design: 変更なし
+- Command / DTO / data contract: 変更なし（bindings diff ゼロ）
+- Persistence / transaction / audit impact: なし
+- Operator workflow / Japanese UI wording: 検索欄 label「商品検索」placeholder「商品コード・JAN・商品名」は不変。挙動が「即時反映」から「200ms debounce + Enter 即時」へ統一される（商品一覧・在庫照会と同一体験）
+- Error, empty, retry, and recovery behavior: 不変（filter-empty reset action は既存 SPEC-UIBB-1/2 のまま）
+- Testability and traceability IDs: TRACE-D12 / 既存 REQ-206 token を test に付与
+
+## Contract Probe
+
+N/A — 未検証の外部前提なし。SearchBar は repo 内既存部品（採用実績 2 画面 + 単体 test あり）で、外部 library / OS 挙動への新規依存を持たない。
+
+## Contract Coverage Ledger
+
+| Design contract / decision ID | Implementation target | Automated test | L3 or non-scope |
+|---|---|---|---|
+| TRACE-D12: 商品検索欄 SearchBar live 型（debounceMs=200） | `InventoryRecordsPage.tsx` | live 結線 test（debounce 発火 / Enter 即時） | L3: 実機で入力→一覧絞り込みの目視 |
+| UI-01a-D9 同型: value = raw `search.q`、no-trim | 同上 | no-trim assert | — |
+| §59.2: IME composing 中は更新なし、確定で反映 | 同上（SearchBar 経由） | IME test | L3: IME で商品名入力の目視 |
+| 現行意味論維持: q 変更で page 既定 reset | 同上 | page reset test | — |
+| TRACE-D11: 一覧⇄詳細の検索条件・page 保持 | 既存実装（不変） | 既存 test 維持 | — |
+| SPEC-UIBB-1/2: filter-empty reset action の isFilterDefault 判定に q が含まれ続ける | 既存実装（不変） | 既存 test 維持 | — |
+| 59 §59.1 採用箇所表 = 実採用と一致 | `59-ui-shared-patterns.md` | — | Plan/Final Review の doc 突合 |
+| 52 §52.3 表 = 実 route と一致、`/pos/*` 記載 0 | `52-ui-shared-layout.md` / `73-ui-stocktake.md` | AC5 rg sweep（review 手順） | Final Review の routeTree 突合 |
+| 65 §65.5 JAN 行 = 5 詳細画面 DTO 実態と一致 + 裁定記録 | `65-inventory-record-traceability.md` | — | Final Review の DTO 突合 |
+
+## Test Plan
+
+Test Design Matrix: [test-matrices/2026-08-04-ui-consistency-batch.md](test-matrices/2026-08-04-ui-consistency-batch.md)
+
+- targeted tests: `npm test -- InventoryRecordsPage`（live 結線 / IME / no-trim / page reset / 既存 filter regression）
+- negative tests: IME composing 中の非発火、空文字クリアでの `q` param 削除 + page reset
+- compatibility checks: 既存 URL（`?q=...` 付き）での復元表示、`bindings.ts` diff ゼロ
+- data safety checks: 実店舗データ不使用（synthetic fixture のみ）
+- main wiring/integration checks: SearchBar → URL `q` → 一覧 query の end-to-end 結線（mock でなく実 router で assert）
+- L3 を含むため、Writer 完了条件に `cargo check --release` を含める（backend 変更なしのため形式確認）
+
+## Boundary / Wire Contract
+
+- producer: `SearchBar onSearchChange`（raw 文字列）
+- consumer: TanStack Router URL search `q` → normalized（trim）→ 一覧 query の `keyword`
+- wire type: URL search param `q: string | undefined`（raw、空文字は undefined へ畳む）
+- internal type: `normalized.q`（trim 済み。query 構築・filter 既定判定専用）
+- precision/range: 該当なし（文字列）
+- round-trip path: 入力 → URL → reload / 詳細から戻る → value 復元（raw）
+- invalid input: 空文字 / 空白のみ → `q` param 削除（既存挙動維持）
+- compatibility: 既存共有 URL の `q` は raw / normalized どちらの由来でも同一表示に解決される
+
+## Review Focus
+
+- 「即時更新 → debounce 200ms」の意味論変更が TRACE-D12 の意図どおりで、それ以外の意味論（no-trim / page reset / IME / filter-empty 判定）が現行同一であること
+- `keywordDraft` + 自前 IME guard の撤去に伴う regression（特に compositionend 経路）
+- docs 同期 3 点（52 / 65 / 59・73）が実装・実 route・実 DTO と一字一句一致すること（是正で新 drift を作らない）
+- 非目的の遵守（商品追加欄 5 箇所に触れていないこと）
+
+## Spec Contract
+
+Contract ID: SPEC-UICB
+
+- SPEC-UICB-1: 入出庫履歴の商品検索欄は共有 SearchBar live 型（`debounceMs=200`）で URL `q` に raw 結線される（value = raw `search.q ?? ""`）。
+- SPEC-UICB-2: IME composing 中は search 更新が発火せず、変換確定で反映される。変換確定 Enter は誤発火しない。
+- SPEC-UICB-3: `q` の変更（クリア含む）は page を既定へ reset する（現行意味論維持）。
+- SPEC-UICB-4: `docs/function-design/` 配下に `/pos/` 由来の陳腐化 URL 記載が存在しない（archive 除外）。52 §52.3 の URL / route file 列は実 route と一致する。
+- SPEC-UICB-5: 65 §65.5 の JAN 行は 5 詳細画面の実態（JAN 非表示・DTO field なし)と一致し、選択肢 B 不採用の owner 裁定（2026-08-04）が変更履歴に残る。
+
+## Trace Matrix
+
+| Spec ID | Plan Step | Test | Review Focus | Evidence |
+|---|---|---|---|---|
+| SPEC-UICB-1 | SearchBar 置換 | live 結線 test（M-A1/A2） | debounce / Enter 意味論 | test 名 + L3 |
+| SPEC-UICB-2 | 自前 IME guard 撤去 | IME test（M-A3） | compositionend 経路 | test 名 + L3 |
+| SPEC-UICB-3 | updateKeywordSearch 維持 | page reset test（M-A4） | reset 意味論 | test 名 |
+| SPEC-UICB-4 | 52 / 73 是正 | rg sweep（M-B1） | 実 route 突合 | review 記録 |
+| SPEC-UICB-5 | 65 §65.5 同期 | —（doc） | DTO 突合 | review 記録 |
+
+## Data Safety
+
+- 実 POS / 店舗 artifact、DB file、backup、log、receipt image、secret は commit しない。
+- local-only paths: `.local/ci-evidence/`（L1 証跡、commit しない）。
+- synthetic-only paths: test fixture は synthetic データのみ。
+
+## Implementation Results
+
+Fill after implementation.
+
+Do not transcribe exact-HEAD SHA or test counts here (D-035/D-038 Evidence Ownership). Record a qualitative summary and the PR link only.
+
+## Review Response
+
+Fill after review.
+If R3 review-only sub-agent is skipped, record an explicit line beginning with `Review-only skipped because:` and the reason.
+- Findings Freeze: not yet frozen; post-freeze exceptions: none.
