@@ -273,3 +273,8 @@ Do not transcribe exact-HEAD SHA or test counts here (D-035/D-038 Evidence Owner
 
 - P1 accept（Coordinator 自packet 突合で confirmed。round 3 の 6 列化を AC7 のみに適用し、SPEC-UICB-5 / Ledger / M-B2 を「5」のまま残した同型 sweep 漏れの 2 度目）→ 「5 詳細画面 / 5 DTO」系表現を `rg` で全 7 出現を機械列挙し、AC7（是正済み）と Non-scope の B 案説明（5 画面が正確）を除く 5 箇所（Goal / Scope / Ledger / SPEC-UICB-5 / M-B2）を「5 詳細画面 + 棚卸し列 StocktakeItemDetail（全 6 DTO）」へ一括改稿
 - round 5（収束確認 focused round）を fresh 独立 context で実施する
+
+**Plan Gate round 5**（2026-08-04、fresh Sonnet Plan Reviewer 独立 context）
+
+- round 4 是正 5 箇所 = 全 OK（bindings.ts 実測で全 6 DTO と記述の一致確認）、残存「5」系 hit はすべて意図的記述と判定
+- 新規 P1=0 / P2=0 / P3=0 — **収束**。Plan Gate rally は 5 round 単調収束（P1+P2: 5→2→1→1→0）で終了、owner plan 承認待ちへ
