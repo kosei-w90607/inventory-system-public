@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/table";
 import { ProductPagination } from "@/features/products/components/ProductPagination";
 import { commands, type OperationLog } from "@/lib/bindings";
+import { describeError } from "@/lib/describe-error";
 import { unwrapResult } from "@/lib/invoke";
 import { queryKeys } from "@/lib/query-keys";
 import {
@@ -398,7 +399,7 @@ export function OperationLogsPage({
         <Alert variant="destructive">
           <AlertTitle>操作ログの取得に失敗しました</AlertTitle>
           <AlertDescription className="space-y-2">
-            <p>{logsQuery.error.message}</p>
+            <p>{describeError(logsQuery.error)}</p>
             <Button type="button" variant="outline" onClick={() => void logsQuery.refetch()}>
               再試行
             </Button>

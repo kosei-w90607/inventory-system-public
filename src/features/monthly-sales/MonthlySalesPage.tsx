@@ -10,6 +10,7 @@ import { useMemo } from "react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import type { OfficialMonthlyDepartmentTotal, SalesMode, SalesReportType } from "@/lib/bindings";
+import { describeError } from "@/lib/describe-error";
 import { EmptyState } from "@/components/patterns/EmptyState";
 import { PageHeader } from "@/components/patterns/PageHeader";
 import { useExportFile } from "@/lib/hooks/useExportFile";
@@ -85,7 +86,7 @@ export function MonthlySalesPage({ search, onSearchChange }: MonthlySalesPagePro
         <Alert variant="destructive">
           <AlertTitle>月次売上データを取得できませんでした</AlertTitle>
           <AlertDescription className="flex items-center justify-between gap-2">
-            <span>{query.error.message}</span>
+            <span>{describeError(query.error)}</span>
             <Button
               type="button"
               variant="outline"

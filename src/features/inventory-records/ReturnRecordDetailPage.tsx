@@ -22,7 +22,8 @@ import { EmptyState } from "@/components/patterns/EmptyState";
 import { PageHeader } from "@/components/patterns/PageHeader";
 import { MovementTable } from "@/features/stock-movements/components/MovementTable";
 import { commands } from "@/lib/bindings";
-import { toCmdError, unwrapResult } from "@/lib/invoke";
+import { describeError } from "@/lib/describe-error";
+import { unwrapResult } from "@/lib/invoke";
 import { queryKeys } from "@/lib/query-keys";
 import { formatDateTime, formatRecordStatus } from "./types";
 
@@ -88,12 +89,11 @@ export function ReturnRecordDetailPage({ recordId, returnTo }: ReturnRecordDetai
   }
 
   if (detailQuery.isError) {
-    const cmdError = toCmdError(detailQuery.error);
     return (
       <div className="space-y-4 p-6">
         <PageHeader title="返品・交換詳細" />
         <Alert variant="destructive">
-          <AlertTitle>{cmdError.message}</AlertTitle>
+          <AlertTitle>{describeError(detailQuery.error)}</AlertTitle>
           <AlertDescription>
             記録IDを確認するか、入出庫履歴から開き直してください。
           </AlertDescription>

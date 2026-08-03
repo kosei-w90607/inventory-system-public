@@ -12,6 +12,7 @@ import { toast } from "sonner";
 
 import { commands } from "@/lib/bindings";
 import type { SalesExportResponse, SalesReportType } from "@/lib/bindings";
+import { describeError } from "@/lib/describe-error";
 import { unwrapResult } from "@/lib/invoke";
 
 // Chromium download 中断回避のため revokeObjectURL を少し遅延させる (UI-09a 由来)
@@ -54,7 +55,7 @@ export function useExportFile() {
       }
     },
     onError: (error, args) => {
-      toast.error(`出力に失敗しました: ${error.message}`, {
+      toast.error(`出力に失敗しました: ${describeError(error)}`, {
         id: `export-${args.reportType}-error`,
       });
     },

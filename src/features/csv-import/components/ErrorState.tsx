@@ -5,6 +5,7 @@
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { describeError } from "@/lib/describe-error";
 import { CMD_ERROR_KIND, type CmdErrorKind, type InvokeError } from "@/lib/invoke";
 import type { ErrorRecoverTo } from "../types";
 
@@ -37,7 +38,7 @@ export function ErrorState({ error, recoverTo, onDismiss }: ErrorStateProps) {
     <div className="space-y-4">
       <Alert variant="destructive">
         <AlertTitle>{title}</AlertTitle>
-        <AlertDescription>{error.cmdError.message}</AlertDescription>
+        <AlertDescription>{describeError(error)}</AlertDescription>
       </Alert>
       <Button onClick={onDismiss}>{buttonLabel}</Button>
     </div>

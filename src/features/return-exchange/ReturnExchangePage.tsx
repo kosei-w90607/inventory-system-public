@@ -28,8 +28,9 @@ import { PageHeader } from "@/components/patterns/PageHeader";
 import { UnsavedChangesDialog } from "@/components/patterns/UnsavedChangesDialog";
 import { useUnsavedChangesWarning } from "@/hooks/useUnsavedChangesWarning";
 import { commands, type ProductWithRelations, type ReturnCreateResult } from "@/lib/bindings";
+import { describeError } from "@/lib/describe-error";
 import { invalidateByContract, invalidationContract } from "@/lib/invalidation-contract";
-import { isInvokeError, toCmdError, unwrapResult } from "@/lib/invoke";
+import { unwrapResult } from "@/lib/invoke";
 import { scrollPageToTop } from "@/lib/page-scroll";
 import { queryKeys } from "@/lib/query-keys";
 import { cn } from "@/lib/utils";
@@ -241,8 +242,7 @@ export function ReturnExchangePage() {
     onError: (error) => {
       if (error instanceof Error && error.message === "validation") return;
       scrollPageToTop();
-      const cmdError = isInvokeError(error) ? error.cmdError : toCmdError(error);
-      setSaveError(cmdError.message);
+      setSaveError(describeError(error));
     },
   });
 
@@ -335,8 +335,7 @@ export function ReturnExchangePage() {
       setCandidates(products.items);
       setSearchMessage("候補から返品・交換する商品を選んでください");
     } catch (error) {
-      const cmdError = isInvokeError(error) ? error.cmdError : toCmdError(error);
-      setSearchMessage(cmdError.message);
+      setSearchMessage(describeError(error));
     }
   }
 
