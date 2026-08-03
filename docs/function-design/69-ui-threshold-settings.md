@@ -192,7 +192,7 @@ RTL（text / role / value assertion、色 class のみの assert は不可）:
 - `backup_enabled` / `backup_time` / `backup_path` / `backup_retention_days` の表示・編集（UI-11b 所有、UI-11b-D6）
 - `tax_rate_standard` / `tax_rate_reduced` / `log_retention_days` / `log_last_cleanup_date` / `last_plu_export_at` の編集 UI（UI-11a-D1）
 - 商品個別閾値 `custom_low_threshold`（D-4 の将来拡張）
-- 未保存変更の離脱ガード（7-8c `useUnsavedChangesWarning` backlog に従う。本画面は保存ボタンの disabled 制御のみ）
+- 未保存変更の離脱ガードの独自実装（UI_TECH_STACK §6.11 `useUnsavedChangesWarning` の適用対象 — 2026-08-03 UI 安全網 batch で既存 isDirty を共通 hook へ接続する。本画面が独自のガードを持つことはしない）
 - CMD / BIZ 層への閾値バリデーション追加、BIZ の閾値読み出し挙動の変更（UI-11a-D3）
 
 ### 更新履歴
