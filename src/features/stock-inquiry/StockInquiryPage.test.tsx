@@ -339,7 +339,10 @@ describe("StockInquiryPage SPEC-UIBB-4（pagination の条件 reset / 維持）"
     });
     const onSearchChange = vi.fn();
     renderWithClient(
-      <StockInquiryPage search={{ q: "毛糸", status: "all", page: 2 }} onSearchChange={onSearchChange} />,
+      <StockInquiryPage
+        search={{ q: "毛糸", status: "all", page: 2 }}
+        onSearchChange={onSearchChange}
+      />,
     );
     await screen.findByText("P-001");
     const searchInput = screen.getByRole("searchbox");
@@ -377,7 +380,10 @@ describe("StockInquiryPage SPEC-UIBB-4（pagination の条件 reset / 維持）"
     });
     const onSearchChange = vi.fn();
     renderWithClient(
-      <StockInquiryPage search={{ q: "毛糸", status: "all", page: 1 }} onSearchChange={onSearchChange} />,
+      <StockInquiryPage
+        search={{ q: "毛糸", status: "all", page: 1 }}
+        onSearchChange={onSearchChange}
+      />,
     );
     const nextButton = await screen.findByRole("button", { name: "次のページ" });
     await userEvent.setup().click(nextButton);
@@ -487,7 +493,10 @@ describe("StockInquiryPage SPEC-UIBB-9（部門候補 loading / error 結線）"
   it("SPEC-UIBB-9 部門選択中も他部門へ直接切替できる", async () => {
     mockListDepartments.mockResolvedValue({
       status: "ok",
-      data: [makeMockDepartment({ id: 1, name: "毛糸" }), makeMockDepartment({ id: 2, name: "布" })],
+      data: [
+        makeMockDepartment({ id: 1, name: "毛糸" }),
+        makeMockDepartment({ id: 2, name: "布" }),
+      ],
     });
     mockSearch.mockResolvedValue({
       status: "ok",
@@ -499,10 +508,7 @@ describe("StockInquiryPage SPEC-UIBB-9（部門候補 loading / error 結線）"
       },
     });
     renderWithClient(
-      <StockInquiryPage
-        search={{ q: "毛糸", status: "all", dept: 1 }}
-        onSearchChange={vi.fn()}
-      />,
+      <StockInquiryPage search={{ q: "毛糸", status: "all", dept: 1 }} onSearchChange={vi.fn()} />,
     );
     await screen.findByText("P-001");
     const user = userEvent.setup();

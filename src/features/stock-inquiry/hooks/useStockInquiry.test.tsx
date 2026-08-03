@@ -35,7 +35,10 @@ const mockListDepartments = vi.mocked(commands.listDepartments);
 
 function makeWrapper(qc?: QueryClient) {
   const client =
-    qc ?? new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: Number.POSITIVE_INFINITY } } });
+    qc ??
+    new QueryClient({
+      defaultOptions: { queries: { retry: false, gcTime: Number.POSITIVE_INFINITY } },
+    });
   return function Wrapper({ children }: { children: ReactNode }) {
     return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
   };
@@ -63,7 +66,14 @@ describe("useStockInquiry (REQ-301/302)", () => {
     const navigate = vi.fn();
     const { result } = renderHook(
       () =>
-        useStockInquiry({ status: "all", q: "毛糸", dept: null, page: 1, selected: null, navigate }),
+        useStockInquiry({
+          status: "all",
+          q: "毛糸",
+          dept: null,
+          page: 1,
+          selected: null,
+          navigate,
+        }),
       { wrapper: makeWrapper() },
     );
     await waitFor(() => {
@@ -86,7 +96,14 @@ describe("useStockInquiry (REQ-301/302)", () => {
     const navigate = vi.fn();
     const { result } = renderHook(
       () =>
-        useStockInquiry({ status: "stockout", q: "", dept: null, page: 1, selected: null, navigate }),
+        useStockInquiry({
+          status: "stockout",
+          q: "",
+          dept: null,
+          page: 1,
+          selected: null,
+          navigate,
+        }),
       { wrapper: makeWrapper() },
     );
     await waitFor(() => {
@@ -102,7 +119,8 @@ describe("useStockInquiry (REQ-301/302)", () => {
   it("REQ-301: status=all + q 空文字は search_products を呼ばない（enabled gate / isAllEmpty）", async () => {
     const navigate = vi.fn();
     const { result } = renderHook(
-      () => useStockInquiry({ status: "all", q: "", dept: null, page: 1, selected: null, navigate }),
+      () =>
+        useStockInquiry({ status: "all", q: "", dept: null, page: 1, selected: null, navigate }),
       { wrapper: makeWrapper() },
     );
     expect(result.current.isAllEmpty).toBe(true);
@@ -126,7 +144,14 @@ describe("useStockInquiry (REQ-301/302)", () => {
     const navigate = vi.fn();
     const { result } = renderHook(
       () =>
-        useStockInquiry({ status: "all", q: "毛糸", dept: null, page: 2, selected: null, navigate }),
+        useStockInquiry({
+          status: "all",
+          q: "毛糸",
+          dept: null,
+          page: 2,
+          selected: null,
+          navigate,
+        }),
       { wrapper: makeWrapper() },
     );
     await waitFor(() => {
@@ -148,7 +173,14 @@ describe("useStockInquiry (REQ-301/302)", () => {
     const navigate = vi.fn();
     renderHook(
       () =>
-        useStockInquiry({ status: "all", q: "SOLO", dept: null, page: 1, selected: null, navigate }),
+        useStockInquiry({
+          status: "all",
+          q: "SOLO",
+          dept: null,
+          page: 1,
+          selected: null,
+          navigate,
+        }),
       { wrapper: makeWrapper() },
     );
     await waitFor(() => {
@@ -286,7 +318,10 @@ describe("useStockInquiry (REQ-301/302)", () => {
     it("部門候補は listDepartments 全件で page/q/dept/status の 4 条件に依存しない", async () => {
       mockListDepartments.mockResolvedValue({
         status: "ok",
-        data: [makeMockDepartment({ id: 1, name: "毛糸" }), makeMockDepartment({ id: 2, name: "布" })],
+        data: [
+          makeMockDepartment({ id: 1, name: "毛糸" }),
+          makeMockDepartment({ id: 2, name: "布" }),
+        ],
       });
       mockSearch.mockResolvedValue({
         status: "ok",
@@ -338,7 +373,10 @@ describe("useStockInquiry (REQ-301/302)", () => {
     it("選択中部門から別部門へ直接切替できる候補が維持される", async () => {
       mockListDepartments.mockResolvedValue({
         status: "ok",
-        data: [makeMockDepartment({ id: 1, name: "毛糸" }), makeMockDepartment({ id: 2, name: "布" })],
+        data: [
+          makeMockDepartment({ id: 1, name: "毛糸" }),
+          makeMockDepartment({ id: 2, name: "布" }),
+        ],
       });
       mockSearch.mockResolvedValue({
         status: "ok",

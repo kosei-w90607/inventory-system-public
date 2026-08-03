@@ -176,7 +176,10 @@ describe("ProductListPage SPEC-UIBB-1/2（filter-empty reset action、既存「�
   beforeEach(() => {
     mockListDepartments.mockResolvedValue({
       status: "ok",
-      data: [makeMockDepartment({ id: 1, name: "毛糸" }), makeMockDepartment({ id: 2, name: "布" })],
+      data: [
+        makeMockDepartment({ id: 1, name: "毛糸" }),
+        makeMockDepartment({ id: 2, name: "布" }),
+      ],
     });
   });
 
@@ -226,7 +229,15 @@ describe("ProductListPage SPEC-UIBB-1/2（filter-empty reset action、既存「�
     const onSearchChange = vi.fn();
     renderWithClient(
       <ProductListPage
-        search={{ q: "毛糸", dept: 2, discontinued: "discontinued", page: 3, sort: "name", dir: "desc", perPage: 100 }}
+        search={{
+          q: "毛糸",
+          dept: 2,
+          discontinued: "discontinued",
+          page: 3,
+          sort: "name",
+          dir: "desc",
+          perPage: 100,
+        }}
         onSearchChange={onSearchChange}
       />,
     );

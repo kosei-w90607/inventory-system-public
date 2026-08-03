@@ -231,7 +231,17 @@ describe("StockMovementsPage SPEC-UIBB-1/2（filter-empty reset action、66 §66
     const updater = onSearchChange.mock.calls[onSearchChange.mock.calls.length - 1]?.[0] as (
       prev: Record<string, unknown>,
     ) => Record<string, unknown>;
-    const result = updater({ dateFrom: "2026-06-01", dateTo: "2026-06-30", type: "disposal", page: 3 });
-    expect(result).toEqual({ dateFrom: undefined, dateTo: undefined, type: undefined, page: undefined });
+    const result = updater({
+      dateFrom: "2026-06-01",
+      dateTo: "2026-06-30",
+      type: "disposal",
+      page: 3,
+    });
+    expect(result).toEqual({
+      dateFrom: undefined,
+      dateTo: undefined,
+      type: undefined,
+      page: undefined,
+    });
   });
 });
