@@ -14,7 +14,7 @@
 - Reviewed Content HEAD: pending
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
-- Human Gate: L3（入出庫履歴 検索欄の live 動作 + IME 確認 = 変換確定後の最終文字列で絞り込まれ、変換確定 Enter で誤動作しないこと。変換中の一時的な絞り込み更新は live 型既定挙動として許容、Windows native）/ Ready 承認
+- Human Gate: L3（到達: サイドバー「入出庫」→「入出庫履歴」→ 検索欄。live 動作 + IME 確認 = 変換確定後の最終文字列で絞り込まれ、変換確定 Enter で誤動作しないこと。変換中の一時的な絞り込み更新は live 型既定挙動として許容。label 撤去後の filter 行の視覚整合も目視、Windows native）/ Ready 承認
 
 起票時の状態遷移: kickoff → spec-check → plan-draft → plan-gate を本 plan-first commit で materialize する。spec-check → plan-draft の skip 根拠 = Design Readiness が既存設計書（50 UI-01a-D9 / 59 §59.1-59.2 / 65 / 52 / 73）で実装十分と引用（設計新設なし、既存契約の適用と docs 実態同期のみ）。
 
@@ -66,7 +66,7 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 
 ## Scope
 
-- `src/features/inventory-records/InventoryRecordsPage.tsx`: 商品検索欄（`records-keyword`）を自前実装（`keywordDraft` state + 自前 IME composing guard + 即時 `updateKeywordSearch`）から共有 `SearchBar`（`src/components/patterns/SearchBar.tsx`、live 型 `debounceMs=200`）へ置換。value 結線は raw `search.q ?? ""`（UI-01a-D9 同型、normalized 値を value に渡さない）。`q` 変更時の page 既定 reset（現行 `updateKeywordSearch` の `resetPage = true`）は維持。IME 意味論は SearchBar live 実態へ統一する（Plan Gate round 1 P1-2 裁定 = 案 a）: SearchBar の composing guard は Enter keydown のみで、変換中の中間文字列が debounce 経由で `q` へ一時反映されることは商品一覧・在庫照会と同一の live 型既定挙動として許容。現行の「全 onChange を composing 中ブロック」する自前 guard は統一のため意図的に廃止する。
+- `src/features/inventory-records/InventoryRecordsPage.tsx`: 商品検索欄（`records-keyword`）を自前実装（`keywordDraft` state + 自前 IME composing guard + 即時 `updateKeywordSearch`）から共有 `SearchBar`（`src/components/patterns/SearchBar.tsx`、live 型 `debounceMs=200`）へ置換。value 結線は raw `search.q ?? ""`（UI-01a-D9 同型、normalized 値を value に渡さない）。`q` 変更時の page 既定 reset（現行 `updateKeywordSearch` の `resetPage = true`）は維持。IME 意味論は SearchBar live 実態へ統一する（Plan Gate round 1 P1-2 裁定 = 案 a）: SearchBar の composing guard は Enter keydown のみで、変換中の中間文字列が debounce 経由で `q` へ一時反映されることは商品一覧・在庫照会と同一の live 型既定挙動として許容。現行の「全 onChange を composing 中ブロック」する自前 guard は統一のため意図的に廃止する。`placeholder` prop は指定せず SearchBar 既定値へ統一する（表示文言は現行「商品コード・JAN・商品名」→「商品コード・商品名・JANで検索」へ変化し、商品一覧・在庫照会と同一文言になる — round 2 P2-A 裁定）。外付け `<label htmlFor="records-keyword">商品検索</label>` は UI-01a-D9 同型に倣い撤去する（`LiveSearchBar` は `id` を受け取らず label が宙に浮くため。アクセシブルネームは SearchBar 既定 aria-label「商品検索」が維持 — round 2 P2-B 裁定）。
 - `src/features/inventory-records/InventoryRecordsPage.test.tsx`: live 結線（debounce 発火 / Enter 即時 flush / 変換確定 Enter の誤発火なし / compositionend 後の最終文字列反映 / no-trim / page reset）の regression test を追加・更新。既存の「composing 中 onChange 非発火」assert は本 batch の契約変更（SearchBar live 意味論への統一）に伴う新契約への**改稿**であり、test の削除・skip ではない（PR body で明示する）。
 - `docs/function-design/65-inventory-record-traceability.md`: **TRACE-D12** の正式エントリを §65.2 設計判断 table（TRACE-D1〜D11 と同構造: Spec / Decision ID / 決定 / 理由）へ追加し、§65.4.1 共通フィルタは備考で「live 型（TRACE-D12）」を参照する形に留め、§65.8.1 の該当記述を同期、§65.11 Test Focus へ TRACE-D12 の bullet を追加。§65.5 詳細項目表は「商品コード / JAN / 商品名 / 部門」の 1 行を「商品コード / 商品名 / 部門」（全列 yes 維持）と「JAN」（全列 no）の 2 行へ**分割**して実態（5 詳細画面 JAN 非表示・DTO に field なし。商品コード / 商品名 / 部門は表示中）へ同期し、変更履歴に owner 裁定（選択肢 A、2026-08-04）を記録。
 - `docs/function-design/59-ui-shared-patterns.md`: §59.1 SearchBar 採用箇所表へ入出庫履歴（live 型）を追加。
@@ -93,6 +93,7 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 - AC7: 65 §65.5 詳細項目表で「商品コード / JAN / 商品名 / 部門」行が「商品コード / 商品名 / 部門」（全列 yes 維持）と「JAN」（全列 no）の 2 行へ分割される — 5 つの `*RecordDetailItem` 型（Receiving / Return / ManualSale / Disposal / CsvImport、`src/lib/bindings.ts`）の型定義に JAN field 0 hit のまま + 変更履歴に owner 裁定 A（2026-08-04）の行が存在。
 - AC8: 既存 filter（種別 / 日付 / 記録ID / 部門 / 状態）、filter-empty reset action（SPEC-UIBB-1/2）、一覧⇄詳細の条件保持（TRACE-D11）が不変 — `npm test -- InventoryRecordsPage` exit code 0（既存 test 削除・skip なし）。
 - AC9: `bash scripts/local-ci.sh full` CLEAN（L1）、`bindings.ts` diff ゼロ。
+- AC10: 検索欄のアクセシブルネームが「商品検索」のまま到達可能（`findByLabelText("商品検索")` green）+ placeholder が SearchBar 既定「商品コード・商品名・JANで検索」である assert、外付け `<label>` / `id="records-keyword"` の残存 0（`rg -n "records-keyword" src/` 0 hit）。
 
 ## Design Sources
 
@@ -153,7 +154,7 @@ Minimum design checks for business-app work:
 - Backend function design: 変更なし
 - Command / DTO / data contract: 変更なし（bindings diff ゼロ）
 - Persistence / transaction / audit impact: なし
-- Operator workflow / Japanese UI wording: 検索欄 label「商品検索」placeholder「商品コード・JAN・商品名」は不変。挙動が「即時反映」から「200ms debounce + Enter 即時」へ統一される（商品一覧・在庫照会と同一体験）
+- Operator workflow / Japanese UI wording: 検索欄のアクセシブルネーム「商品検索」は不変（外付け label は撤去し SearchBar 既定 aria-label が担う）。placeholder は SearchBar 既定「商品コード・商品名・JANで検索」へ統一（現行「商品コード・JAN・商品名」から文言変化、商品一覧・在庫照会と同一）。挙動は「即時反映」から「200ms debounce + Enter 即時」へ統一される（3 画面同一体験）
 - Error, empty, retry, and recovery behavior: 不変（filter-empty reset action は既存 SPEC-UIBB-1/2 のまま）
 - Testability and traceability IDs: TRACE-D12 / 既存 REQ-206 token を test に付与
 
@@ -203,6 +204,7 @@ Test Design Matrix: [test-matrices/2026-08-04-ui-consistency-batch.md](test-matr
 - `keywordDraft` + 自前 IME guard の撤去に伴う regression（特に compositionend 経路）
 - docs 同期 3 点（52 / 65 / 59・73）が実装・実 route・実 DTO と一字一句一致すること（是正で新 drift を作らない）
 - 非目的の遵守（商品追加欄 5 箇所に触れていないこと）
+- 外付け label 撤去後の filter 行グリッドの視覚整合（他 filter は label 付きのまま。崩れの有無は L3 目視で確認）
 
 ## Spec Contract
 
@@ -250,3 +252,10 @@ Do not transcribe exact-HEAD SHA or test counts here (D-035/D-038 Evidence Owner
 - P2-3 accept → Human Gate L3 文言を failure mode 名指しへ具体化
 - P3-1 accept → 52 §52.3 UI-07 / UI-08 の before→after を明示
 - 是正は plan-gate 滞留中の in-place 修正（plan-approved 前のため Amendments 非該当）。round 2 を fresh 独立 context で再審査する
+
+**Plan Gate round 2**（2026-08-04、fresh Sonnet Plan Reviewer 独立 context、round 1 是正 7 項目 = 全 OK、新規 P1=0 / P2=2 / P3=1）
+
+- P2-A accept（Coordinator 実読裏取り: SearchBar 既定 placeholder = 「商品コード・商品名・JANで検索」`SearchBar.tsx:143`、商品一覧・在庫照会は prop 無指定で既定値依存）→ 裁定 = 既定値採用で 3 画面同一文言へ統一、invariant 側を改稿 + AC10 新設
+- P2-B accept（実読裏取り: `LiveSearchBar` は `Omit<..., "id">` で `id` を受け取らず、商品一覧は外付け label なし）→ 外付け label 撤去を Scope へ明記、アクセシブルネームは既定 aria-label「商品検索」が維持
+- P3 accept → Human Gate へ到達手順を追記
+- round 3 を fresh 独立 context で再審査する
