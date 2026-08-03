@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: design
+- Phase: plan-gate
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: bfc770c
@@ -21,6 +21,10 @@
 2026-08-03 Sonnet Plan Review round 1 = FAIL（P1=3 / P2=0 / P3=2、全件 accept、裁定詳細は Review Response 参照）。P1-1（Contract Probe CP1/CP2 が pending のまま plan-gate 確定 — DEV_WORKFLOW「before Plan Gate」要件の自己解釈による緩和）/ P1-2（isDirty 解除タイミングの設計契約欠落 — 51 の create/update `onSuccess` は baseline 未 reset のまま navigate するため、規定なしでは保存成功パスが毎回誤発火する）/ P1-3（分類表に 65 系 6 page が未列挙 + sweep が全数性を機械検証しない）は design 出力の改訂を要するため、最早影響 phase = design へ backtrack する（`plan-gate -> design`）。
 
 2026-08-03 round 1 是正 content commit で `design -> plan-draft -> plan-gate` を再材料化する。evidence = CP1/CP2 probe を throwaway harness で実施し PASS を Contract Probe 節へ記録（`@tanstack/react-router` 1.168.23 実測、P1-1 是正 — 以後の probe は plan-gate 遷移前実施を厳守）、§6.11 UI-USW-D1 へ「保存成功時の誤発火防止 MUST」（`onSuccess` 内 navigate 前の baseline 同期 / result panel 型の `!isFormLocked` 明示式）を追記し分類表 51/61〜64/69 行を補強（P1-2 是正）、65 系 6 page の除外行追加 + 60 表記是正 + T17 の全数性 sweep 化 + X9 追加（P1-3 是正）、P3 2 件反映（Final Review の 2 回目 Contract Audit pass 明記 / 60 component 名）、Plan Commit 欄へ bfc770c 転記（design→plan-draft）、`doc-consistency-check --target plan` 通過・commit（plan-draft→plan-gate）。
+
+2026-08-03 Sonnet Plan Review round 2 = conditional pass（P1=0 / P2=1 / P3=1、全件 accept、round 1 是正の独立再検証 = (a)(b)(c) 全て実質完了、裁定詳細は Review Response 参照）。P2-1（IntegrityCheckPage が catch-all 除外行の (e) 理由と食い違う — `selectedCodes` checkbox 蓄積 + `result` state 実在）は分類軸 (b) の精緻化と明示行追加という design 出力の改訂を要するため、最早影響 phase = design へ backtrack する。**process 記録**: round 1 是正（b1c917e）は design 出力の改訂を伴ったにもかかわらず `state-backtrack` state-only commit を作らず content commit の narrative のみで backtrack を主張した — DEV_WORKFLOW backtrack 契約からの逸脱（round 2 P3-1 起源）。round 1 の遷移記録の backtrack 主張は「plan-gate に留まったままの in-place 是正だった」と読み替える（append-only のため原文は残す）。round 2 是正からは正規機構を踏む: `state-backtrack plan-gate->design`（4b10d55、state-only）→ 本 content commit で再前進。
+
+2026-08-03 round 2 是正 content commit で `design -> plan-draft -> plan-gate` を再材料化する。evidence = §6.11 UI-USW-D3 除外軸 (b) を「file・DB 等からの再実行で再導出可能（値の記入を伴わない選択 state を含む）」へ精緻化し、分類表へ IntegrityCheckPage 明示行（除外 (b)）を追加、catch-all 行を component 名個別列挙へ改め 75 を分離（P2-1 是正、design→plan-draft）、Matrix T17 へ「除外側個別列挙・自動除外型実装の禁止」を明記（residual risk 採用）、`doc-consistency-check --target plan` 通過・commit（plan-draft→plan-gate）。
 
 ## Owner Effort Budget
 
@@ -75,7 +79,7 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 
 ### 適用画面 全数分類表
 
-分類軸（UI-USW-D3）: 適用対象 = 「利用者の手入力で構築され、保存前に画面遷移で失われると再入力が必要な蓄積編集 state を持つ画面」。除外軸 = (a) 進行中処理ガード既設（55 §55.7 所有、相互排他）、(b) file 等から再導出可能な導出 state、(c) 行単位の即時 DB 保存で蓄積未保存が生じない、(d) 外部ツールまたぎの専用復帰設計が所有、(e) 編集 state なし（表示 / URL search state / 即実行操作のみ）。
+分類軸（UI-USW-D3）: 適用対象 = 「利用者の手入力で構築され、保存前に画面遷移で失われると再入力が必要な蓄積編集 state を持つ画面」。除外軸 = (a) 進行中処理ガード既設（55 §55.7 所有、相互排他）、(b) file・DB 等からの再実行で再導出可能な導出 state（値の記入を伴わない選択 state を含む — round 2 P2 で精緻化）、(c) 行単位の即時 DB 保存で蓄積未保存が生じない、(d) 外部ツールまたぎの専用復帰設計が所有、(e) 編集 state なし（表示 / URL search state / 即実行操作のみ）。
 
 | 画面（design doc） | component | 分類 | isDirty 定義 / 除外理由 |
 |---|---|---|---|
@@ -91,7 +95,8 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 | 商品CSV取込み（60） | `ProductImportPage`（子: `ProductImportPreview`） | 除外 (b) | preview は file 再選択で再導出可能 |
 | PLU 書出し（67） | `PluExportPage` | 除外 (d) | §6.5「外部ツールをまたぐ未完了状態」の localStorage 復帰設計が所有 |
 | バックアップ・復元（68） | `BackupRestorePage` | 除外 (e) | 即実行操作系。backup_path 選択は保存操作単位で完結、蓄積編集 state なし |
-| 一覧・照会・表示系（50/53/54/56/57/58/66/74/75 等） | — | 除外 (e) | URL search state / 表示のみで編集 state なし |
+| 整合性チェック（75） | `IntegrityCheckPage` | 除外 (b) | `result` は同一 DB 状態からの `runIntegrityCheck` 再実行で再導出可能、`selectedCodes`（補正対象 checkbox）は値の記入を伴わない選択 state で再実行後の再選択で再現可能。補正実行自体は確認ダイアログ既設の即実行操作（round 2 P2 で catch-all から明示行へ昇格） |
+| 一覧・照会・表示系（50/53/54/56/57/58/66/74。54 は page component なし） | `HomePage` / `DailySalesPage` / `MonthlySalesPage` / `OperationLogsPage` / `ProductListPage` / `StockInquiryPage` / `StockMovementsPage` | 除外 (e) | URL search state / 表示のみで編集 state なし |
 
 全数性の検証: sweep test（T17）が `src/features/**/*Page.tsx` の実在集合と本分類表の記載（適用 manifest + 除外 list）の diff を機械検証する — 新規 page 追加時に未分類のままだと test が red になる（round 1 P1-3 の是正で plan 段階の目視から機械検証へ昇格）。Writer は実装時に分類表との不一致を発見したら fail-closed で Coordinator へ報告する。
 
@@ -278,5 +283,11 @@ Fill after implementation.
 - P1-3（分類表 65 系未列挙 / 全数性の機械検証欠如）: accept。65 行追加 + T17 全数性 sweep 化 + X9。
 - P3-1（Contract Audit の追加 pass）: accept。Test Plan に Final Review での実施を明記（DEV_WORKFLOW の operator-visible state lifecycle recommend 採用）。
 - P3-2（60 component 名表記）: accept。`ProductImportPage`（子: `ProductImportPreview`）へ是正。
+
+2026-08-03 Plan Review round 2（Sonnet 5、fresh 独立 context、対象 = bfc770c + b1c917e）: P1=0 / P2=1 / P3=1、round 1 是正の独立再検証 (a)(b)(c) = 全て実質完了。Coordinator 裁定 = 全件 accept（P2 は `IntegrityCheckPage.tsx` の state 実在を実読裏取り、P3 は DEV_WORKFLOW backtrack 契約原文 + batch B の先例〈backtrack narrative + 実 state-backtrack commit の組〉との突合で確認）。
+
+- P2-1（IntegrityCheckPage 分類）: accept、Coordinator 裁定 = **除外 (b)**。`result` は同一 DB からの再実行で再導出可能、`selectedCodes` は値の記入を伴わない選択 state。除外軸 (b) を精緻化し明示行を追加、catch-all 行は component 名個別列挙へ改めた。
+- P3-1（遷移記録の backtrack 主張と実 phase 遷移の乖離）: accept、ただし修正方向は reviewer 案（主張削除）ではなく batch B 先例に合わせた正規機構の履行 — round 1 分は process 逸脱として遷移記録に記録し、round 2 是正から `state-backtrack` state-only commit（4b10d55）を経由。
+- residual risk 採用: T17 sweep の除外側個別列挙（自動除外型実装の禁止）を Matrix に明記。61〜64 の保存成功後に stale 警告文が残る既存 quirk は本 change の scope 外の pre-existing として記録のみ（ガードの発火判定に影響なし。是正するなら別 change）。
 
 - Findings Freeze: not yet frozen; post-freeze exceptions: none.
