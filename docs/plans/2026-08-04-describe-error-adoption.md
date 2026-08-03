@@ -2,10 +2,10 @@
 
 ## Workflow State
 
-- Phase: plan-gate
+- Phase: implementing
 - Risk: R3
 - Execution Mode: fable-window
-- Plan Commit: pending
+- Plan Commit: 4186798
 - Amendments: none
 - Coordinator: Claude Fable 5（main session）
 - Writer: Claude Sonnet 5 subagent（worktree isolation）
@@ -287,4 +287,6 @@ Do not transcribe exact-HEAD SHA or test counts here (D-035/D-038 Evidence Owner
   - F2（P2、B1-B3 retry 一律主張）: **accept** — B3 OperationLogsPage は `retry: 0` 明示（261・279 行、Coordinator 実読で再現）。Matrix State Lifecycle 行を per-page 実測値へ是正。
   - F3（P3、D-062 (c) 条件の誤 paraphrase）: **accept** — DEV_WORKFLOW Review Rules 実文言は「Writer が Codex である packet」基準（Coordinator 実読で確認）。編成注記を Writer 基準の文言へ是正。結論（非該当）は不変。
   - 是正は同 packet 内 full sweep（`cmdError\.message` / `src/lib` / `retry` / `D-062` の全出現）を実施のうえ適用（WER 2026-08-04 改善 3 の初適用）。
+- Round 2（closure、同 reviewer、2026-08-04）: Verdict **CLOSED、P1/P2=0**。F1 棄却は reviewer が round 1 HEAD（`4186798`）の実文言を独立再読して誤引用を確認・追認。F2/F3 是正と同 packet 内 sweep の残存 drift なしを独立検証。新規 finding なし。
+- 遷移 evidence（compression 記録）: plan-gate → plan-approved = Plan Review round 2 CLOSED（P1/P2=0）+ owner plan 承認 2026-08-04（介入 1 回目/予算 3 回）。plan-approved → implementing = Plan Commit `4186798` 記入 + Writer 発注（Sonnet subagent、本 worktree）。
 - Findings Freeze: not yet frozen; post-freeze exceptions: none.
