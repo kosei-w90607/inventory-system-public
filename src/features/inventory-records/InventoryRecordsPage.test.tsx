@@ -394,12 +394,7 @@ describe("InventoryRecordsPage SPEC-UIBB-1/2（filter-empty reset action、65 §
       status: "ok",
       data: { items: [], total_count: 0, page: 1, per_page: 20 },
     });
-    renderWithClient(
-      <InventoryRecordsPage
-        search={{ recordType: "disposal_record", q: "該当なし" }}
-        onSearchChange={vi.fn()}
-      />,
-    );
+    renderWithClient(<InventoryRecordsPage search={{ q: "該当なし" }} onSearchChange={vi.fn()} />);
     expect(await screen.findByRole("button", { name: "絞り込みを解除" })).toBeInTheDocument();
   });
 
