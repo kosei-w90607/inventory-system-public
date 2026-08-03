@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: implementing
+- Phase: local-verified
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: a433e44
@@ -239,7 +239,7 @@ Contract ID: SPEC-UICB
 
 ## Implementation Results
 
-Fill after implementation.
+入出庫履歴の商品検索欄を共有 `SearchBar` live 型へ統一し、debounce / Enter / IME / raw `q` / page reset / accessibility の regression coverage を更新した。52 / 59 / 65 / 73 の設計記述と自動生成 90 を同期し、bindings / route generation / package manifests は不変。Writer mutation は M-A1〜M-A8 / M-B1〜M-B2 の全対象で red、復元後 clean を確認し、L1 full と release profile check を完了した。Draft PR [#61](https://github.com/kosei-w90607/inventory-system-public/pull/61) を作成済み。独立 Final Review と Windows native L3 は pending。
 
 Do not transcribe exact-HEAD SHA or test counts here (D-035/D-038 Evidence Ownership). Record a qualitative summary and the PR link only.
 
@@ -286,3 +286,9 @@ Do not transcribe exact-HEAD SHA or test counts here (D-035/D-038 Evidence Owner
 - 事象: TRACE-D12 の 65 doc 追加により `90-traceability.md`（AUTO-GENERATED）の再生成義務が発生し、`local-ci.sh changed` の traceability gate が drift を検出。Scope 未列挙のため Writer が正しく fail-closed 停止（true positive）
 - 裁定: 選択肢 A 採択 = `90-traceability.md` の自動再生成を Scope へ追加（B = TRACE-D12 撤回は Plan Gate 5 round で確定した明示契約の放棄のため不採用）。Registration / Generation Obligations の起票時「該当なし」誤判定も併せて是正
 - Review Focus へ「再生成 diff が TRACE-D12 起因 delta のみ」を追加し、Final Review の検分対象とする
+
+**Writer local verification**（2026-08-04）
+
+- clean content candidate の L1 full、release profile check、target plan check、生成 drift 0 を確認し、candidate SHA と L1 evidence 所在を Draft PR #61 body に記録した。
+- M-A1〜M-A8 / M-B1〜M-B2 を commit 後の clean tree から個別注入し、各対応 test / review CLI の red と復元後 clean を確認した。M-A7 の初回 survivor は複合 fixture が q 判定欠落を隠していたため、q 単独 fixture へ狭めて感度を補強した。
+- 必要 evidence が揃ったため `implementing → local-verified` を本 validation / dashboard content commit に同乗させる。独立 Final Review、Windows native L3、Ready は未解決 Human Gate のまま維持する。
