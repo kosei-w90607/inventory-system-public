@@ -26,6 +26,8 @@
 
 2026-08-03 round 2 是正 content commit で `design -> plan-draft -> plan-gate` を再材料化する。evidence = §6.11 UI-USW-D3 除外軸 (b) を「file・DB 等からの再実行で再導出可能（値の記入を伴わない選択 state を含む）」へ精緻化し、分類表へ IntegrityCheckPage 明示行（除外 (b)）を追加、catch-all 行を component 名個別列挙へ改め 75 を分離（P2-1 是正、design→plan-draft）、Matrix T17 へ「除外側個別列挙・自動除外型実装の禁止」を明記（residual risk 採用）、`doc-consistency-check --target plan` 通過・commit（plan-draft→plan-gate）。
 
+2026-08-03 Sonnet Plan Review round 3（closure、fresh 独立 context）= PASS（P1/P2/P3 = 0、round 2 closure 判定 (a)(b)(c) 全 closed、新規指摘なし）。分類表 26 page 全数一致・backtrack 機構の DEV_WORKFLOW 適合・§6.11 精緻化の実装整合を独立再検証済み。plan-gate 収束（rally 実績 = round 1 → round 2 → round 3 の単調収束）。owner plan 承認待ち（plan-gate → plan-approved は owner 承認 evidence を伴う state-only commit で材料化する）。
+
 ## Owner Effort Budget
 
 - 介入回数上限: 3（plan 承認 / L3 目視 + Ready 承認 / merge）
@@ -289,5 +291,7 @@ Fill after implementation.
 - P2-1（IntegrityCheckPage 分類）: accept、Coordinator 裁定 = **除外 (b)**。`result` は同一 DB からの再実行で再導出可能、`selectedCodes` は値の記入を伴わない選択 state。除外軸 (b) を精緻化し明示行を追加、catch-all 行は component 名個別列挙へ改めた。
 - P3-1（遷移記録の backtrack 主張と実 phase 遷移の乖離）: accept、ただし修正方向は reviewer 案（主張削除）ではなく batch B 先例に合わせた正規機構の履行 — round 1 分は process 逸脱として遷移記録に記録し、round 2 是正から `state-backtrack` state-only commit（4b10d55）を経由。
 - residual risk 採用: T17 sweep の除外側個別列挙（自動除外型実装の禁止）を Matrix に明記。61〜64 の保存成功後に stale 警告文が残る既存 quirk は本 change の scope 外の pre-existing として記録のみ（ガードの発火判定に影響なし。是正するなら別 change）。
+
+2026-08-03 Plan Review round 3（Sonnet 5、fresh 独立 context、対象 = bfc770c〜e781f9a 累積）: P1/P2/P3 = 0、round 2 closure (a)(b)(c) 全 closed。独立検証 = 分類表と `src/features/**/*Page.tsx` 実在 26 file の 1:1 全数一致、4b10d55 の hunk レベル state-only 適合、機械 gate（check-workflow-git / doc-consistency-check --target plan）の独立再実行 PASS。**Plan Gate 収束、P1/P2 = 0**。
 
 - Findings Freeze: not yet frozen; post-freeze exceptions: none.
