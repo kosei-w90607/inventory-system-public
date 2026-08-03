@@ -14,7 +14,7 @@
 - Reviewed Content HEAD: pending
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
-- Human Gate: L3（入出庫履歴 検索欄の live 動作 + IME 入力確認、Windows native）/ Ready 承認
+- Human Gate: L3（入出庫履歴 検索欄の live 動作 + IME 確認 = 変換確定後の最終文字列で絞り込まれ、変換確定 Enter で誤動作しないこと。変換中の一時的な絞り込み更新は live 型既定挙動として許容、Windows native）/ Ready 承認
 
 起票時の状態遷移: kickoff → spec-check → plan-draft → plan-gate を本 plan-first commit で materialize する。spec-check → plan-draft の skip 根拠 = Design Readiness が既存設計書（50 UI-01a-D9 / 59 §59.1-59.2 / 65 / 52 / 73）で実装十分と引用（設計新設なし、既存契約の適用と docs 実態同期のみ）。
 
@@ -66,18 +66,18 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 
 ## Scope
 
-- `src/features/inventory-records/InventoryRecordsPage.tsx`: 商品検索欄（`records-keyword`）を自前実装（`keywordDraft` state + 自前 IME composing guard + 即時 `updateKeywordSearch`）から共有 `SearchBar`（`src/components/patterns/SearchBar.tsx`、live 型 `debounceMs=200`）へ置換。value 結線は raw `search.q ?? ""`（UI-01a-D9 同型、normalized 値を value に渡さない）。`q` 変更時の page 既定 reset（現行 `updateKeywordSearch` の `resetPage = true`）は維持。
-- `src/features/inventory-records/InventoryRecordsPage.test.tsx`: live 結線（debounce 発火 / Enter 即時 flush / IME composing 中の非発火 / no-trim / page reset）の regression test を追加・更新。
-- `docs/function-design/65-inventory-record-traceability.md`: §65.4.1 共通フィルタに商品検索欄の live 型契約を新 decision ID **TRACE-D12** として明記、§65.8.1 の該当記述同期、§65.5 詳細項目表の JAN 行を実態（5 詳細画面 JAN 非表示・DTO に field なし）へ同期し、変更履歴に owner 裁定（選択肢 A、2026-08-04）を記録。
+- `src/features/inventory-records/InventoryRecordsPage.tsx`: 商品検索欄（`records-keyword`）を自前実装（`keywordDraft` state + 自前 IME composing guard + 即時 `updateKeywordSearch`）から共有 `SearchBar`（`src/components/patterns/SearchBar.tsx`、live 型 `debounceMs=200`）へ置換。value 結線は raw `search.q ?? ""`（UI-01a-D9 同型、normalized 値を value に渡さない）。`q` 変更時の page 既定 reset（現行 `updateKeywordSearch` の `resetPage = true`）は維持。IME 意味論は SearchBar live 実態へ統一する（Plan Gate round 1 P1-2 裁定 = 案 a）: SearchBar の composing guard は Enter keydown のみで、変換中の中間文字列が debounce 経由で `q` へ一時反映されることは商品一覧・在庫照会と同一の live 型既定挙動として許容。現行の「全 onChange を composing 中ブロック」する自前 guard は統一のため意図的に廃止する。
+- `src/features/inventory-records/InventoryRecordsPage.test.tsx`: live 結線（debounce 発火 / Enter 即時 flush / 変換確定 Enter の誤発火なし / compositionend 後の最終文字列反映 / no-trim / page reset）の regression test を追加・更新。既存の「composing 中 onChange 非発火」assert は本 batch の契約変更（SearchBar live 意味論への統一）に伴う新契約への**改稿**であり、test の削除・skip ではない（PR body で明示する）。
+- `docs/function-design/65-inventory-record-traceability.md`: **TRACE-D12** の正式エントリを §65.2 設計判断 table（TRACE-D1〜D11 と同構造: Spec / Decision ID / 決定 / 理由）へ追加し、§65.4.1 共通フィルタは備考で「live 型（TRACE-D12）」を参照する形に留め、§65.8.1 の該当記述を同期、§65.11 Test Focus へ TRACE-D12 の bullet を追加。§65.5 詳細項目表は「商品コード / JAN / 商品名 / 部門」の 1 行を「商品コード / 商品名 / 部門」（全列 yes 維持）と「JAN」（全列 no）の 2 行へ**分割**して実態（5 詳細画面 JAN 非表示・DTO に field なし。商品コード / 商品名 / 部門は表示中）へ同期し、変更履歴に owner 裁定（選択肢 A、2026-08-04）を記録。
 - `docs/function-design/59-ui-shared-patterns.md`: §59.1 SearchBar 採用箇所表へ入出庫履歴（live 型）を追加。
-- `docs/function-design/52-ui-shared-layout.md`: §52.3 の UI-07 行（`/pos/csv-import` → `/csv-import`、route file・備考含む）/ UI-08 行（`/pos/plu-export` → `/products/plu-export`、備考含む）/ UI-10 行（route file `src/routes/stocktake/index.tsx` → `src/routes/stocktake.tsx`）+ 「URL 設計の根拠」段落の `/pos/*` 列挙削除。
+- `docs/function-design/52-ui-shared-layout.md`: §52.3 の UI-07 行（URL `/pos/csv-import` → `/csv-import`、route file `src/routes/pos/csv-import.tsx` → `src/routes/csv-import.tsx`〈layout〉+ `src/routes/csv-import/index.tsx`〈index〉、備考「URL ドメインは POS」の是正含む）/ UI-08 行（URL `/pos/plu-export` → `/products/plu-export`、route file `src/routes/pos/plu-export.tsx` → `src/routes/products/plu-export.tsx`、備考是正含む）/ UI-10 行（route file `src/routes/stocktake/index.tsx` → `src/routes/stocktake.tsx`）+ 「URL 設計の根拠」段落の `/pos/*` 列挙削除。
 - `docs/function-design/73-ui-stocktake.md`: route file 表記 `src/routes/stocktake/index.tsx` → `src/routes/stocktake.tsx` の是正（52 §52.3 UI-10 行と同根 drift）。
 - `Plans.md`: active packet link の登録 + 商品追加欄 live 候補プレビュー（autocomplete）化の backlog 起票（plan-first commit）。消化項目の打ち消しは Post-Merge Closeout で実施。
 
 ## Non-scope
 
 - 商品追加欄 / 対象確認欄（5 画面）の挙動変更（上記 非目的参照）。
-- `SearchBar` 部品本体の変更（既存 2 画面で採用実績のある部品をそのまま使う。部品規約は §59.2 / catalog ⑨ 不変）。
+- `SearchBar` 部品本体の変更（既存 2 画面で採用実績のある部品をそのまま使う。部品規約は §59.2 / catalog ⑨ 不変）。SearchBar の composing guard は Enter keydown のみ（onChange/debounce 経路に guard なし）であり、これを含めて live 型の既定意味論として採用する（P1-2 裁定 a。onChange guard を SearchBar へ追加する案 b は商品一覧・在庫照会の挙動変更と scope 拡大を招くため不採用）。
 - backend（Rust / CMD / BIZ / IO）・DB・bindings の変更（本 batch は frontend 1 file + docs のみ。`bindings.ts` diff ゼロ）。
 - 記録種別 / 日付 / 記録ID / 部門 / 状態 filter の挙動変更。
 - `docs/archive/` 配下の記述変更。
@@ -85,12 +85,12 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 ## Acceptance Criteria
 
 - AC1: 入出庫履歴の商品検索欄に入力すると、debounce 200ms 経過後に URL `q` param と一覧 query が更新される。Enter は debounce を待たず即時反映する — `InventoryRecordsPage.test.tsx` の live 結線 test（fake timer で 200ms 前後の発火有無を assert）。
-- AC2: IME composing 中の入力では search 更新が発火せず、変換確定（compositionend）で反映される。変換確定 Enter（`isComposing`）は誤発火しない — 同 test file の IME test。
+- AC2: 変換確定 Enter（`isComposing`）で search flush が誤発火せず、変換確定後は最終文字列が `q` へ反映される。変換中の中間文字列が debounce 経由で一時反映されることは、商品一覧・在庫照会と同一の live 型既定挙動として許容（Plan Gate round 1 P1-2 裁定） — 同 test file の IME test。
 - AC3: `q` は raw のまま URL に結線され、value にも raw `search.q` が渡る（trim は query 構築時の normalized 側のみ、UI-01a-D9 同型） — 前後空白入りキーワードでの no-trim assert。
 - AC4: `q` 変更（クリア含む）で page が既定へ reset される（現行挙動維持） — page reset test。
 - AC5: `rg -n "/pos/" docs/function-design/` が 0 hit（52 是正後、function-design 配下から陳腐化 URL が消える）。
 - AC6: 52 §52.3 の URL 列・route ファイル列が `src/routeTree.gen.ts` の実 route と一致する — Plan/Final Review の実 route 突合。
-- AC7: 65 §65.5 の JAN 行が 5 詳細画面 DTO の実態と一致する — `rg -n "jan" src/lib/bindings.ts` の 5 DetailItem 型（Receiving / Return / ManualSale / Disposal / CsvImport）に JAN field が 0 hit のまま、§65.5 該当行が「no」表記 + 変更履歴に owner 裁定 A（2026-08-04）の行が存在。
+- AC7: 65 §65.5 詳細項目表で「商品コード / JAN / 商品名 / 部門」行が「商品コード / 商品名 / 部門」（全列 yes 維持）と「JAN」（全列 no）の 2 行へ分割される — 5 つの `*RecordDetailItem` 型（Receiving / Return / ManualSale / Disposal / CsvImport、`src/lib/bindings.ts`）の型定義に JAN field 0 hit のまま + 変更履歴に owner 裁定 A（2026-08-04）の行が存在。
 - AC8: 既存 filter（種別 / 日付 / 記録ID / 部門 / 状態）、filter-empty reset action（SPEC-UIBB-1/2）、一覧⇄詳細の条件保持（TRACE-D11）が不変 — `npm test -- InventoryRecordsPage` exit code 0（既存 test 削除・skip なし）。
 - AC9: `bash scripts/local-ci.sh full` CLEAN（L1）、`bindings.ts` diff ゼロ。
 
@@ -125,13 +125,13 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 | REQ-206 | 65 §65.4.1 | TRACE-D12（新設） | 商品検索欄を SearchBar live 型（debounceMs=200）へ統一。理由 = 商品一覧・在庫照会との操作一貫性（UI-01a-D9 同型）+ 自前 IME guard 実装の drift 解消。rejected = 自前実装の維持（部品規約の二重管理）、commit 型化（live 型が filter 欄の全社契約） | `InventoryRecordsPage.tsx` | live 結線 / IME / no-trim / page reset test |
 | REQ-206 | 59 §59.1 | （表更新のみ） | SearchBar 採用箇所表へ入出庫履歴を追加し採用実態と一致させる | `59-ui-shared-patterns.md` | doc review |
 | — | 52 §52.3 | （実態同期のみ） | UI-07/UI-08/UI-10 行と URL 設計根拠段落を実 route へ同期。rejected = route 側を doc に合わせる変更（既存 URL は PR #57 batch A 等で確定済み） | `52-ui-shared-layout.md` / `73-ui-stocktake.md` | AC5 rg sweep + review |
-| REQ-206 | 65 §65.5 | （owner 裁定 A、2026-08-04） | JAN 行を実態同期。rejected = 選択肢 B（5 画面 JAN 列追加。技術コストは小さいが operator 業務上の必要性を示す記録が皆無 — 現店舗は部門キー運用） | `65-inventory-record-traceability.md` | doc review + DTO 突合 |
+| REQ-206 | 65 §65.5 | （owner 裁定 A、2026-08-04） | JAN を単独行へ分割し全列 no で実態同期（商品コード / 商品名 / 部門は yes 維持）。rejected = 選択肢 B（5 画面 JAN 列追加。技術コストは小さいが operator 業務上の必要性を示す記録が皆無 — 現店舗は部門キー運用） | `65-inventory-record-traceability.md` | doc review + DTO 突合 |
 
 ## Design Intent Audit
 
 - Source docs can answer what is being built and why without chat history or archived Plan Packets: yes（TRACE-D12 を 65 に、採用箇所を 59 に、JAN 裁定を 65 変更履歴に明記する）
 - Plan-only durable decisions found and promoted to source docs / decision-log / ADR: JAN 裁定 A → 65 変更履歴。autocomplete 化の見送りと候補記録 → `Plans.md` backlog
-- Assumptions and constraints: SearchBar 部品の live 型挙動（debounce / Enter flush / IME guard）は既存 2 画面 + 部品単体 test で固定済み。現行 `updateKeywordSearch` は trim なし・page reset ありで、live 統一後も同意味論を保持する
+- Assumptions and constraints: SearchBar 部品の live 型挙動（debounce / Enter flush / Enter keydown の isComposing guard。onChange 経路に guard なし）は既存 2 画面 + 部品単体 test で固定済み。現行 `updateKeywordSearch` は trim なし・page reset ありで、live 統一後も同意味論を保持する
 - Deferred design gaps, risk, and follow-up target: 商品追加欄の autocomplete 化（variant B: Enter commit 経路維持 + 入力中候補プレビュー）は backlog 起票のみ。keywordDraft 初期値が normalized.q 由来という現行の軽微 drift は SearchBar 置換（raw 結線）で同時解消
 - Test Design Matrix can cite design decision IDs or source doc sections: yes（TRACE-D12 / UI-01a-D9 / §59.2 / SPEC-UICB-*）
 - Absolute guarantee / escape hatch self-check completed: yes（例外なし。既存挙動の意味論変更は「即時更新 → debounce 200ms」の統一のみで、これは TRACE-D12 の意図した変更）
@@ -167,7 +167,7 @@ N/A — 未検証の外部前提なし。SearchBar は repo 内既存部品（�
 |---|---|---|---|
 | TRACE-D12: 商品検索欄 SearchBar live 型（debounceMs=200） | `InventoryRecordsPage.tsx` | live 結線 test（debounce 発火 / Enter 即時） | L3: 実機で入力→一覧絞り込みの目視 |
 | UI-01a-D9 同型: value = raw `search.q`、no-trim | 同上 | no-trim assert | — |
-| §59.2: IME composing 中は更新なし、確定で反映 | 同上（SearchBar 経由） | IME test | L3: IME で商品名入力の目視 |
+| §59.2: 変換確定 Enter の誤発火なし（keydown isComposing guard）+ 確定後の最終文字列反映 | 同上（SearchBar 経由） | IME test | L3: IME 変換入力の目視（中間反映は許容） |
 | 現行意味論維持: q 変更で page 既定 reset | 同上 | page reset test | — |
 | TRACE-D11: 一覧⇄詳細の検索条件・page 保持 | 既存実装（不変） | 既存 test 維持 | — |
 | SPEC-UIBB-1/2: filter-empty reset action の isFilterDefault 判定に q が含まれ続ける | 既存実装（不変） | 既存 test 維持 | — |
@@ -180,7 +180,7 @@ N/A — 未検証の外部前提なし。SearchBar は repo 内既存部品（�
 Test Design Matrix: [test-matrices/2026-08-04-ui-consistency-batch.md](test-matrices/2026-08-04-ui-consistency-batch.md)
 
 - targeted tests: `npm test -- InventoryRecordsPage`（live 結線 / IME / no-trim / page reset / 既存 filter regression）
-- negative tests: IME composing 中の非発火、空文字クリアでの `q` param 削除 + page reset
+- negative tests: 変換確定 Enter の非 flush（`isComposing` guard）、compositionend 後の最終文字列反映、空文字クリアでの `q` param 削除 + page reset
 - compatibility checks: 既存 URL（`?q=...` 付き）での復元表示、`bindings.ts` diff ゼロ
 - data safety checks: 実店舗データ不使用（synthetic fixture のみ）
 - main wiring/integration checks: SearchBar → URL `q` → 一覧 query の end-to-end 結線（mock でなく実 router で assert）
@@ -209,7 +209,7 @@ Test Design Matrix: [test-matrices/2026-08-04-ui-consistency-batch.md](test-matr
 Contract ID: SPEC-UICB
 
 - SPEC-UICB-1: 入出庫履歴の商品検索欄は共有 SearchBar live 型（`debounceMs=200`）で URL `q` に raw 結線される（value = raw `search.q ?? ""`）。
-- SPEC-UICB-2: IME composing 中は search 更新が発火せず、変換確定で反映される。変換確定 Enter は誤発火しない。
+- SPEC-UICB-2: 変換確定 Enter（`isComposing`）は search flush を誤発火しない。変換確定後は最終文字列が `q` へ反映される。変換中の中間文字列の一時反映は live 型既定挙動として許容（商品一覧・在庫照会と同一意味論）。
 - SPEC-UICB-3: `q` の変更（クリア含む）は page を既定へ reset する（現行意味論維持）。
 - SPEC-UICB-4: `docs/function-design/` 配下に `/pos/` 由来の陳腐化 URL 記載が存在しない（archive 除外）。52 §52.3 の URL / route file 列は実 route と一致する。
 - SPEC-UICB-5: 65 §65.5 の JAN 行は 5 詳細画面の実態（JAN 非表示・DTO field なし)と一致し、選択肢 B 不採用の owner 裁定（2026-08-04）が変更履歴に残る。
@@ -238,6 +238,15 @@ Do not transcribe exact-HEAD SHA or test counts here (D-035/D-038 Evidence Owner
 
 ## Review Response
 
-Fill after review.
-If R3 review-only sub-agent is skipped, record an explicit line beginning with `Review-only skipped because:` and the reason.
 - Findings Freeze: not yet frozen; post-freeze exceptions: none.
+- If R3 review-only sub-agent is skipped, record an explicit line beginning with `Review-only skipped because:` and the reason.
+
+**Plan Gate round 1**（2026-08-04、Sonnet Plan Reviewer 独立 context、P1=2 / P2=3 / P3=1）
+
+- P1-1 accept（Coordinator 実読裏取り: 65:94-106 の行 conflate を確認）→ §65.5 は行分割指示へ Scope / AC7 是正（JAN 単独行 no、商品コード / 商品名 / 部門は yes 維持）
+- P1-2 accept（実読裏取り: `SearchBar.tsx` の isComposing guard は :89 / :161 の keydown のみ）→ 裁定 = 案 a（契約側を SearchBar live 実態へ是正。AC2 / SPEC-UICB-2 / Ledger / Human Gate / Matrix M-A3 を改稿。案 b の SearchBar 改修は商品一覧・在庫照会への影響と scope 拡大のため不採用）
+- P2-1 accept → TRACE-D12 は §65.2 正式エントリ + §65.4.1 備考参照
+- P2-2 accept → §65.11 Test Focus bullet を Scope へ追加
+- P2-3 accept → Human Gate L3 文言を failure mode 名指しへ具体化
+- P3-1 accept → 52 §52.3 UI-07 / UI-08 の before→after を明示
+- 是正は plan-gate 滞留中の in-place 修正（plan-approved 前のため Amendments 非該当）。round 2 を fresh 独立 context で再審査する
