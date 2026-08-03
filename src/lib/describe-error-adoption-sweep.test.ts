@@ -43,11 +43,13 @@ interface ViolationPattern {
 const VIOLATION_PATTERNS: ViolationPattern[] = [
   {
     name: "cmdError.message direct display (UI-ERR-D1 bypass)",
-    regex: /\bcmdError\.message\b(?!\s*===)/,
+    // `?.`（optional chaining）変種（`cmdError?.message` 等）も検出する。
+    regex: /\bcmdError\??\.message\b(?!\s*===)/,
   },
   {
     name: "raw error.message direct display (UI-ERR-D2 bypass)",
-    regex: /\berror\.message\b(?!\s*===)/,
+    // `?.`（optional chaining）変種（`error?.message` / `query.error?.message` 等）も検出する。
+    regex: /\berror\??\.message\b(?!\s*===)/,
   },
 ];
 
@@ -119,6 +121,18 @@ describe("describeError adoption sweep (UI-ERR-D1 / UI-ERR-D2)", () => {
       '  return <span>{query.error.message}</span>;',
       "}",
     ].join("\n");
+    // optional chaining 変種（`?.`）。word boundary が `?.` token で切れて素通しする gap の
+    // 独立 verifier 実測（2026-08-04 追加是正）に対する positive case。既存 case の改変ではなく
+    // 新規 case として追加する（empty-set-oracle-collision の教訓）。
+    const syntheticOptionalChainingBypass = [
+      "function Component() {",
+      '  return <span>{query.error?.message}</span>;',
+      "}",
+      "function onError(error: unknown) {",
+      "  const cmdError = isInvokeError(error) ? error.cmdError : toCmdError(error);",
+      "  setSaveError(cmdError?.message);",
+      "}",
+    ].join("\n");
     // validation guard（control-flow、表示ではない）は誤検出しないことも併記する。
     const validationGuardOnly = [
       'if (error instanceof Error && error.message === "validation") return;',
@@ -126,12 +140,15 @@ describe("describeError adoption sweep (UI-ERR-D1 / UI-ERR-D2)", () => {
 
     const cmdErrorViolations = findViolations(syntheticCmdErrorBypass);
     const rawErrorViolations = findViolations(syntheticRawErrorBypass);
+    const optionalChainingViolations = findViolations(syntheticOptionalChainingBypass);
     const guardViolations = findViolations(validationGuardOnly);
 
     expect(cmdErrorViolations.length).toBeGreaterThan(0);
     expect(cmdErrorViolations.some((v) => v.pattern.includes("cmdError"))).toBe(true);
     expect(rawErrorViolations.length).toBeGreaterThan(0);
     expect(rawErrorViolations.some((v) => v.pattern.includes("UI-ERR-D2"))).toBe(true);
+    expect(optionalChainingViolations.some((v) => v.pattern.includes("UI-ERR-D2"))).toBe(true);
+    expect(optionalChainingViolations.some((v) => v.pattern.includes("cmdError"))).toBe(true);
     expect(guardViolations).toEqual([]);
   });
 });
