@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: ready-hosted-final
+- Phase: archive
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: 1c40453
@@ -370,9 +370,7 @@ Contract ID: SPEC-UIBB
 
 ## Implementation Results
 
-Fill after implementation.
-
-Do not transcribe exact-HEAD SHA or test counts here (D-035/D-038 Evidence Ownership). Record a qualitative summary and the PR link only.
+PR #59（squash merge、2026-08-03 JST）で完了。filter-empty reset action 6 site（分類軸 4 種 + 優先規則による全数分類、商品一覧は登録 action と中央揃え共存）、在庫照会 pagination（UI-06a-D1）+ 範囲外 page 回復（D3、UI-11c-D8 同型）+ 部門候補 listDepartments 化（D2、DSR-10）、`DepartmentOption` re-export 統一、FilePicker catalog 登録（02 ⑭ + §6.5.4 正本集約 + 移行完了形の repo-wide sync）、gated amendment（owner L3 起点）で商品一覧検索欄の live 型統一（UI-01a-D9、raw `search.q` 結線）と EmptyState 複数ボタン中央揃えを実装。付随して既存 frontend timing flake（`ProductListPage.test.tsx` の department 読込み失敗 test）の根本を特定・是正した。hosted final 三点一致は PR body を参照。編成 = Fable coordinator / Sonnet writer（worktree）/ Codex Plan+Final Reviewer（batch A 鏡像分担の 2 回目）。レビュー経路 = Plan Review 5 round（P1+P2 11→7→3→1→0 の単調収束、corrected-in-place 1 回）+ Final Review 一次・closure + amendment Plan Review 2 round + amendment Final Review、mutation 実注入は本編 9 種 + amendment 6 種の全 red を Coordinator / Final Reviewer 双方の独立再現で確定。
 
 ## Review Response
 
