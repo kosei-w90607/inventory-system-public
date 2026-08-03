@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: plan-gate
+- Phase: implementing
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: bfc770c
@@ -27,6 +27,8 @@
 2026-08-03 round 2 是正 content commit で `design -> plan-draft -> plan-gate` を再材料化する。evidence = §6.11 UI-USW-D3 除外軸 (b) を「file・DB 等からの再実行で再導出可能（値の記入を伴わない選択 state を含む）」へ精緻化し、分類表へ IntegrityCheckPage 明示行（除外 (b)）を追加、catch-all 行を component 名個別列挙へ改め 75 を分離（P2-1 是正、design→plan-draft）、Matrix T17 へ「除外側個別列挙・自動除外型実装の禁止」を明記（residual risk 採用）、`doc-consistency-check --target plan` 通過・commit（plan-draft→plan-gate）。
 
 2026-08-03 Sonnet Plan Review round 3（closure、fresh 独立 context）= PASS（P1/P2/P3 = 0、round 2 closure 判定 (a)(b)(c) 全 closed、新規指摘なし）。分類表 26 page 全数一致・backtrack 機構の DEV_WORKFLOW 適合・§6.11 精緻化の実装整合を独立再検証済み。plan-gate 収束（rally 実績 = round 1 → round 2 → round 3 の単調収束）。owner plan 承認待ち（plan-gate → plan-approved は owner 承認 evidence を伴う state-only commit で材料化する）。
+
+2026-08-03 owner plan 承認（介入 1/3、承認取得の interactive 記録あり。承認文言 = 「承認する」）。本 content commit で `plan-gate -> plan-approved -> implementing` を材料化する。evidence = Plan Review 3 round 収束・P1/P2=0（plan-gate→plan-approved、上記 round 3 記録が pre-existing evidence）、Codex Writer 発注書の交付準備完了 + Plan Commit 記入済み bfc770c（plan-approved→implementing）。発注書は owner relay（外部端末、cwd = public-writer clone 固定）で交付する。
 
 ## Owner Effort Budget
 
