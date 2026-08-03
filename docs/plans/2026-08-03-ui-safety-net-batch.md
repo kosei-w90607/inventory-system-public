@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: implementing
+- Phase: design
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: bfc770c
