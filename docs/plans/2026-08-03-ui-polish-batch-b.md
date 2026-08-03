@@ -378,7 +378,7 @@ Coordinator 裁定（全件、採否前に引用箇所を実読して裏取り�
 | P2-2 58 要約層の 2 query / 4 key 残存 | accept | round 2 是正で詳細（3 query / 5 key / 拡張 return）を更新した際、要約・構成表・データフロー・FUNCTION_DESIGN 索引の追随が漏れた（packet correction full sweep の同型）。58 の全要約層と FUNCTION_DESIGN:59/136 を「3 useQuery」「5 URL key」「実 return 形」へ同期し、旧表現は更新履歴のみに限定 |
 | P2-3 SPEC-UIBB-9 の loading / error oracle 欠落 | accept | 契約（disabled 結線・isError alert・一覧独立）は 58 / packet に規定済みだが Matrix に殺す test がない。Matrix へ 2 行（pending → trigger disabled / reject + list 成功 → exact alert 文言と一覧の同時表示）を追加、58 §58.9 と Ledger へ転記、test harness の QueryClient retry 無効化を fixture 条件に明記 |
 
-### Codex Plan Review round 4（2026-08-03、FAIL P1=0 / P2=1 / P3=1、round 3 の 3 件 = 全 closed）
+### Codex Plan Review round 4（2026-08-03、FAIL。件数は Codex round 4 報告の転記 = `P1=0 / P2=1 / P3=1`、round 3 findings は全 closed 判定）
 
 Coordinator 裁定（採否前に引用箇所を実読して裏取り済み — 58 §58.9 の件数書き換え diff と DEV_WORKFLOW の D-038 実文言、60:138 の帰属行を確認）:
 
