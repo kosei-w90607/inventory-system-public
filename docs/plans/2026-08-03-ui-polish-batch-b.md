@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: implementing
+- Phase: human-confirm
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: 1c40453
@@ -11,7 +11,7 @@
 - Writer: Claude (Sonnet 5 subagent、worktree isolation)
 - Plan Reviewer: Codex (cross-vendor)
 - Final Reviewer: Codex (cross-vendor、fresh context)
-- Reviewed Content HEAD: pending
+- Reviewed Content HEAD: 3d1c67e
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
 - Human Gate: L3 Windows native 目視（filter reset 代表画面 / 在庫照会 pagination）、Ready 承認、merge
@@ -33,6 +33,8 @@
 2026-08-03 Codex Plan Review round 4 = FAIL（`P1=0 / P2=1 / P3=1`、round 3 の 3 件 = 全 closed。裁定は Review Response 参照）。是正は表記・帰属のみで Scope / design 契約を変えないため、Workflow State 遷移表の corrected-in-place 規定を適用し backtrack せず plan-gate 在留で是正 content commit（`516b328` + `1c40453`）を積んだ。round 5 = **Plan Review PASS `P1/P2=0`**（round 4 findings 2/2 closed、in-place 是正の hunk 監査・STATECAP 整合も Codex が独立確認）。
 
 2026-08-03 state-only 遷移 commit で `plan-gate -> plan-approved -> implementing` を材料化する（圧縮記録、STATECAP 1/3）。evidence = 独立 Plan Reviewer（Codex、Writer と別 vendor）が round 5 で「Plan Review PASS P1/P2=0」を報告（plan-gate→plan-approved）、`Plan Commit` = 1c40453 を設定し、plan-first 系列（`2046bc2`〜`1c40453`）は全実装 commit に先行する。owner が 2026-08-03 に plan を承認し実装開始を指示（介入 1 回目/予算 3 回）（plan-approved→implementing）。
+
+2026-08-03 state-only 遷移 commit で `implementing -> local-verified -> independent-review -> human-confirm` を材料化する（圧縮記録、STATECAP 2/3）。evidence = content candidate `3d1c67e`（Sonnet writer 実装 `e2df6f7`/`0b72435`/`406ad68` + traceability 是正 `d8ecf95` + 整形 `c344e15` + Final Review P2 是正 `3d1c67e`）の L1 full PASS / TREE CLEAN / MERGE_EVIDENCE_VALID=true（PR #59 body に evidence SHA と log path 収録。実装後初回 L1 の traceability T1/T4 検出と是正、部分並列 vitest の既知 flake note も PR body 記録）（implementing→local-verified）。Final Reviewer（Codex、fresh context）一次実施 = Ledger 全行の source docs×src 実読突合 + mutation 7 種実注入全 red + 静的 sweep / gate 独立再実行、P2=1（SPEC-UIBB-4 の dept/status 経路 test 欠落、survivor 2 種実証）（local-verified→independent-review）。P2 是正 `3d1c67e` の survivor kill を Coordinator と Final Reviewer が各々 clean tree 再注入で独立再現し、closure round で「Final Review PASS P1/P2=0」確定（independent-review→human-confirm）。`Reviewed Content HEAD` = 3d1c67e（Final Reviewer closure が実監査した content commit）。Human Gate 残 = owner L3 Windows native 目視（PR #59 body の 4 手順、synthetic 商品 51 件以上を要準備）+ Ready 承認 + merge。
 
 ## Owner Effort Budget
 
@@ -337,7 +339,12 @@ Do not transcribe exact-HEAD SHA or test counts here (D-035/D-038 Evidence Owner
 
 ## Review Response
 
-- Findings Freeze: not yet frozen; post-freeze exceptions: none.
+- Findings Freeze: frozen after Final Review closure（2026-08-03、closure round P1/P2=0 確定時）; post-freeze exceptions: none.
+
+### Codex Final Review（2026-08-03、一次 FAIL → closure PASS。件数は Codex 報告の転記 = 一次 `P1=0 / P2=1 / P3=0`、closure `P1/P2=0`）
+
+- 一次（fresh context、対象 `c344e15`）: Ledger 全行を source docs × src 実読で独立監査（全行 PASS、test coverage のみ FAIL 1）、mutation 7 種実注入全 red・全復元 clean、静的 sweep 3 種・gate 独立再実行 PASS、Writer の SPEC-UIBB-1 negative test 置換 oracle（契約 I の isAllEmpty により「既定 + query 成功 0 件」は到達不能）を妥当と判定。P2 = SPEC-UIBB-4 の page reset test が q 経路のみで、dept / status handler の mutant 2 種が生存。
+- Coordinator 裁定 = accept（実装は適合、test coverage 欠落）。是正 `3d1c67e` = SPEC-UIBB-4 の 3 経路化 + selected 併記 assert。survivor 2 種の kill を Coordinator が clean tree 再注入で独立再現後、closure round で Final Reviewer も同 2 種を再注入・red 独立再現し「Final Review PASS P1/P2=0」を宣言（PR #59 に closure comment 投稿済み）。
 
 ### Codex Plan Review round 1（2026-08-03、FAIL P1=5 / P2=6 / P3=0）
 
