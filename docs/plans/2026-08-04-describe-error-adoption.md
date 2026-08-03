@@ -1,0 +1,287 @@
+# Plan Packet: describeError 全面適用（raw error message 直接表示の是正）
+
+## Workflow State
+
+- Phase: plan-gate
+- Risk: R3
+- Execution Mode: fable-window
+- Plan Commit: pending
+- Amendments: none
+- Coordinator: Claude Fable 5（main session）
+- Writer: Claude Sonnet 5 subagent（worktree isolation）
+- Plan Reviewer: Claude Sonnet 5 subagent（起草非関与の独立 context）
+- Final Reviewer: Claude Sonnet 5 subagent（Writer / Plan Reviewer と別の独立 context）
+- Reviewed Content HEAD: pending
+- Final Exact-HEAD Evidence: PR body
+- Hosted CI Requirement: required
+- Human Gate: L3 視認（internal kind の エラーID 併記表示 + B群画面の非デバッグ表示。synthetic fixture 手順を Ready 依頼時に添付 — L3 fixture prep の教訓）/ merge / closeout
+
+編成注記: D-062 (c)（Codex 起草 packet の Plan Reviewer 別 vendor 必須）は本 packet が Fable 起草のため非該当。Codex slot は依存 hygiene PR + owner 重量級作業で占有中（owner 裁定 2026-08-04）のため Writer / Reviewer とも Sonnet 5 だが、相互に独立 context の別 subagent であり writer の自己承認は発生しない。WER 2026-08-04（D-062 (c) 編成 WER）改善 1・3・4 の初適用対象: Reviewer 発注書に「各 finding へ修正案必須添付」、Coordinator 是正時の同 packet 内 full sweep、Writer の STATECAP canonical subject。
+
+## Owner Effort Budget
+
+- 介入回数上限: 3
+- 実働時間上限: 30分
+- relay 往復上限: 2（Sonnet 編成のため外部 relay は想定なし。Codex 相談へ切替える場合のみ消費）
+
+既定値と超過時の Coordinator 責務は `docs/DEV_WORKFLOW.md` `Owner Effort Budget` 参照。
+承認依頼フォーマット: `この change での介入 N 回目 / 予算 M 回` + `承認すると利用者から見て何が完了するか1文`。
+
+## Consultation Relay
+
+- Review Order Artifact: none
+- Review Order Ref: none
+
+## Risk
+
+Risk: R3
+
+Reason:
+UI の安定契約（UI_TECH_STACK §6.4 UI-ERR-D1 のエラー表示変換）に対する全画面横断の実装整合であり、22 site + 除外多数の全数分類を伴う。B群 4 site は利用者へ内部デバッグ文字列が露出する実バグの是正で、表示挙動が変わる。DEV_WORKFLOW Risk Tiers の「stable contract / UI behavior に触れる場合は R3」に該当。
+
+## Goal
+
+Goal Invariant:
+
+### 最小完了条件
+
+- CmdError 起源の利用者向けエラー表示が、適用 manifest の全 site（22 site、下記 Scope）で共通 `describeError`（UI-ERR-D1）経由になり、`internal` kind で エラーID + 診断ログ誘導が表示される。
+- InvokeError のデバッグ文字列（`[source:cmd] kind: message` 形式）が利用者向け表示へ到達する経路が 0 件になる（B群 4 site の実バグ解消）。
+- 再導入を sweep test が機械的に防止する。
+
+### 失敗定義
+
+- manifest 外の見落とし site が残る、または sweep が違反を検出できない（感度未実証）。
+- restore_* の表示所有権（68 §68.7）、Error Boundary 境界（UI-EB-D3）、§6.4 の kind 別素通し戦略（validation 等は message そのまま）のいずれかを壊す。
+- 既存 test の削除・無効化・skip。
+
+### 非目的
+
+- エラー文言の再設計（describeError の既存出力文言を変えない）。
+- CmdError wire 契約・error kind 集合・error_id 形式（CMD-ERR-D1/D2）の変更。
+- Error Boundary（§6.10）・restore_* 表示（68 §68.7）・診断ログ機構（70）の変更。
+
+Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。AC や証跡作業が Goal Invariant を前進させない場合は、Goal を置き換えず簡略化・defer・削除する。
+
+## Scope
+
+全数分類 manifest（実査 2026-08-04、Coordinator 委譲 Explore の再 enumerate。行番号は実査時点の参考値であり、Writer は着手時に全行を rg で再確認する）:
+
+**B群 = InvokeError デバッグ文字列露出の実バグ 4 site（cmdError 抽出なしで `.error.message` を直接表示）**
+
+| # | site | 表示先 |
+|---|---|---|
+| B1 | `src/features/daily-sales/DailySalesPage.tsx`（実査時 95 行） | query error の span |
+| B2 | `src/features/monthly-sales/MonthlySalesPage.tsx`（88 行） | query error の span |
+| B3 | `src/features/operation-logs/OperationLogsPage.tsx`（401 行） | query error の p |
+| B4 | `src/lib/hooks/useExportFile.ts`（57 行） | mutation onError の toast |
+
+注: PR #61 closeout の実査記録は「実バグ 3 箇所」。B4 は本 packet 起草時の再 enumerate で追加検出した完全同型（`onError` で `error.message` 直 toast）であり、除外する理由がないため適用に含める（記録との差分として明示）。
+
+**A群 = cmdError 抽出済みだが describeError 非経由 18 site（internal kind の エラーID・診断ログ誘導が欠落する契約非準拠）**
+
+| # | site | パターン |
+|---|---|---|
+| A1-A2 | `src/features/disposal/DisposalPage.tsx`（175 / 246 行） | setSaveError / setSearchMessage |
+| A3-A4 | `src/features/receiving/ReceivingPage.tsx`（174 / 243 行） | 同上 |
+| A5-A6 | `src/features/manual-sale/ManualSalePage.tsx`（194 / 265 行） | 同上 |
+| A7-A8 | `src/features/return-exchange/ReturnExchangePage.tsx`（245 / 339 行） | 同上 |
+| A9-A11 | `src/features/products/ProductFormPage.tsx`（117 / 154 / 175 行） | setSaveError |
+| A12 | `src/features/inventory-records/ManualSaleRecordDetailPage.tsx`（81 行） | AlertTitle |
+| A13 | `src/features/inventory-records/ReceivingRecordDetailPage.tsx`（73 行） | AlertTitle |
+| A14 | `src/features/inventory-records/DisposalRecordDetailPage.tsx`（79 行） | AlertTitle |
+| A15 | `src/features/inventory-records/ReturnRecordDetailPage.tsx`（96 行） | AlertTitle |
+| A16 | `src/features/products/ProductImportPage.tsx`（105 行） | p 要素 |
+| A17 | `src/features/daily-report-import/DailyReportImportPage.tsx`（66 行） | p 要素 |
+| A18 | `src/features/csv-import/components/ErrorState.tsx`（40 行） | AlertDescription |
+
+**明示除外（適用しない。理由付き個別列挙、自動除外型実装の禁止）**
+
+| site | 除外理由 |
+|---|---|
+| `src/components/patterns/RouteErrorFallback.tsx` | render 例外の最終防衛層。UI-EB-D3 により describeError 対象外（折り畳み「技術詳細」節の `error.message` は契約どおり） |
+| `src/features/backup-restore/BackupRestorePage.tsx` | restore_* 表示所有権は 68 §68.7。describeError 不使用が契約（§6.4 restore_* 行）。加えて既に describeError を適切箇所で使用済み |
+| `src/features/integrity-check/IntegrityCheckPage.tsx` | 既対応（describeError 経由で message 生成済み） |
+| 各 Page の `error.message === "validation"` guard 行 | 表示ではなく制御分岐 |
+| `src/features/threshold-settings/ThresholdSettingsPage.tsx` の issue.message | Zod validation issue で CmdError と無関係 |
+| `useCsvImportFlow.ts` / `useDailyReportImportFlow.ts` / `useProductImportFlow.ts` の `ensureInvokeError()` | 表示コードではなく InvokeError 正規化 infra |
+
+**その他の Scope 項目**
+
+- `docs/UI_TECH_STACK.md` §6.4 へ **UI-ERR-D2（新設）** を追記: 「useQuery / useMutation の error（InvokeError）を利用者向けに表示する場合も describeError 経由 MUST。InvokeError の `.message` はデバッグ用フォーマット（`[source:cmd] kind: message`）であり利用者向け表示に使わない」
+- **sweep test 新設**（`src/lib/describe-error-adoption-sweep.test.ts`）: `src/features` / `src/components` / `src/lib/hooks` の production file を対象に、`cmdError.message` の表示文脈利用と query/mutation error の `.message` 直接表示パターンを検出して 0 件を assert。allowlist は上記明示除外の file を個別列挙（pattern 単位の自動除外は禁止）。**空集合 oracle 対策として、synthetic 違反 fixture 文字列に対する positive 検出 case を同 test file 内に必ず含める**（empty-set-oracle-collision の教訓）
+- 型ごとの代表 regression test 追加（Matrix 参照）: internal kind → エラーID 表示（A群代表）、B群 3 画面の非デバッグ表示 negative assert、useExportFile の test 新設
+
+## Non-scope
+
+- restore_* 系表示・68 §68.7 の変更
+- RouteErrorFallback / Error Boundary（§6.10）の変更
+- describe-error.ts 本体の挙動変更（変換 semantics は現状維持。呼出し側の適用のみ）
+- backend / CmdError wire / bindings / DB
+- エラー文言の新規設計（describeError の既存出力をそのまま使う）
+
+## Acceptance Criteria
+
+- AC1: 新 sweep test `src/lib/describe-error-adoption-sweep.test.ts` が green（production 違反 0 の assert + synthetic 違反 fixture の positive 検出 case を含む）
+- AC2: B群 3 画面（DailySales / MonthlySales / OperationLogs）の page test に「query error 時、DOM に `[commands:` を含む文字列が現れない」negative assert と describeError 出力の表示 assert が存在し green
+- AC3: `useExportFile` の test（新設）で onError toast 引数が describeError 出力であることを assert し green
+- AC4: A群代表（DisposalPage）の test に internal kind fixture → `エラーID:` を含む表示の assert が存在し green
+- AC5: `rg -n "cmdError\.message" src/features src/components src/lib/hooks` の production hit が明示除外 file のみ（PR body へ出力添付）
+- AC6: `docs/UI_TECH_STACK.md` §6.4 に UI-ERR-D2 行が存在（`rg -n "UI-ERR-D2" docs/UI_TECH_STACK.md` で 1+ hit）
+- AC7: 既存 `describe-error.test.ts` / `describe-error-no-local-duplicates.test.ts` は無変更のまま green
+- AC8: `scripts/local-ci.sh full` green（L1）、exact-HEAD hosted final 三点一致
+- AC9: mutation Matrix X 行の全 red（Writer 自己実測 + Coordinator の記録非参照独立再実測の双方）
+
+## Design Sources
+
+- Requirements / spec: `docs/UI_TECH_STACK.md` §6.4（UI-ERR-D1、kind 別表示戦略）
+- Architecture: `docs/UI_TECH_STACK.md` §6.10（UI-EB-D3 責務境界）
+- Function / command / DTO: `docs/function-design/40-cmd-product.md` §5.3（CMD-ERR-D1/D2）
+- DB: 該当なし
+- Screen / UI: `docs/function-design/68-ui-backup-restore.md` §68.7（restore_* 所有権 = 除外根拠）、`docs/function-design/55-ui-csv-import.md` §55.5（import_error 画面固有分岐 = A18 の周辺契約）
+- Decision log / ADR: D-053（error_id × 診断ログ相関、順8）
+
+## Required Design Artifacts
+
+| Area touched by upcoming work | Required source doc / artifact | Status |
+|---|---|---|
+| Backend function / command / repository / validation / error | 変更なし（CmdError wire 不変） | existing sufficient |
+| Command / DTO / generated binding / wire shape | 変更なし | existing sufficient |
+| DB / transaction / audit / rollback / migration | 該当なし | — |
+| Screen / UI / route state / Japanese wording | `docs/UI_TECH_STACK.md` §6.4 | updated in this PR（UI-ERR-D2 追記。表示文言は describeError 既存出力で新規文言なし） |
+| CSV / TSV / report / import / export format | 該当なし | — |
+| Durable decision / ADR | UI-ERR-D2 は §6.4 内の decision ID として完結 | updated in this PR |
+
+## Registration / Generation Obligations
+
+該当なし（新規 command / route / 画面 / function-design doc なし。新規 test file は登録義務対象外）。ただし design doc（UI_TECH_STACK）を触るため、Writer は `cargo run --bin generate_traceability` を実行して diff 0 を確認し、diff が出た場合は再生成を同 PR に含める（PR #61 gated Amendment 1 の failure class 対策）。
+
+## Design Intent Trace
+
+| Spec / requirement ID | Source design doc section | Decision ID | Why / rejected alternatives | Implementation target | Test target |
+|---|---|---|---|---|---|
+| UI-ERR（D-053 系） | UI_TECH_STACK §6.4 | UI-ERR-D1（既存） | エラー表示変換の一元化。画面ローカル変換の重複定義禁止 | A群 18 site の describeError 経由化 | AC4 / AC5 / 既存 no-local-duplicates |
+| UI-ERR（D-053 系） | UI_TECH_STACK §6.4 | UI-ERR-D2（新設） | InvokeError `.message` はデバッグ用フォーマットで利用者向け表示禁止。代替案「InvokeError.message 自体を人間向け文言へ変更」は診断ログ・開発時の相関情報が失われるため不採用 | B群 4 site + sweep test | AC1 / AC2 / AC3 |
+| CMD-ERR-D1 | 40-cmd-product §5.3 | —（消費のみ） | internal kind の error_id を UI で利用者へ提示し診断相関を成立させる | describeError 既設（変更なし） | AC4 + 既存 describe-error.test.ts |
+
+## Design Intent Audit
+
+- Source docs can answer what is being built and why without chat history or archived Plan Packets: §6.4 の変換表 + UI-ERR-D2 追記で完結する。
+- Plan-only durable decisions found and promoted to source docs / decision-log / ADR: UI-ERR-D2 を §6.4 へ昇格（本 PR 内）。
+- Assumptions and constraints: describeError は CmdError object / InvokeError / unknown のいずれを渡しても extractCmdError で正規化できる（`src/lib/describe-error.ts` 実装済み。Writer は A16-A18 の `state.error.cmdError` 形にも適用可能なことを test で確認）。
+- Deferred design gaps, risk, and follow-up target: なし（restore_* / Error Boundary は既存契約の維持）。
+- Test Design Matrix can cite design decision IDs or source doc sections: UI-ERR-D1/D2、CMD-ERR-D1、UI-EB-D3、68 §68.7。
+- Absolute guarantee / escape hatch self-check completed: 「InvokeError 文字列が利用者向け表示へ到達する経路 0」の例外は RouteErrorFallback の技術詳細節（UI-EB-D3 の設計上の例外、折り畳み内）のみ。sweep allowlist に明記し、Ledger 行で整合を宣言する。
+
+## Impact Review Lenses
+
+| Lens | Applicability / finding | Follow-up artifact |
+|---|---|---|
+| Adapter / core boundary | not applicable（UI 層内の適用是正のみ） | — |
+| Fact check / design decision split | B群「実バグ 3 箇所」の記録に対し再実査で 4 件目（B4）を検出。事実確定は manifest、B4 を適用に含めるのは Coordinator 裁定（同型バグの除外理由なし） | 本 packet Scope |
+| Lifecycle / retry | error 表示の lifecycle は既存 query/mutation の error state に従属、変更なし | Matrix State Lifecycle |
+| Operator workflow | internal エラー時に operator が エラーID を口頭・メモで伝達できるようになる（診断相関の実利） | L3 視認項目 |
+| Replacement path | not applicable（置換ではなく既設 describeError の適用拡大） | — |
+| Data safety / evidence | synthetic fixture のみ使用、実データ不使用 | Data Safety 節 |
+| Reporting / accounting semantics | not applicable | — |
+| Manual verification | L3 で internal 表示 + B群非デバッグ表示を視認 | Human Gate |
+| 環境・再現性 | 新設の環境依存なし（既存 vitest 環境のみ） | — |
+
+## Design Readiness
+
+- Existing design docs are sufficient because: §6.4 の kind 別変換表と describeError 実装が既設で、本 change は適用漏れの是正 + 契約 1 行の追記のみ。
+- Source docs updated in this PR: `docs/UI_TECH_STACK.md` §6.4（UI-ERR-D2 追記）。
+- Design gaps intentionally deferred: なし。
+- Durable decisions discovered in this plan and promoted to source docs: UI-ERR-D2。
+
+Minimum design checks for business-app work:
+
+- Layer ownership (`UI -> CMD -> BIZ -> IO/MNT`): UI 層のみ。CMD 以下不変。
+- Backend function design: 変更なし。
+- Command / DTO / data contract: CmdError wire 不変（消費側の適用是正）。
+- Persistence / transaction / audit impact: なし。
+- Operator workflow / Japanese UI wording: describeError の既存日本語出力を使用。internal のみ エラーID 併記が加わる（§6.4 既定文言）。
+- Error, empty, retry, and recovery behavior: エラー表示経路のみ変更。retry / recovery 分岐（55 §55.5 等）は不変。
+- Testability and traceability IDs: UI-ERR-D1/D2 を Matrix / Ledger の契約 ID に使用。
+
+## Contract Probe
+
+N/A — 未検証の外部前提なし。InvokeError の `.message` フォーマットは `src/lib/invoke.ts`（実査時 44-45 行）実読で確認済み、describeError の変換挙動は既存 unit test（`src/lib/describe-error.test.ts`）が担保。いずれも repo 内契約で外部 library / OS 挙動に依存しない。
+
+## Contract Coverage Ledger
+
+| Design contract / decision ID | Implementation target | Automated test | L3 or non-scope |
+|---|---|---|---|
+| UI-ERR-D1（変換一元化、画面ローカル定義禁止） | A群 18 site の describeError 経由化 | AC5 rg evidence + 既存 no-local-duplicates + 新 sweep | — |
+| UI-ERR-D2（新設: InvokeError.message 利用者表示禁止） | B群 4 site + sweep test | AC1 / AC2 / AC3 | L3: B群代表画面の非デバッグ表示視認 |
+| §6.4 internal 戦略（message + エラーID + 診断誘導） | describeError 既設の適用（A群） | AC4 + 既存 describe-error.test.ts | L3: internal 表示視認 |
+| §6.4 素通し戦略（validation / duplicate / not_found / import_error は message そのまま） | describeError の既存 semantics 維持（本 change で変換挙動を変えない） | 既存 describe-error.test.ts（AC7 無変更 green） | — |
+| UI-EB-D3（render 例外は describeError 対象外） | RouteErrorFallback 無変更 + sweep allowlist 個別列挙 | AC1 の allowlist assert | non-scope（無変更） |
+| 68 §68.7（restore_* 表示所有権） | BackupRestorePage 無変更 + sweep allowlist 個別列挙 | AC1 の allowlist assert + 既存 test 維持 | non-scope（無変更） |
+| CMD-ERR-D1（error_id wire） | 消費のみ（不変） | AC4（表示側で `エラーID:` assert） | — |
+
+Ledger 確定前の adjacent-contract sweep 実施記録: §6.4 全行（kind 別 6 分類）、§6.10 UI-EB-D1〜D3、68 §68.7、55 §55.5 を確認。§55.5 の import_error recovery 分岐は A18（ErrorState.tsx）の describeError 化で不変（describeError は import_error を message 素通しするため recovery 分岐側に影響しない）ことを Ledger 行 4 で担保。
+
+## Test Plan
+
+Test Design Matrix: `docs/plans/test-matrices/2026-08-04-describe-error-adoption.md`
+
+- targeted tests: AC1-AC4（sweep + 代表 regression + useExportFile 新設）
+- negative tests: B群 3 画面の `[commands:` 非出現 assert、sweep の synthetic 違反 positive case
+- compatibility checks: 素通し kind（validation 等）の表示文言が describeError 化の前後で不変（DisposalPage 等の既存 test が green のまま）
+- data safety checks: synthetic fixture のみ（Matrix 参照）
+- main wiring/integration checks: 22 site 全数が manifest どおり置換されたことを AC5 rg evidence で確認
+
+Human Gate に L3 を含むため、Writer 完了条件に `cargo check --release` を含める（backend 無変更でも実行して green を記録）。
+
+## Boundary / Wire Contract
+
+- producer: CMD 層（CmdError JSON、不変）
+- consumer: UI `describeError`（適用 site を拡大）
+- wire type: `CmdError { kind, message, field?, error_id? }`（不変）
+- internal type: `InvokeError`（`.message` はデバッグ用、利用者向け表示禁止 = UI-ERR-D2）
+- precision/range: 該当なし
+- round-trip path: 該当なし
+- invalid input: 非 CmdError / unknown は describeError の fallback 経路（既存挙動）
+- compatibility: wire 不変のため互換性影響なし
+
+## Review Focus
+
+- 全数分類 manifest の網羅性: 実査パターン（`cmdError.message` / `.error.message` / toast 直渡し）の取りこぼしがないか、Reviewer は独立に rg で再 enumerate して manifest と突合する
+- sweep test の regex 設計: false positive（guard 分岐・test file・allowlist）と false negative（表記揺れ）の両面。空集合 oracle 対策の positive case が synthetic fixture に隔離されているか
+- 表示変化の把握: A群は internal kind のときのみ表示が変わる（エラーID 追記）。素通し kind の文言不変を既存 test の green 維持で確認
+- B4（useExportFile）は実査記録「3 箇所」外の追加検出。同型性の判定が妥当か
+- WER 2026-08-04 改善の初適用: 各 finding へ修正案必須添付（DEV_WORKFLOW Review Rules）。天井目安 3 round、到達時は Coordinator disposition 裁定へ切替
+
+## Spec Contract
+
+Contract ID: SPEC-UI-ERR-ADOPTION-1
+
+- CmdError 起源の利用者向けエラー表示は、restore_*（68 §68.7 所有）と render 例外（UI-EB-D3）を除き、describeError（UI-ERR-D1）経由 MUST。InvokeError の `.message` は利用者向け表示に使わない（UI-ERR-D2）。再導入は sweep test（AC1）が機械的に検出する。
+
+## Trace Matrix
+
+| Spec ID | Plan Step | Test | Review Focus | Evidence |
+|---|---|---|---|---|
+| SPEC-UI-ERR-ADOPTION-1 | B群 4 site 是正 | AC2 / AC3 | 非デバッグ表示 | page test + sweep |
+| SPEC-UI-ERR-ADOPTION-1 | A群 18 site 是正 | AC4 / AC5 | internal の エラーID 併記 | 代表 regression + rg evidence |
+| SPEC-UI-ERR-ADOPTION-1 | sweep 新設 | AC1 | 感度実証（mutation X-S 行） | sweep test + 独立再実測 |
+| SPEC-UI-ERR-ADOPTION-1 | §6.4 UI-ERR-D2 追記 | AC6 | 契約文言と実装の一致 | doc diff |
+
+## Data Safety
+
+- 実店舗データ・実 DB・実エラーログを test fixture に使わない（synthetic CmdError fixture のみ。error_id は `E-20260101-000000-0000` 等の合成値）
+- local-only paths: なし
+- synthetic-only paths: test fixture 内の CmdError / InvokeError オブジェクト
+
+## Implementation Results
+
+Fill after implementation.
+
+Do not transcribe exact-HEAD SHA or test counts here (D-035/D-038 Evidence Ownership). Record a qualitative summary and the PR link only.
+
+## Review Response
+
+Fill after review.
+If R3 review-only sub-agent is skipped, record an explicit line beginning with `Review-only skipped because:` and the reason.
+- Findings Freeze: not yet frozen; post-freeze exceptions: none.
