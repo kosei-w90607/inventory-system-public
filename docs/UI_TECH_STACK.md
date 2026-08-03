@@ -818,6 +818,7 @@ Vite の読み込み順序は `.env` → `.env.{mode}` → `.env.{mode}.local` �
 
 | 日付 | 内容 | 担当 |
 |------|------|------|
+| 2026-08-03 | UI-EB-D1〜D3 / UI-USW-D1〜D4 の実装を反映。route error fallback 2 層、共通離脱警告 hook / AlertDialog、対象 6 画面配線と全 Page 分類 sweep を追加 | Codex |
 | 2026-07-23 | UI-REF-D1 を追加。render-phase `ref.current` access を禁止し、state / effect / event 境界への同期と `react-hooks/refs` の限定導入方針を明記 | Codex |
 | 2026-04-16 | 初版作成。v0.6.0 タグ後、UI層実装準備。技術スタック7パート確定、デザインシステム4本柱＋補助3原則＋観点借用1件を定義 | kosei-w90607 + Claude |
 

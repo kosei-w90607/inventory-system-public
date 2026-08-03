@@ -141,6 +141,7 @@ UI-04 実装 PR では以下を generated binding に出す。
 - `navigation.ts` の UI-04 は `to: "/inventory/manual-sale"`, `status: "active"` に切り替える。
 - result panel の `詳細を見る` は `/inventory/manual-sale/records/{sale_id}` へ遷移する。`sale_id=null` の PLU確認待ちでは表示しない。
 - result panel の `日次売上へ` は `/reports/daily?date={saleDate}` へ遷移する。
+- 明細または header 入力が初期値と異なる間だけ共通 `useUnsavedChangesWarning` を有効にし、保存中 / result panel 表示中は `!isFormLocked` により解除する。
 
 ## 62.8 Non-scope / Follow-up
 
@@ -172,6 +173,7 @@ UI-04 実装 PR では以下を generated binding に出す。
 
 | 日付 | 版 | 内容 |
 |---|---|---|
+| 2026-08-03 | UI safety net implementation | 手動販売 form の dirty 判定を共通離脱ガードへ接続し、保存中 / 保存結果の非 block を実装。 |
 | 2026-06-28 | Save result visibility follow-up | 保存成功、PLU確認待ち、command 失敗時はページ先頭へスクロールし、result panel / Alert が画面内に入るようにした。frontend validation は近傍表示のためスクロールしない。 |
 | 2026-06-26 | UI-04 Design Phase | route、generated command 方針、商品追加/スキャン前提、明細 validation、PLU警告二段階確認、冪等キー、query invalidation、Windows native L3 を整理。 |
 | 2026-06-27 | Record detail expansion | 保存結果から手動販売詳細へ遷移する導線と、入出庫履歴 query invalidation を追記。 |

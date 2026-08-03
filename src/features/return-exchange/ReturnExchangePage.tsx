@@ -25,6 +25,8 @@ import {
 } from "@/components/ui/table";
 import { EmptyState } from "@/components/patterns/EmptyState";
 import { PageHeader } from "@/components/patterns/PageHeader";
+import { UnsavedChangesDialog } from "@/components/patterns/UnsavedChangesDialog";
+import { useUnsavedChangesWarning } from "@/hooks/useUnsavedChangesWarning";
 import { commands, type ProductWithRelations, type ReturnCreateResult } from "@/lib/bindings";
 import { invalidateByContract, invalidationContract } from "@/lib/invalidation-contract";
 import { isInvokeError, toCmdError, unwrapResult } from "@/lib/invoke";
@@ -171,7 +173,8 @@ function clearStaleRowErrors(
 export function ReturnExchangePage() {
   const queryClient = useQueryClient();
   const searchInputRef = useRef<HTMLInputElement>(null);
-  const [values, setValues] = useState<ReturnExchangeFormValues>(createEmptyForm);
+  const [initialValues, setInitialValues] = useState<ReturnExchangeFormValues>(createEmptyForm);
+  const [values, setValues] = useState<ReturnExchangeFormValues>(initialValues);
   const [errors, setErrors] = useState<ReturnExchangeFormErrors>({});
   const [saveError, setSaveError] = useState<string | null>(null);
   const [searchText, setSearchText] = useState("");
@@ -246,6 +249,14 @@ export function ReturnExchangePage() {
   const isSaving = createMutation.isPending;
   const isFormLocked = isSaving || result !== null;
   const canSubmit = values.rows.length > 0 && values.returnDate.trim() !== "" && !isFormLocked;
+  const hasInputChanges =
+    values.rows.length > 0 ||
+    values.returnDate !== initialValues.returnDate ||
+    values.returnType !== initialValues.returnType ||
+    values.registerProcessed !== initialValues.registerProcessed ||
+    values.note !== initialValues.note ||
+    receipt !== null;
+  const unsavedChanges = useUnsavedChangesWarning(hasInputChanges && !isFormLocked);
   const effectiveAddDirection: ReturnDirection =
     values.returnType === "exchange" ? addDirection : "in";
 
@@ -330,7 +341,9 @@ export function ReturnExchangePage() {
   }
 
   function resetForm() {
-    setValues(createEmptyForm());
+    const emptyValues = createEmptyForm();
+    setInitialValues(emptyValues);
+    setValues(emptyValues);
     setErrors({});
     setSaveError(null);
     setSearchText("");
@@ -383,6 +396,7 @@ export function ReturnExchangePage() {
 
   return (
     <div className="space-y-5 p-6">
+      <UnsavedChangesDialog warning={unsavedChanges} />
       <PageHeader
         title="返品・交換"
         subtitle="レジ戻し済みなら帳面記録だけ、未処理ならこの保存で在庫を反映します"

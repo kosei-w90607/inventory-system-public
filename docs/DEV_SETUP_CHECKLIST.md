@@ -452,9 +452,9 @@ ARCHITECTURE.md の 5 層分割（UI / CMD / BIZ / IO / MNT）に従い、`src-t
 - [ ] 7-6 Storybook 導入判断 — UI-12 完成後のトリガー条件（コンポーネント 10 超）で再評価
 - [x] 7-7a Vitest 初期化 — PR #64 (`2b30f43`) で `vitest` / `@testing-library/react` / `user-event` / CI integration 完了
 - [ ] 7-7b `@axe-core/react` or hooks accessibility coverage 組込み
-- [ ] 7-8a P1 Error Boundary 戦略文書化 — UI_TECH_STACK §6.10 に繰り下げ（env 設計が §6.9 に先行実装されたため番号調整）。ページ / アプリ / Suspense 統合
+- [x] 7-8a P1 Error Boundary 戦略文書化・実装 — UI_TECH_STACK §6.10。router 既定 fallback + root 全画面 fallback の 2 層と共通回復 UI を UI 安全網 batch で適用
 - [ ] 7-8b 横断 UI 要素標準化 — Toast / Dialog / EmptyState / ErrorState のテンプレート実装
-- [ ] 7-8c P1 unsaved changes ガード — `useUnsavedChangesWarning` hook + `isDirty` 連動
+- [x] 7-8c P1 unsaved changes ガード — `useUnsavedChangesWarning` hook + `isDirty` 連動を対象 6 画面へ適用し、全 Page 分類 sweep を追加
 - [x] 7-11 P1 AI/UI 開発 workflow 文書化 — PR #72 (`022b8ae`) で `docs/DEV_WORKFLOW.md` / `docs/code_review.md` / repo-local Skills に統合
 - [ ] git tag: `v0.7.0-ui-foundation`（必要なら履歴 tag として扱う。Phase 2 completion gate ではない）
 

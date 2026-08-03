@@ -132,6 +132,7 @@ UI-05 実装 PR では以下を generated binding に出す。
 - 保存成功時は D-052-C7 の SSOT helper を適用する。具体的な query key 集合は `src/lib/invalidation-contract.ts` だけに置く。
 - `navigation.ts` の UI-05 は `to: "/inventory/disposal"`, `status: "active"` に切り替える。
 - 在庫照会の詳細カードから廃棄・破損へ遷移する場合、将来 `?productCode=...` で初期商品追加する余地を残す。ただし初回実装では query 初期追加は非 scope とし、route だけ active にする。
+- 明細または廃棄日の初期値との差分がある間だけ共通 `useUnsavedChangesWarning` を有効にし、保存中 / result panel 表示中は `!isFormLocked` により解除する（画像条件は持たない）。
 
 ## 64.8 Non-scope / Follow-up
 
@@ -163,6 +164,7 @@ UI-05 実装 PR では以下を generated binding に出す。
 
 | 日付 | 版 | 内容 |
 |---|---|---|
+| 2026-08-03 | UI safety net implementation | 廃棄・破損 form の dirty 判定を共通離脱ガードへ接続し、保存中 / 保存結果の非 block を実装。 |
 | 2026-07-23 | UI-05-D15 | form lock ref をrender同期から保存/失敗/reset event同期へ移し、非同期商品検索結果の採否タイミングを固定。 |
 | 2026-06-28 | Save result visibility follow-up | 保存成功または command 失敗時はページ先頭へスクロールし、result panel / Alert が画面内に入るようにした。frontend validation は近傍表示のためスクロールしない。 |
 | 2026-06-27 | UI-05 Design Phase | route、generated command 方針、商品追加/スキャン前提、明細単位の種別/理由、validation、冪等キー、query invalidation、recent list、Windows native L3 を整理。 |

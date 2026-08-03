@@ -24,6 +24,8 @@ import {
 } from "@/components/ui/table";
 import { EmptyState } from "@/components/patterns/EmptyState";
 import { PageHeader } from "@/components/patterns/PageHeader";
+import { UnsavedChangesDialog } from "@/components/patterns/UnsavedChangesDialog";
+import { useUnsavedChangesWarning } from "@/hooks/useUnsavedChangesWarning";
 import { commands, type ProductWithRelations, type ReceivingCreateResult } from "@/lib/bindings";
 import { invalidateByContract, invalidationContract } from "@/lib/invalidation-contract";
 import { isInvokeError, toCmdError, unwrapResult } from "@/lib/invoke";
@@ -105,7 +107,8 @@ function clearStaleRowErrors(
 export function ReceivingPage() {
   const queryClient = useQueryClient();
   const searchInputRef = useRef<HTMLInputElement>(null);
-  const [values, setValues] = useState<ReceivingFormValues>(createEmptyForm);
+  const [initialValues, setInitialValues] = useState<ReceivingFormValues>(createEmptyForm);
+  const [values, setValues] = useState<ReceivingFormValues>(initialValues);
   const [errors, setErrors] = useState<ReceivingFormErrors>({});
   const [saveError, setSaveError] = useState<string | null>(null);
   const [searchText, setSearchText] = useState("");
@@ -175,6 +178,12 @@ export function ReceivingPage() {
   const isSaving = createMutation.isPending;
   const isFormLocked = isSaving || result !== null;
   const canSubmit = values.rows.length > 0 && values.receivingDate.trim() !== "" && !isFormLocked;
+  const hasInputChanges =
+    values.rows.length > 0 ||
+    values.supplierId !== initialValues.supplierId ||
+    values.receivingDate !== initialValues.receivingDate ||
+    values.note !== initialValues.note;
+  const unsavedChanges = useUnsavedChangesWarning(hasInputChanges && !isFormLocked);
 
   useEffect(() => {
     if (recentQuery.isError) {
@@ -236,7 +245,9 @@ export function ReceivingPage() {
   }
 
   function resetForm() {
-    setValues(createEmptyForm());
+    const emptyValues = createEmptyForm();
+    setInitialValues(emptyValues);
+    setValues(emptyValues);
     setErrors({});
     setSaveError(null);
     setSearchText("");
@@ -250,6 +261,7 @@ export function ReceivingPage() {
 
   return (
     <div className="space-y-5 p-6">
+      <UnsavedChangesDialog warning={unsavedChanges} />
       <PageHeader
         title="入庫記録"
         subtitle="届いた商品をまとめて入庫し、在庫へ反映します"

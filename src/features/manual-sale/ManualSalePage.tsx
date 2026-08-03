@@ -24,6 +24,8 @@ import {
 } from "@/components/ui/table";
 import { EmptyState } from "@/components/patterns/EmptyState";
 import { PageHeader } from "@/components/patterns/PageHeader";
+import { UnsavedChangesDialog } from "@/components/patterns/UnsavedChangesDialog";
+import { useUnsavedChangesWarning } from "@/hooks/useUnsavedChangesWarning";
 import { formatDateTime, formatRecordStatus } from "@/features/inventory-records/types";
 import { commands, type ManualSaleCreateResult, type ProductWithRelations } from "@/lib/bindings";
 import { invalidateByContract, invalidationContract } from "@/lib/invalidation-contract";
@@ -126,7 +128,8 @@ export function ManualSalePage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const searchInputRef = useRef<HTMLInputElement>(null);
-  const [values, setValues] = useState<ManualSaleFormValues>(createEmptyForm);
+  const [initialValues, setInitialValues] = useState<ManualSaleFormValues>(createEmptyForm);
+  const [values, setValues] = useState<ManualSaleFormValues>(initialValues);
   const [errors, setErrors] = useState<ManualSaleFormErrors>({});
   const [saveError, setSaveError] = useState<string | null>(null);
   const [searchText, setSearchText] = useState("");
@@ -195,6 +198,12 @@ export function ManualSalePage() {
   const isSaving = createMutation.isPending;
   const isFormLocked = isSaving || result !== null;
   const canSubmit = values.rows.length > 0 && values.saleDate.trim() !== "" && !isFormLocked;
+  const hasInputChanges =
+    values.rows.length > 0 ||
+    values.saleDate !== initialValues.saleDate ||
+    values.reason !== initialValues.reason ||
+    values.note !== initialValues.note;
+  const unsavedChanges = useUnsavedChangesWarning(hasInputChanges && !isFormLocked);
 
   useEffect(() => {
     if (confirmation !== null) {
@@ -258,7 +267,9 @@ export function ManualSalePage() {
   }
 
   function resetForm() {
-    setValues(createEmptyForm());
+    const emptyValues = createEmptyForm();
+    setInitialValues(emptyValues);
+    setValues(emptyValues);
     setErrors({});
     setSaveError(null);
     setSearchText("");
@@ -278,6 +289,7 @@ export function ManualSalePage() {
 
   return (
     <div className="space-y-5 p-6">
+      <UnsavedChangesDialog warning={unsavedChanges} />
       <PageHeader
         title="手動販売出庫"
         subtitle="レジCSVに入らない販売を手入力し、在庫と売上へ反映します"
