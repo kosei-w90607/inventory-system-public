@@ -109,7 +109,7 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。AC や�
 **その他の Scope 項目**
 
 - `docs/UI_TECH_STACK.md` §6.4 へ **UI-ERR-D2（新設）** を追記: 「useQuery / useMutation の error（InvokeError）を利用者向けに表示する場合も describeError 経由 MUST。InvokeError の `.message` はデバッグ用フォーマット（`[source:cmd] kind: message`）であり利用者向け表示に使わない」
-- **sweep test 新設**（`src/lib/describe-error-adoption-sweep.test.ts`）: `src/features` / `src/components` / `src/lib/hooks` の production file を対象に、`cmdError.message` の表示文脈利用と query/mutation error の `.message` 直接表示パターンを検出して 0 件を assert。allowlist は上記明示除外の file を個別列挙（pattern 単位の自動除外は禁止）。**空集合 oracle 対策として、synthetic 違反 fixture 文字列に対する positive 検出 case を同 test file 内に必ず含める**（empty-set-oracle-collision の教訓）
+- **sweep test 新設**（`src/lib/describe-error-adoption-sweep.test.ts`）: `src/features` / `src/components` / `src/lib/hooks` の production file を対象に、`cmdError.message` の表示文脈利用と query/mutation error の `.message` 直接表示パターンを検出して 0 件を assert。file 粒度の allowlist は UI-EB-D3 契約を持つ `RouteErrorFallback.tsx` のみとし、flow hook 3 file は ensureInvokeError 正規化 idiom の行単位除外に限定、allowlist と行除外 pattern は内容固定 assertion で pin する（Amendment 1 = Codex FR F1 の除外粒度是正。当初の「明示除外 file の個別列挙」は file 全体免除が広すぎ survivor を許した）。**空集合 oracle 対策として、synthetic 違反 fixture 文字列に対する positive 検出 case を同 test file 内に必ず含める**（empty-set-oracle-collision の教訓）
 - 型ごとの代表 regression test 追加（Matrix 参照）: internal kind → エラーID 表示（A群代表）、B群 3 画面の非デバッグ表示 negative assert、useExportFile の test 新設
 
 ## Non-scope
@@ -130,7 +130,7 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。AC や�
 - AC6: `docs/UI_TECH_STACK.md` §6.4 に UI-ERR-D2 行が存在（`rg -n "UI-ERR-D2" docs/UI_TECH_STACK.md` で 1+ hit）
 - AC7: 既存 `describe-error.test.ts` / `describe-error-no-local-duplicates.test.ts` は無変更のまま green
 - AC8: `scripts/local-ci.sh full` green（L1）、exact-HEAD hosted final 三点一致
-- AC9: mutation Matrix（`docs/plans/test-matrices/2026-08-04-describe-error-adoption.md`）X1-X7 の全 red を Writer 自己実測 + Coordinator の記録非参照独立再実測の双方で確認し、red になった test 名の一覧を本 packet `Review Response` へ記録
+- AC9: mutation Matrix（`docs/plans/test-matrices/2026-08-04-describe-error-adoption.md`）X1-X7 の全 red を、X ごとに互いに独立な 2 系統以上の実測（Writer 自己実測 / Coordinator 側の記録非参照再実測 / cross-vendor Final Review 再実測のいずれか）で確認し、red になった test 名の一覧を本 packet `Review Response` へ記録（Amendment 1: X6 は当初「review 検分依存」だったが `c4730e5` の内容固定 assertion で自動 red 化し、X1-X7 全 red が成立可能になった）
 
 ## Design Sources
 
@@ -148,7 +148,7 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。AC や�
 | Backend function / command / repository / validation / error | 変更なし（CmdError wire 不変） | existing sufficient |
 | Command / DTO / generated binding / wire shape | 変更なし | existing sufficient |
 | DB / transaction / audit / rollback / migration | 該当なし | — |
-| Screen / UI / route state / Japanese wording | `docs/UI_TECH_STACK.md` §6.4 | updated in this PR（UI-ERR-D2 追記。表示文言は describeError 既存出力で新規文言なし） |
+| Screen / UI / route state / Japanese wording | `docs/UI_TECH_STACK.md` §6.4 / `docs/function-design/55-ui-csv-import.md` §55.5 | updated in this PR（UI-ERR-D2 追記 + §55.5 の ErrorState 記述同期〈Codex FR F6〉。表示文言は describeError 既存出力で新規文言なし） |
 | CSV / TSV / report / import / export format | 該当なし | — |
 | Durable decision / ADR | UI-ERR-D2 は §6.4 内の decision ID として完結 | updated in this PR |
 
@@ -216,8 +216,8 @@ N/A — 未検証の外部前提なし。InvokeError の `.message` フォーマ
 | UI-ERR-D2（新設: InvokeError.message 利用者表示禁止） | B群 4 site + sweep test | AC1 / AC2 / AC3 | L3: B群代表画面の非デバッグ表示視認 |
 | §6.4 internal 戦略（message + エラーID + 診断誘導） | describeError 既設の適用（A群） | AC4 + 既存 describe-error.test.ts | L3: internal 表示視認 |
 | §6.4 素通し戦略（validation / duplicate / not_found / import_error は message そのまま） | describeError の既存 semantics 維持（本 change で変換挙動を変えない） | 既存 describe-error.test.ts（AC7 無変更 green） | — |
-| UI-EB-D3（render 例外は describeError 対象外） | RouteErrorFallback 無変更 + sweep allowlist 個別列挙 | AC1 の allowlist assert | non-scope（無変更） |
-| 68 §68.7（restore_* 表示所有権） | BackupRestorePage 無変更 + sweep allowlist 個別列挙 | AC1 の allowlist assert + 既存 test 維持 | non-scope（無変更） |
+| UI-EB-D3（render 例外は describeError 対象外） | RouteErrorFallback 無変更 + file 免除は同 file のみ | AC1 sweep の内容固定 assertion（Amendment 1） | non-scope（無変更） |
+| 68 §68.7（restore_* 表示所有権） | BackupRestorePage 無変更（sweep は 0 hit 実測、allowlist 記載なし） | AC1 sweep production scan + 既存 test 維持 + diff 0 | non-scope（無変更） |
 | CMD-ERR-D1（error_id wire） | 消費のみ（不変） | AC4（表示側で `エラーID:` assert） | — |
 
 Ledger 確定前の adjacent-contract sweep 実施記録: §6.4 全行（kind 別 6 分類）、§6.10 UI-EB-D1〜D3、68 §68.7、55 §55.5 を確認。§55.5 の import_error recovery 分岐は A18（ErrorState.tsx）の describeError 化で不変（describeError は import_error を message 素通しするため recovery 分岐側に影響しない）ことを Ledger 行 4 で担保。
@@ -294,4 +294,15 @@ Do not transcribe exact-HEAD SHA or test counts here (D-035/D-038 Evidence Owner
 - 追加検出と是正（独立再実測起点）: sweep regex が `?.` optional chaining 変種（`query.error?.message` 等）を素通しする真の gap を verifier が検出 → Writer 是正 `ada5233`（regex を `\??` 許容へ強化 + synthetic positive case 追加〈既存 case 非改変〉+ 実 file 一時注入で red を実証、production scan 0 件維持）。
 - X7 実測 divergence（Writer・独立 verifier の実測一致）: Matrix の想定「negative assert 弱体化で page test が素通り」は再現せず、positive assert（describeError 出力の完全一致 findByText）が単独で red 化 — 防御は想定より強い方向の差異。Matrix 本文は非改変とし、本欄の実測記録を正とする。
 - Final Reviewer 変更（2026-08-04）: owner 提案（Codex slot 空き）を受け Sonnet → Codex の cross-vendor Final Contract Audit へ切替。same-vendor（Writer=Sonnet / Final Reviewer=Sonnet）構成の独立性補強。役割変更のみで Scope / AC / 契約は無変更（gated amendment 非該当）。
+- Codex Final Review（cross-vendor、2026-08-04）: round 1 = 旧 HEAD `540add9` 対象、FAIL P1=0/P2=4/P3=2。うち F2（traceability T4 / REQ-700）と F4（Prettier）は報告受領前に `06ee49d` / `8569b9a` で是正済み（F2 の修正案 REQ-700 は Writer の独立選定と一致）。round 2 = `8569b9a` 対象、FAIL P1=0/P2=2/P3=2 — round 1 の残件と同一・新規 finding なし（単調収束）、`?.` 変種是正（`ada5233`）の red を第三系統で追認。
+- Codex FR 裁定と是正: F1（ALLOWLIST file 粒度が広すぎ、allowlisted file への raw 表示注入 survivor を実証）= accept → `c4730e5`（file 免除を RouteErrorFallback のみへ縮小 / flow hook は正規化 idiom の行単位除外 / 内容固定 assertion / 旧 allowlist path の恒久 synthetic regression / Writer が実 file 注入 red を live 実証）。F2'=AC9 と Matrix X6 の内部矛盾 = accept → 本 Amendment 1 で AC9・X6 を実 oracle へ一括改訂（X6 自動 red 化を採用）。F3'（B1 test は retry:false の test QueryClient）= accept → Matrix lifecycle 行を訂正。F6/F4'（§55.5 記述陳腐化）= accept → `6edde66`。
+- AC9 red test 一覧（実測系統: W=Writer 自己実測 / S=Sonnet 独立 verifier / C=Codex FR / F=Coordinator 実注入）:
+  - X1: sweep production scan + DisposalPage.test.tsx「REQ-204 keeps the idempotency key…」「REQ-204 unlocks product search after command failure」「REQ-204 shows the diagnostic error ID…」（W/S/C）
+  - X2: describe-error.test.ts「shows the internal message, independently transcribed error ID, and diagnostic guidance」+ DisposalPage AC4（W/S/C）
+  - X3: sweep + MonthlySalesPage.test.tsx の B2 UI-ERR-D2 test（W/S/C）。`?.` 変種は `ada5233` 後に sweep red（S 検出 → W 実証 → C 追認）
+  - X4: sweep + useExportFile.test.ts 2 件（W/S/C）
+  - X5: sweep green（設計どおりの盲点実証）+ useExportFile.test.ts 2 件が独立 red = 二重防御（W/S）
+  - X6: 旧設計では自動無反応（W/S/C 一致、Matrix 旧記載どおり）→ `c4730e5` の内容固定 assertion「keeps the file-level ALLOWLIST and line-exclusion patterns pinned to their justified minimum」で自動 red 化、F が実注入 red を確認（初回試行は sd pattern 不一致の no-op を diff --stat 確認で検出し再実測 — 実注入の diff 実確認は必須手順）。closure round で C 検証予定
+  - X7: sweep red + MonthlySalesPage positive assert が単独で red（negative assert 削除併用でも素通りせず。Matrix 想定より強い方向の divergence、W/S 実測一致）
+- relay 予算超過の記録: cross-vendor Final Review の rally 往復により relay 3/予算 2。超過理由を事前明示し owner 承認済み（2026-08-04）。
 - Findings Freeze: not yet frozen; post-freeze exceptions: none.

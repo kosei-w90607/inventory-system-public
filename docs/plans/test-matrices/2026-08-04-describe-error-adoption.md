@@ -43,7 +43,7 @@ Risk: R3
 
 | State / subject | Initial | Pending | Success | Invalidate | Refetch | Revisit | Restart | Failure | Retry | Evidence |
 |---|---|---|---|---|---|---|---|---|---|---|
-| query error 表示（B1-B3） | 非表示 | loading 表示（不変） | データ表示（不変） | 既存 invalidation（不変） | error 消去→再表示（既存挙動） | 既存挙動 | 既存挙動 | **describeError 出力を表示（本 change）** | 既存 retry 設定（不変。**per-page 実測値**: B1 DailySalesPage = global default `retry: 1`〈main.tsx〉/ B2 MonthlySalesPage = 明示 `retry: 1`〈useMonthlySalesReport.ts〉/ B3 OperationLogsPage = 明示 `retry: 0`〈OperationLogsPage.tsx、261・279 行の両 query〉。test の mock reject 回数設計は各値に従う） | page test |
+| query error 表示（B1-B3） | 非表示 | loading 表示（不変） | データ表示（不変） | 既存 invalidation（不変） | error 消去→再表示（既存挙動） | 既存挙動 | 既存挙動 | **describeError 出力を表示（本 change）** | 既存 retry 設定（不変。**per-page 実測値**: B1 DailySalesPage = global default `retry: 1`〈main.tsx〉/ B2 MonthlySalesPage = 明示 `retry: 1`〈useMonthlySalesReport.ts〉/ B3 OperationLogsPage = 明示 `retry: 0`〈OperationLogsPage.tsx、261・279 行の両 query〉。test の mock reject 回数設計は各値に従う。ただし B1 の page test 自体は表示 assertion 分離のため test QueryClient で `retry: false` を用いており、production の retry:1 は設定実読で確認する〈Codex FR F3 訂正〉） | page test |
 | mutation error 表示（A群 saveError / B4 toast） | 非表示 | 送信中（不変） | 成功表示（不変） | — | — | — | — | **describeError 出力を表示（本 change）** | 手動再操作（不変） | page test + useExportFile test |
 
 状態機械そのものは変更せず、Failure 列の表示内容のみが変わる。restore_* の state machine（68 §68.7）は non-scope。
@@ -110,7 +110,7 @@ Risk: R3
 - X3: `MonthlySalesPage` を `query.error.message` 直接表示へ revert → AC2 negative assert red + sweep red
 - X4: `useExportFile` の onError を `error.message` 直 toast へ revert → AC3 red + sweep red
 - X5: sweep test の scan 対象から `src/lib/hooks` を除外する mutation → synthetic fixture case は green のままだが、X4 revert との組合せで検出漏れ（sweep green）になることを確認し、X4 側の unit test（AC3）が独立に red になることで防御の二重性を実証
-- X6: sweep allowlist へ `DisposalPage.tsx` を不正追加 → AC5 rg evidence との突合で検出（review 検分、自動 test では AC4 が防御）
+- X6: sweep ALLOWLIST へ file を不正追加 → 内容固定 assertion「keeps the file-level ALLOWLIST and line-exclusion patterns pinned to their justified minimum」が red（Amendment 1 = `c4730e5` で review 検分依存から自動 red 化へ格上げ。AC5 rg evidence との突合は二次防御として継続）
 - X7: B群 test の negative assert（`[commands:` 非出現）を弱体化（assert 削除）→ X3 revert が素通りすることを確認し、sweep が独立に red になることで二重防御を実証
 
 template 標準問への回答:
