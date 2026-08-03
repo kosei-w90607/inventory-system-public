@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: human-confirm
+- Phase: ready-hosted-final
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: a433e44
@@ -14,7 +14,7 @@
 - Reviewed Content HEAD: 324e9c7
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
-- Human Gate: L3（到達: サイドバー「入出庫」→「入出庫履歴」→ 検索欄。live 動作 + IME 確認 = 変換確定後の最終文字列で絞り込まれ、変換確定 Enter で誤動作しないこと。変換中の一時的な絞り込み更新は live 型既定挙動として許容。label 撤去後の filter 行の視覚整合も目視、Windows native）/ Ready 承認
+- Human Gate: none（L3 = Windows native で 3 項目〈live 検索 / IME 確定挙動 / label 撤去後の視覚整合〉PASS + Ready 承認、2026-08-04 owner。介入 3/3）
 
 起票時の状態遷移: kickoff → spec-check → plan-draft → plan-gate を本 plan-first commit で materialize する。spec-check → plan-draft の skip 根拠 = Design Readiness が既存設計書（50 UI-01a-D9 / 59 §59.1-59.2 / 65 / 52 / 73）で実装十分と引用（設計新設なし、既存契約の適用と docs 実態同期のみ）。
 
@@ -293,6 +293,10 @@ Do not transcribe exact-HEAD SHA or test counts here (D-035/D-038 Evidence Owner
 - Final Review 一次（独立 Sonnet）: Contract Coverage Ledger 10 行全行適合（M-A1/A5/A7 は Reviewer 側でも独立注入で red 確認）、AC1〜AC10 全て実測 green、Scope 境界遵守（SearchBar 本体・5 取引画面・backend diff 0）、90-traceability delta は REQ-206 単一セルのみ、state commit の hunk は allowlist 内。**P1=0 / P2=1 / P3=0**
 - P2-1 accept（Coordinator 実見で confirmed）: local-verified 遷移 commit `6e04284` の subject が canonical `docs(plans): state-only遷移 <from>-><to>` 形式でなく、STATECAP 計数から不可視。**disposition = 履歴書き換えなし**（rename の force-push は Draft PR HEAD 変更と L1 再取得の手戻り、canonical 化は cap 4 本目化のリスク。実害〈cap 超過〉なし）。以降の遷移 commit は canonical subject で作成し、本遷移（local-verified → independent-review → human-confirm）から適用。Writer 向けの再発防止は Post-Merge Closeout で発注書 template への追記を判断
 - 上記により findings 裁定後 P1/P2=0。本 commit で `local-verified → independent-review → human-confirm` を materialize、`Reviewed Content HEAD = 324e9c7` を設定（Freeze は節冒頭の Findings Freeze 行を更新）
+
+**Human Gate**（2026-08-04）
+
+- owner L3（Windows native）: live 検索 / IME 変換確定挙動 / label 撤去後の視覚整合の 3 項目 **PASS**、Ready 承認。介入実績 3/3（plan 承認 / L3 / Ready）・relay 2/2。`human-confirm → ready-hosted-final` を本 state-only commit で materialize し、以降 Draft のまま exact-HEAD L1 full → PR body 更新 → Ready の順で処理する
 
 **Writer local verification**（2026-08-04）
 
