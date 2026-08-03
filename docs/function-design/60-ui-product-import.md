@@ -135,7 +135,7 @@ UI-01c 実装 PR では以下を generated binding に出す。
 
 - UI-01c-D1: `/products/import` route で page title と navigation active が一致する。
 - UI-01c-D2: `previewImport` / `commitImport` が generated binding に存在し、ad hoc invoke を使わない。
-- UI-01c-D3/D14: FilePicker（native dialog + 任意 drop）から bytes を `previewImport` に渡せる。
+- UI-01c-D14: FilePicker（native dialog + 任意 drop）から bytes を `previewImport` に渡せる。
 - UI-01c-D4: reducer が `idle -> previewing -> preview -> committing -> result` と error / reset を正しく遷移する。
 - UI-01c-D5: preview 件数サマリ、エラー行、重複行が日本語ラベルで読める。
 - UI-01c-D6/D7: 重複行は既定スキップ、上書き選択時のみ確認ダイアログが出る。

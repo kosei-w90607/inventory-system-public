@@ -377,3 +377,14 @@ Coordinator 裁定（全件、採否前に引用箇所を実読して裏取り�
 | P2-1 FilePicker 完了宣言と 5 live docs の矛盾 | accept | round 2 是正の sweep 範囲を対象 7 file に限定した Coordinator の発注不備が原因（drift 是正は repo 全体 sweep が既定）。FUNCTION_DESIGN:41/140 / SCREEN_DESIGN の plain input 開始・L3 指示 / 60 の D13・Non-scope・Test Focus / 63 の Non-scope・Test Focus / UI_TECH_STACK §6.7 の `createObjectURL(file)` を FilePicker 現行方式（D14 / D20 参照、`PickedFile.bytes` → Blob → `createObjectURL(blob)`）へ同期。historical / superseded decision 行（60 D3 / 63 D4 の記録自体）は残置。historical 除外の repo-wide sweep を Review Focus へ追加 |
 | P2-2 58 要約層の 2 query / 4 key 残存 | accept | round 2 是正で詳細（3 query / 5 key / 拡張 return）を更新した際、要約・構成表・データフロー・FUNCTION_DESIGN 索引の追随が漏れた（packet correction full sweep の同型）。58 の全要約層と FUNCTION_DESIGN:59/136 を「3 useQuery」「5 URL key」「実 return 形」へ同期し、旧表現は更新履歴のみに限定 |
 | P2-3 SPEC-UIBB-9 の loading / error oracle 欠落 | accept | 契約（disabled 結線・isError alert・一覧独立）は 58 / packet に規定済みだが Matrix に殺す test がない。Matrix へ 2 行（pending → trigger disabled / reject + list 成功 → exact alert 文言と一覧の同時表示）を追加、58 §58.9 と Ledger へ転記、test harness の QueryClient retry 無効化を fixture 条件に明記 |
+
+### Codex Plan Review round 4（2026-08-03、FAIL P1=0 / P2=1 / P3=1、round 3 の 3 件 = 全 closed）
+
+Coordinator 裁定（採否前に引用箇所を実読して裏取り済み — 58 §58.9 の件数書き換え diff と DEV_WORKFLOW の D-038 実文言、60:138 の帰属行を確認）:
+
+| Finding | 裁定 | 裏取りと対処方針 |
+|---|---|---|
+| P2-1 58 §58.9 のテスト件数転記（D-038 違反の新規混入） | accept | round 3 是正時に Writer 発注へ D-038 制約を明示しなかった Coordinator の発注不備。既存数値の書き換えは非遡及例外に当たらない。相互修正案の再発防止形を採用し「ケース数」列と合計件数・file 数を撤去、表は file / 契約・oracle 対応のみとし、見出しに D-038 参照を明記。実件数は PR body / CI 出力を正とする |
+| P3-1 60 Test Focus の supersede 済み D3 帰属 | accept | 現行 Test Focus の帰属を UI-01c-D14 単独へ是正。D3 は decision table と D14 の supersede 説明にのみ残置 |
+
+是正は表記・帰属のみで Scope / design 契約を変えないため、Workflow State 遷移表の「a plan-gate rejection corrected in place stays at plan-gate for re-review」を適用し、backtrack せず plan-gate 在留のまま本是正 content commit を積んで round 5（closure 確認）に出す。
