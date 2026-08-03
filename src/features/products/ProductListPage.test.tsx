@@ -4,12 +4,14 @@
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { commands } from "@/lib/bindings";
 import { makeMockDepartment, makeMockProductWithRelations } from "./lib/test-fixtures";
 import { ProductListPage } from "./ProductListPage";
+import type { ProductListSearch } from "./search";
 
 vi.mock("@tanstack/react-router", () => ({
   Link: ({
@@ -167,5 +169,89 @@ describe("ProductListPage (UI-01a)", () => {
     expect(screen.getByLabelText("商品検索")).toBeInTheDocument();
     expect(await screen.findByText("P-002")).toBeInTheDocument();
     expect(await screen.findByText("部門一覧の取得に失敗しました")).toBeInTheDocument();
+  });
+});
+
+describe("ProductListPage SPEC-UIBB-1/2（filter-empty reset action、既存「商品を登録する」と共存）", () => {
+  beforeEach(() => {
+    mockListDepartments.mockResolvedValue({
+      status: "ok",
+      data: [makeMockDepartment({ id: 1, name: "毛糸" }), makeMockDepartment({ id: 2, name: "布" })],
+    });
+  });
+
+  it("SPEC-UIBB-1 絞り込み該当なしで解除ボタンを表示する", async () => {
+    mockSearchProducts.mockResolvedValue({
+      status: "ok",
+      data: { items: [], total_count: 0, page: 1, per_page: 50 },
+    });
+    renderWithClient(
+      <ProductListPage search={{ q: "該当なし", dept: 1 }} onSearchChange={vi.fn()} />,
+    );
+    expect(await screen.findByRole("button", { name: "絞り込みを解除" })).toBeInTheDocument();
+  });
+
+  it("SPEC-UIBB-1 既定条件の0件では解除ボタンを出さない（登録のみ表示）", async () => {
+    mockSearchProducts.mockResolvedValue({
+      status: "ok",
+      data: { items: [], total_count: 0, page: 1, per_page: 50 },
+    });
+    renderWithClient(<ProductListPage search={{}} onSearchChange={vi.fn()} />);
+    expect(await screen.findByRole("link", { name: "商品を登録する" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "絞り込みを解除" })).not.toBeInTheDocument();
+  });
+
+  it("SPEC-UIBB-1 既定0件は登録のみ・非既定0件は登録と解除の2ボタン", async () => {
+    mockSearchProducts.mockResolvedValue({
+      status: "ok",
+      data: { items: [], total_count: 0, page: 1, per_page: 50 },
+    });
+    const defaultRender = renderWithClient(
+      <ProductListPage search={{}} onSearchChange={vi.fn()} />,
+    );
+    expect(await screen.findByRole("link", { name: "商品を登録する" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "絞り込みを解除" })).not.toBeInTheDocument();
+    defaultRender.unmount();
+
+    renderWithClient(<ProductListPage search={{ q: "毛糸" }} onSearchChange={vi.fn()} />);
+    expect(await screen.findByRole("link", { name: "商品を登録する" })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "絞り込みを解除" })).toBeInTheDocument();
+  });
+
+  it("SPEC-UIBB-2 解除で全条件が既定値に戻り、sort/dir/perPageは変更しない", async () => {
+    mockSearchProducts.mockResolvedValue({
+      status: "ok",
+      data: { items: [], total_count: 0, page: 1, per_page: 50 },
+    });
+    const onSearchChange = vi.fn();
+    renderWithClient(
+      <ProductListPage
+        search={{ q: "毛糸", dept: 2, discontinued: "discontinued", page: 3, sort: "name", dir: "desc", perPage: 100 }}
+        onSearchChange={onSearchChange}
+      />,
+    );
+    const resetButton = await screen.findByRole("button", { name: "絞り込みを解除" });
+    await userEvent.setup().click(resetButton);
+
+    const updater = onSearchChange.mock.calls[onSearchChange.mock.calls.length - 1]?.[0] as (
+      prev: ProductListSearch,
+    ) => ProductListSearch;
+    const result = updater({
+      q: "毛糸",
+      dept: 2,
+      discontinued: "discontinued",
+      page: 3,
+      sort: "name",
+      dir: "desc",
+      perPage: 100,
+    });
+    expect(result.q).toBeUndefined();
+    expect(result.dept).toBeUndefined();
+    expect(result.discontinued).toBeUndefined();
+    expect(result.page).toBe(1);
+    // sort / dir / perPage は絞り込み条件ではないため reset で変更しない
+    expect(result.sort).toBe("name");
+    expect(result.dir).toBe("desc");
+    expect(result.perPage).toBe(100);
   });
 });

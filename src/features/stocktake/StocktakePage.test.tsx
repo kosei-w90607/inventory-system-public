@@ -703,3 +703,46 @@ describe("StocktakePage (UI-10)", () => {
     expect(within(screen.getByRole("table")).getByText("青い糸")).toBeInTheDocument();
   });
 });
+
+describe("StocktakePage SPEC-UIBB-1/2（filter-empty reset action、73 §73.6）", () => {
+  function emptyListResponse() {
+    return listResponse({
+      items: [],
+      progress: { total_items: 0, counted_items: 0, uncounted_items: 0 },
+      total_count: 0,
+    });
+  }
+
+  it("SPEC-UIBB-1 絞り込み該当なしで解除ボタンを表示する", async () => {
+    mockGetActive.mockResolvedValue(ok(activeStocktake()));
+    mockGetItems.mockResolvedValue(emptyListResponse());
+    await renderPage({ dept: 1 });
+    expect(await screen.findByRole("button", { name: "絞り込みを解除" })).toBeInTheDocument();
+  });
+
+  it("SPEC-UIBB-1 既定条件の0件では解除ボタンを出さない", async () => {
+    mockGetActive.mockResolvedValue(ok(activeStocktake()));
+    mockGetItems.mockResolvedValue(emptyListResponse());
+    await renderPage({});
+    expect(await screen.findByText("この条件に一致する商品がありません")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "絞り込みを解除" })).not.toBeInTheDocument();
+  });
+
+  it("SPEC-UIBB-2 解除で部門フィルタ・未入力のみ・pageが既定値に戻る", async () => {
+    mockGetActive.mockResolvedValue(ok(activeStocktake()));
+    mockGetItems.mockResolvedValue(emptyListResponse());
+    const { onSearchChange } = await renderPage({ dept: 1, counted_only: false, page: 3 });
+
+    const resetButton = await screen.findByRole("button", { name: "絞り込みを解除" });
+    await userEvent.setup().click(resetButton);
+
+    const mockedOnSearchChange = vi.mocked(onSearchChange);
+    const updater = mockedOnSearchChange.mock.calls[
+      mockedOnSearchChange.mock.calls.length - 1
+    ]?.[0] as (prev: StocktakeSearch) => StocktakeSearch;
+    const result = updater({ dept: 1, counted_only: false, page: 3 });
+    expect(result.dept).toBeUndefined();
+    expect(result.counted_only).toBeUndefined();
+    expect(result.page).toBeUndefined();
+  });
+});

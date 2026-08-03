@@ -432,6 +432,22 @@ export function OperationLogsPage({
               ? "期間や種別を変更すると他のログを確認できます"
               : "期間や種別を変更してください"
           }
+          // filter-empty reset action（catalog ⑥、SPEC-UIBB-1/2）: 既存 defaultFilter 判定の
+          // 非既定側にのみ追加する（74 §74.11、範囲外 page 回復とは別 semantic で共存）。
+          action={
+            !defaultFilter ? (
+              <Button
+                onClick={() => {
+                  update(
+                    { start_date: undefined, end_date: undefined, operation_type: undefined },
+                    true,
+                  );
+                }}
+              >
+                絞り込みを解除
+              </Button>
+            ) : undefined
+          }
         />
       )}
       {logsQuery.data && logsQuery.data.items.length > 0 && (

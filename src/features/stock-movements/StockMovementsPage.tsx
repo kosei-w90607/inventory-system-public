@@ -42,6 +42,21 @@ export function StockMovementsPage({
       page: resetPage ? 1 : (patch.page ?? prev.page),
     }));
   };
+  // filter-empty reset action（catalog ⑥、SPEC-UIBB-1/2）: dateFrom / dateTo / type のいずれかが
+  // 既定値以外か。
+  const isFilterDefault =
+    normalizedSearch.dateFrom === undefined &&
+    normalizedSearch.dateTo === undefined &&
+    normalizedSearch.type === "all";
+  const resetFilters = () => {
+    onSearchChange((prev) => ({
+      ...prev,
+      dateFrom: undefined,
+      dateTo: undefined,
+      type: undefined,
+      page: undefined,
+    }));
+  };
   const returnToParams = new URLSearchParams();
   if (normalizedSearch.dateFrom !== undefined)
     returnToParams.set("dateFrom", normalizedSearch.dateFrom);
@@ -174,6 +189,14 @@ export function StockMovementsPage({
           icon={PackageSearch}
           title="在庫変動履歴がありません"
           description="この商品には該当する在庫変動がありません"
+          // 絞り込みが既定値以外のときだけ reset action を出す（catalog ⑥、SPEC-UIBB-1/2）。
+          action={
+            !isFilterDefault ? (
+              <Button type="button" variant="outline" onClick={resetFilters}>
+                絞り込みを解除
+              </Button>
+            ) : undefined
+          }
         />
       ) : movementsQuery.data ? (
         <div className="space-y-3">

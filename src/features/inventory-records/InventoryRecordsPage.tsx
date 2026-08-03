@@ -123,6 +123,29 @@ export function InventoryRecordsPage({ search, onSearchChange }: InventoryRecord
   const updateKeywordSearch = (value: string) => {
     updateSearch({ q: value || undefined }, true);
   };
+  // filter-empty reset action（catalog ⑥、SPEC-UIBB-1/2）: 65 §65.4.1 の検索条件のいずれかが
+  // 既定値以外か。
+  const isFilterDefault =
+    normalized.recordType === "all" &&
+    normalized.dateFrom === undefined &&
+    normalized.dateTo === undefined &&
+    normalized.q === undefined &&
+    normalized.recordId === undefined &&
+    normalized.departmentId === undefined &&
+    normalized.status === "all";
+  const resetFilters = () => {
+    onSearchChange((prev) => ({
+      ...prev,
+      recordType: undefined,
+      dateFrom: undefined,
+      dateTo: undefined,
+      q: undefined,
+      recordId: undefined,
+      departmentId: undefined,
+      status: undefined,
+      page: undefined,
+    }));
+  };
 
   return (
     <div className="space-y-5 p-6">
@@ -293,6 +316,14 @@ export function InventoryRecordsPage({ search, onSearchChange }: InventoryRecord
           icon={PackageSearch}
           title="入出庫履歴がありません"
           description="検索条件に該当する業務記録はありません"
+          // 絞り込みが既定値以外のときだけ reset action を出す（catalog ⑥、SPEC-UIBB-1/2）。
+          action={
+            !isFilterDefault ? (
+              <Button type="button" variant="outline" onClick={resetFilters}>
+                絞り込みを解除
+              </Button>
+            ) : undefined
+          }
         />
       ) : recordsQuery.data ? (
         <div className="space-y-3">
