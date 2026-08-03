@@ -72,6 +72,7 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 - `docs/function-design/59-ui-shared-patterns.md`: §59.1 SearchBar 採用箇所表へ入出庫履歴（live 型）を追加。
 - `docs/function-design/52-ui-shared-layout.md`: §52.3 の UI-07 行（URL `/pos/csv-import` → `/csv-import`、route file `src/routes/pos/csv-import.tsx` → `src/routes/csv-import.tsx`〈layout〉+ `src/routes/csv-import/index.tsx`〈index〉、備考「URL ドメインは POS」の是正含む）/ UI-08 行（URL `/pos/plu-export` → `/products/plu-export`、route file `src/routes/pos/plu-export.tsx` → `src/routes/products/plu-export.tsx`、備考是正含む）/ UI-10 行（route file `src/routes/stocktake/index.tsx` → `src/routes/stocktake.tsx`）+ 「URL 設計の根拠」段落の `/pos/*` 列挙削除。
 - `docs/function-design/73-ui-stocktake.md`: route file 表記 `src/routes/stocktake/index.tsx` → `src/routes/stocktake.tsx` の是正（52 §52.3 UI-10 行と同根 drift）。
+- `docs/function-design/90-traceability.md`: TRACE-D12 追加に伴う自動再生成（`cd src-tauri && cargo run --bin generate_traceability`。AUTO-GENERATED、手動編集禁止のまま。diff は TRACE-D12 起因の delta のみであること）— **gated Amendment 1**（Writer fail-closed 起源、選択肢 A 採択）。
 - `Plans.md`: active packet link の登録 + 商品追加欄 live 候補プレビュー（autocomplete）化の backlog 起票（plan-first commit）。消化項目の打ち消しは Post-Merge Closeout で実施。
 
 ## Non-scope
@@ -117,7 +118,7 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 
 ## Registration / Generation Obligations
 
-該当なし（新規 command / route / 画面 / function-design doc の追加なし。REQ token は既存 test の維持のみで、FE test file の REQ 参照 baseline〈WF-TRACE-01 T4〉が変わる場合は `cargo run --bin generate_traceability` で再生成する）。
+REQ coverage 追加（TRACE-D12 の設計書追加）に伴い `cargo run --bin generate_traceability` で `90-traceability.md` を再生成する（gated Amendment 1 で Scope へ明示。起票時は「該当なし」と誤判定しており、Writer fail-closed の local-ci changed traceability gate が検出した）。新規 command / route / 画面 / function-design doc の追加はなし。
 
 ## Design Intent Trace
 
@@ -206,6 +207,7 @@ Test Design Matrix: [test-matrices/2026-08-04-ui-consistency-batch.md](test-matr
 - docs 同期 3 点（52 / 65 / 59・73）が実装・実 route・実 DTO と一字一句一致すること（是正で新 drift を作らない）
 - 非目的の遵守（商品追加欄 5 箇所に触れていないこと）
 - 外付け label 撤去後の filter 行グリッドの視覚整合（他 filter は label 付きのまま。崩れの有無は L3 目視で確認）
+- `90-traceability.md` の再生成 diff が TRACE-D12 起因の delta のみであること（手動編集の混入なし、AUTO-GENERATED 維持）
 
 ## Spec Contract
 
@@ -278,3 +280,9 @@ Do not transcribe exact-HEAD SHA or test counts here (D-035/D-038 Evidence Owner
 
 - round 4 是正 5 箇所 = 全 OK（bindings.ts 実測で全 6 DTO と記述の一致確認）、残存「5」系 hit はすべて意図的記述と判定
 - 新規 P1=0 / P2=0 / P3=0 — **収束**。Plan Gate rally は 5 round 単調収束（P1+P2: 5→2→1→1→0）で終了、owner plan 承認待ちへ
+
+**gated Amendment 1**（2026-08-04、Writer fail-closed 起源、停止 HEAD `c819148`）
+
+- 事象: TRACE-D12 の 65 doc 追加により `90-traceability.md`（AUTO-GENERATED）の再生成義務が発生し、`local-ci.sh changed` の traceability gate が drift を検出。Scope 未列挙のため Writer が正しく fail-closed 停止（true positive）
+- 裁定: 選択肢 A 採択 = `90-traceability.md` の自動再生成を Scope へ追加（B = TRACE-D12 撤回は Plan Gate 5 round で確定した明示契約の放棄のため不採用）。Registration / Generation Obligations の起票時「該当なし」誤判定も併せて是正
+- Review Focus へ「再生成 diff が TRACE-D12 起因 delta のみ」を追加し、Final Review の検分対象とする
