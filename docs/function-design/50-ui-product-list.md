@@ -57,6 +57,8 @@ src/features/products/components/ProductPagination.tsx
 
 `q` は live 型（[59-ui-shared-patterns.md](59-ui-shared-patterns.md) §59.1 SearchBar、`debounceMs=200`）で、入力から 200ms 後に search param へ反映する。Enter は debounce を待たず即時反映し（trim なし）、IME 変換確定中の Enter は `event.isComposing` で除外して検索確定と取り違えない。CMD 呼び出し直前の `keyword` 変換でのみ trim する（UI-01a-D9、2026-08-03 owner L3 判断、gated amendment）。
 
+**controlled value の責務分離（UI-01a-D9 追補、amendment Plan Review round 1 P1-1）**: SearchBar の controlled `value` には raw の `search.q ?? ""` を渡す。`normalizedSearch.q`（`normalizeString` = trim + 空→undefined）は CMD query の `keyword` 変換・filter 既定判定・`returnTo` の導出専用とし、入力欄の表示値には使わない。normalized 値を controlled value に結線すると、live 反映のたびに trim 済み値が入力欄へ書き戻され「trim なし」契約が main path で破れる。
+
 ## 50.5 CMD / DTO 契約
 
 UI は `commands.searchProducts(query: ProductSearchQuery)` を呼ぶ。

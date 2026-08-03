@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: design
+- Phase: plan-gate
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: 1c40453
@@ -163,6 +163,7 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。AC や�
 ### (6) 商品一覧検索欄の live 型統一（gated amendment、owner L3 判断 2026-08-03）
 
 - 商品一覧の SearchBar を在庫照会と同型の live 型へ: `debounceMs={200}` / `type="search"` + native clear / 外付け Label・検索ボタン非表示 / `aria-label="商品検索"` 維持 / Enter は debounce を待たず即時反映 / IME composing 中の Enter 無視 / 入力・クリア時に page を reset（owner 期待仕様の「selected reset」は在庫照会契約からの転写であり、商品一覧の URL schema に `selected` は存在しない — Coordinator 実測 `rg -c "selected" src/features/products/search.ts` = 0 hit — ため本画面では対象外。UI-01a-D9 は page reset のみで記録）。
+- controlled value の責務分離（amendment round 1 P1-1 対応）: SearchBar の `value` は raw `search.q ?? ""` を渡し、trim 済みの `normalizedSearch.q` は CMD query・filter 既定判定・returnTo 導出専用とする（normalized 結線は live 反映のたびに trim 済み値を入力欄へ書き戻し「trim なし」契約を破る。50 UI-01a-D9 追補が正本）。
 - 既存 source contract（50 / 59 / 02 ⑨）が商品一覧を commit 型と明記するため、既存不具合ではなく gated design amendment として扱う（design 出力 = 50 の UI-01a-D 新決定 + 59 §59.1 / 02 ⑨ の採用箇所 sync。commit 型モードは SearchBar の機能として残置）。
 
 ### (7) EmptyState action 複数ボタンの中央揃え（owner L3 NG 是正）
@@ -225,13 +226,15 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。AC や�
 | SPEC-UIBB-1/2（reset） | 02 ⑥（新設規定） | catalog ⑥ reset 規定（本 change design 出力） | EmptyState の既存 `action` slot を使い新規 primitive を作らない。画面別の独自ボタン配置は 6 site の一貫性を壊すため却下 | 分類表 reset 対象 6 site + 02 ⑥ | 各画面 RTL + L3 |
 | SPEC-UIBB-3/4/5/8（pagination） | 50 §50.4（慣行元）、58（新設）、74 UI-11c-D8（範囲外 page 同型元） | UI-06a 系列新 D（58 design 出力で採番） | 50 慣行の踏襲で新規 UX を発明しない。truncated alert 併存は二重表現のため撤去。範囲外 page の clamp は既存 canonical 不在のため却下し UI-11c-D8 同型を採用 | stock-inquiry route/search + StockInquiryPage | RTL + L3 |
 | SPEC-UIBB-9（部門候補） | 01 DSR-10、02 SearchBar/フィルタ節 | DSR-10 の既存規定適用（新規 decision 不要） | filtered result 由来の候補は縮退禁止規定違反。pagination が縮退を増幅するため同一 change で是正 | useStockInquiry 候補 query | RTL + unit |
+| SPEC-UIBB-10（amendment、live 型統一） | 50 UI-01a-D9（新設）、59 §59.1-§59.2、02 ⑨ | UI-01a-D9（owner L3 判断 2026-08-03） | commit 型維持の業務理由が owner 調査で確認できず共通化時の温存だった。live でもスキャナ Enter 即時・IME guard 維持。Rejected = commit 型維持（画面間一貫性を損なう理由が説明できない）。raw `search.q` と normalized CMD query の責務分離で no-trim 契約を main path 保証 | ProductListPage SearchBar 結線 | RTL + L3 |
+| SPEC-UIBB-11（amendment、複数ボタン中央揃え） | 02 ⑥ 共存規定 | 02 ⑥ 追記（owner L3 NG 是正） | `action` slot の flex 既定 `justify-start` は中央揃えの EmptyState 本体と不整合。Rejected = EmptyState 側の全体変更（単一ボタンの既存 site へ波及） | ProductListPage EmptyState wrapper | DOM 構造 assert + L3 |
 | SPEC-UIBB-6（re-export） | 59 §59.3 | 59 §59.3 既存方針の実施 | 構造的サブタイプ残置は将来の定義 drift 温床。consumer import 不変の re-export が最小差分 | feature types 3 file | tsc + rg 静的 sweep |
 | SPEC-UIBB-7（FilePicker catalog） | UI_TECH_STACK §6.5.4（方針正本）、02（新節） | 59 §59.4 純表示規約により patterns/ 移動は却下、components/ 直下のまま catalog 登録 | 移動は import path 変更の変更面拡大に見合う利得がない（判断は件数に依存しないため件数は記さない、D-050） | 02 新節 + 59 §59.3 注記 | doc-consistency + Final Review rg |
 
 ## Design Intent Audit
 
 - Source docs can answer what is being built and why without chat history or archived Plan Packets: 実装後は 02 ⑥ / 58 / 59 / 50 の正本だけで reset 契約・pagination 契約・SSOT 配置が読める。
-- Plan-only durable decisions found and promoted to source docs / decision-log / ADR: reset 統一契約 → 02 ⑥、truncated alert 撤去 → 58、FilePicker patterns/ 非対象 → 59 §59.3（いずれも同一 plan-first change 内で反映）。
+- Plan-only durable decisions found and promoted to source docs / decision-log / ADR: reset 統一契約 → 02 ⑥、truncated alert 撤去 → 58、FilePicker patterns/ 非対象 → 59 §59.3（いずれも同一 plan-first change 内で反映）。amendment 分 = live 型統一 + controlled value 責務分離 → 50 UI-01a-D9、複数ボタン中央揃え → 02 ⑥（gated amendment change 内で反映）。
 - Assumptions and constraints: `search_products` の page/per_page 既存契約が変わらないこと（wire 不変）。stock-inquiry の在庫少経路は client filter のため件数有限で pagination 不要という 58 既存前提。
 - Deferred design gaps, risk, and follow-up target: daily-report-import の multiple FilePicker 拡張（Plans.md backlog）。部門候補 truncate は round 1 P1-3 の裁定で Scope(2) の DSR-10 準拠是正へ昇格済み。
 - Test Design Matrix can cite design decision IDs or source doc sections: 可（Matrix の Contract 列は本 packet の SPEC-UIBB-n と 02 ⑥ / 58 / 50 §50.4 を引く）。
@@ -273,7 +276,7 @@ N/A — 未検証の外部前提なし。TanStack Router validateSearch の para
 | 58 新設: 範囲外 page 回復（UI-11c-D8 同型、通常 EmptyState より優先） | StockInquiryPage | RTL（items 空 + total_count>0 + page>1 の一意 oracle） | L3 |
 | DSR-10: 部門候補 = listDepartments master 全件（縮退禁止） | useStockInquiry 候補 query + `queryKeys.stockInquiry.departmentOptions()` 無引数化 + DepartmentFilter canonical props 結線 | RTL + unit（page/q/dept/status の 4 条件変更で候補不変 + call count=1、別部門へ直接切替、無引数 key unit） | L3 |
 | SPEC-UIBB-9: 候補 loading の disabled 結線 / 候補失敗文言と一覧独立 | StockInquiryPage（disabled={isLoading} / isError alert） | RTL 2 本（pending → trigger disabled / reject + list 成功 → exact alert 文言と一覧の同時表示、retry 無効化 harness。Matrix 参照、round 3 P2-3） | — |
-| SPEC-UIBB-10（amendment）: 商品一覧検索欄 live 型（50 UI-01a-D 新決定） | ProductListPage の SearchBar 呼び出し | RTL（200ms live 反映 / Enter 即時 / IME composing 無視 / 入力・クリアで page・selected reset、在庫照会 live 型 test パターン移植） | L3 再確認 |
+| SPEC-UIBB-10（amendment）: 商品一覧検索欄 live 型（50 UI-01a-D9） | ProductListPage の SearchBar 呼び出し（controlled value = raw `search.q ?? ""`、`normalizedSearch.q` は CMD query・filter 既定判定・returnTo 専用の責務分離） | RTL（200ms live 反映 / Enter 即時 / IME composing 無視 / 入力・クリアで page reset — selected は schema 不在のため対象外 / 空白込み入力の表示保持 + CMD keyword のみ trim） | L3 再確認 |
 | SPEC-UIBB-11（amendment）: action 複数ボタン中央揃え（02 ⑥） | ProductListPage EmptyState action wrapper | DOM 構造 assert（wrapper class） | L3 再確認 |
 | 58 新設: page param（>=1、invalid catch → 既定 1） | stock-inquiry search schema | schema unit test | — |
 | 58 新設: 条件変更 → page=1 / page 移動 → 条件維持 | StockInquiryPage | RTL | L3 |
@@ -290,7 +293,7 @@ N/A — 未検証の外部前提なし。TanStack Router validateSearch の para
 
 Test Design Matrix: [test-matrices/2026-08-03-ui-polish-batch-b.md](test-matrices/2026-08-03-ui-polish-batch-b.md)
 
-- targeted tests: 各画面 RTL characterization（reset 表示 / 非表示 / 全条件復帰）、stock-inquiry schema unit + pagination RTL、静的 sweep（rg）
+- targeted tests: 各画面 RTL characterization（reset 表示 / 非表示 / 全条件復帰）、stock-inquiry schema unit + pagination RTL、静的 sweep（rg）。amendment 分 = 商品一覧 live 型 RTL（debounce / Enter 即時 / IME guard / clear 経路 / 空白込み表示保持 + CMD keyword trim の責務分離）+ EmptyState 複数ボタン中央揃え DOM assert
 - negative tests: 既定値 0 件で reset 非表示、invalid page param、page 範囲外
 - compatibility checks: products 画面の既存 pagination 挙動不変、receiving EmptyState 不変
 - data safety checks: synthetic fixture のみ（実 POS データ不使用）
@@ -317,6 +320,7 @@ Test Design Matrix: [test-matrices/2026-08-03-ui-polish-batch-b.md](test-matrice
 - `listDepartments` 切替による部門候補の挙動変化（絞り込み中でも全部門が出る = DSR-10 の意図どおりだが、旧挙動との差分を L3 で owner 確認）。
 - stale 是正が更新履歴を持つ doc で履歴行を欠かさないこと。
 - FilePicker 移行完了形の repo-wide 整合（round 3 P2-1 の再発防止）: `rg -n "plain file input|createObjectURL\(file\)|暫定例外" docs/` の hit が historical 文脈（更新履歴・supersede 済み decision 記録・経緯引用）のみであること。current 節（Non-scope / Test Focus / L3 確認対象 / 索引）に旧方式が残っていれば blocker。
+- amendment の main wiring（round 1 P1-1 の再発防止）: 商品一覧 SearchBar の controlled value が raw `search.q` に結線され、`normalizedSearch.q` が入力表示に混入していないこと。空白込み入力の RTL harness（表示保持 + CMD keyword のみ trim）と clear 経路（q undefined + page reset）の test 実在。L3 再確認は 3-B（中央揃え）/ live 型挙動 / 3-E（`q="0"` + `page=99` 手順）。
 
 ## Spec Contract
 
