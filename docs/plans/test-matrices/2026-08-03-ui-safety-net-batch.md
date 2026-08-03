@@ -39,7 +39,7 @@ Risk: R3
 | UI-EB-D1 | 白画面 | integration | T7 RootLayout throw で root errorComponent の全画面 fallback | root errorComponent 削除（X5） |
 | UI-EB-D2 | 導線不能 | integration | T8 再試行で再 render、ホームへ戻る導線が `/` へ | 再試行 handler no-op（X6） |
 | UI-USW-D3 | 未配線 | integration | T9〜T14 適用 6 画面（51/61/62/63/64/69）各 dirty→block + 保存成功後の非 block | 画面の isDirty 計算破壊（X7 代表）/ hook 未配線 |
-| 55 §55.7 不変 | 回帰 | regression | T15 既存 importing ガード test（Writer が rg で実在確認し test 名転記） | 既存 useBlocker 2 hook への干渉 |
+| 55 §55.7 不変 | 回帰 | regression | T15 `useCsvImportFlow.test.tsx`「REQ-401: commit 中だけ useBlocker と beforeunload を有効化する」（実在・PASS を Writer と Final Review が独立確認、Final Review P3-2 で実名転記） | 既存 useBlocker 2 hook への干渉 |
 | UI-USW-D3 | 再導入 | sweep | T16 `unsaved-changes-guard-sweep.test.ts` useBlocker 直接使用が 3 hook 限定 | 画面が useBlocker を直書き |
 | UI-USW-D3 | 分類 drift | sweep | T17 同 sweep: 分類表適用 6 画面すべてに hook 配線が存在 + `src/features/**/*Page.tsx` 実在集合が test 内の分類（適用 manifest + 除外 list）と全数一致。**除外側も test 内で component 名を個別列挙し、「manifest にない page は自動除外」型の実装を禁止**（未列挙の新規 page は fail させる — round 2 residual risk 採用） | 適用画面の配線漏れ / 未分類の新規 page 追加 / 分類表と実装の乖離（round 1 P1-3 是正で全数性を機械検証化） |
 

@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: implementing
+- Phase: independent-review
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: bfc770c
@@ -35,6 +35,8 @@
 2026-08-03 Amendment 1 content commit で `design -> plan-draft -> plan-gate` を再材料化する。evidence = 64 §表示/操作の該当行から「（画像選択を含む）」を削除し Non-scope と整合化、packet 分類表 64 行を「result panel 型（明細 or 入力〈廃棄日等〉差分）・画像機能なし」へ是正（63 行は `receipt` state 実在確認済みのため画像維持、design→plan-draft）、packet 内「画像」全 sweep で追随漏れなしを確認・commit（plan-draft→plan-gate）。amendment review（Sonnet 独立 context、focused）を経て plan-approved 以降を再材料化する。
 
 2026-08-03 本 content commit で `plan-gate -> plan-approved -> implementing` を再材料化する。evidence = Amendment 1 review PASS + 機構是正完了 8dd533d（plan-gate 通過）、原 owner plan 承認（介入 1/3）が有効 — Amendment 1 は Goal / Scope / AC / 適用 6 画面構成を変えない事実是正であることを amendment review が byte-identical 検証で確認済み、Plan Commit bfc770c 維持（plan-approved→implementing）。Codex Writer へ再開発注（前提是正の追記発注、relay 2/4 消化見込み）。
+
+2026-08-03 本 content commit で `implementing -> local-verified -> independent-review` を材料化する。evidence = Writer 実装完了報告 + 全 gate green + L1 full exact-HEAD CLEAN（定量記録は PR #60 body を正、Final Review が evidence log を実確認 — implementing→local-verified）、Coordinator mutation 独立再実測 X1〜X9 全 red + Final Review P1/P2=0（Review Response 参照 — local-verified→independent-review）。Final Review P3×2 は本 commit で是正済み。次 = `independent-review -> human-confirm` の state-only 遷移（Reviewed Content HEAD 設定を含む）→ owner L3（Windows native 目視）+ Ready 承認（介入 2/3）。
 
 ## Owner Effort Budget
 
@@ -282,7 +284,7 @@ Contract ID: SPEC-UISN
 
 ## Implementation Results
 
-Fill after implementation.
+実装は Draft PR #60（https://github.com/kosei-w90607/inventory-system-public/pull/60、Writer = Codex）。Error Boundary 2 層（`main.tsx` defaultErrorComponent + `__root.tsx` errorComponent）+ 共通 `RouteErrorFallback`、`useUnsavedChangesWarning` + `UnsavedChangesDialog`、適用 6 画面配線（ProductFormPage は `flushSync` による navigate 前 baseline 同期 = UI-USW-D1 MUST の実装形）、全 26 page 明示分類の sweep test（適用 6 + 除外 20 の個別列挙）、実装段 docs 同期（DEV_SETUP_CHECKLIST 7-8a/7-8c 消化ほか）を含む。生成物（bindings / routeTree / traceability）・依存の diff ゼロ。定量 evidence（test 件数 / exact-HEAD SHA / gate 記録）は D-035/D-038 に従い PR body を正とする。
 
 ## Review Response
 
@@ -304,4 +306,9 @@ Fill after implementation.
 
 2026-08-03 Amendment 1 focused review（Sonnet 5、独立 context、対象 = 3fa958c / 7067123 / 96cae97）: 事実是正の内容 = 妥当（DisposalPage 画像 state 不在 / ReturnExchangePage `receipt` 実在 / 64 Non-scope 整合を独立裏取り、「画像」残存 sweep = クリーン、Goal/Scope/AC/適用 6 画面 = 64 行文言以外 byte-identical で owner 再承認トリガーなし）。機構 P1×2 = accept: (1) Amendment commit が遷移記録の主張どおりに Phase を復帰させていない、(2) Amendments field 未記録。是正 = 本 commit で Phase を plan-gate へ復帰 + `Amendments: 7067123 96cae97` を記録し、`design -> plan-draft -> plan-gate` の再材料化を完成させる（evidence = Amendment 1 内容の review PASS）。
 
-- Findings Freeze: not yet frozen; post-freeze exceptions: none.
+2026-08-03 Coordinator mutation 独立再実測（実装後、clean tree、Writer 記録非参照の独立導出）: X1〜X9 全 red・survivor 0。X8 anchor 一意性（`rg -c`、production/test の衝突なし）も独立確認。
+
+2026-08-03 Final Review（Sonnet 5、fresh 独立 context、対象 = 実装 commit + PR #60 body）: P1/P2 = 0、P3 = 2、Coordinator 裁定 = 全件 accept・即時是正（本 commit: Implementation Results の D-038 準拠 backfill / Matrix T15 の実名転記）。Contract Coverage Ledger 全行適合（UI-USW-D1 MUST の navigate 前 baseline 同期を実コード確認）、negative space クリーン、State Lifecycle 3 系統の追加 audit pass PASS（round 1 P3-1 採用分）、X2/X9 の抜き打ち再注入 red、sweep manifest と実在 26 page の 1:1 一致、PR body freshness 整合、L1 evidence（exact-HEAD CLEAN / MERGE_EVIDENCE_VALID）実 log 確認。
+
+- 観察記録（pre-existing、scope 外）: `useDailyReportImportFlow` の useBlocker regression coverage が csv-import 側より薄い（mock のみで shouldBlockFn/enableBeforeUnload の assert なし）。必要なら別 change で補強。
+- Findings Freeze: frozen after Final Review（2026-08-03）; post-freeze exceptions: none.
