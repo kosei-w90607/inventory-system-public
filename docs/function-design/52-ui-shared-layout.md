@@ -63,7 +63,7 @@ SidebarLink の active 判定も TanStack Router の `<Link activeProps>` で表
 | UI-ID | 画面名 | URL パス | route ファイル | サイドバー4エリア | ナビ表示 | 備考 |
 |---|---|---|---|---|---|---|
 | UI-00 | ホーム | `/` | `src/routes/index.tsx` | 毎日の業務 | ○ | 現 demo (search_products)、Phase 2 (8-1) で置換 |
-| UI-07 | CSV取込み | `/pos/csv-import` | `src/routes/pos/csv-import.tsx` | 毎日の業務 | ○ | URL ドメインは POS、サイドバー配置は心理モデル優先 |
+| UI-07 | CSV取込み | `/csv-import` | `src/routes/csv-import.tsx`（layout）+ `src/routes/csv-import/index.tsx`（index） | 毎日の業務 | ○ | サイドバー配置は日常業務の心理モデルを優先 |
 | UI-09a | 日次売上 | `/reports/daily` | `src/routes/reports/daily.tsx` | 毎日の業務 | ○ | 日次/月次は別 route（合意書 §7.3） |
 | UI-06a | 在庫照会 | `/stock` | `src/routes/stock/index.tsx` | 毎日の業務 | ○ | REQ-301/302/303 統合画面 |
 | UI-09b | 月次売上 | `/reports/monthly` | `src/routes/reports/monthly.tsx` | 毎日の業務 | ○ | |
@@ -71,14 +71,14 @@ SidebarLink の active 判定も TanStack Router の `<Link activeProps>` で表
 | UI-01b (新規) | 商品登録 | `/products/new` | `src/routes/products/new.tsx` | 商品管理 | ○ | |
 | UI-01b (編集) | 商品修正 | `/products/$code/edit` | `src/routes/products/$code.edit.tsx` | （ナビ非表示） | — | 一覧 or 在庫照会詳細から遷移 |
 | UI-01c | 一括インポート | `/products/import` | `src/routes/products/import.tsx` | 商品管理 | ○ | |
-| UI-08 | PLU書出し | `/pos/plu-export` | `src/routes/pos/plu-export.tsx` | 商品管理 | ○ | URL は POS、サイドバーは商品管理（合意書 §7.7） |
+| UI-08 | PLU書出し | `/products/plu-export` | `src/routes/products/plu-export.tsx` | 商品管理 | ○ | 商品管理 route とサイドバー配置を一致させる |
 | UI-02 | 入庫記録 | `/inventory/receiving` | `src/routes/inventory/receiving.tsx` | 入出庫 | ○ | |
 | UI-03 | 返品・交換 | `/inventory/return` | `src/routes/inventory/return.tsx` | 入出庫 | ○ | |
 | UI-04 | 手動販売出庫 | `/inventory/manual-sale` | `src/routes/inventory/manual-sale.tsx` | 入出庫 | ○ | |
 | UI-05 | 廃棄・破損 | `/inventory/disposal` | `src/routes/inventory/disposal.tsx` | 入出庫 | ○ | |
 | UI-02b〜05b | 入出庫履歴 | `/inventory/records` | `src/routes/inventory/records.tsx` | 入出庫 | ○ | 入庫/返品・交換/手動販売/廃棄・破損/CSV取込み/棚卸しの追跡入口 |
 | UI-06b | 在庫少一覧 | `/stock`（deep-link、専用 route なし） | `src/routes/stock/index.tsx`（UI-06a と共用） | 入出庫 | ○ | 独立画面は廃止し、UI-06a `status=low_stock` フィルタへの deep-link に統合（D-047、UI-12-D1） |
-| UI-10 | 棚卸し | `/stocktake` | `src/routes/stocktake/index.tsx` | 入出庫 | ○ | 入出庫エリア末尾配置（年次作業、合意書 §7.4） |
+| UI-10 | 棚卸し | `/stocktake` | `src/routes/stocktake.tsx` | 入出庫 | ○ | 入出庫エリア末尾配置（年次作業、合意書 §7.4） |
 | UI-06c | 在庫変動履歴 | `/stock/$code/movements` | `src/routes/stock/$code.movements.tsx` | （ナビ非表示） | — | $code 必須、商品詳細カードから遷移 |
 | UI-11b | バックアップ・復元 | `/settings/backup` | `src/routes/settings/backup.tsx` | システム管理 | ○ | |
 | UI-11c | 操作ログ | `/settings/logs` | `src/routes/settings/logs.tsx` | システム管理 | ○ | |
@@ -90,7 +90,7 @@ SidebarLink の active 判定も TanStack Router の `<Link activeProps>` で表
 - `/products/$code/edit` ← `/products`（一覧）or `/stock`（詳細カード）から
 - `/stock/$code/movements` ← `/stock` 詳細カードから
 
-**URL 設計の根拠**: 機能ドメインベース階層（`/pos/*`、`/inventory/*`、`/reports/*`、`/stock/*`、`/settings/*`）。4 エリア分類（使用頻度）と機能ドメインが 1:1 でないため、**URL = 機能ドメイン** + **サイドバー = 使用頻度 4 エリア** で分離している。詳細は設計合意書 §2.3。
+**URL 設計の根拠**: 機能ドメインベース階層（`/products/*`、`/inventory/*`、`/reports/*`、`/stock/*`、`/csv-import/*`、`/settings/*`）。4 エリア分類（使用頻度）と機能ドメインが 1:1 でないため、**URL = 機能ドメイン** + **サイドバー = 使用頻度 4 エリア** で分離している。詳細は設計合意書 §2.3。
 
 **Phase 1 (UI-12) で作るのは `__root.tsx` の差し替えのみ**。上記 route ファイルはすべて Phase 2 以降で各画面着手時に追加する。
 
