@@ -952,6 +952,54 @@ describe("UI-11c REQ-902", () => {
     expect(listLogs).toHaveBeenCalledWith(expect.objectContaining({ page: maxPage, per_page: 20 }));
   });
 
+  it("SPEC-UIBB-1 絞り込み該当なしで解除ボタンを表示する", async () => {
+    listLogs.mockResolvedValue({
+      status: "ok",
+      data: { items: [], total_count: 0, page: 1, per_page: 20 },
+    });
+    renderPage({ operation_type: "backup_create" });
+    expect(await screen.findByRole("button", { name: "絞り込みを解除" })).toBeInTheDocument();
+  });
+
+  it("SPEC-UIBB-1 既定条件の0件では解除ボタンを出さない", async () => {
+    listLogs.mockResolvedValue({
+      status: "ok",
+      data: { items: [], total_count: 0, page: 1, per_page: 20 },
+    });
+    renderPage();
+    expect(await screen.findByText("この30日間の操作ログはありません")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "絞り込みを解除" })).not.toBeInTheDocument();
+  });
+
+  it("SPEC-UIBB-2 解除で期間・種別・pageが既定値に戻る", async () => {
+    listLogs.mockResolvedValue({
+      status: "ok",
+      data: { items: [], total_count: 0, page: 3, per_page: 20 },
+    });
+    const change = renderPage({
+      start_date: "2026-07-01",
+      end_date: "2026-07-11",
+      operation_type: "backup_create",
+      page: 3,
+    });
+    const resetButton = await screen.findByRole("button", { name: "絞り込みを解除" });
+    await userEvent.setup().click(resetButton);
+
+    const updater = change.mock.calls[change.mock.calls.length - 1]?.[0] as (
+      prev: OperationLogsSearch,
+    ) => OperationLogsSearch;
+    const result = updater({
+      start_date: "2026-07-01",
+      end_date: "2026-07-11",
+      operation_type: "backup_create",
+      page: 3,
+    });
+    expect(result.start_date).toBeUndefined();
+    expect(result.end_date).toBeUndefined();
+    expect(result.operation_type).toBeUndefined();
+    expect(result.page).toBe(1);
+  });
+
   it("shows an error and retries the same query", async () => {
     listLogs
       .mockResolvedValueOnce({

@@ -167,6 +167,7 @@
 - **利用者配慮**:
   - 操作ログは監査・保守ログであり、「なぜ在庫が増減したか」の説明には使わない（在庫変動履歴と業務記録詳細が担う、TRACE-D3）。
   - ログが0件の理由（既定期間内に本当にログがない／絞り込み条件に該当がない）を異なる文言で区別する。
+  - 絞り込み条件に該当がなく0件のときは「絞り込みを解除」ボタンで既定条件へ一括復帰できる（filter-empty reset、[design-system/02-component-catalog.md](design-system/02-component-catalog.md) ⑥ 参照）。既存の範囲外 page 回復導線とは対象ケースが異なり共存する。
   - 取得失敗時は現在の絞り込み条件を保持したまま再試行できる。
   - 詳細な command contract、期間 predicate、operation_type registry、detail_json 安全設計、関連記録リンク contract、Windows native L3 は [function-design/74-ui-operation-logs.md](function-design/74-ui-operation-logs.md) を正とする。
 
@@ -180,6 +181,7 @@
 - **利用者配慮**:
   - 一人運用・数週間スパンの反復作業を前提に、1 件保存ごとの toast は出さず一覧行の即時反映で結果を示す。
   - 棚卸し対象外のコード/JAN をスキャンした場合はエラー扱いにせず、回復文言を出して次の入力を受け付ける。
+  - 部門フィルタ・未入力のみ表示の絞り込みで該当 0 件のときは「絞り込みを解除」ボタンでページ番号も含めて既定条件へ一括復帰できる（filter-empty reset、[design-system/02-component-catalog.md](design-system/02-component-catalog.md) ⑥ 参照）。
   - 詳細な command contract、状態遷移、文言、Windows native L3 は [function-design/73-ui-stocktake.md](function-design/73-ui-stocktake.md) を正とする。
 
 ### 日次売上レポート画面
@@ -212,6 +214,8 @@
   - 生地は「0 cm」と単位付き表示
   - 廃番商品は在庫切れ一覧に出さない（SP-302-04）
   - 発注判断→入庫記録の動線が詳細カードから1クリック
+  - 絞り込み（検索語・部門・状態）が既定値以外で該当 0 件のときは「絞り込みを解除」ボタンで既定条件へ一括復帰できる（filter-empty reset、[design-system/02-component-catalog.md](design-system/02-component-catalog.md) ⑥ 参照）
+  - 「すべて」表示は `page` によるページ送りで全件へ到達できる。範囲外 page（総件数減少等で page が溢れた場合）は「先頭ページに戻る」の専用回復導線を出す。部門候補は絞り込みや page に関わらず部門マスタ全件から出す。詳細な pagination / 範囲外 page / 部門候補 contract は [function-design/58-ui-stock-inquiry.md](function-design/58-ui-stock-inquiry.md) §58.4/§58.10（UI-06a-D1〜D3）を正とする
 
 ### 入出庫履歴・在庫変動追跡
 - **対応仕様**: REQ-206 / REQ-207 / REQ-208 / REQ-303 / REQ-902
@@ -227,6 +231,7 @@
   - 増減数量は色だけで区別せず、`+N` / `-N` と「増加」「減少」の日本語ラベルを併記する。
   - 取消/訂正は詳細画面で内容を確認してから行い、一覧行の即時操作にはしない。
   - 状態は「有効」「取消済み」「訂正済み」の日本語ラベルを主情報にする。
+  - `入出庫履歴` / `在庫変動履歴` とも、検索条件が既定値以外で該当 0 件のときは「絞り込みを解除」ボタンで既定条件へ一括復帰できる（filter-empty reset、[design-system/02-component-catalog.md](design-system/02-component-catalog.md) ⑥ 参照）。
 
 ### 入庫記録画面
 - **対応仕様**: REQ-201（仕入入庫記録）
@@ -280,6 +285,7 @@
   - 廃番状態は色だけにせず、廃番商品のみ商品名セル内に `廃番` text badge を出し、行を muted 表示にする。「表示中」badge は出さない（UI-01a-D8）
   - 生地は単位付きで在庫数を表示する。cm / m 表示切替は UI-01a 初回実装だけで局所的に作らず、横断表示方針または商品登録・修正設計と合わせて再評価する
   - 検索条件とページングは URL state に置き、F5 後も同じ一覧状態を復元できるようにする
+  - 絞り込み（検索語・部門・廃番表示モード）が既定値以外で該当 0 件のときは、既存「商品を登録する」action と横並びで「絞り込みを解除」ボタンを併置し、既定条件へ一括復帰できる（filter-empty reset、[design-system/02-component-catalog.md](design-system/02-component-catalog.md) ⑥ 参照）
   - 詳細な関数設計と Design Intent Trace は [function-design/50-ui-product-list.md](function-design/50-ui-product-list.md) を参照
 
 ### 商品登録・修正画面
@@ -305,7 +311,7 @@
 - **レイアウト判断**:
   - route は `/products/import`。商品管理エリアの独立画面として扱い、商品一覧 / 商品フォームの query param で mode 切替しない
   - 3ステップ構成（ファイル選択 → 内容確認 → 完了）にし、プレビュー段階で新規登録候補 / エラー行 / 重複行を同じ画面で確認できるようにする
-  - ファイル選択は UI-07 と同じ plain `<input type="file">` + drag/drop で始める。`@tauri-apps/plugin-dialog` は UI-01c 単独では導入しない
+  - ファイル選択は共通 FilePicker（native dialog ボタン + 任意 drop、[UI_TECH_STACK.md §6.5.4](UI_TECH_STACK.md) 正本、D-054）を使う
   - 重複行は既定「スキップ」。行ごとに「上書き」を選べる。上書き選択が 1 件以上ある場合だけ確認ダイアログを出す
   - エラー行があっても正常行があれば取込み可能にする。ただしエラー行は取り込まれないことを件数サマリと行別エラーで明示する
   - 取り込める行が 0 件の場合は「取り込む」を disabled にし、理由を日本語で表示する
@@ -314,7 +320,7 @@
   - CSV 初期投入は失敗影響が大きいため、色だけで状態を示さず、`新規登録候補` / `エラー行` / `重複行` / `上書き` / `スキップ` の日本語ラベルを主情報にする
   - 一括上書きは初回実装では置かない。既存商品を変える操作は行ごとに明示選択させる
   - commit 中は中断可能に見せない。backend は単一 TX であり、UI だけの cancel は誤認を招く
-  - Windows native L3 で file input / dragdrop、エラー行と重複行の見分け、上書き確認、結果サマリ、商品一覧への戻り導線を確認する
+  - Windows native L3 で FilePicker（native dialog ボタン + 任意 drop）、エラー行と重複行の見分け、上書き確認、結果サマリ、商品一覧への戻り導線を確認する
   - 詳細な関数設計と Design Intent Trace は [function-design/60-ui-product-import.md](function-design/60-ui-product-import.md) を参照
 
 ### 月次売上レポート画面

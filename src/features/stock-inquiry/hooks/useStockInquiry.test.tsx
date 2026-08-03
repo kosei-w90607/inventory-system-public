@@ -1,6 +1,7 @@
 // src/features/stock-inquiry/hooks/useStockInquiry.test.tsx
 //
 // REQ-301/302: useStockInquiry の正規化型 + enabled gate + 1 件自動展開検証。
+// SPEC-UIBB-3/4/9: page 反映 + 部門候補 listDepartments 化（DSR-10）の検証。
 // renderHook + QueryClientProvider（navigate は arg 注入のため Router 不要）。
 // 設計: docs/function-design/58-ui-stock-inquiry.md §58.5 / §58.9
 
@@ -10,27 +11,36 @@ import { renderHook, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 import { commands } from "@/lib/bindings";
+import { queryKeys } from "@/lib/query-keys";
 import { useStockInquiry } from "./useStockInquiry";
-import { makeMockProductWithRelations, makeMockStockDetail } from "../lib/test-fixtures";
+import {
+  makeMockDepartment,
+  makeMockProductWithRelations,
+  makeMockStockDetail,
+} from "../lib/test-fixtures";
 
 vi.mock("@/lib/bindings", () => ({
   commands: {
     searchProducts: vi.fn(),
     listLowStock: vi.fn(),
     getStockDetail: vi.fn(),
+    listDepartments: vi.fn(),
   },
 }));
 
 const mockSearch = vi.mocked(commands.searchProducts);
 const mockLowStock = vi.mocked(commands.listLowStock);
 const mockDetail = vi.mocked(commands.getStockDetail);
+const mockListDepartments = vi.mocked(commands.listDepartments);
 
-function makeWrapper() {
-  const qc = new QueryClient({
-    defaultOptions: { queries: { retry: false, gcTime: Number.POSITIVE_INFINITY } },
-  });
+function makeWrapper(qc?: QueryClient) {
+  const client =
+    qc ??
+    new QueryClient({
+      defaultOptions: { queries: { retry: false, gcTime: Number.POSITIVE_INFINITY } },
+    });
   return function Wrapper({ children }: { children: ReactNode }) {
-    return <QueryClientProvider client={qc}>{children}</QueryClientProvider>;
+    return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
   };
 }
 
@@ -38,10 +48,12 @@ beforeEach(() => {
   mockSearch.mockReset();
   mockLowStock.mockReset();
   mockDetail.mockReset();
+  mockListDepartments.mockReset();
+  mockListDepartments.mockResolvedValue({ status: "ok", data: [] });
 });
 
 describe("useStockInquiry (REQ-301/302)", () => {
-  it("REQ-301: search 結果を StockInquiryListResult に正規化（source=search / truncated）", async () => {
+  it("REQ-301: search 結果を StockInquiryListResult に正規化（source=search / totalCount）", async () => {
     mockSearch.mockResolvedValue({
       status: "ok",
       data: {
@@ -53,7 +65,15 @@ describe("useStockInquiry (REQ-301/302)", () => {
     });
     const navigate = vi.fn();
     const { result } = renderHook(
-      () => useStockInquiry({ status: "all", q: "毛糸", dept: null, selected: null, navigate }),
+      () =>
+        useStockInquiry({
+          status: "all",
+          q: "毛糸",
+          dept: null,
+          page: 1,
+          selected: null,
+          navigate,
+        }),
       { wrapper: makeWrapper() },
     );
     await waitFor(() => {
@@ -62,7 +82,6 @@ describe("useStockInquiry (REQ-301/302)", () => {
     const data = result.current.listQuery.data;
     expect(data?.source).toBe("search");
     expect(data?.totalCount).toBe(80);
-    expect(data?.truncated).toBe(true); // total_count 80 > items 1
     expect(data?.items.map((p) => p.product_code)).toEqual(["P-001"]);
   });
 
@@ -76,7 +95,15 @@ describe("useStockInquiry (REQ-301/302)", () => {
     });
     const navigate = vi.fn();
     const { result } = renderHook(
-      () => useStockInquiry({ status: "stockout", q: "", dept: null, selected: null, navigate }),
+      () =>
+        useStockInquiry({
+          status: "stockout",
+          q: "",
+          dept: null,
+          page: 1,
+          selected: null,
+          navigate,
+        }),
       { wrapper: makeWrapper() },
     );
     await waitFor(() => {
@@ -85,7 +112,6 @@ describe("useStockInquiry (REQ-301/302)", () => {
     const data = result.current.listQuery.data;
     expect(data?.source).toBe("low_stock");
     expect(data?.totalCount).toBeNull();
-    expect(data?.truncated).toBe(false);
     // status=stockout の sub-filter で stock<=0 のみ
     expect(data?.items.map((p) => p.product_code)).toEqual(["L-001"]);
   });
@@ -93,7 +119,8 @@ describe("useStockInquiry (REQ-301/302)", () => {
   it("REQ-301: status=all + q 空文字は search_products を呼ばない（enabled gate / isAllEmpty）", async () => {
     const navigate = vi.fn();
     const { result } = renderHook(
-      () => useStockInquiry({ status: "all", q: "", dept: null, selected: null, navigate }),
+      () =>
+        useStockInquiry({ status: "all", q: "", dept: null, page: 1, selected: null, navigate }),
       { wrapper: makeWrapper() },
     );
     expect(result.current.isAllEmpty).toBe(true);
@@ -102,6 +129,35 @@ describe("useStockInquiry (REQ-301/302)", () => {
       expect(result.current.listQuery.fetchStatus).toBe("idle");
     });
     expect(mockSearch).not.toHaveBeenCalled();
+  });
+
+  it("SPEC-UIBB-3/4: page が queryKey とクエリ引数に反映される", async () => {
+    mockSearch.mockResolvedValue({
+      status: "ok",
+      data: {
+        items: [makeMockProductWithRelations({ product_code: "P-001" })],
+        total_count: 60,
+        page: 2,
+        per_page: 50,
+      },
+    });
+    const navigate = vi.fn();
+    const { result } = renderHook(
+      () =>
+        useStockInquiry({
+          status: "all",
+          q: "毛糸",
+          dept: null,
+          page: 2,
+          selected: null,
+          navigate,
+        }),
+      { wrapper: makeWrapper() },
+    );
+    await waitFor(() => {
+      expect(result.current.listQuery.isSuccess).toBe(true);
+    });
+    expect(mockSearch).toHaveBeenCalledWith(expect.objectContaining({ page: 2 }));
   });
 
   it("REQ-301: 結果 1 件で詳細カード自動展開（navigate に selected 渡し）", async () => {
@@ -116,7 +172,15 @@ describe("useStockInquiry (REQ-301/302)", () => {
     });
     const navigate = vi.fn();
     renderHook(
-      () => useStockInquiry({ status: "all", q: "SOLO", dept: null, selected: null, navigate }),
+      () =>
+        useStockInquiry({
+          status: "all",
+          q: "SOLO",
+          dept: null,
+          page: 1,
+          selected: null,
+          navigate,
+        }),
       { wrapper: makeWrapper() },
     );
     await waitFor(() => {
@@ -142,6 +206,7 @@ describe("useStockInquiry (REQ-301/302)", () => {
           status: "all",
           q: "SOLO",
           dept: null,
+          page: 1,
           selected: "SOLO-1",
           navigate,
         }),
@@ -174,6 +239,7 @@ describe("useStockInquiry (REQ-301/302)", () => {
           status: "all",
           q: "P",
           dept: null,
+          page: 1,
           selected: "P-001",
           navigate,
         }),
@@ -188,106 +254,6 @@ describe("useStockInquiry (REQ-301/302)", () => {
     );
     // detail 失敗でも list は成功（部分障害許容）
     expect(result.current.listQuery.isSuccess).toBe(true);
-  });
-
-  it("REQ-302: departmentOptions を list 結果から派生（department_id 昇順・重複排除）", async () => {
-    mockLowStock.mockResolvedValue({
-      status: "ok",
-      data: [
-        makeMockProductWithRelations({
-          product_code: "L-1",
-          department_id: 2,
-          department_name: "布",
-          stock_quantity: 1,
-        }),
-        makeMockProductWithRelations({
-          product_code: "L-2",
-          department_id: 1,
-          department_name: "毛糸",
-          stock_quantity: 1,
-        }),
-        makeMockProductWithRelations({
-          product_code: "L-3",
-          department_id: 1,
-          department_name: "毛糸",
-          stock_quantity: 1,
-        }),
-      ],
-    });
-    const navigate = vi.fn();
-    const { result } = renderHook(
-      () => useStockInquiry({ status: "low_stock", q: "", dept: null, selected: null, navigate }),
-      { wrapper: makeWrapper() },
-    );
-    await waitFor(() => {
-      expect(result.current.listQuery.isSuccess).toBe(true);
-    });
-    expect(result.current.departmentOptions).toEqual([
-      { id: 1, name: "毛糸" },
-      { id: 2, name: "布" },
-    ]);
-  });
-
-  it("REQ-302: 個別部門選択中も他部門へ切り替えられる候補を維持する", async () => {
-    mockSearch.mockImplementation((query) => {
-      const departmentId = query.department_id;
-      if (departmentId === 1) {
-        return Promise.resolve({
-          status: "ok",
-          data: {
-            items: [
-              makeMockProductWithRelations({
-                product_code: "Y-1",
-                department_id: 1,
-                department_name: "毛糸",
-              }),
-            ],
-            total_count: 1,
-            page: 1,
-            per_page: 50,
-          },
-        });
-      }
-      return Promise.resolve({
-        status: "ok",
-        data: {
-          items: [
-            makeMockProductWithRelations({
-              product_code: "Y-1",
-              department_id: 1,
-              department_name: "毛糸",
-            }),
-            makeMockProductWithRelations({
-              product_code: "Y-2",
-              department_id: 2,
-              department_name: "布",
-            }),
-          ],
-          total_count: 2,
-          page: 1,
-          per_page: 50,
-        },
-      });
-    });
-    const navigate = vi.fn();
-    const { result } = renderHook(
-      () => useStockInquiry({ status: "all", q: "糸", dept: 1, selected: null, navigate }),
-      { wrapper: makeWrapper() },
-    );
-
-    await waitFor(() => {
-      expect(result.current.listQuery.isSuccess).toBe(true);
-      expect(result.current.departmentOptions).toEqual([
-        { id: 1, name: "毛糸" },
-        { id: 2, name: "布" },
-      ]);
-    });
-    expect(mockSearch).toHaveBeenCalledWith(
-      expect.objectContaining({ keyword: "糸", department_id: 1 }),
-    );
-    expect(mockSearch).toHaveBeenCalledWith(
-      expect.objectContaining({ keyword: "糸", department_id: null }),
-    );
   });
 
   it("REQ-301: list 成功時に selected が現 list に不在なら clear（navigate selected:undefined、C-P2-1）", async () => {
@@ -312,6 +278,7 @@ describe("useStockInquiry (REQ-301/302)", () => {
           status: "all",
           q: "P",
           dept: null,
+          page: 1,
           selected: "STALE-999",
           navigate,
         }),
@@ -332,6 +299,7 @@ describe("useStockInquiry (REQ-301/302)", () => {
           status: "all",
           q: "", // isAllEmpty = true
           dept: null,
+          page: 1,
           selected: "STALE-1",
           navigate,
         }),
@@ -344,5 +312,99 @@ describe("useStockInquiry (REQ-301/302)", () => {
     // list も detail も走らせない（enabled = false、detail 空振り防止）
     expect(mockSearch).not.toHaveBeenCalled();
     expect(mockDetail).not.toHaveBeenCalled();
+  });
+
+  describe("SPEC-UIBB-9（部門候補 = listDepartments master 全件、DSR-10）", () => {
+    it("部門候補は listDepartments 全件で page/q/dept/status の 4 条件に依存しない", async () => {
+      mockListDepartments.mockResolvedValue({
+        status: "ok",
+        data: [
+          makeMockDepartment({ id: 1, name: "毛糸" }),
+          makeMockDepartment({ id: 2, name: "布" }),
+        ],
+      });
+      mockSearch.mockResolvedValue({
+        status: "ok",
+        data: {
+          items: [makeMockProductWithRelations({ product_code: "P-001", department_id: 1 })],
+          total_count: 1,
+          page: 1,
+          per_page: 50,
+        },
+      });
+      mockLowStock.mockResolvedValue({ status: "ok", data: [] });
+      const navigate = vi.fn();
+      const qc = new QueryClient({
+        defaultOptions: { queries: { retry: false, gcTime: Number.POSITIVE_INFINITY } },
+      });
+      const { result, rerender } = renderHook(
+        (args: Parameters<typeof useStockInquiry>[0]) => useStockInquiry(args),
+        {
+          wrapper: makeWrapper(qc),
+          initialProps: { status: "all", q: "", dept: null, page: 1, selected: null, navigate },
+        },
+      );
+      await waitFor(() => {
+        expect(result.current.departmentOptionsQuery.isSuccess).toBe(true);
+      });
+      const expected = [
+        { id: 1, name: "毛糸" },
+        { id: 2, name: "布" },
+      ];
+      expect(result.current.departmentOptions).toEqual(expected);
+
+      // page を変更
+      rerender({ status: "all", q: "", dept: null, page: 2, selected: null, navigate });
+      // q を変更
+      rerender({ status: "all", q: "毛糸", dept: null, page: 2, selected: null, navigate });
+      // dept を選択
+      rerender({ status: "all", q: "毛糸", dept: 1, page: 2, selected: null, navigate });
+      // status を変更（all → low_stock → stockout）
+      rerender({ status: "low_stock", q: "毛糸", dept: 1, page: 2, selected: null, navigate });
+      rerender({ status: "stockout", q: "毛糸", dept: 1, page: 2, selected: null, navigate });
+
+      await waitFor(() => {
+        expect(result.current.departmentOptions).toEqual(expected);
+      });
+      // query key 安定性の mutant 検出（round 2 P2-3）: 4 条件変更後も listDepartments は 1 回のみ
+      expect(mockListDepartments).toHaveBeenCalledTimes(1);
+    });
+
+    it("選択中部門から別部門へ直接切替できる候補が維持される", async () => {
+      mockListDepartments.mockResolvedValue({
+        status: "ok",
+        data: [
+          makeMockDepartment({ id: 1, name: "毛糸" }),
+          makeMockDepartment({ id: 2, name: "布" }),
+        ],
+      });
+      mockSearch.mockResolvedValue({
+        status: "ok",
+        data: { items: [], total_count: 0, page: 1, per_page: 50 },
+      });
+      const navigate = vi.fn();
+      const { result } = renderHook(
+        () =>
+          useStockInquiry({ status: "all", q: "糸", dept: 1, page: 1, selected: null, navigate }),
+        { wrapper: makeWrapper() },
+      );
+      await waitFor(() => {
+        expect(result.current.departmentOptions).toEqual([
+          { id: 1, name: "毛糸" },
+          { id: 2, name: "布" },
+        ]);
+      });
+      // dept=1 選択中でも他部門（id=2）が候補から消えていない
+      expect(result.current.departmentOptions.some((option) => option.id === 2)).toBe(true);
+    });
+  });
+
+  describe("query-keys unit（round 2 P1-1）", () => {
+    it("SPEC-UIBB-9: departmentOptionsは無引数で一定keyを返す", () => {
+      const key1 = queryKeys.stockInquiry.departmentOptions();
+      const key2 = queryKeys.stockInquiry.departmentOptions();
+      expect(key1).toEqual(["stock-inquiry", "department-options"]);
+      expect(key2).toEqual(key1);
+    });
   });
 });

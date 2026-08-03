@@ -58,8 +58,7 @@ export interface SalesLineSummary {
   manualCount: number;
 }
 
-/// 部門フィルタ Select 用 option（hook 側で items から派生生成）
-export interface DepartmentOption {
-  id: number;
-  name: string;
-}
+/// 部門フィルタ Select 用 option（hook 側で items から派生生成）。
+/// 唯一の定義は patterns/DepartmentFilter.tsx（59 §59.3、SPEC-UIBB-6）。本 module 内では
+/// 使用しないため直接 re-export とする。
+export type { DepartmentOption } from "@/components/patterns/DepartmentFilter";

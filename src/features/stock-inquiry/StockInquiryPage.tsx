@@ -7,6 +7,7 @@
 import { useEffect } from "react";
 import { toast } from "sonner";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/patterns/EmptyState";
 import { PageHeader } from "@/components/patterns/PageHeader";
@@ -17,8 +18,8 @@ import { StatusChips } from "./components/StatusChips";
 import { DepartmentFilter } from "@/components/patterns/DepartmentFilter";
 import { ProductListTable } from "./components/ProductListTable";
 import { EmptySearchPlaceholder } from "./components/EmptySearchPlaceholder";
-import { TruncatedResultsAlert } from "./components/TruncatedResultsAlert";
 import { StockDetailCard } from "./components/StockDetailCard";
+import { ProductPagination } from "@/features/products/components/ProductPagination";
 
 export interface StockInquiryPageProps {
   search: StockInquirySearch;
@@ -29,17 +30,20 @@ export function StockInquiryPage({ search, onSearchChange }: StockInquiryPagePro
   const qValue = search.q ?? "";
   const deptValue = search.dept ?? null;
   const statusValue: ListChipFilter = search.status ?? "all";
+  const pageValue = search.page ?? 1;
   const selectedValue = search.selected ?? null;
 
-  const { listQuery, detailQuery, isAllEmpty, departmentOptions } = useStockInquiry({
-    status: statusValue,
-    q: qValue,
-    dept: deptValue,
-    selected: selectedValue,
-    navigate: (partial) => {
-      onSearchChange((prev) => ({ ...prev, ...partial }));
-    },
-  });
+  const { listQuery, detailQuery, departmentOptionsQuery, departmentOptions, isAllEmpty } =
+    useStockInquiry({
+      status: statusValue,
+      q: qValue,
+      dept: deptValue,
+      page: pageValue,
+      selected: selectedValue,
+      navigate: (partial) => {
+        onSearchChange((prev) => ({ ...prev, ...partial }));
+      },
+    });
 
   // list query 失敗 → toast（id-based dedup）、復旧時 dismiss
   useEffect(() => {
@@ -59,6 +63,24 @@ export function StockInquiryPage({ search, onSearchChange }: StockInquiryPagePro
     }
   }, [detailQuery.isError, detailQuery.isSuccess]);
 
+  // 絞り込み（q / dept / status）が既定値以外か。page / sort 等は対象外（catalog ⑥ filter-empty reset、SPEC-UIBB-1/2）。
+  const isFilterDefault = qValue === "" && deptValue === null && statusValue === "all";
+  const resetFilters = () => {
+    onSearchChange((prev) => ({
+      ...prev,
+      q: undefined,
+      dept: undefined,
+      status: undefined,
+      page: undefined,
+      selected: undefined,
+    }));
+  };
+
+  const data = listQuery.data;
+  // 範囲外 page（UI-06a-D3、74 §74.10 UI-11c-D8 と同型）。通常 EmptyState / reset action より優先判定（SPEC-UIBB-8）。
+  const isOutOfRangePage =
+    data?.items.length === 0 && data.totalCount !== null && data.totalCount > 0 && pageValue > 1;
+
   return (
     // p-6: 売上レポート（daily/monthly）と全周余白を揃える（RootLayout main は padding を持たず
     // 各ページ root が自前で付ける設計、Codex 実装レビュー Round 1 後の L3 デモ発見）
@@ -73,6 +95,7 @@ export function StockInquiryPage({ search, onSearchChange }: StockInquiryPagePro
             onSearchChange((prev) => ({
               ...prev,
               q: v === "" ? undefined : v,
+              page: undefined,
               selected: undefined,
             }));
           }}
@@ -84,20 +107,29 @@ export function StockInquiryPage({ search, onSearchChange }: StockInquiryPagePro
             onSearchChange((prev) => ({
               ...prev,
               dept: d ?? undefined,
+              page: undefined,
               selected: undefined,
             }));
           }}
           allLabel="すべての部門"
           widthClass="w-[10rem]"
           idPrefix="stock-dept-filter"
+          disabled={departmentOptionsQuery.isLoading}
         />
       </div>
+
+      {/* 候補取得失敗は listQuery とは独立に別途文言表示（catalog ⑨、round 2 P1-1） */}
+      {departmentOptionsQuery.isError && (
+        <p className="text-sm text-destructive" role="alert">
+          部門候補の取得に失敗しました
+        </p>
+      )}
 
       <StatusChips
         value={statusValue}
         onChange={(s) => {
-          // status 切替時は selected を clear（新 list 1 件で自動展開が再発火可能）
-          onSearchChange((prev) => ({ ...prev, status: s, selected: undefined }));
+          // status 切替時は page / selected を clear（q / dept 変更時と同型、新 list 1 件で自動展開が再発火可能）
+          onSearchChange((prev) => ({ ...prev, status: s, page: undefined, selected: undefined }));
         }}
       />
 
@@ -121,24 +153,56 @@ export function StockInquiryPage({ search, onSearchChange }: StockInquiryPagePro
               行インライン展開は list 成功前提のため、ここはフォールバックカードで担う。 */}
           {selectedValue !== null && <StockDetailCard query={detailQuery} />}
         </>
-      ) : listQuery.data?.items.length === 0 ? (
-        // 意図的差分③: bare div → EmptyState 標準 UI（catalog ⑥）
+      ) : isOutOfRangePage ? (
+        <EmptyState
+          title="このページには表示する商品がありません"
+          action={
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                onSearchChange((prev) => ({ ...prev, page: undefined }));
+              }}
+            >
+              先頭ページに戻る
+            </Button>
+          }
+        />
+      ) : data?.items.length === 0 ? (
         <EmptyState
           title="該当する商品がありません"
           description="商品コード・商品名・JANコードを変えてもう一度検索してください"
+          // 絞り込みが既定値以外のときだけ reset action を出す（catalog ⑥ filter-empty reset action、SPEC-UIBB-1/2）。
+          action={
+            !isFilterDefault ? (
+              <Button type="button" variant="outline" onClick={resetFilters}>
+                絞り込みを解除
+              </Button>
+            ) : undefined
+          }
         />
-      ) : listQuery.data ? (
+      ) : data ? (
         <div className="space-y-2">
-          {listQuery.data.truncated && <TruncatedResultsAlert />}
           <ProductListTable
-            items={listQuery.data.items}
-            source={listQuery.data.source}
+            items={data.items}
+            source={data.source}
             selected={selectedValue}
             detailQuery={detailQuery}
             onSelect={(code) => {
               onSearchChange((prev) => ({ ...prev, selected: code }));
             }}
           />
+          {/* status === "all" のときだけ表示（UI-06a-D1、02-component-catalog.md ⑩ canonical を結線） */}
+          {statusValue === "all" && data.totalCount !== null && (
+            <ProductPagination
+              page={pageValue}
+              perPage={50}
+              totalCount={data.totalCount}
+              onPageChange={(next) => {
+                onSearchChange((prev) => ({ ...prev, page: next }));
+              }}
+            />
+          )}
         </div>
       ) : null}
     </div>

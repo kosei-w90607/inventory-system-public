@@ -216,3 +216,78 @@ describe("InventoryRecordsPage (REQ-206)", () => {
     });
   });
 });
+
+describe("InventoryRecordsPage SPEC-UIBB-1/2（filter-empty reset action、65 §65.8.1）", () => {
+  it("SPEC-UIBB-1 絞り込み該当なしで解除ボタンを表示する", async () => {
+    mockListInventoryRecords.mockResolvedValue({
+      status: "ok",
+      data: { items: [], total_count: 0, page: 1, per_page: 20 },
+    });
+    renderWithClient(
+      <InventoryRecordsPage
+        search={{ recordType: "disposal_record", q: "該当なし" }}
+        onSearchChange={vi.fn()}
+      />,
+    );
+    expect(await screen.findByRole("button", { name: "絞り込みを解除" })).toBeInTheDocument();
+  });
+
+  it("SPEC-UIBB-1 既定条件の0件では解除ボタンを出さない", async () => {
+    mockListInventoryRecords.mockResolvedValue({
+      status: "ok",
+      data: { items: [], total_count: 0, page: 1, per_page: 20 },
+    });
+    renderWithClient(<InventoryRecordsPage search={{}} onSearchChange={vi.fn()} />);
+    expect(await screen.findByText("入出庫履歴がありません")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "絞り込みを解除" })).not.toBeInTheDocument();
+  });
+
+  it("SPEC-UIBB-2 解除で全検索条件とpageが既定値に戻る", async () => {
+    mockListInventoryRecords.mockResolvedValue({
+      status: "ok",
+      data: { items: [], total_count: 0, page: 3, per_page: 20 },
+    });
+    const onSearchChange = vi.fn();
+    renderWithClient(
+      <InventoryRecordsPage
+        search={{
+          recordType: "disposal_record",
+          dateFrom: "2026-07-01",
+          dateTo: "2026-07-31",
+          q: "ボタン",
+          recordId: 7,
+          departmentId: 2,
+          status: "active",
+          page: 3,
+        }}
+        onSearchChange={onSearchChange}
+      />,
+    );
+    const resetButton = await screen.findByRole("button", { name: "絞り込みを解除" });
+    await userEvent.setup().click(resetButton);
+
+    const updater = onSearchChange.mock.calls[onSearchChange.mock.calls.length - 1]?.[0] as (
+      prev: Record<string, unknown>,
+    ) => Record<string, unknown>;
+    const result = updater({
+      recordType: "disposal_record",
+      dateFrom: "2026-07-01",
+      dateTo: "2026-07-31",
+      q: "ボタン",
+      recordId: 7,
+      departmentId: 2,
+      status: "active",
+      page: 3,
+    });
+    expect(result).toEqual({
+      recordType: undefined,
+      dateFrom: undefined,
+      dateTo: undefined,
+      q: undefined,
+      recordId: undefined,
+      departmentId: undefined,
+      status: undefined,
+      page: undefined,
+    });
+  });
+});

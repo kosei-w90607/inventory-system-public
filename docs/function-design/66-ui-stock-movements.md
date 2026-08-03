@@ -163,7 +163,7 @@ MovementSummary + MovementTable + ProductPagination
 
 - movement loading: table 領域に Skeleton 3 行。
 - movement error: destructive Alert「在庫変動履歴の取得に失敗しました」。条件変更か再試行を促す。
-- movement empty: EmptyState「在庫変動履歴がありません」。商品に movement がない、または検索条件に該当しないことを説明する。
+- movement empty: EmptyState「在庫変動履歴がありません」。商品に movement がない、または検索条件に該当しないことを説明する。**filter-empty reset action**（2026-08-03 batch B、[02-component-catalog.md](../design-system/02-component-catalog.md) ⑥）: `dateFrom` / `dateTo` / `type` のいずれかが既定値以外、かつ結果 0 件のときは EmptyState に「絞り込みを解除」ボタンを表示する。押下で `dateFrom` / `dateTo` / `type` と `page`（§66.3）をすべて既定値へ戻す。商品自体に movement がない（既定値のまま 0 件）ときは表示しない。
 - product detail error: 商品サマリだけ inline warning。movement error と独立させる。
 
 ### 66.7 Tests

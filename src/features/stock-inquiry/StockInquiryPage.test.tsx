@@ -2,6 +2,8 @@
 //
 // REQ-301: StockInquiryPage の結果 1 件自動展開（Q-3 補強）。
 // list query 結果が 1 件のとき useEffect → onSearchChange で selected URL state を更新。
+// SPEC-UIBB-1/2/4/5/8/9（2026-08-03 batch B）: filter-empty reset / pagination / 範囲外 page /
+// 部門候補 listDepartments 化。
 // 設計: docs/function-design/58-ui-stock-inquiry.md §58.7 / §58.9
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
@@ -14,31 +16,41 @@ import { commands } from "@/lib/bindings";
 import { renderWithRouter } from "@/test/render-with-router";
 import type { StockInquirySearch } from "./types";
 import { StockInquiryPage } from "./StockInquiryPage";
-import { makeMockProductWithRelations, makeMockStockDetail } from "./lib/test-fixtures";
+import {
+  makeMockDepartment,
+  makeMockProductWithRelations,
+  makeMockStockDetail,
+} from "./lib/test-fixtures";
 
 vi.mock("@/lib/bindings", () => ({
   commands: {
     searchProducts: vi.fn(),
     listLowStock: vi.fn(),
     getStockDetail: vi.fn(),
+    listDepartments: vi.fn(),
   },
 }));
 
 const mockSearch = vi.mocked(commands.searchProducts);
 const mockLowStock = vi.mocked(commands.listLowStock);
 const mockDetail = vi.mocked(commands.getStockDetail);
+const mockListDepartments = vi.mocked(commands.listDepartments);
 
-function renderWithClient(ui: ReactNode) {
-  const qc = new QueryClient({
-    defaultOptions: { queries: { retry: false, gcTime: Number.POSITIVE_INFINITY } },
-  });
-  return renderWithRouter(<QueryClientProvider client={qc}>{ui}</QueryClientProvider>);
+function renderWithClient(ui: ReactNode, qc?: QueryClient) {
+  const client =
+    qc ??
+    new QueryClient({
+      defaultOptions: { queries: { retry: false, gcTime: Number.POSITIVE_INFINITY } },
+    });
+  return renderWithRouter(<QueryClientProvider client={client}>{ui}</QueryClientProvider>);
 }
 
 beforeEach(() => {
   mockSearch.mockReset();
   mockLowStock.mockReset();
   mockDetail.mockReset();
+  mockListDepartments.mockReset();
+  mockListDepartments.mockResolvedValue({ status: "ok", data: [] });
 });
 
 // B0 characterization: 空結果の EmptyState DOM 固定（意図的差分③）
@@ -256,5 +268,327 @@ describe("StockInquiryPage (REQ-301 自動展開)", () => {
     await waitFor(() => {
       expect(screen.getByText("最終入庫日")).toBeInTheDocument();
     });
+  });
+});
+
+describe("StockInquiryPage SPEC-UIBB-1/2（filter-empty reset action）", () => {
+  it("SPEC-UIBB-1 絞り込み該当なしで解除ボタンを表示する", async () => {
+    mockSearch.mockResolvedValue({
+      status: "ok",
+      data: { items: [], total_count: 0, page: 1, per_page: 50 },
+    });
+    renderWithClient(
+      <StockInquiryPage
+        search={{ q: "該当なし", dept: 1, status: "all" }}
+        onSearchChange={vi.fn()}
+      />,
+    );
+    expect(await screen.findByRole("button", { name: "絞り込みを解除" })).toBeInTheDocument();
+  });
+
+  it("SPEC-UIBB-1 既定条件の0件では解除ボタンを出さない", async () => {
+    // q/dept/status すべて既定（isFilterDefault）のときは isAllEmpty ガードで
+    // search_products 自体を呼ばず EmptySearchPlaceholder を表示する（契約 I）。
+    // reset action は EmptyState 側の action slot にのみ存在するため、既定条件では
+    // どのケースでも reset ボタンが出ないことを確認する。
+    renderWithClient(<StockInquiryPage search={{}} onSearchChange={vi.fn()} />);
+    expect(
+      await screen.findByText("商品コード、商品名、または JAN コードで検索してください"),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "絞り込みを解除" })).not.toBeInTheDocument();
+    expect(mockSearch).not.toHaveBeenCalled();
+  });
+
+  it("SPEC-UIBB-2 解除で全条件が既定値に戻る", async () => {
+    mockSearch.mockResolvedValue({
+      status: "ok",
+      data: { items: [], total_count: 0, page: 1, per_page: 50 },
+    });
+    const onSearchChange = vi.fn();
+    renderWithClient(
+      <StockInquiryPage
+        search={{ q: "該当なし", dept: 3, status: "all", page: 2 }}
+        onSearchChange={onSearchChange}
+      />,
+    );
+    const resetButton = await screen.findByRole("button", { name: "絞り込みを解除" });
+    await userEvent.setup().click(resetButton);
+
+    const updater = onSearchChange.mock.calls[onSearchChange.mock.calls.length - 1]?.[0] as (
+      prev: StockInquirySearch,
+    ) => StockInquirySearch;
+    const result = updater({ q: "該当なし", dept: 3, status: "all", page: 2 });
+    expect(result.q).toBeUndefined();
+    expect(result.dept).toBeUndefined();
+    expect(result.status).toBeUndefined();
+    expect(result.page).toBeUndefined();
+    expect(result.selected).toBeUndefined();
+  });
+});
+
+describe("StockInquiryPage SPEC-UIBB-4（pagination の条件 reset / 維持）", () => {
+  it("SPEC-UIBB-4 検索条件変更でpage=1に戻る", async () => {
+    mockSearch.mockResolvedValue({
+      status: "ok",
+      data: {
+        items: [makeMockProductWithRelations({ product_code: "P-001" })],
+        total_count: 1,
+        page: 2,
+        per_page: 50,
+      },
+    });
+    const onSearchChange = vi.fn();
+    renderWithClient(
+      <StockInquiryPage
+        search={{ q: "毛糸", status: "all", page: 2 }}
+        onSearchChange={onSearchChange}
+      />,
+    );
+    await screen.findByText("P-001");
+    const searchInput = screen.getByRole("searchbox");
+    await userEvent.setup().type(searchInput, "X");
+    // 単一件自動展開の selected 更新 call も混ざるため、q を変更した call を明示的に待つ
+    // （debounce 200ms を待つため waitFor の既定 timeout を超える場合がある）。
+    await waitFor(
+      () => {
+        const qChangeCall = onSearchChange.mock.calls.find((call) => {
+          const updater = call[0] as (prev: StockInquirySearch) => StockInquirySearch;
+          return updater({ q: "毛糸", status: "all", page: 2 }).q !== "毛糸";
+        });
+        expect(qChangeCall).toBeDefined();
+      },
+      { timeout: 3000 },
+    );
+    const qChangeCall = onSearchChange.mock.calls.find((call) => {
+      const updater = call[0] as (prev: StockInquirySearch) => StockInquirySearch;
+      return updater({ q: "毛糸", status: "all", page: 2 }).q !== "毛糸";
+    });
+    const updater = qChangeCall?.[0] as (prev: StockInquirySearch) => StockInquirySearch;
+    const result = updater({ q: "毛糸", status: "all", page: 2 });
+    expect(result.page).toBeUndefined();
+  });
+
+  // Final Review P2 是正: q 経路だけでは dept / status handler の page reset 除去 mutant を
+  // 殺せない（survivor 実証済み）。3 経路それぞれの UI 操作で updater を検証する。
+  it("SPEC-UIBB-4 部門変更でpage=1に戻る", async () => {
+    mockSearch.mockResolvedValue({
+      status: "ok",
+      data: {
+        items: [makeMockProductWithRelations({ product_code: "P-001" })],
+        total_count: 1,
+        page: 2,
+        per_page: 50,
+      },
+    });
+    mockListDepartments.mockResolvedValue({
+      status: "ok",
+      data: [
+        makeMockDepartment({ id: 1, name: "毛糸" }),
+        makeMockDepartment({ id: 2, name: "布" }),
+      ],
+    });
+    const onSearchChange = vi.fn();
+    renderWithClient(
+      <StockInquiryPage
+        search={{ q: "毛糸", status: "all", page: 2 }}
+        onSearchChange={onSearchChange}
+      />,
+    );
+    await screen.findByText("P-001");
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("combobox"));
+    await user.click(await screen.findByRole("option", { name: "布" }));
+    const prev: StockInquirySearch = { q: "毛糸", status: "all", page: 2 };
+    const deptChangeCall = onSearchChange.mock.calls.find((call) => {
+      const updater = call[0] as (p: StockInquirySearch) => StockInquirySearch;
+      return updater(prev).dept === 2;
+    });
+    expect(deptChangeCall).toBeDefined();
+    const updater = deptChangeCall?.[0] as (p: StockInquirySearch) => StockInquirySearch;
+    const result = updater(prev);
+    expect(result.page).toBeUndefined();
+    expect(result.selected).toBeUndefined();
+  });
+
+  it("SPEC-UIBB-4 状態チップ変更でpage=1に戻る", async () => {
+    mockSearch.mockResolvedValue({
+      status: "ok",
+      data: {
+        items: [makeMockProductWithRelations({ product_code: "P-001" })],
+        total_count: 1,
+        page: 2,
+        per_page: 50,
+      },
+    });
+    mockLowStock.mockResolvedValue({ status: "ok", data: [] });
+    const onSearchChange = vi.fn();
+    renderWithClient(
+      <StockInquiryPage
+        search={{ q: "毛糸", status: "all", page: 2 }}
+        onSearchChange={onSearchChange}
+      />,
+    );
+    await screen.findByText("P-001");
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("radio", { name: "在庫少" }));
+    const prev: StockInquirySearch = { q: "毛糸", status: "all", page: 2 };
+    const statusChangeCall = onSearchChange.mock.calls.find((call) => {
+      const updater = call[0] as (p: StockInquirySearch) => StockInquirySearch;
+      return updater(prev).status === "low_stock";
+    });
+    expect(statusChangeCall).toBeDefined();
+    const updater = statusChangeCall?.[0] as (p: StockInquirySearch) => StockInquirySearch;
+    const result = updater(prev);
+    expect(result.page).toBeUndefined();
+    expect(result.selected).toBeUndefined();
+  });
+
+  it("SPEC-UIBB-4 page移動で検索条件を維持する", async () => {
+    mockSearch.mockResolvedValue({
+      status: "ok",
+      data: {
+        items: [makeMockProductWithRelations({ product_code: "P-001" })],
+        total_count: 60,
+        page: 1,
+        per_page: 50,
+      },
+    });
+    const onSearchChange = vi.fn();
+    renderWithClient(
+      <StockInquiryPage
+        search={{ q: "毛糸", status: "all", page: 1 }}
+        onSearchChange={onSearchChange}
+      />,
+    );
+    const nextButton = await screen.findByRole("button", { name: "次のページ" });
+    await userEvent.setup().click(nextButton);
+
+    const updater = onSearchChange.mock.calls[onSearchChange.mock.calls.length - 1]?.[0] as (
+      prev: StockInquirySearch,
+    ) => StockInquirySearch;
+    const result = updater({ q: "毛糸", status: "all", page: 1 });
+    expect(result.page).toBe(2);
+    expect(result.q).toBe("毛糸");
+    expect(result.status).toBe("all");
+  });
+});
+
+describe("StockInquiryPage SPEC-UIBB-5（51件 synthetic で page 2 到達 + truncated alert 撤去）", () => {
+  it("SPEC-UIBB-5 51件でpage2に到達できる", async () => {
+    mockSearch.mockResolvedValue({
+      status: "ok",
+      data: {
+        items: [makeMockProductWithRelations({ product_code: "P-051", name: "51件目" })],
+        total_count: 51,
+        page: 2,
+        per_page: 50,
+      },
+    });
+    renderWithClient(
+      <StockInquiryPage search={{ q: "毛糸", status: "all", page: 2 }} onSearchChange={vi.fn()} />,
+    );
+    expect(await screen.findByText("P-051")).toBeInTheDocument();
+    expect(screen.getByText("51 件中 2 / 2 ページ")).toBeInTheDocument();
+  });
+});
+
+describe("StockInquiryPage SPEC-UIBB-8（範囲外 page 回復導線）", () => {
+  it("SPEC-UIBB-8 範囲外pageで先頭ページに戻る導線を表示する", async () => {
+    mockSearch.mockResolvedValue({
+      status: "ok",
+      data: { items: [], total_count: 10, page: 5, per_page: 50 },
+    });
+    const onSearchChange = vi.fn();
+    renderWithClient(
+      <StockInquiryPage
+        search={{ q: "毛糸", status: "all", page: 5 }}
+        onSearchChange={onSearchChange}
+      />,
+    );
+    expect(
+      await screen.findByRole("heading", { name: "このページには表示する商品がありません" }),
+    ).toBeInTheDocument();
+    // 通常 EmptyState / reset action は表示されない（優先判定）
+    expect(
+      screen.queryByRole("heading", { name: "該当する商品がありません" }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "絞り込みを解除" })).not.toBeInTheDocument();
+
+    const backButton = screen.getByRole("button", { name: "先頭ページに戻る" });
+    await userEvent.setup().click(backButton);
+    const updater = onSearchChange.mock.calls[onSearchChange.mock.calls.length - 1]?.[0] as (
+      prev: StockInquirySearch,
+    ) => StockInquirySearch;
+    const result = updater({ q: "毛糸", status: "all", page: 5 });
+    expect(result.page).toBeUndefined();
+    expect(result.q).toBe("毛糸");
+    expect(result.status).toBe("all");
+  });
+});
+
+describe("StockInquiryPage SPEC-UIBB-9（部門候補 loading / error 結線）", () => {
+  it("SPEC-UIBB-9 候補ロード中はDepartmentFilterがdisabled", async () => {
+    mockSearch.mockResolvedValue({
+      status: "ok",
+      data: { items: [], total_count: 0, page: 1, per_page: 50 },
+    });
+    // listDepartments を pending のまま固定（resolve しない）
+    mockListDepartments.mockImplementation(() => new Promise(() => undefined));
+    renderWithClient(
+      <StockInquiryPage search={{ q: "毛糸", status: "all" }} onSearchChange={vi.fn()} />,
+    );
+    await waitFor(() => {
+      expect(screen.getByRole("combobox")).toBeDisabled();
+    });
+  });
+
+  it("SPEC-UIBB-9 候補取得失敗でも一覧は表示され失敗文言が出る", async () => {
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    mockSearch.mockResolvedValue({
+      status: "ok",
+      data: {
+        items: [makeMockProductWithRelations({ product_code: "P-001" })],
+        total_count: 1,
+        page: 1,
+        per_page: 50,
+      },
+    });
+    mockListDepartments.mockResolvedValue({
+      status: "error",
+      error: { kind: "internal", message: "取得失敗", field: null, error_id: null },
+    });
+    renderWithClient(
+      <StockInquiryPage search={{ q: "毛糸", status: "all" }} onSearchChange={vi.fn()} />,
+      qc,
+    );
+    expect(await screen.findByText("P-001")).toBeInTheDocument();
+    expect(await screen.findByRole("alert")).toHaveTextContent("部門候補の取得に失敗しました");
+  });
+
+  it("SPEC-UIBB-9 部門選択中も他部門へ直接切替できる", async () => {
+    mockListDepartments.mockResolvedValue({
+      status: "ok",
+      data: [
+        makeMockDepartment({ id: 1, name: "毛糸" }),
+        makeMockDepartment({ id: 2, name: "布" }),
+      ],
+    });
+    mockSearch.mockResolvedValue({
+      status: "ok",
+      data: {
+        items: [makeMockProductWithRelations({ product_code: "P-001", department_id: 1 })],
+        total_count: 1,
+        page: 1,
+        per_page: 50,
+      },
+    });
+    renderWithClient(
+      <StockInquiryPage search={{ q: "毛糸", status: "all", dept: 1 }} onSearchChange={vi.fn()} />,
+    );
+    await screen.findByText("P-001");
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("combobox"));
+    // dept=1 選択中でも布（id=2）が候補に残っている（DSR-10 縮退なし）
+    expect(await screen.findByRole("option", { name: "布" })).toBeInTheDocument();
   });
 });

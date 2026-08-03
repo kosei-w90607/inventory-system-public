@@ -180,3 +180,68 @@ describe("StockMovementsPage (UI-06c)", () => {
     expect(updater({ type: "all", page: 3 })).toEqual({ type: "receiving", page: 1 });
   });
 });
+
+describe("StockMovementsPage SPEC-UIBB-1/2（filter-empty reset action、66 §66.6）", () => {
+  it("SPEC-UIBB-1 絞り込み該当なしで解除ボタンを表示する", async () => {
+    mockGetStockDetail.mockResolvedValue({ status: "ok", data: makeStockDetail() });
+    mockListMovements.mockResolvedValue({
+      status: "ok",
+      data: { items: [], total_count: 0, page: 1, per_page: 20 },
+    });
+    renderWithClient(
+      <StockMovementsPage
+        productCode="BT0002"
+        search={{ type: "disposal" }}
+        onSearchChange={vi.fn()}
+      />,
+    );
+    expect(await screen.findByRole("button", { name: "絞り込みを解除" })).toBeInTheDocument();
+  });
+
+  it("SPEC-UIBB-1 既定条件の0件では解除ボタンを出さない", async () => {
+    mockGetStockDetail.mockResolvedValue({ status: "ok", data: makeStockDetail() });
+    mockListMovements.mockResolvedValue({
+      status: "ok",
+      data: { items: [], total_count: 0, page: 1, per_page: 20 },
+    });
+    renderWithClient(
+      <StockMovementsPage productCode="BT0002" search={{}} onSearchChange={vi.fn()} />,
+    );
+    expect(await screen.findByText("在庫変動履歴がありません")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "絞り込みを解除" })).not.toBeInTheDocument();
+  });
+
+  it("SPEC-UIBB-2 解除でdateFrom・dateTo・type・pageが既定値に戻る", async () => {
+    mockGetStockDetail.mockResolvedValue({ status: "ok", data: makeStockDetail() });
+    mockListMovements.mockResolvedValue({
+      status: "ok",
+      data: { items: [], total_count: 0, page: 3, per_page: 20 },
+    });
+    const onSearchChange = vi.fn();
+    renderWithClient(
+      <StockMovementsPage
+        productCode="BT0002"
+        search={{ dateFrom: "2026-06-01", dateTo: "2026-06-30", type: "disposal", page: 3 }}
+        onSearchChange={onSearchChange}
+      />,
+    );
+    const resetButton = await screen.findByRole("button", { name: "絞り込みを解除" });
+    await userEvent.setup().click(resetButton);
+
+    const updater = onSearchChange.mock.calls[onSearchChange.mock.calls.length - 1]?.[0] as (
+      prev: Record<string, unknown>,
+    ) => Record<string, unknown>;
+    const result = updater({
+      dateFrom: "2026-06-01",
+      dateTo: "2026-06-30",
+      type: "disposal",
+      page: 3,
+    });
+    expect(result).toEqual({
+      dateFrom: undefined,
+      dateTo: undefined,
+      type: undefined,
+      page: undefined,
+    });
+  });
+});

@@ -1,7 +1,7 @@
-# コンポーネントカタログ（13 パターン）
+# コンポーネントカタログ（14 パターン）
 
 > **親文書**: [README.md](README.md)
-> **責務**: 繰り返し使われる 13 パターンの canonical 定義。各パターンに使いどころ・JSX skeleton・使用トークン・全状態・a11y 要件・Do-Don't・canonical ファイル参照を記載する。
+> **責務**: 繰り返し使われる 14 パターンの canonical 定義。各パターンに使いどころ・JSX skeleton・使用トークン・全状態・a11y 要件・Do-Don't・canonical ファイル参照を記載する。
 
 ---
 
@@ -350,7 +350,28 @@ function FormSection({ title, description, children }: FormSectionProps) {
 - **0 件成功** = `EmptyState`（pure テーブル component 内 or ページ分岐内）。テーブル系は `rows.length === 0` の内部分岐の中身として埋め込む — props 駆動の pure presentational 責務は不変
 - **取得失敗** = ページ側 Alert で差し替え（パターン③テーブルの「取得失敗はテーブルごと差し替え」の射程）。`EmptyState` は使わない
 
-**適用除外**: `EmptySearchPlaceholder`（検索前の操作指示 = 空結果ではない）と shortcuts の `emptyMessage`（navigation config 駆動で利用者アクション不能）は semantic が「取得結果 0 件」と異なるため EmptyState 化しない。
+**適用除外**: `EmptySearchPlaceholder`（検索前の操作指示 = 空結果ではない）と shortcuts の `emptyMessage`（navigation config 駆動で利用者アクション不能）は semantic が「取得結果 0 件」と異なるため EmptyState 化しない。明細 0 行系（例: 入庫 `ReceivingPage.tsx` の「入庫する商品がありません」）も同様に適用除外とする — 絞り込み結果が 0 件なのではなく、業務入力の明細行が単に空という別 semantic のため。
+
+### filter-empty reset action（絞り込み解除、2026-08-03 batch B で新設）
+
+一覧画面で「絞り込み条件を既定値以外にした結果、0 件になった」ケースに限定した回復導線。
+
+**分類軸**（round 1 P1-1 対応。reset 対象を全数分類する判断基準）:
+
+- **reset 対象** = 結果集合を狭める任意の絞り込み条件（検索語・フィルタ・状態チップ・期間絞り込み）を持つ一覧画面の filter-empty。絞り込みの既定値復帰が「全件（既定）表示」という自明な回復になる画面のみ。
+- **除外(a) 範囲外 page 回復** = 別 semantic の既存専用導線（「先頭ページに戻る」、UI-11c-D8 等）が既にある。
+- **除外(b) 期間主キーレポート** = 日付 / 月という対象選択が支配的で、絞り込み解除がデータ存在を保証しない（日報・月報系）。条件変更の案内は既存 description 文言が担う。
+- **除外(c) 業務入力の明細 0 行** = 入力明細が空なだけで絞り込み結果ではない。
+- **除外(d) 直近実績サマリ / 詳細画面の関連データ不在** = 絞り込み条件を持たない、真にデータなし系。
+- **優先規則**（round 2 P2-2 対応、分類軸の排他性）: 対象選択条件（「すべて」という既定値を持たない必須の主キー = 日報の日付、月報の月）を持つレポート画面は、副次絞り込み（例: 日次売上の部門フィルタ）があっても除外(b) を優先して reset 対象外とする。理由 = reset の統一契約は「全絞り込み条件の既定復帰」であり、対象選択は既定復帰の対象になり得ない。副次絞り込みだけを戻す部分 reset を許すと、同じ「絞り込みを解除」ボタンが site ごとに違う挙動になる。部分 reset（「部門の絞り込みを解除」等の別文言）は要望発生時に別 change で再評価する。
+- reset が戻すのは絞り込み条件のみ。並び替え（sort / dir）・表示件数（perPage）は結果集合を狭めないため対象外。
+
+- **表示条件**: 絞り込み条件が既定値以外、かつ結果が 0 件のときのみ、EmptyState の `action` に絞り込み解除ボタン（`variant="outline"`）を置く。絞り込みが既定値のまま 0 件（真にデータなし）のときは action を出さない。
+- **動作**: 押下でその画面の絞り込み条件をすべて既定値へ戻す。URL search param 画面は search param を既定値へ、local state 画面は state を既定値へ戻す。`page` を持つ画面は `page` も既定（1）へ戻す。並び替え（sort / dir）・表示件数（perPage）は変更しない（分類軸の対象外規定どおり）。
+- **文言**: 「絞り込みを解除」で全採用箇所を統一する。
+- **既存 action との共存規定**（round 1 P1-1 対応、新設）: 既存の主動線 action を持つ画面（商品一覧の「商品を登録する」）は、その action を常設のまま維持し、絞り込みが非既定のときだけ reset ボタンを `action` slot 内へ横並び（flex）で併置する。既存 action が先、reset ボタンが後。`action` slot に複数ボタンを置く場合は wrapper を `flex flex-wrap items-center justify-center gap-2` とし中央揃えにする（EmptyState 本体の中央揃えと整合させる。owner L3 2026-08-03）。
+- **採用箇所**: 棚卸し（`StocktakePage`、部門フィルタ / 未入力のみ toggle / `page` を既定へ戻す。73 §73.6 round 2 P2-1 是正と整合）/ 在庫照会（`StockInquiryPage`）/ 入出庫履歴一覧（`InventoryRecordsPage`）/ 在庫変動履歴（`StockMovementsPage`）/ 操作ログ（`OperationLogsPage`）/ 商品一覧（`ProductListPage`、round 1 P1-1 で追加）の 6 画面。商品一覧は上記共存規定に従い既存「商品を登録する」action と共存する。操作ログは既存の `defaultFilter` 判定の非既定側にのみ reset action が付く。既存の範囲外 page 回復 action「先頭ページに戻る」（§74 参照）とは対象ケースが異なり、同一画面内で共存する。
+- **適用除外**: 本節冒頭の適用除外（`EmptySearchPlaceholder` / shortcuts `emptyMessage` / 明細 0 行系）および上記分類軸の除外(a)〜(d) と同じ。これらは「絞り込み結果 0 件」ではないため reset action の対象にしない。
 
 **バリエーション: インライン選択エラー 1 スロット**（PR #125、canonical: `src/features/daily-report-import/DailyReportImportPage.tsx` の `SelectionErrorMessage`）: ファイル選択（DSR-14 の path-based 方式）など非フォーム文脈の入力検証エラーは、発生源（選択ボタン）直下の 1 スロットに `role="alert"` + destructive テキスト + アイコンで表示する。エラー state は選択試行のたびに置換し、成功で `null` にクリアする。画面上部の Alert 帯（データ安全系専用）とは役割を混ぜない（DSR-03 の 3 階層）。フォーム文脈の入力検証はパターン④の `FieldError`（入力直下）が既定で、本バリエーションは非フォーム文脈専用。
 
@@ -500,21 +521,19 @@ toast.error(`出力に失敗しました: ${message}`, { id: `export-${reportTyp
 
 **使いどころ**: 一覧画面上部の検索欄 + 部門フィルタ。HID バーコードスキャナの Enter 確定に対応し、選択状態を URL state に連動させる。
 
-**canonical**: `src/components/patterns/SearchBar.tsx`（検索欄。`debounceMs` 未指定 = commit 型（Enter/ボタン確定 + trim、商品一覧）/ 指定 = live 型（debounce + Enter flush、在庫照会）。両モードとも `event.isComposing` ガードで IME 変換確定 Enter の誤発火を防止）、`src/components/patterns/DepartmentFilter.tsx`（部門フィルタ。allLabel 既定「すべての部門」）
+**canonical**: `src/components/patterns/SearchBar.tsx`（検索欄。`debounceMs` 未指定 = commit 型（Enter/ボタン確定 + trim、現在の採用箇所なし・機能残置）/ 指定 = live 型（debounce + Enter flush、商品一覧・在庫照会、`debounceMs=200`）。両モードとも `event.isComposing` ガードで IME 変換確定 Enter の誤発火を防止。商品一覧は 2026-08-03 owner L3 是正で commit 型から live 型へ統一）、`src/components/patterns/DepartmentFilter.tsx`（部門フィルタ。allLabel 既定「すべての部門」）
 
 **構造**:
 
 ```tsx
-// 検索欄（commit 型）: draft 内部保持 + Enter/検索ボタンで確定（trim あり）。
-// id は呼び出し側で旧 contract を維持する（商品一覧 = "product-search-input"。
-// 未指定時の既定は "search-input" — 既存画面の置換では必ず明示する）
+// 検索欄（commit 型、現在の採用箇所なし・機能残置）: draft 内部保持 + Enter/検索ボタンで確定（trim あり）。
+// 未指定時の id 既定は "search-input" — 採用時は呼び出し側で明示する
 <SearchBar
-  id="product-search-input"
   value={q}
   onSearchChange={(value) => updateSearch({ q: value })}
 />
 
-// 検索欄（live 型）: debounce + Enter 即時 flush（trim なし）。Label / id / ボタンなし、type="search"
+// 検索欄（live 型、商品一覧・在庫照会）: debounce + Enter 即時 flush（trim なし）。Label / id / ボタンなし、type="search"
 <SearchBar
   debounceMs={200}
   value={q}
@@ -764,6 +783,42 @@ toast.error(`出力に失敗しました: ${message}`, { id: `export-${reportTyp
 **Don't**:
 - 状態を色（hue）だけで符号化しない（DSR-08）
 - 意味を tooltip だけに閉じ込めない
+
+---
+
+## ⑭ FilePicker
+
+**使いどころ**: ファイル選択を伴う入力（CSV取込み、商品マスタ一括インポート、返品・交換のレシート画像添付）で使う統一 UI コンポーネント。**behavior / API 契約（入口 2 経路の詳細・`PickedFile` 出力契約・cancel 挙動・「local input / dropzone 新設禁止」の Do/Don't）の正典は [UI_TECH_STACK.md §6.5.4](../UI_TECH_STACK.md#654-ネイティブダイアログ)**（D-054、WebView2 の HTML file input 白画面バグ回避、cross-language validation 定数 SSOT）。本節は構造 / トークン / 状態 / a11y / 採用箇所のみを扱い、behavior / API 契約は二重記述しない（round 1 P2-2 対応）。
+
+**canonical**: `src/components/FilePicker.tsx`（`patterns/` 配下ではなく `components/` 直下に置く。plugin-dialog / plugin-fs 副作用を持つため純表示部品規約〔[59-ui-shared-patterns.md](../function-design/59-ui-shared-patterns.md) §59.4〕の対象外、詳細は同 §59.3 参照）
+
+**構造**:
+
+```tsx
+<FilePicker
+  accept=".csv"
+  ariaLabel="CSVファイルを選択"
+  buttonLabel="ファイルを選択"
+  onSelect={(file: PickedFile) => { /* file = { bytes, filename, size }。契約詳細は §6.5.4 参照 */ }}
+  onError={(message) => toast.error(message)}
+/>
+```
+
+**使用トークン**: 選択ボタンは `variant="outline"`。dropzone は `rounded-lg border-2 border-dashed p-8 text-center`、drag over 時 `border-primary bg-primary/5`、既定 `border-muted-foreground/30`。dropzone アイコンは lucide `Upload`（`size-8 text-muted-foreground`）。
+
+**状態**:
+- **disabled**: `disabled` prop でボタン・dropzone とも操作不能にする（dropzone は `cursor-not-allowed opacity-50`）
+- **エラー**: エラー表示はボタン / dropzone 直下（呼び出し側の表示スロット）に置く。`onError` の意味論・未指定時のフォールバック文言は behavior / API 契約であり [UI_TECH_STACK.md §6.5.4](../UI_TECH_STACK.md#654-ネイティブダイアログ) が正典（round 2 P2-4 対応、本節は visual のみ）
+- hover / focus / active: ボタン primitive の既定に従う
+
+**アクセシビリティ**: ボタンは `ariaLabel` prop（必須）で識別する。dropzone のアイコンは `aria-hidden`。
+
+**採用箇所**: 件数を断定せず、検索式 `rg -n --glob '!**/*.test.tsx' '<FilePicker' src` で実測する。2026-08-03 時点の列挙:
+- `src/features/csv-import/components/FileDropzone.tsx`（CSV取込み、初期選択）
+- `src/features/csv-import/components/PreviewStep.tsx`（CSV取込み、プレビュー段階の選び直し）
+- `src/features/products/import/ProductImportDropzone.tsx`（商品マスタ一括インポート、初期選択）
+- `src/features/products/import/ProductImportPreview.tsx`（商品マスタ一括インポート、プレビュー段階の選び直し）
+- `src/features/return-exchange/ReturnExchangePage.tsx`（返品・交換、レシート画像添付）
 
 ---
 

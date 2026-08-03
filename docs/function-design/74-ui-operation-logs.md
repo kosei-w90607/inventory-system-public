@@ -272,12 +272,12 @@ OperationLogFilters + OperationLogTable（展開行1件） + ProductPagination
 | loading（初回・filter変更・page変更） | table 領域に `Skeleton` 3行 |
 | error（`listLogs` 失敗） | destructive `Alert`。`AlertTitle`「操作ログの取得に失敗しました」+ `AlertDescription` にエラーメッセージ + 「再試行」`Button`（`onClick`で`logsQuery.refetch()`）。現在の filter（start_date/end_date/operation_type/page）は保持したまま再試行する。 |
 | 逆転範囲（UI送信前） | 入力欄付近のinline validation message。`listLogs` は呼ばず、直前のvalid query結果（table/pagination/展開行）を表示保持する。 |
-| empty・既定 filter 一致（UI-11c-D9） | `EmptyState` title「この30日間の操作ログはありません」description「期間や種別を変更すると他のログを確認できます」 |
-| empty・filter 適用中 | `EmptyState` title「該当する操作ログがありません」description「期間や種別を変更してください」 |
-| 範囲外 page（§74.10） | 専用メッセージ + 先頭ページに戻るボタン（EmptyState 系より優先して判定） |
+| empty・既定 filter 一致（UI-11c-D9） | `EmptyState` title「この30日間の操作ログはありません」description「期間や種別を変更すると他のログを確認できます」。既定 filter 一致のため reset action は出さない（catalog ⑥、真にデータなし側） |
+| empty・filter 適用中 | `EmptyState` title「該当する操作ログがありません」description「期間や種別を変更してください」+ `action`「絞り込みを解除」ボタン（2026-08-03 batch B、catalog ⑥ filter-empty reset action、SPEC-UIBB-1/2）。押下で `start_date` / `end_date` / `operation_type` / `page` をすべて既定値へ戻す |
+| 範囲外 page（§74.10） | 専用メッセージ + 先頭ページに戻るボタン（EmptyState 系より優先して判定。filter-empty reset action とは対象ケースが異なり、同一画面内で共存する） |
 | `typesQuery` 失敗 | operation_type filter を「すべて」固定・disabled にせず、既存 URL の `operation_type` 値があればそのまま select 選択肢に温存する（`typesQuery` が直っていない間も現在の絞り込みを失わない）。一覧本体（`logsQuery`）は独立して表示を継続する。 |
 
-- 「フィルタ解除」専用ボタンは置かない。既存の `StockMovementsPage` / `InventoryRecordsPage` と同じく、Plans.md backlog「一覧フィルタのリセットボタン未実装」の横断 follow-up に合わせる（本画面だけ先行実装すると横展開時の重複作業になるため、Owner 合意済みの横断方針に従う）。
+- **2026-08-03 batch B で追加**: 「絞り込みを解除」reset action（catalog ⑥ filter-empty reset action、SPEC-UIBB-1/2）を、既存の `defaultFilter` 判定（UI-11c-D9）の**非既定側にのみ**追加した（上表 empty・filter 適用中 行）。既定 filter 一致（真にデータなし）側には出さない。既存の範囲外 page 回復 action「先頭ページに戻る」（§74.10、UI-11c-D8）とは対象ケースが異なり（reset = filter 変更で 0 件、範囲外 page 回復 = 総件数減少で page が溢れた）、同一画面内で共存する。`StockMovementsPage` / `InventoryRecordsPage` / `ProductListPage` も同 batch で同じ reset action を追加済み（catalog ⑥ 6 site 統一、round 1 P1-1 で ProductList 追加）。
 
 ---
 
@@ -573,7 +573,7 @@ SELECT changes() AS deleted_rows;
 | 観点 | `StockMovementsPage` | `InventoryRecordsPage` | UI-11c 採用 |
 |---|---|---|---|
 | URL state | zod、`.catch()`、filter変更でpage=1 | 同左 | 再利用（同一パターン） |
-| filter reset ボタン | なし | なし | なし（横断 backlog に合わせる、§74.11） |
+| filter reset ボタン | なし（設計時点） | なし（設計時点） | なし（横断 backlog に合わせる、§74.11。**2026-08-03 batch B で 3 画面とも filter-empty reset action を追加**、[02-component-catalog.md](../design-system/02-component-catalog.md) ⑥、§74.11 参照） |
 | pagination | `ProductPagination`固定20件 | 同左 | 再利用 |
 | retry ボタン | **なし**（Alert のみ、文言のみで再試行の導線なし） | **なし**（同左） | **追加する**（Missing UI item 9 の明示要求 + `DailySalesPage`/`MonthlySalesPage`/`ThresholdSettingsPage`/`StocktakePage` の既存 retry パターンを再利用。意図的な相違、§74.2 UI-11c-D9） |
 | EmptyState | 単一文言 | 単一文言 | **2系統に分岐**（既定0件 vs filter該当0件。意図的な相違、UI-11c-D9） |
@@ -613,3 +613,4 @@ Test Design Matrix 作成時に、以下が「モックの偶然一致」でグ�
 | 2026-07-11 | Design Phase（本 PR） | 新規作成。UI-11c 操作ログ画面の route/URL state、JST 期間 predicate、canonical operation_type registry（新規 CMD/IO 含む）、table/detail_json/関連記録リンク契約、pagination/empty/error/retry、a11y、traceability 是正、Windows native L3 を確定 |
 | 2026-07-12 | PR #164 final audit remediation | Owner裁定によりD5の展開正本を明示的な「詳細を表示／閉じる」buttonへ同期。D7をpositive safe integerへ厳格化し、L3-8を自動バックアップ無効化・復元を含むdemo DB限定手順へ更新 |
 | 2026-07-12 | PR #164 final-audit remediation | CMD日付をASCII strict形式+実在暦日へ明確化。片側/明示clear URL state、逆転rangeで直前valid一覧を保持するlifecycle、3 filter個別page resetのtest契約、L3-7 exclusive-lock / L3-8 synthetic emptyの再現手順を追記 |
+| 2026-08-03 | ui-polish-batch-b（本 PR） | §74.11 の「empty・filter 適用中」に filter-empty reset action（catalog ⑥、SPEC-UIBB-1/2）を追加し、既定 filter 一致側とは非表示のまま区別することを明記。既存の範囲外 page 回復 action（UI-11c-D8）との共存を明記。§74.17 Adjacent Pattern Audit の filter reset ボタン行を実装後の状態へ更新 |

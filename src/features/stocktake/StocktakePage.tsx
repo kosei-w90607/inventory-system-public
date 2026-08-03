@@ -645,6 +645,9 @@ export function StocktakeItemList({
 }: StocktakeItemListProps) {
   const page = search.page ?? 1;
   const pageCount = Math.max(1, Math.ceil(totalCount / 200));
+  // filter-empty reset action（catalog ⑥、SPEC-UIBB-1/2）: 部門フィルタ / 未入力のみ toggle の
+  // いずれかが既定値以外か。
+  const isFilterDefault = search.dept === undefined && search.counted_only === undefined;
 
   return (
     <FormSection
@@ -682,6 +685,26 @@ export function StocktakeItemList({
         <EmptyState
           title="この条件に一致する商品がありません"
           description="部門フィルタまたは未入力のみ表示を解除してください"
+          // 絞り込みが既定値以外のときだけ reset action を出す（catalog ⑥、SPEC-UIBB-1/2）。
+          action={
+            !isFilterDefault ? (
+              <Button
+                type="button"
+                variant="outline"
+                disabled={disabled}
+                onClick={() => {
+                  onSearchChange((prev) => ({
+                    ...prev,
+                    dept: undefined,
+                    counted_only: undefined,
+                    page: undefined,
+                  }));
+                }}
+              >
+                絞り込みを解除
+              </Button>
+            ) : undefined
+          }
         />
       ) : (
         <Table>

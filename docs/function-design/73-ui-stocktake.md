@@ -206,7 +206,7 @@ function useFindStocktakeItem(): UseMutationResult<StocktakeItemDetail | null, I
 | 差異列（UI-10-D10） | `current_stock - actual_count`（`update_count` の `current_difference` と同一計算式）。`actual_count` が `null` なら「—」。色分けなし、符号付き数値のプレーンテキストのみ（結果画面 `adjusted_items` テーブルと表現統一）。 |
 | 最終カウント列（UI-10-D10） | `counted_at`。`null` なら「—」、値ありは `formatMovementDateTime` と同じ `T`→スペース変換（`src/features/stock-movements/lib/movement-formatters.ts` 流用）。 |
 | 並び順 | 変更しない（`ORDER BY si.id ASC`、UI-10-D3）。 |
-| 0 件表示 | `patterns/EmptyState`。「この条件に一致する商品がありません」+ フィルタ解除導線。 |
+| 0 件表示 | `patterns/EmptyState`。「この条件に一致する商品がありません」+ フィルタ解除導線。**filter-empty reset action**（2026-08-03 batch B、[02-component-catalog.md](../design-system/02-component-catalog.md) ⑥）: 部門フィルタ / 未入力のみ toggle のいずれかが既定値以外、かつ結果 0 件のときのみ「絞り込みを解除」ボタンを表示し、押下で部門フィルタ / 未入力のみ toggle / `page` をすべて既定値へ戻す（`page` は `StocktakeSearch` の既存 param、既定 1）。既定値のまま 0 件（棚卸し明細が実在しない）のときは表示しない。 |
 
 ## 73.7 確定フロー
 
@@ -377,3 +377,5 @@ RTL（text / role / value assertion、色 class のみの assert は不可）:
 | 2026-07-08 | #159 (private archive) owner L3 実機観察 | 開始前画面の「前回サマリ」と結果画面の「前回比較カード」に `completed_at` を `formatCountedAt` 未適用のまま生の ISO 8601（`T` 区切り）で表示していた見落としを是正。継続表示ヘッダ（UI-10-D1 是正で新設）には適用済みだったが、既存の前回比較表示 2 箇所は未適用のままだった。73.10 Wording の該当 2 行 + 継続表示ヘッダ行を `formatCountedAt` 適用済みである旨に更新。 |
 | 2026-07-08 | #159 (private archive) owner L3 実機発見 | UI-10-D2 是正: §73.5 が Design Phase 初版から明記していた「商品名検索フォールバック（`commands.searchProducts`）」が実装から丸ごと漏れていた。owner が実機で「棚卸し中に新商品登録→その商品名で棚卸し検索」という自然な操作をした際、一覧には存在するのに検索では「対象にありません」と表示される矛盾した体験になっていた。`resolveItem` を拡張し、`find_stocktake_item` が `None` の場合に商品名検索へフォールバック（0件は既存メッセージ、1件は自動選択、複数件は候補テーブル表示）する形で是正（`ReceivingPage.tsx` の商品名検索パターンを踏襲）。T21/T22 追加。§73.13 L3-7 追加（商品名検索フォールバックの実機確認）。 |
 | 2026-07-08 | #159 (private archive) Codex レビュー起因 | UI-10-D2 契約監査追記2: 商品名検索欄追加時に、`ReceivingPage.tsx` の商品検索欄に既にある `event.nativeEvent.isComposing` guard を移植し忘れており、日本語 IME の変換確定 Enter でも検索が発火していた。検索欄・数量入力欄の両方の `onKeyDown` に guard を追加。T23 追加。 |
+| 2026-08-03 | ui-polish-batch-b（本 PR） | §73.6 一覧の 0 件表示行に filter-empty reset action（catalog ⑥、部門フィルタ + 未入力のみ表示が対象）を追記。 |
+| 2026-08-03 | ui-polish-batch-b round 2 是正（本 PR） | round 2 P2-1 対応: §73.6 filter-empty reset action の戻す対象に `page`（`StocktakeSearch` 既存 param、既定 1）を追加し、部門フィルタ / 未入力のみ toggle / `page` の 3 者を既定値へ戻す契約に更新。 |

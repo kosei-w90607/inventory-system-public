@@ -17,10 +17,11 @@ import {
   type ProductListSearch,
 } from "../search";
 
-export interface DepartmentOption {
-  id: number;
-  name: string;
-}
+// DepartmentOption の唯一の定義は patterns/DepartmentFilter.tsx（59 §59.3、SPEC-UIBB-6）。
+// 本 module 内で DepartmentOption[] を使用するため、単文の re-export（`export type { X } from`）
+// ではローカル binding が入らず成立しない。import type + export type の 2 文とする（round 1 P1-5）。
+import type { DepartmentOption } from "@/components/patterns/DepartmentFilter";
+export type { DepartmentOption };
 
 export interface UseProductListArgs {
   search: ProductListSearch;

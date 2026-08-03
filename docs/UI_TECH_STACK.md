@@ -551,11 +551,32 @@ CMD層の `CmdError` は `kind: string` / `message: string` / `field?` / `error_
 - **適用場面**: CSV取込みファイル選択、CSV/TSV書出し先指定、バックアップ復元ファイル選択、レシート画像選択
 - **導入状態**: `@tauri-apps/plugin-dialog` / `tauri-plugin-dialog` は UI-08 PLU 書出し前の foundation PR で導入済み（2026-06-26）。初回の operator-facing 利用は UI-08 とし、`prepare_plu_export` で生成したCV17 1.1.1向けタブ区切り `.txt` を native save dialog で保存してから、利用者が明示した場合だけ `confirm_plu_export_saved` でPLU未反映を外す。
 
-**ファイル取込み画面における暫定例外と移行状況**: UI-07 のZ004商品別CSV取込み、UI-01c 商品一括インポート、UI-03 返品・交換のレシート画像で暫定例外としていた plain `<input type="file">` + drag&drop 方式は、**D-054（監査是正 順9）で共通 FilePicker への移行対象として解消する**（UI-01c-D14 / UI-03-D20 が旧決定を supersede）。drag&drop は共通 FilePicker 内の任意経路として維持するため、`src-tauri/tauri.conf.json` の main window は `dragDropEnabled: false` のままにする。
+**ファイル取込み画面における暫定例外と移行状況（完了、2026-08-03 round 2 是正）**: UI-07 のZ004商品別CSV取込み、UI-01c 商品一括インポート、UI-03 返品・交換のレシート画像で暫定例外としていた plain `<input type="file">` + drag&drop 方式は、**D-054（監査是正 順9、PR #26）で共通 FilePicker への移行が完了した**（UI-01c-D14 / UI-03-D20 が旧決定を supersede）。plain `<input type="file">` は src 内 0 件（`rg 'type="file"' src` で確認済み）。drag&drop は共通 FilePicker 内の任意経路として維持するため、`src-tauri/tauri.conf.json` の main window は `dragDropEnabled: false` のままにする。
 
-**日報取込みは path-based input へ移行済み（移行第一号、2026-07-04 PR #125）**: REQ-401 日報取込み（Z001/Z002/Z005）は当初 HTML input の複数ファイル選択で実装したが、Windows native L3 で WebView2 が HTML file input のネイティブダイアログ起動後に DOM 変化まで画面を再描画しない白画面バグ（JS 例外なし・console 無出力、選択後の state 遷移で復帰）を踏んだため、`@tauri-apps/plugin-dialog.open()` + `@tauri-apps/plugin-fs.readFile()`（capability: `dialog:allow-open` + `fs:allow-read-file`）の path-based 方式へ切り替えた。open() のキャンセル（null）は state 据え置きで安全。残りの暫定例外画面の移行は D-054（監査是正 順9）の共通 FilePicker 化で実施する。
+**日報取込みは path-based input へ移行済み（移行第一号、2026-07-04 PR #125）**: REQ-401 日報取込み（Z001/Z002/Z005）は当初 HTML input の複数ファイル選択で実装したが、Windows native L3 で WebView2 が HTML file input のネイティブダイアログ起動後に DOM 変化まで画面を再描画しない白画面バグ（JS 例外なし・console 無出力、選択後の state 遷移で復帰）を踏んだため、`@tauri-apps/plugin-dialog.open()` + `@tauri-apps/plugin-fs.readFile()`（capability: `dialog:allow-open` + `fs:allow-read-file`）の path-based 方式へ切り替えた。open() のキャンセル（null）は state 据え置きで安全。残りの暫定例外画面の移行は D-054（監査是正 順9、PR #26）の共通 FilePicker 化で完了した。
 
-**共通 FilePicker（D-054、監査是正 順9）**: ファイル選択は共通 `FilePicker` component に一元化する。入口は native dialog ボタン（`plugin-dialog.open()` + `plugin-fs.readFile()` の path-based 方式）と任意の drag&drop 経路の 2 つ、出力は `{ bytes, filename, size }` の単一契約。`open()` の cancel（null）は state 据え置き。accept / disabled / 上限サイズ表示 / accessible label は props で供給する。画面ローカルの plain `<input type="file">` / 独自 dropzone の新設は禁止。
+**共通 FilePicker（D-054、監査是正 順9）**: ファイル選択は共通 `FilePicker` component（`src/components/FilePicker.tsx`）に一元化する。入口は native dialog ボタン（`plugin-dialog.open()` + `plugin-fs.readFile()` の path-based 方式）と任意の drag&drop 経路の 2 つ、出力は `{ bytes, filename, size }`（`PickedFile`）の単一契約。`open()` の cancel（`path === null`）は state 据え置き（`onSelect` / `onError` とも呼ばない）。画面ローカルの plain `<input type="file">` / 独自 dropzone の新設は禁止。
+
+**Props / 既定値契約（round 2 P2-4 対応、`src/components/FilePicker.tsx` 実読で確認）**:
+
+| prop | 型 | 既定値 | 契約 |
+|---|---|---|---|
+| `accept` | `string` | 必須 | dialog filter の拡張子リストへ変換（`.csv` 等のカンマ区切り、`image/*` は jpg/jpeg/png/gif/webp 展開）。`button` の `data-accept` にもそのまま反映 |
+| `ariaLabel` | `string` | 必須 | 選択ボタンの `aria-label` |
+| `buttonLabel` | `string` | 必須 | 選択ボタンの表示文言 |
+| `onSelect` | `(file: PickedFile) => void` | 必須 | native dialog 経路・drag&drop 経路とも成功時に同一契約 `{ bytes, filename, size }` で呼ばれる |
+| `onError` | `(message: string) => void` | 省略可 | 読取り失敗時に呼ばれる。**未指定時は `toast.error("ファイルの選択または読み取りに失敗しました")` にフォールバック**（behavior 正典はこの表、visual 側は catalog ⑭） |
+| `disabled` | `boolean` | `false` | ボタン・dropzone とも操作不能にする（`chooseFile` / `handleDrop` とも disabled 時は early return） |
+| `dropEnabled` | `boolean` | `true` | `false` ならボタン単体のみ描画（dropzone 自体を出さない） |
+| `dropLabel` | `string` | `"ファイルをドラッグ&ドロップ"` | dropzone 内の見出し文言 |
+| `helperText` | `string` | 省略可（`undefined` なら非表示） | dropzone 内、`dropLabel` 下の補助文言 |
+| `maxSizeLabel` | `string` | 省略可（`undefined` なら非表示） | dropzone 内、ボタン下の上限サイズ表示 |
+| `dialogFilterName` | `string` | `"ファイル"` | native dialog の filter 名（`{ name, extensions }`） |
+| `buttonIcon` | `ReactNode` | 省略可 | ボタン内、`buttonLabel` の前に描画するアイコン |
+| `id` | `string` | 省略可 | 選択ボタンの DOM `id` |
+| `className` | `string` | 省略可 | dropzone wrapper への追加 class（`dropEnabled=false` 時は無効） |
+
+**責務分離（2026-08-03 batch B、round 2 P2-4 で精密化）**: 本節（§6.5.4）が FilePicker の behavior / API 契約（上記 props 表、入口 2 経路・出力契約・cancel 挙動、`onError` 未指定時のフォールバック文言、Do/Don't）の正典であり、実装規約（DOM 構造 / トークン / visual Do/Don't / a11y / 採用箇所）は [design-system/02-component-catalog.md ⑭](design-system/02-component-catalog.md) が持つ。visual Do/Don't は catalog ⑭、behavior / API / 禁止規定は本節 — 両節は二重記述しない。
 
 **cross-language validation 定数（D-054）**: file サイズ上限等、frontend と backend が同値を要する validation 定数は `src-tauri/src/constants.rs` を SSOT とし、bindings 生成で `bindings.ts` に export された値を frontend が import する。frontend 側の local 複製は禁止（静的 sweep test で検出）。L1 の bindings clean diff 検査が cross-language 同期の機械検査を兼ねる。
 
@@ -579,7 +600,7 @@ CMD層の `CmdError` は `kind: string` / `message: string` / `field?` / `error_
 - **UI**: ドロップゾーン + ファイル選択ボタン + プレビューサムネイル
 - **保存**: 初回 UI-03 実装は既存 `saveReceiptImage` command に base64 bytes + extension を渡し、IO-06 `image_manager` がアプリデータ配下へ保存した相対パスを `return_records.receipt_image_path` に格納する
 - **リサイズ**: 初回 UI-03 実装では圧縮・リサイズを行わない。現行 IO-06 は画像保存と相対パス管理のみを持つため、長辺1200px以下への圧縮は画像処理 crate と品質設定を含む別 Design Phase で扱う
-- **プレビュー**: 保存前は `URL.createObjectURL(file)` で選択中ファイルを表示する。保存済み画像の `asset://` 表示は、返品詳細表示 / 画像再表示を実装する時点で Tauri 許可設定と合わせて設計する
+- **プレビュー**: 保存前は共通 FilePicker が返す `PickedFile.bytes` から `Blob` を生成し、`URL.createObjectURL(blob)` で選択中ファイルを表示する（`src/features/return-exchange/ReturnExchangePage.tsx` 参照）。保存済み画像の `asset://` 表示は、返品詳細表示 / 画像再表示を実装する時点で Tauri 許可設定と合わせて設計する
 - **削除**: 明示的な「画像を削除」ボタン、確認ダイアログ不要（再度アップロード可能）
 
 ### 6.8 CSV / TSV ダウンロードUI
