@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: independent-review
+- Phase: human-confirm
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: 4186798
@@ -11,7 +11,7 @@
 - Writer: Claude Sonnet 5 subagent（worktree isolation）
 - Plan Reviewer: Claude Sonnet 5 subagent（起草非関与の独立 context）
 - Final Reviewer: Codex（owner 提案 2026-08-04 により Sonnet から切替。cross-vendor の Final Contract Audit、役割変更のみで packet 契約無変更）
-- Reviewed Content HEAD: pending
+- Reviewed Content HEAD: ba53eed
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
 - Human Gate: L3 視認（internal kind の エラーID 併記表示 + B群画面の非デバッグ表示。synthetic fixture 手順を Ready 依頼時に添付 — L3 fixture prep の教訓）/ merge / closeout
