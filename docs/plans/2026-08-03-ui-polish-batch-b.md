@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: human-confirm
+- Phase: design
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: 1c40453
@@ -35,6 +35,8 @@
 2026-08-03 state-only 遷移 commit で `plan-gate -> plan-approved -> implementing` を材料化する（圧縮記録、STATECAP 1/3）。evidence = 独立 Plan Reviewer（Codex、Writer と別 vendor）が round 5 で「Plan Review PASS P1/P2=0」を報告（plan-gate→plan-approved）、`Plan Commit` = 1c40453 を設定し、plan-first 系列（`2046bc2`〜`1c40453`）は全実装 commit に先行する。owner が 2026-08-03 に plan を承認し実装開始を指示（介入 1 回目/予算 3 回）（plan-approved→implementing）。
 
 2026-08-03 state-only 遷移 commit で `implementing -> local-verified -> independent-review -> human-confirm` を材料化する（圧縮記録、STATECAP 2/3）。evidence = content candidate `3d1c67e`（Sonnet writer 実装 `e2df6f7`/`0b72435`/`406ad68` + traceability 是正 `d8ecf95` + 整形 `c344e15` + Final Review P2 是正 `3d1c67e`）の L1 full PASS / TREE CLEAN / MERGE_EVIDENCE_VALID=true（PR #59 body に evidence SHA と log path 収録。実装後初回 L1 の traceability T1/T4 検出と是正、部分並列 vitest の既知 flake note も PR body 記録）（implementing→local-verified）。Final Reviewer（Codex、fresh context）一次実施 = Ledger 全行の source docs×src 実読突合 + mutation 7 種実注入全 red + 静的 sweep / gate 独立再実行、P2=1（SPEC-UIBB-4 の dept/status 経路 test 欠落、survivor 2 種実証）（local-verified→independent-review）。P2 是正 `3d1c67e` の survivor kill を Coordinator と Final Reviewer が各々 clean tree 再注入で独立再現し、closure round で「Final Review PASS P1/P2=0」確定（independent-review→human-confirm）。`Reviewed Content HEAD` = 3d1c67e（Final Reviewer closure が実監査した content commit）。Human Gate 残 = owner L3 Windows native 目視（PR #59 body の 4 手順、synthetic 商品 51 件以上を要準備）+ Ready 承認 + merge。
+
+2026-08-03 owner L3 実施（PR #59 comment）: 3-A / 3-C / 3-D は PASS。指摘 2 件 — (1) 商品一覧 EmptyState の 2 ボタン（登録 + reset）が `action` slot の flex 既定 `justify-start` で左寄せになり中央揃えの EmptyState 内で不整合（L3 NG、`justify-center` 化 + 順序・機能維持が是正案）。(2) owner 判断の gated design amendment = 商品一覧検索欄を在庫照会と同じ live 型へ統一（commit 型を残す業務理由が調査で確認できず、過去の SearchBar 共通化時の既存挙動温存だったため。期待仕様 = debounceMs 200 / type="search" + native clear / 外付け Label・検索ボタン非表示 / aria-label「商品検索」維持 / Enter 即時 flush / IME composing 無視 / 入力・クリア時に page・selected reset。既存 source contract が commit 型を明記するため既存不具合でなく gated design amendment 扱い）。3-E（範囲外 page）は fixture 手順を確定（`q="0"` を明示エンコード + `page=99` 直開き → 回復導線 → 押下後 q 維持・page のみ除去）し是正後 L3 で再確認。両是正の最早影響 phase = design（(2) が 50 / 59 / 02 ⑨ の source contract 変更を要する）のため `human-confirm -> design` へ backtrack する。
 
 ## Owner Effort Budget
 
