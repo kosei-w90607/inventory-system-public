@@ -2,10 +2,10 @@
 
 ## Workflow State
 
-- Phase: plan-gate
+- Phase: implementing
 - Risk: R3
 - Execution Mode: fable-window
-- Plan Commit: pending
+- Plan Commit: 1c40453
 - Amendments: none
 - Coordinator: Claude (Fable 5)
 - Writer: Claude (Sonnet 5 subagent、worktree isolation)
@@ -29,6 +29,10 @@
 2026-08-03 Codex Plan Review round 3 = FAIL（P1=0 / P2=3 / P3=0、全件 accept、round 2 closure = closed 7 / not closed 1、round 1 持ち越し 5 件 = 全 closed、裁定詳細は Review Response 参照）。P2-1（FilePicker 移行完了宣言と 5 live docs の矛盾 = round 2 P2-4 の ripple 残存）/ P2-2（58 の要約層が 2 useQuery / 4 key のまま = round 2 是正で生じた要約層 closure defect）は design 出力の改訂を要するため、最早影響 phase = design へ backtrack する（`plan-gate -> design`。直前 backtrack `33d9d68` とは content commit `018d6ad` を挟み隣接しない）。P2-3（SPEC-UIBB-9 の loading / error oracle 欠落)は Matrix / Ledger / 58 §58.9 の追補で同時に是正する。
 
 2026-08-03 round 3 是正 content commit で `design -> plan-draft -> plan-gate` を再材料化する。evidence = round 3 の design 出力を source docs へ反映（P2-1 = FUNCTION_DESIGN 41/140 の「plain file input 暫定例外」/ SCREEN_DESIGN の plain input 開始・L3 指示 / 60 の D13・Non-scope・Test Focus / 63 の Non-scope・Test Focus / UI_TECH_STACK §6.7 `createObjectURL(file)` を FilePicker 現行方式へ同期し、historical 文脈以外の残存 0 を rg で確認。P2-2 = 58 の要約層〈冒頭判定表・§58.2・§58.3 返却値・§58.5 見出し〉と FUNCTION_DESIGN 59/136 を 3 useQuery / 5 key / 実 return 形へ同期。P2-3 = 58 §58.9 へ loading disabled / error alert+一覧同時表示の 2 test を追加、同一 plan-first change 内 — design→plan-draft）、Matrix の SPEC-UIBB-9 loading/error oracle 2 行 + retry 無効化 harness、packet の Ledger 転記 + Review Focus repo-wide sweep 追加 + relay 予算現況記録を完成・commit（plan-draft→plan-gate）。`doc-consistency-check --target plan` 全チェック通過。
+
+2026-08-03 Codex Plan Review round 4 = FAIL（`P1=0 / P2=1 / P3=1`、round 3 の 3 件 = 全 closed。裁定は Review Response 参照）。是正は表記・帰属のみで Scope / design 契約を変えないため、Workflow State 遷移表の corrected-in-place 規定を適用し backtrack せず plan-gate 在留で是正 content commit（`516b328` + `1c40453`）を積んだ。round 5 = **Plan Review PASS `P1/P2=0`**（round 4 findings 2/2 closed、in-place 是正の hunk 監査・STATECAP 整合も Codex が独立確認）。
+
+2026-08-03 state-only 遷移 commit で `plan-gate -> plan-approved -> implementing` を材料化する（圧縮記録、STATECAP 1/3）。evidence = 独立 Plan Reviewer（Codex、Writer と別 vendor）が round 5 で「Plan Review PASS P1/P2=0」を報告（plan-gate→plan-approved）、`Plan Commit` = 1c40453 を設定し、plan-first 系列（`2046bc2`〜`1c40453`）は全実装 commit に先行する。owner が 2026-08-03 に plan を承認し実装開始を指示（介入 1 回目/予算 3 回）（plan-approved→implementing）。
 
 ## Owner Effort Budget
 
