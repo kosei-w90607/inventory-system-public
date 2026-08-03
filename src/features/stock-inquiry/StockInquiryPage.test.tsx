@@ -368,6 +368,81 @@ describe("StockInquiryPage SPEC-UIBB-4（pagination の条件 reset / 維持）"
     expect(result.page).toBeUndefined();
   });
 
+  // Final Review P2 是正: q 経路だけでは dept / status handler の page reset 除去 mutant を
+  // 殺せない（survivor 実証済み）。3 経路それぞれの UI 操作で updater を検証する。
+  it("SPEC-UIBB-4 部門変更でpage=1に戻る", async () => {
+    mockSearch.mockResolvedValue({
+      status: "ok",
+      data: {
+        items: [makeMockProductWithRelations({ product_code: "P-001" })],
+        total_count: 1,
+        page: 2,
+        per_page: 50,
+      },
+    });
+    mockListDepartments.mockResolvedValue({
+      status: "ok",
+      data: [
+        makeMockDepartment({ id: 1, name: "毛糸" }),
+        makeMockDepartment({ id: 2, name: "布" }),
+      ],
+    });
+    const onSearchChange = vi.fn();
+    renderWithClient(
+      <StockInquiryPage
+        search={{ q: "毛糸", status: "all", page: 2 }}
+        onSearchChange={onSearchChange}
+      />,
+    );
+    await screen.findByText("P-001");
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("combobox"));
+    await user.click(await screen.findByRole("option", { name: "布" }));
+    const prev: StockInquirySearch = { q: "毛糸", status: "all", page: 2 };
+    const deptChangeCall = onSearchChange.mock.calls.find((call) => {
+      const updater = call[0] as (p: StockInquirySearch) => StockInquirySearch;
+      return updater(prev).dept === 2;
+    });
+    expect(deptChangeCall).toBeDefined();
+    const updater = deptChangeCall?.[0] as (p: StockInquirySearch) => StockInquirySearch;
+    const result = updater(prev);
+    expect(result.page).toBeUndefined();
+    expect(result.selected).toBeUndefined();
+  });
+
+  it("SPEC-UIBB-4 状態チップ変更でpage=1に戻る", async () => {
+    mockSearch.mockResolvedValue({
+      status: "ok",
+      data: {
+        items: [makeMockProductWithRelations({ product_code: "P-001" })],
+        total_count: 1,
+        page: 2,
+        per_page: 50,
+      },
+    });
+    mockLowStock.mockResolvedValue({ status: "ok", data: [] });
+    const onSearchChange = vi.fn();
+    renderWithClient(
+      <StockInquiryPage
+        search={{ q: "毛糸", status: "all", page: 2 }}
+        onSearchChange={onSearchChange}
+      />,
+    );
+    await screen.findByText("P-001");
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("radio", { name: "在庫少" }));
+    const prev: StockInquirySearch = { q: "毛糸", status: "all", page: 2 };
+    const statusChangeCall = onSearchChange.mock.calls.find((call) => {
+      const updater = call[0] as (p: StockInquirySearch) => StockInquirySearch;
+      return updater(prev).status === "low_stock";
+    });
+    expect(statusChangeCall).toBeDefined();
+    const updater = statusChangeCall?.[0] as (p: StockInquirySearch) => StockInquirySearch;
+    const result = updater(prev);
+    expect(result.page).toBeUndefined();
+    expect(result.selected).toBeUndefined();
+  });
+
   it("SPEC-UIBB-4 page移動で検索条件を維持する", async () => {
     mockSearch.mockResolvedValue({
       status: "ok",
