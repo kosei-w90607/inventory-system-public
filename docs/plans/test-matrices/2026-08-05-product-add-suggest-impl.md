@@ -47,7 +47,7 @@ Risk: R3
 | D6 | a11y 構造破り | unit | S13 combobox / aria-expanded / aria-controls / aria-activedescendant / listbox / option の構造、focus は常に input | 構造欠落 / focus 奪取 |
 | D6 | click race | unit | S14 候補行 click は active 無関係に即確定、onMouseDown で default 抑止（blur close との race なし） | mousedown 抑止欠落 → blur 先行で確定不能 |
 | D6 | hover active | unit | S15 mouseenter で active を生成しない | hover 選択の実装 |
-| D7 | 行表示破り | unit | S16 候補行 = 商品コード + 商品名 + 部門名の 3 項目のみ | 画面固有列の追加 / 項目欠落 |
+| D7 | 行表示破り | unit | S16 候補行 = 商品コード + 商品名 + 部門名の 3 項目のみ。department_name null の variant case を 1 件含める（oracle は既存「複数件候補テーブル」の実表記を Writer が実査して独立転記） | 画面固有列の追加 / 項目欠落 / null 表記の独自発明 |
 | D1 | error 波及 | unit | S17 fetch error で silent close（error UI なし、onCommitFallback 経路は生存） | error 表示の新設 / commit 経路へ波及 |
 | D10 | lock 中発火 | unit | S18 isLocked() true で fetch 不発火 + 表示中リスト close | lock 判定欠落 |
 | D10/D4 | 保存 event 連動漏れ | unit | S19 invalidateAndClose() 同期呼出しで close + timer cancel + in-flight 不採用 | API 未実装 / 非同期化 |
@@ -59,7 +59,10 @@ Risk: R3
 | D8/UI-10-D12 | 棚卸し確定経路迂回 | integration | W5 Stocktake: 候補確定が findMutation（find_stocktake_item）経由で selectItem に到達 | searchProducts 結果の直接 selectItem |
 | UI-10-D11 | focus 契約破り | integration | W7 Stocktake: 候補確定成功で数量欄へ focus 遷移（T17 と同一契約の候補確定経由版） | 候補確定経由で focus 遷移が発火しない |
 | D1/D2 | commit 経路退行 | integration | W8 各画面: active なし Enter が既存 commit 経路を実行（suggest 配線後の smoke、5 画面各 1 case） | suggest 層が Enter を横取りする |
-| D10 | 保存 event 呼出し漏れ | integration | W9 Receiving: 保存 event handler 内の invalidateAndClose() 同期呼出しで表示中リスト close（reactive 伝播に依存しない明示呼出しの代表 2 系統目。disposal 系統は W4+W6） | 他 4 画面配線で invalidateAndClose() 呼出しが省かれ保存中リスト残置 |
+| D10 | 保存 event 呼出し漏れ | integration | W9 Receiving: 保存 event handler 内の invalidateAndClose() 同期呼出しで表示中リスト close | Receiving 配線で invalidateAndClose() 呼出しが省かれ保存中リスト残置 |
+| D10 | 保存 event 呼出し漏れ | integration | W10 ManualSale: 同上（保存 event で表示中リスト close を実 DOM assert） | ManualSale 配線で呼出しが省かれる |
+| D10 | 保存 event 呼出し漏れ | integration | W11 ReturnExchange: 同上 | ReturnExchange 配線で呼出しが省かれる |
+| D10 | 確定 event 呼出し漏れ | integration | W12 Stocktake: 棚卸し確定 event（completeMutation 実行 = isCompleting の source。update_count 単位ではない）で invalidateAndClose() が同期呼出しされリスト close | Stocktake 配線で確定 event の呼出しが省かれる |
 
 ## State Lifecycle Matrix
 
@@ -110,7 +113,7 @@ Risk: R3
 - old schema/input: 既存 5 画面 test file diff 0 + green（AC3、T17 = `StocktakePage.test.tsx` L255 / T23 = 同 L649 を含む）
 - new schema/input: 新規 test は新規 file のみ（S 系 1 file + W 系 5 file）
 - output order: 候補行は searchProducts 応答順のまま（並び替えなし）
-- optional field behavior: department_name 欠落時の表示は既存候補テーブルの表示規約に従う
+- optional field behavior: department_name 欠落時の表示は既存候補テーブルの実表記を継承（S16 の null variant case で assert、oracle は実表記の独立転記）
 
 ## Data Safety Checks
 
@@ -152,7 +155,7 @@ Risk: R3
 | X10 | 候補確定を既存 handler 迂回の独自追加処理に置換（1 画面） | 当該 W 系（W1〜W5 のいずれか） |
 | X11 | active 移動を端で wrap させる | S5 |
 | X12 | onMouseDown の default 抑止を除去 | S14 |
-| X13 | invalidateAndClose() の close / timer cancel / in-flight 不採用処理を no-op に置換 | S19 / W6 / W9 |
+| X13 | invalidateAndClose() の close / timer cancel / in-flight 不採用処理を no-op に置換 | S19 / W6 / W9〜W12 |
 | X14 | onChange / debounce 経路に composing guard を追加 | S20 |
 
 - 注入は commit 後の clean tree で行い、`git checkout` 復元で未 commit 是正を消さない（memory: mutation-test-on-clean-tree-only）

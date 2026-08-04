@@ -74,7 +74,7 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 - 配線方式（5 画面共通、rally round 1 P2-5 裁定）: 既存 input 要素と既存 onKeyDown / onChange handler 関数の本体は変更せず、ProductAddSuggest が input を包んで event を合成する — onKeyDown は suggest 層が先に判定し（isComposing は suggest 処理をせず既存 handler へ即委譲 = D5、active あり Enter は候補確定 = D2、↓/↑/Esc は suggest 操作 = D6）、それ以外（active なし Enter 含む）は既存 handler をそのまま呼ぶ。onChange は既存 state 更新を呼んだうえで suggest 層へ入力値を通知する（D2 の同期解除 + close はこの通知内で行う）。既存 handler 関数本体への変更は D1 違反として fail-closed 停止の対象
 - `invalidateAndClose()` の呼出しスコープ（rally round 1 P2-3 裁定）: 5 画面すべての保存 event handler 内で同期呼出しに統一する。disposal は UI-05-D15 lock ref 更新と同一 event 内（catalog ⑮ D10 特記どおり）、他 4 画面も reactive 伝播（isLocked() の render 反映）に依存せず明示呼出しとし、D4「lock 成立」時点の同期 close を render サイクル非依存に満たす。これは catalog ⑮ D10 の凍結文と矛盾しない厳格側への一意化であり、契約変更ではない
 - 配線 test は新規 file に隔離: 各画面 `*.suggest.test.tsx`（W 系。既存 test file への追記は凍結義務と衝突するため禁止）
-- 新規 test file への UI-NN / D-ID token 付与 + `cargo run --bin generate_traceability -- --check` の差分なし確認（差分が出る場合は再生成を同 PR に同梱）
+- 新規 test file への UI-NN / D-ID token 付与 + `cd src-tauri && cargo run --bin generate_traceability -- --check` の差分なし確認（差分が出る場合は再生成を同 PR に同梱）
 - `docs/design-system/02-component-catalog.md` ⑮ canonical 注記の実在同期（「実装 PR で新設予定。file 未作成の現時点では本節が設計正本」→ 実 file path へ。契約 D1〜D10 本文は不変）
 - `docs/Plans.md`: backlog 行へ着手注記 + 「次の行動」active packet link（PK4）
 - 本 packet + Test Design Matrix
@@ -96,7 +96,7 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 - AC5: Matrix X1〜X14 の各 mutation 注入で `npm test` が red になることを、Writer 自己実測 + Coordinator 独立再実測（clean tree、commit 後）の双方で確認する
 - AC6: catalog ⑮ canonical 注記が実 file path を指す（`rg -c "file 未作成" docs/design-system/02-component-catalog.md` = 0）
 - AC7: Plans.md「次の行動」が本 packet へ link し PK4 を充足する
-- AC8: 新規 test file が UI-NN / D-ID token を含み `cargo run --bin generate_traceability -- --check` 差分なし
+- AC8: 新規 test file が UI-NN / D-ID token を含み `cd src-tauri && cargo run --bin generate_traceability -- --check` 差分なし
 - AC9: `package.json` / `package-lock.json` の diff なし（npm 依存追加ゼロ = D9）
 - AC10: `cargo check --release` PASS（L3 native build 前提の Writer 完了条件、CI gate ではない）
 - AC11: L3（スキャナ supported sequence 互換性確認 + UX 確認）の結果が PR body Human Gate に記録され `gh pr view --json body` で確認可能
@@ -124,7 +124,7 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 ## Registration / Generation Obligations
 
 - Tauri command / route / operator 画面 / function-design doc の新設: 該当なし
-- REQ coverage: 該当あり — 新規 test file（S 系 / W 系）に UI-NN / D-ID token を付与する。traceability T4 検査は「REQ/UI token なし FE test file 数」の両方向 baseline 検査のため、token なしの新規 test file は ERROR になる。`cargo run --bin generate_traceability -- --check` で差分なしを確認し、差分が出る場合は再生成を同 PR に同梱する（PR #61 gated Amendment 1 の教訓を Scope に前積み）
+- REQ coverage: 該当あり — 新規 test file（S 系 / W 系）に UI-NN / D-ID token を付与する。traceability T4 検査は「REQ/UI token なし FE test file 数」の両方向 baseline 検査のため、token なしの新規 test file は ERROR になる。`cd src-tauri && cargo run --bin generate_traceability -- --check` で差分なしを確認し、差分が出る場合は再生成を同 PR に同梱する（PR #61 gated Amendment 1 の教訓を Scope に前積み）
 - component 新設の catalog 登録: 登録済み（⑮ が既存）。canonical 注記の実在同期のみ Scope に含む
 
 ## Design Intent Trace
@@ -191,7 +191,7 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 | SPEC-SUGGEST-D7（候補行 3 項目・確定は既存同一 handler） | ProductAddSuggest + 5 画面配線 | S16 / W1〜W5 / X10 | — |
 | SPEC-SUGGEST-D8（棚卸し: searchProducts fetch + find_stocktake_item 確定 + D11 focus 同一発火） | StocktakePage 配線 | W5 / W7 | — |
 | SPEC-SUGGEST-D9（patterns 配下 1 箇所実装・npm 依存ゼロ・commit 経路コード不変） | 実装形態全体 | AC1 / AC9 / AC3 | — |
-| SPEC-SUGGEST-D10（isLocked() / invalidateAndClose() API・lock 単一 source・5 画面保存 event 同期呼出し） | useProductAddSuggest API + 5 画面配線 | S18・S19 / W6・W7・W9 / X9・X13 | — |
+| SPEC-SUGGEST-D10（isLocked() / invalidateAndClose() API・lock 単一 source・5 画面保存 event 同期呼出し） | useProductAddSuggest API + 5 画面配線 | S18・S19 / W6・W9〜W12（5 画面各 1、stocktake は確定 event）/ X9・X13 | — |
 | UI-02-D14 / UI-04-D16 / UI-03-D21 / UI-05-D16 / UI-10-D12（画面別適用） | 各 Page 配線 | W1〜W5 | 視認 |
 | UI-05-D15（disposal lock ref 整合、同 event 内 invalidateAndClose） | DisposalPage 配線 | W6 | — |
 | UI-10-D2（候補確定は find_stocktake_item 経由、searchProducts 結果を直接 selectItem しない） | StocktakePage 配線 | W5 | — |
@@ -204,7 +204,8 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 
 Test Design Matrix: `docs/plans/test-matrices/2026-08-05-product-add-suggest-impl.md`
 
-- targeted tests: S1〜S20（component/hook 単体、synthetic mock）、W1〜W9（画面配線、新規 file 隔離）
+- targeted tests: S1〜S20（component/hook 単体、synthetic mock）、W1〜W12（画面配線、新規 file 隔離）
+- Double Audit（rally round 2 P3-3 裁定で opt-in）: 本 change は operator-visible state lifecycle（suggest リスト / active / lock 連動）に触れる R3 のため、DEV_WORKFLOW Contract Audit の recommended second pass に opt-in する。Final Review = 1 pass（Sonnet fresh context、Ledger 突合 + mutation 一次）+ 2 pass（別の Sonnet fresh context による Contract Audit lane 独立再走）。Findings Freeze は両 pass 完了後に発効する
 - negative tests: X1〜X14 mutation 注入（Writer 実測 + Coordinator clean tree 独立再実測）
 - compatibility checks: 既存 5 test file diff 0 + 全 green（AC3）、既存 D-ID 文言不変
 - data safety checks: synthetic 商品データのみ、実店舗データ不使用
@@ -251,7 +252,7 @@ Contract ID: SPEC-SUGGEST（正本 = catalog ⑮、本 packet は転記しない
 | SPEC-SUGGEST-D7 | 確定 semantics | S16 / W1〜W5 / X10 | 同一 handler 委譲 | npm test |
 | SPEC-SUGGEST-D8 | StocktakePage 配線 | W5 / W7 | find_stocktake_item 経由 | npm test |
 | SPEC-SUGGEST-D9 | 実装形態 | AC1 / AC9 / AC3 | 依存ゼロ・コード不変 | git diff / rg |
-| SPEC-SUGGEST-D10 | lock API | S18・S19 / W6・W7・W9 / X9・X13 | lock 単一 source + 保存 event 同期呼出し | npm test |
+| SPEC-SUGGEST-D10 | lock API | S18・S19 / W6・W9〜W12 / X9・X13 | lock 単一 source + 5 画面保存 event 同期呼出し | npm test |
 | 画面別 D-ID ×5 | 各 Page 配線 | W1〜W5 | 5 画面横並び | npm test + L3 視認 |
 | 凍結義務 | — | AC3 | diff 0 | git diff --name-only |
 
@@ -269,6 +270,9 @@ Do not transcribe exact-HEAD SHA or test counts here (D-035/D-038 Evidence Owner
 
 ## Review Response
 
-- Plan Gate rally round 1（Sonnet 5 独立 subagent、2026-08-05）: P1×1 / P2×3 / P3×1、全 accept — (P1) `invalidateAndClose()` を弁別検証する mutation 欠落 → X13 新設 + Ledger/Trace D10 行更新、(P2) D5「onChange 側 guard なし」の独立 assert 欠落 → S20 + X14 新設、(P2) `invalidateAndClose()` 呼出しスコープの解釈余地 → 5 画面保存 event 同期呼出しへ一意化（Scope 節に裁定記録、契約変更なし）+ W9 新設、(P2) suggest 層と既存 input の合成方式未定義 → Scope 節へ handler 合成パターンを明文化、(P3) UI-10-D2 の Ledger 独立行欠落 → 追加。是正 commit は本 round 是正後の content commit を参照。
+- Plan Gate rally round 1（Sonnet 5 独立 subagent、2026-08-05）: P1×1 / P2×3 / P3×1、全 accept — (P1) `invalidateAndClose()` を弁別検証する mutation 欠落 → X13 新設 + Ledger/Trace D10 行更新、(P2) D5「onChange 側 guard なし」の独立 assert 欠落 → S20 + X14 新設、(P2) `invalidateAndClose()` 呼出しスコープの解釈余地 → 5 画面保存 event 同期呼出しへ一意化（Scope 節に裁定記録、契約変更なし）+ W9 新設、(P2) suggest 層と既存 input の合成方式未定義 → Scope 節へ handler 合成パターンを明文化、(P3) UI-10-D2 の Ledger 独立行欠落 → 追加。是正 commit `a659bb8`。
+- Plan Gate rally round 2（Sonnet 5 独立 subagent、fresh context、2026-08-05）: P1×1 / P3×3、全 accept — (P1) D10「5 画面統一」裁定の test 網羅が 2/5 画面で D7（W1〜W5）と非対称 → W10（ManualSale）/ W11（ReturnExchange）/ W12（Stocktake 確定 event = completeMutation、update_count 単位でない旨明記）新設 + W9 の失敗条件を Receiving 単体へ修正 + X13 red 対象を W9〜W12 へ拡張 + Ledger/Trace D10 行更新、(P3) traceability コマンドの `cd src-tauri &&` 欠落 → Scope/AC8 是正、(P3) Contract Audit recommended second pass の判断未記載 → Double Audit opt-in を Test Plan に明記、(P3) department_name 欠落 case の test id 不在 → S16 に null variant case（oracle は既存候補テーブル実表記の独立転記）を義務化。是正 commit は本 round 是正後の content commit を参照。
+
+- Findings Freeze 起点の確認: 本 packet の Final Review は Double Audit opt-in（Test Plan 参照）のため、Freeze は両 pass 完了後に発効する。
 
 - Findings Freeze: not yet frozen; post-freeze exceptions: none
