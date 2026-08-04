@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: plan-gate
+- Phase: implementing
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: 61cd269
@@ -252,4 +252,5 @@ Contract ID: SPEC-SUGGEST
 ## Review Response
 
 - Plan Gate（2026-08-04〜05）: Sonnet 5 独立 rally 3 round（P1×3 / P2×5 / P3×3、全 accept — 是正 `9be88a0` / `cdd325f` / `9ba8c31`）→ Codex プラン全体レビュー 4 round（P1×3 / P2×13 / P3×2、全 accept — 是正 `ff3479e` / `db0cb45` / `3a69c32`。相互修正案方式、owner relay 4 往復）→ round 4 verdict「Plan Gate closure 可（P1/P2=0）」。主要な設計改善 = active の onChange 同期解除 + リスト close による timing 非依存化（Codex P1-1 起点）、安全性保証の supported sequence scope 確定（同 round 2 P1-1）、pointer 経路の stale 確定排除（同 P2-1）。設計骨格（variant B・二層不干渉・↓/↑限定 active 生成）は初版から不変。
+- 遷移記録（recording compression）: 本 state-only commit は `plan-gate -> plan-approved -> implementing` の隣接 forward 遷移を一括実体化する。中間遷移の evidence = plan-approved: owner plan 承認 2026-08-05（介入 1/3、承認文言は会話記録、PR body へ転記予定）+ Plan Gate closure verdict「Plan Gate closure 可（P1/P2=0）」（上記 Plan Gate 記録）/ implementing: plan-first commit `61cd269` が amendment 執筆着手に先行して確定済み。
 - Findings Freeze: not yet frozen（Freeze は Final Review 後）
