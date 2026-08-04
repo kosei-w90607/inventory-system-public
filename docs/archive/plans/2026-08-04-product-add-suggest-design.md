@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: ready-hosted-final
+- Phase: archive
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: 61cd269
@@ -247,7 +247,7 @@ Contract ID: SPEC-SUGGEST
 
 ## Implementation Results
 
-（実装後に記入）
+PR #64（squash merge、2026-08-05）で設計契約を正本化した。catalog ⑮（SPEC-SUGGEST-D1〜D10 + variant B 採用背景 + durable 適用 manifest）、画面別 5 D-ID、UI_TECH_STACK §5.3/§5.4、SCREEN_DESIGN 再掲 2 節、pattern 数索引（15）を同期。exact-HEAD evidence・hosted run・三点一致は PR body を正とする（D-035）。後続 = 実装 PR の Codex 発注（本 packet の Ledger「後続実装 PR」行 + 既存 test 凍結義務 + L3 スキャナ互換性確認を発注書へ引き継ぐ）。
 
 ## Review Response
 
