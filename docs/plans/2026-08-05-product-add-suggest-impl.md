@@ -4,7 +4,7 @@ design 正本 = `docs/design-system/02-component-catalog.md` ⑮（SPEC-SUGGEST-
 
 ## Workflow State
 
-- Phase: local-verified
+- Phase: human-confirm
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: ef10439
@@ -13,7 +13,7 @@ design 正本 = `docs/design-system/02-component-catalog.md` ⑮（SPEC-SUGGEST-
 - Writer: Codex（発注書駆動、public-writer clone。発注書は Plan Gate closure 後に提示）
 - Plan Reviewer: Sonnet 5 独立 subagent（rally、3 round 天井。D-062: Writer = Codex と別 vendor 要件を充足）
 - Final Reviewer: Sonnet 5 独立 subagent（fresh context、Plan Reviewer とは別 context）
-- Reviewed Content HEAD: pending
+- Reviewed Content HEAD: 5a093d0
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required（R3 frontend change。Ready event で hosted CI が auto run される通常経路）
 - Human Gate: L3（スキャナ supported sequence 互換性確認 + UX 確認、Windows native）/ Ready 承認（owner plan 承認は 2026-08-05 完了、介入 1/3）
@@ -283,5 +283,9 @@ Do not transcribe exact-HEAD SHA or test counts here (D-035/D-038 Evidence Owner
 - Writer 補助 review-only（Codex、Final Reviewer ではない）: 保存 event 後の listbox 消失だけでは reactive lock close と明示 `invalidateAndClose()` を弁別できない P2 を検出。5 画面の新規 W test で公開 controller API の同期呼出しと保存 command より前の順序を直接観測し、各 Page 呼出し削除 mutation の個別 red を確認。focused closure は P1/P2 なし。
 - Final Review Double Audit（2026-08-05、対象 = PR #65 HEAD 5d3a575、Sonnet 5 fresh context ×2 並列・相互非参照）: 1 pass（Ledger 全行 re-verification + AC 実走）= P2×1 / P3×2、Ledger 17 行適合（negative-space 1 件除く）・AC1〜AC10 充足確認。2 pass（source docs 直読の Contract Audit lane: negative-space / Adjacent Pattern 実照合 / State Lifecycle / anti-tautology 構造検査）= P2×2。統合裁定: (F-A、両 pass 一致 = P2) `StocktakePage.suggest.test.tsx` の REQ-205 token 欠落 + 90-traceability REQ-205 行未登録（T4 検査は UI token で通過する仕様の隙間）→ accept、token 1 行追加 + 再生成で REQ-205 行へ反映（`cargo run --bin generate_traceability -- --check` OK 再確認）。(F-B、2 pass = P2) 外部 clear 経路（既存 commit 経路の `setSearchText("")` = onChange 非経由の value prop 変化、`useProductAddSuggest.ts` の value 監視 effect）が S 系で未検証 → accept、S21 新設（open リスト同期 close + timer cancel。in-flight 不採用は S10 既検証のため重複追加せず）+ X21 新設。(F-C1、1 pass = P3) act() 警告 → 単独・6 file 一括の双方で再実行し警告 0 件を実測、再現せず・再発時是正の disposition。(F-C2、1 pass = P3) S16 の null variant が否定形 assert → oracle は既存候補テーブル表記（React の null 非レンダリング）の正確な転記であり「部門なし」等の誤表示は検出可能、積極 assert 化は DOM 構造依存を増やすため見送り。是正実施 = Coordinator 直接（relay 予算 2/2 消費済みのため。3 file 軽微修正 + 再生成。writer 自己承認回避のため closure round は独立 fresh context で是正を検証する）。本記録 + S21/X21/REQ-205 是正 = gated Amendment 2。
 - Findings Freeze 起点の確認: 本 packet の Final Review は Double Audit opt-in（Test Plan 参照）のため、Freeze は両 pass 完了後に発効する。closure round（是正検証）完了時に Freeze 発効を宣言する。
+- Coordinator mutation 独立再実測（2026-08-05、clean tree HEAD 5a093d0、Writer 記録非参照の独立導出）: Matrix X1〜X21 の全注入を実装 2 file（useProductAddSuggest.ts / ProductAddSuggest.tsx）+ ReceivingPage.tsx 配線の実読から導出し、apply → `npx vitest run` → git checkout 復元で全件実測。結果 = kill 21/21、survivor 0（実行 script = scratchpad の mutation_rerun.py、各注入は count=1 検証付き）。復元後 tree clean・対象 test 全 green を確認。
+- Final Review closure round（Sonnet 5 独立 fresh context、2026-08-05）: F-A/F-B の是正実在と構造的検証性、Coordinator 是正 diff（5d3a575..5a093d0）が裁定記録の範囲内で production code・既存 test 変更なしであること、vitest 21/21 green、traceability check OK、Amendments 行の append-only 性を独立検分。verdict「closure P1/P2=0、Findings Freeze 可」。
+- 遷移記録（recording compression）: 本 state-only commit は `implementing -> local-verified -> independent-review -> human-confirm` の隣接 forward 遷移を一括実体化する（gated Amendment 2 の content commit により Phase は実質 implementing へ戻っていた）。中間遷移の evidence = local-verified: L1 full RESULT=PASS / END_TREE_STATE=CLEAN / MERGE_EVIDENCE_VALID=true（END_HEAD_SHA = 5a093d0、evidence log は .local/ci-evidence/。self-test fixture envelope 混在のため末尾 envelope を正とする）/ independent-review: Double Audit 両 pass + 統合裁定（上記）+ Coordinator mutation 独立再実測 21/21 + closure round verdict「closure P1/P2=0、Findings Freeze 可」/ human-confirm: Findings Freeze 発効 + Reviewed Content HEAD = 5a093d0 設定（本 commit）。残 Human Gate = L3（スキャナ supported sequence 互換性確認 + UX 確認）+ Ready 承認（介入 3/3 の 1 decision point に束ねる）。
+- Findings Freeze: **frozen after Double Audit closure（2026-08-05）**; post-freeze exceptions: none
 
 - Findings Freeze: not yet frozen; post-freeze exceptions: none
