@@ -4,10 +4,10 @@ design 正本 = `docs/design-system/02-component-catalog.md` ⑮（SPEC-SUGGEST-
 
 ## Workflow State
 
-- Phase: plan-draft
+- Phase: implementing
 - Risk: R3
 - Execution Mode: fable-window
-- Plan Commit: pending
+- Plan Commit: ef10439
 - Amendments: none
 - Coordinator: Fable 5（main thread）
 - Writer: Codex（発注書駆動、public-writer clone。発注書は Plan Gate closure 後に提示）
@@ -16,7 +16,7 @@ design 正本 = `docs/design-system/02-component-catalog.md` ⑮（SPEC-SUGGEST-
 - Reviewed Content HEAD: pending
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required（R3 frontend change。Ready event で hosted CI が auto run される通常経路）
-- Human Gate: owner plan 承認 / L3（スキャナ supported sequence 互換性確認 + UX 確認、Windows native）/ Ready 承認
+- Human Gate: L3（スキャナ supported sequence 互換性確認 + UX 確認、Windows native）/ Ready 承認（owner plan 承認は 2026-08-05 完了、介入 1/3）
 
 ## Owner Effort Budget
 
@@ -275,6 +275,7 @@ Do not transcribe exact-HEAD SHA or test counts here (D-035/D-038 Evidence Owner
 
 - Plan Gate rally round 3（Sonnet 5 独立 subagent、fresh context、2026-08-05）: P1×1 / P3×1、全 accept — (P1) Matrix 自身の Mutation-style Adequacy Questions が要求する threshold 変更 / key branch 逆転 / 出力 field 省略の 3 カテゴリが X 表に未操作化 → X15（Enter 分岐反転 → S6）/ X16（debounce 500ms 化 → S1）/ X17（department_name 省略 → S16）新設、(P3) S2/S13/S17 の同種 gap → 記録残しではなく X18〜X20 として追加（Codex 実測予算は制約なしのため全量注入を採用）。AC5 を X1〜X20 へ拡張、Ledger / Trace Matrix の該当行同期。是正 commit は本 round 是正後の content commit を参照。round 4 は新規探索なしの closure 確認限定として実施し、P1/P2=0 verdict を plan-approved の evidence とする。
 - Plan Gate rally round 4 = closure 確認限定（Sonnet 5 独立 subagent、fresh context、2026-08-05）: round 3 是正の完全反映（X15〜X20 = Matrix「必須 mutation 注入」表 X15〜X20 行に実在、AC5 / Ledger / Trace 同期済み、旧範囲表記の残存は `rg -n "X1〜X12|X1〜X14" docs/plans/` hit なし = exit 1 を Coordinator・reviewer 双方が独立実測）と、新設 X15〜X20 の弁別性（各注入と対象 S test assertion の一対一対応）を実読確認。verdict「P1/P2=0、Plan Gate closure 可」。参考記録の既存軽微不整合（Trace Matrix D6 行の S3/X7 欠落、round 3 起因でない）は closure 直後の同 commit で是正済み。
+- 遷移記録（recording compression）: 本 state-only commit は `plan-draft -> plan-gate -> plan-approved -> implementing` の隣接 forward 遷移を一括実体化する。中間遷移の evidence = plan-gate: packet + Test Design Matrix が plan-first commit `ef10439` で committed 済み / plan-approved: 独立 Plan Reviewer（Sonnet 5、Writer = Codex と別 vendor = D-062 充足）rally round 4 verdict「P1/P2=0、Plan Gate closure 可」（上記 rally 記録）+ owner plan 承認 2026-08-05（介入 1/3、承認記録は会話、PR body へ転記予定）/ implementing: plan-first commit `ef10439` が全実装 commit に先行することは本時点で実装 commit ゼロにより自明（PK5 ancestry は pre-merge gate で機械検査）。
 - Findings Freeze 起点の確認: 本 packet の Final Review は Double Audit opt-in（Test Plan 参照）のため、Freeze は両 pass 完了後に発効する。
 
 - Findings Freeze: not yet frozen; post-freeze exceptions: none
