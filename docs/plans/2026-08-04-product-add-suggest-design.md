@@ -82,11 +82,11 @@ Goal Invariant:
 ## Acceptance Criteria
 
 - AC1: 新設 5 D-ID（UI-02-D14 / UI-04-D16 / UI-03-D21 / UI-05-D16 / UI-10-D12）が各 doc の設計判断表 + 表示・操作節に存在し、`rg -c` で各 doc 内 2 箇所以上に出現する
-- AC2: SPEC-SUGGEST-D1〜D10（下記 Spec Contract）の各契約文が catalog ⑮ 正本に 1 対 1 で存在する（anchor literal は Matrix 参照）
-- AC3: 「スキャナ Enter が候補 async 読込み前に届いても既存 commit 経路が実行される」根拠（入力変化時の active 同期解除 + 自動 active 化禁止 + close 時 timer cancel / in-flight 不採用 = timing 非依存の software contract）が catalog ⑮ に明文化されている
+- AC2: SPEC-SUGGEST-D1〜D10（下記 Spec Contract）の各契約文が catalog ⑮ 正本に 1 対 1 で存在する（検査 = Matrix M-A6〜M-A15・M-A18〜M-A26 の `rg -c "<literal>" docs/design-system/02-component-catalog.md` が全て期待 count で PASS）
+- AC3: 「supported sequence〈バーコード文字列 + Enter〉が候補 async 読込みと無関係に既存 commit 経路へ到達する」根拠（入力変化時の active 同期解除 + リスト close + 自動 active 化禁止 + close 時 timer cancel / in-flight 不採用 = timing 非依存の software contract）が catalog ⑮ に明文化されている（観測 = Matrix M-A7・M-A22・M-A24・M-A26 の `rg -c` PASS）
 - AC4: `scripts/local-ci.sh full` PASS/CLEAN（docs-only、doc-consistency / traceability 差分なし）
 - AC5: Plans.md backlog 行と「次の行動」が本 packet へ link し PK4 を充足する
-- AC6: Codex によるプラン全体レビューが実施され、P1/P2 = 0 で closure している（owner relay 証跡は PR body）
+- AC6: Codex によるプラン全体レビューが実施され、P1/P2 = 0 で closure している（証跡 = PR body に verdict「Plan Gate closure 可（P1/P2=0）」を転記し `gh pr view --json body` で確認可能。round 別 findings と裁定は本 packet の Review Response 節に記録）
 
 ## Design Sources
 
@@ -127,7 +127,7 @@ Goal Invariant:
 
 - Source docs can answer what is being built and why without chat history: catalog ⑮ に「なぜ variant B か（スキャナ race）」「なぜ cmdk 不採用か（供給網防御下の依存追加回避 + 既存 radix-ui で不足）」を理由ごと正本化する
 - Plan-only durable decisions found and promoted: 実装形態（プレビュー層のみ共通部品化、commit 経路 5 箇所は不変）を catalog ⑮ へ昇格
-- Assumptions and constraints: HID スキャナは「コード文字列 + Enter」を高速送出するという運用前提（UI-02-D5 の拡張）は UX 見込み（debounce 中の候補非発火）にのみ関与する。安全性は D2 の入力変化時 active 同期解除 + D4 の close 時 timer cancel / in-flight 不採用により timing 非依存で成立し、スキャナ物理挙動に依存しない（L3 実機実測は UX 確認）
+- Assumptions and constraints: HID スキャナは「コード文字列 + Enter」を高速送出するという運用前提（UI-02-D5 の拡張）は UX 見込み（debounce 中の候補非発火）にのみ関与する。安全性は D2 の入力変化時 active 同期解除 + リスト close、D4 の close 時 timer cancel / in-flight 不採用により、supported sequence「バーコード文字列 + Enter」の範囲で timing 非依存に成立する。方向キーを挿入する sequence は入力契約の対象外（L3 は機器の supported sequence 適合の互換性確認 + UX 確認）
 - Deferred design gaps: 複数件候補テーブルとプレビューの将来統合は非目的として defer（要望発生時に別 change）
 - Test Design Matrix can cite design decision IDs: M 系 anchor が各 D-ID / SPEC-SUGGEST-Dn を引用
 - Absolute guarantee / escape hatch self-check: 「既存 commit 経路不変」は全 5 画面の既存 test（T17/T23 含む）が実装 PR の凍結義務として担保。例外なし
@@ -143,7 +143,7 @@ Goal Invariant:
 | Replacement path | 置換なし（追加のみ）。既存候補テーブルは残置を明示 | Non-scope |
 | Data safety / evidence | 実データ不使用（docs-only） | Data Safety 節 |
 | Reporting / accounting semantics | not applicable（表示層のみ） | — |
-| Manual verification | スキャナ実測は UX 確認として実装 PR L3 に前積み（安全性 gate ではない — Codex P1-2 裁定で software contract 化） | Ledger L3 行 |
+| Manual verification | スキャナ実測は supported sequence 適合の互換性確認 + UX 確認として実装 PR L3 に前積み（安全性は software contract、保証 scope は Codex round 2 P1-1 裁定で確定） | Ledger L3 行 |
 | 環境・再現性 | 新規環境依存なし（npm 依存追加ゼロを契約化） | SPEC-SUGGEST-D9 |
 
 ## Design Readiness
@@ -161,7 +161,7 @@ Goal Invariant:
 
 ## Contract Probe
 
-- N/A: 本 design が Plan Gate 前の probe を要する未検証外部前提は存在しない。スキャナ物理挙動（方向キー非送出・keystroke 間隔）は安全性根拠から除外した — active は入力値変化の onChange event で同期解除され（D2）、pending timer / in-flight 応答は close event 群で不採用になる（D4）ため、Enter commit 経路の到達はスキャナ timing・方向キー有無に依存しない（software contract で閉塞。Codex plan review round 1 P1-2 裁定 b を採用）。物理挙動は「debounce 200ms 下で候補 fetch がほぼ発火しない」という UX 見込みにのみ関与し、実装 PR の L3 スキャナ実測は安全性 gate ではなく UX 確認として Ledger に維持する。新規 npm 依存・新規 library 挙動への依存もなし（素の絶対配置要素 + 既存 React のみ）。
+- N/A: 本 design が Plan Gate 前の probe を要する未検証外部前提は存在しない。安全性は既存正本が規定する supported sequence「バーコード文字列 + Enter」の範囲で timing 非依存に成立する — active は入力値変化の onChange event で同期解除 + リスト close（D2）、pending timer / in-flight 応答は close event 群で不採用（D4）。ArrowUp / ArrowDown を挿入する event sequence は当該入力契約の対象外であり、方向キー有無そのものへの無条件保証は主張しない（software では人間とスキャナの方向キーを識別できないため。Codex round 1 P1-2 裁定 b + round 2 P1-1 裁定で scope 確定）。物理挙動は「debounce 200ms 下で候補 fetch がほぼ発火しない」という UX 見込みにのみ関与し、実装 PR の L3 スキャナ実測は「使用機器が supported sequence に適合することの互換性確認 + UX 確認」として Ledger に維持する。新規 npm 依存・新規 library 挙動への依存もなし（素の絶対配置要素 + 既存 React のみ）。
 
 ## Contract Coverage Ledger
 
@@ -176,7 +176,7 @@ Goal Invariant:
 | UI_TECH_STACK §5.3/§5.4 追記 | 本 PR docs | M-A16 | 同上 |
 | SCREEN_DESIGN 再掲同期 | 本 PR docs | M-A17 | 同上 |
 | Plans.md link（PK4） | 本 PR docs | doc-consistency PK4 | — |
-| スキャナ実測（UX 確認: debounce 下の候補非発火。安全性は D2/D4 の software contract 側で担保） | 後続実装 PR | — | 実装 PR L3 行（前積み、UX 確認） |
+| スキャナ実測（機器の supported sequence〈バーコード文字列 + Enter〉適合の互換性確認 + UX 確認〈debounce 下の候補非発火〉。安全性は D2/D4 の software contract 側で担保） | 後続実装 PR | — | 実装 PR L3 行（前積み） |
 | 既存 commit 経路 test 不変（T17/T23 ほか全画面） | 後続実装 PR | 既存 suite green | 実装 PR 凍結義務 |
 
 ## Test Plan
@@ -213,7 +213,7 @@ Test Design Matrix: `docs/plans/test-matrices/2026-08-04-product-add-suggest-des
 Contract ID: SPEC-SUGGEST
 
 - D1（二層構造・不干渉）: live 候補プレビューは表示専用の追加層である。既存 Enter commit 経路（検索実行・0/1/複数分岐・行追加・focus 復帰・IME guard）のロジックは変更しない。suggest 層の失敗（fetch error 含む）は commit 経路へ波及せず、候補非表示に縮退する。
-- D2（Enter 分岐）: 候補リストに active 候補（aria-activedescendant が指す行）が存在する場合のみ Enter は候補確定として動作する。active 候補は ↓/↑ キー操作によってのみ生成される（表示直後の自動 active 化・先頭行自動選択は禁止）。active 候補なしの Enter は常に既存 commit 経路を実行する。候補リストの内容が更新された場合（debounce 再 fetch による差し替え）、直前の active 候補は必ず解除し持ち越さない（更新直後の Enter が意図しない行を確定することを防ぐ）。新しいリストで active を得るには再度 ↓/↑ の操作を要する。さらに、入力値が変化した onChange event の時点で active 候補を同期的に解除する（前回リストを表示維持する場合も active は維持しない）。現在入力値に対する最新結果が採用されるまで、旧リスト上で active を新規生成しない。この同期解除により、Enter commit 経路の到達はスキャナ timing・debounce 残量に依存しない。
+- D2（Enter 分岐）: 候補リストに active 候補（aria-activedescendant が指す行）が存在する場合のみ Enter は候補確定として動作する。active 候補は ↓/↑ キー操作によってのみ生成される（表示直後の自動 active 化・先頭行自動選択は禁止）。active 候補なしの Enter は常に既存 commit 経路を実行する。候補リストの内容が更新された場合（debounce 再 fetch による差し替え）、直前の active 候補は必ず解除し持ち越さない（更新直後の Enter が意図しない行を確定することを防ぐ）。新しいリストで active を得るには再度 ↓/↑ の操作を要する。さらに、入力値が変化した onChange event の時点で active 候補を同期的に解除する。同時に表示中のリストを close し、新しいリストは現在入力値に対する最新結果の採用後にのみ open する（旧リストの表示維持・click 操作は行わない — pointer 経路の stale 確定を構造的に排除）。この同期解除 + close により、Enter commit 経路の到達はスキャナ timing・debounce 残量に依存しない。
 - D3（発火条件）: debounce 200ms（TRACE-D12 と同値）。入力 1 文字以上で発火。取得は per_page 5、総件数超過時は候補末尾に「ほか N 件（候補未選択で Enter: 全件検索）」を表示する。0 件時は非表示（メッセージなし。0 件文言は既存 commit 経路の所掌）。
 - D4（破棄条件）: suggest fetch は sequence token で直近要求のみ採用する。sequence generation は各入力変更時（debounce 開始前）に更新し、応答は token と検索語が現在入力値の双方に一致する場合のみ採用する。Enter commit 実行・入力欄 clear・候補確定・lock 成立・Esc・blur / Tab・unmount の各時点では、リスト / active の close に加え、pending debounce timer を cancel し、generation を進めて in-flight 応答（success / error とも）を不採用にする。保存 lock との整合は D10 の per-画面 lock source 契約に従う（disposal のみ UI-05-D15 の lock ref、取引 3 画面〈receiving / manual-sale / return-exchange〉は各画面の既存 `isFormLocked` 派生 state、棚卸しは既存 `isCompleting`〈`completeMutation.isPending`〉派生 state を単一 source とする）。
 - D5（IME）: suggest 層の onKeyDown は冒頭で `event.nativeEvent.isComposing` を判定し、true の間は Enter / ↓ / ↑ / Esc を含む suggest キー処理全体を行わず IME に委ねる（変換候補操作の方向キーで active を生成しない。既存 commit 経路の Enter guard も従来どおり維持）。onChange / debounce 経路に composing guard は置かず、変換途中文字列での候補更新を許容する（SearchBar live 型の既定意味論 = PR #61 P1-2 裁定 a と同一）。
@@ -228,7 +228,7 @@ Contract ID: SPEC-SUGGEST
 | Spec ID | Plan Step | Test | Review Focus | Evidence |
 |---|---|---|---|---|
 | SPEC-SUGGEST-D1 | catalog ⑮ 起草 | M-A6 / X1 | 不干渉の絶対保証 | rg anchor |
-| SPEC-SUGGEST-D2 | 同上 | M-A7・M-A18・M-A22 / X2・X9・X13 | スキャナ race 構造解決 + active 持ち越し禁止 + onChange 同期解除（timing 非依存） | rg anchor |
+| SPEC-SUGGEST-D2 | 同上 | M-A7・M-A18・M-A22・M-A26 / X2・X9・X13・X17 | スキャナ race 構造解決 + active 持ち越し禁止 + onChange 同期解除・リスト close（timing 非依存） | rg anchor |
 | SPEC-SUGGEST-D3 | 同上 | M-A8 / X3 | 数値（200ms/5 件）+ footer 文言の Enter 分岐整合 | rg anchor |
 | SPEC-SUGGEST-D4 | 同上 | M-A9・M-A21・M-A23・M-A24 / X4・X12・X14・X15 | sequence lifecycle（token+検索語二重一致）+ close 時 cancel + lock source 3 分類 | rg anchor |
 | SPEC-SUGGEST-D5 | 同上 | M-A10 / X5 | SearchBar 既定整合 | rg anchor |
