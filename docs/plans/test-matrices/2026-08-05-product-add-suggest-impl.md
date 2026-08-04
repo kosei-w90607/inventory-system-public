@@ -157,6 +157,12 @@ Risk: R3
 | X12 | onMouseDown の default 抑止を除去 | S14 |
 | X13 | invalidateAndClose() の close / timer cancel / in-flight 不採用処理を no-op に置換 | S19 / W6 / W9〜W12 |
 | X14 | onChange / debounce 経路に composing guard を追加 | S20 |
+| X15 | D2 Enter 分岐を反転（active あり Enter が既存 commit 経路 fallback を呼ぶ） | S6 |
+| X16 | debounce 定数を 200ms から 500ms へ変更 | S1 |
+| X17 | 候補行から department_name を省略し 2 項目表示化 | S16 |
+| X18 | 0 件応答時に空状態メッセージを表示する UI を追加 | S2 |
+| X19 | aria-activedescendant / role="listbox" の付与を欠落させる | S13 |
+| X20 | suggest fetch error を silent close せず error 表示へ伝播させる | S17 |
 
 - 注入は commit 後の clean tree で行い、`git checkout` 復元で未 commit 是正を消さない（memory: mutation-test-on-clean-tree-only）
 - Coordinator 再実測は Writer の記録を参照しない独立導出とする

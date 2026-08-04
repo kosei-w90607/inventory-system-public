@@ -93,7 +93,7 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 - AC2: 新規 S 系 / W 系 test が Matrix の全行を cover し `npm test` green
 - AC3: 既存 5 画面 test file の diff が 0（`git diff main --name-only` に当該 5 file が現れない）かつ全既存 test green
 - AC4: `bash scripts/local-ci.sh full` PASS / CLEAN（Writer 完了条件に含む）
-- AC5: Matrix X1〜X14 の各 mutation 注入で `npm test` が red になることを、Writer 自己実測 + Coordinator 独立再実測（clean tree、commit 後）の双方で確認する
+- AC5: Matrix X1〜X20 の各 mutation 注入で `npm test` が red になることを、Writer 自己実測 + Coordinator 独立再実測（clean tree、commit 後）の双方で確認する
 - AC6: catalog ⑮ canonical 注記が実 file path を指す（`rg -c "file 未作成" docs/design-system/02-component-catalog.md` = 0）
 - AC7: Plans.md「次の行動」が本 packet へ link し PK4 を充足する
 - AC8: 新規 test file が UI-NN / D-ID token を含み `cd src-tauri && cargo run --bin generate_traceability -- --check` 差分なし
@@ -136,7 +136,7 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 | REQ-202 | 63 §63.5 | UI-03-D21 | 同上（addProduct の direction 引数を既存どおり維持） | ReturnExchangePage 配線 | W3 / W8 |
 | REQ-204 | 64 §64.5 | UI-05-D16 | 同上 + UI-05-D15 lock ref 整合 | DisposalPage 配線 | W4 / W6 |
 | 棚卸し | 73 §73.5 | UI-10-D12 | 確定は UI-10-D2 既存経路（findMutation → selectItem）、D11 focus 契約同一発火 | StocktakePage 配線 | W5 / W7 |
-| 横断 | catalog ⑮ | SPEC-SUGGEST-D1〜D10 | 凍結正本の履行 | ProductAddSuggest + hook | S1〜S20 / X1〜X14 |
+| 横断 | catalog ⑮ | SPEC-SUGGEST-D1〜D10 | 凍結正本の履行 | ProductAddSuggest + hook | S1〜S20 / X1〜X20 |
 
 ## Design Intent Audit
 
@@ -182,13 +182,13 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 
 | Design contract / decision ID | Implementation target | Automated test | L3 or non-scope |
 |---|---|---|---|
-| SPEC-SUGGEST-D1（二層不干渉・silent 縮退） | ProductAddSuggest + 5 画面配線 | S17 / W8 / X1 | 視認（L3 UX） |
-| SPEC-SUGGEST-D2（Enter 分岐・active 生成/解除・onChange 同期解除 + close） | useProductAddSuggest | S4〜S8 / X1・X2 | — |
-| SPEC-SUGGEST-D3（debounce 200ms・1 文字・per_page 5・footer・0 件非表示） | useProductAddSuggest | S1〜S3 / X7 | L3 UX（debounce 下の候補非発火） |
+| SPEC-SUGGEST-D1（二層不干渉・silent 縮退） | ProductAddSuggest + 5 画面配線 | S17 / W8 / X1・X20 | 視認（L3 UX） |
+| SPEC-SUGGEST-D2（Enter 分岐・active 生成/解除・onChange 同期解除 + close） | useProductAddSuggest | S4〜S8 / X1・X2・X15 | — |
+| SPEC-SUGGEST-D3（debounce 200ms・1 文字・per_page 5・footer・0 件非表示） | useProductAddSuggest | S1〜S3 / X7・X16・X18 | L3 UX（debounce 下の候補非発火） |
 | SPEC-SUGGEST-D4（sequence token・close 時 cancel・in-flight 不採用・lock source 3 分類） | useProductAddSuggest + 各画面配線 | S9〜S11・S19 / X3〜X5 | — |
 | SPEC-SUGGEST-D5（IME: suggest キー処理全域 guard、onChange 側 guard なし） | ProductAddSuggest onKeyDown / onChange | S12・S20 / X6・X14 | — |
-| SPEC-SUGGEST-D6（a11y 構造・focus input 保持・click/hover/footer 契約） | ProductAddSuggest | S13〜S15・S3 / X7・X8・X11・X12 | — |
-| SPEC-SUGGEST-D7（候補行 3 項目・確定は既存同一 handler） | ProductAddSuggest + 5 画面配線 | S16 / W1〜W5 / X10 | — |
+| SPEC-SUGGEST-D6（a11y 構造・focus input 保持・click/hover/footer 契約） | ProductAddSuggest | S13〜S15・S3 / X7・X8・X11・X12・X19 | — |
+| SPEC-SUGGEST-D7（候補行 3 項目・確定は既存同一 handler） | ProductAddSuggest + 5 画面配線 | S16 / W1〜W5 / X10・X17 | — |
 | SPEC-SUGGEST-D8（棚卸し: searchProducts fetch + find_stocktake_item 確定 + D11 focus 同一発火） | StocktakePage 配線 | W5 / W7 | — |
 | SPEC-SUGGEST-D9（patterns 配下 1 箇所実装・npm 依存ゼロ・commit 経路コード不変） | 実装形態全体 | AC1 / AC9 / AC3 | — |
 | SPEC-SUGGEST-D10（isLocked() / invalidateAndClose() API・lock 単一 source・5 画面保存 event 同期呼出し） | useProductAddSuggest API + 5 画面配線 | S18・S19 / W6・W9〜W12（5 画面各 1、stocktake は確定 event）/ X9・X13 | — |
@@ -206,7 +206,7 @@ Test Design Matrix: `docs/plans/test-matrices/2026-08-05-product-add-suggest-imp
 
 - targeted tests: S1〜S20（component/hook 単体、synthetic mock）、W1〜W12（画面配線、新規 file 隔離）
 - Double Audit（rally round 2 P3-3 裁定で opt-in）: 本 change は operator-visible state lifecycle（suggest リスト / active / lock 連動）に触れる R3 のため、DEV_WORKFLOW Contract Audit の recommended second pass に opt-in する。Final Review = 1 pass（Sonnet fresh context、Ledger 突合 + mutation 一次）+ 2 pass（別の Sonnet fresh context による Contract Audit lane 独立再走）。Findings Freeze は両 pass 完了後に発効する
-- negative tests: X1〜X14 mutation 注入（Writer 実測 + Coordinator clean tree 独立再実測）
+- negative tests: X1〜X20 mutation 注入（Writer 実測 + Coordinator clean tree 独立再実測）
 - compatibility checks: 既存 5 test file diff 0 + 全 green（AC3）、既存 D-ID 文言不変
 - data safety checks: synthetic 商品データのみ、実店舗データ不使用
 - main wiring/integration checks: AC1（5 画面配線 rg）、AC7（PK4）
@@ -243,13 +243,13 @@ Contract ID: SPEC-SUGGEST（正本 = catalog ⑮、本 packet は転記しない
 
 | Spec ID | Plan Step | Test | Review Focus | Evidence |
 |---|---|---|---|---|
-| SPEC-SUGGEST-D1 | component + 配線 | S17 / W8 / X1 | 不干渉・silent 縮退 | npm test |
-| SPEC-SUGGEST-D2 | hook keyboard/active | S4〜S8 / X1・X2 | active lifecycle | npm test |
-| SPEC-SUGGEST-D3 | hook fetch | S1〜S3 / X7 | 発火条件・footer | npm test |
+| SPEC-SUGGEST-D1 | component + 配線 | S17 / W8 / X1・X20 | 不干渉・silent 縮退 | npm test |
+| SPEC-SUGGEST-D2 | hook keyboard/active | S4〜S8 / X1・X2・X15 | active lifecycle + Enter 分岐反転感度 | npm test |
+| SPEC-SUGGEST-D3 | hook fetch | S1〜S3 / X7・X16・X18 | 発火条件・footer・threshold 感度 | npm test |
 | SPEC-SUGGEST-D4 | hook sequence/cancel | S9〜S11・S19 / X3〜X5 | 破棄条件網羅 | npm test |
 | SPEC-SUGGEST-D5 | component IME | S12・S20 / X6・X14 | isComposing 全域 guard + onChange 非 guard | npm test |
-| SPEC-SUGGEST-D6 | component a11y/pointer | S13〜S15 / X8・X11・X12 | 構造・click/hover | npm test |
-| SPEC-SUGGEST-D7 | 確定 semantics | S16 / W1〜W5 / X10 | 同一 handler 委譲 | npm test |
+| SPEC-SUGGEST-D6 | component a11y/pointer | S13〜S15 / X8・X11・X12・X19 | 構造・click/hover | npm test |
+| SPEC-SUGGEST-D7 | 確定 semantics | S16 / W1〜W5 / X10・X17 | 同一 handler 委譲・field 省略感度 | npm test |
 | SPEC-SUGGEST-D8 | StocktakePage 配線 | W5 / W7 | find_stocktake_item 経由 | npm test |
 | SPEC-SUGGEST-D9 | 実装形態 | AC1 / AC9 / AC3 | 依存ゼロ・コード不変 | git diff / rg |
 | SPEC-SUGGEST-D10 | lock API | S18・S19 / W6・W9〜W12 / X9・X13 | lock 単一 source + 5 画面保存 event 同期呼出し | npm test |
@@ -273,6 +273,7 @@ Do not transcribe exact-HEAD SHA or test counts here (D-035/D-038 Evidence Owner
 - Plan Gate rally round 1（Sonnet 5 独立 subagent、2026-08-05）: P1×1 / P2×3 / P3×1、全 accept — (P1) `invalidateAndClose()` を弁別検証する mutation 欠落 → X13 新設 + Ledger/Trace D10 行更新、(P2) D5「onChange 側 guard なし」の独立 assert 欠落 → S20 + X14 新設、(P2) `invalidateAndClose()` 呼出しスコープの解釈余地 → 5 画面保存 event 同期呼出しへ一意化（Scope 節に裁定記録、契約変更なし）+ W9 新設、(P2) suggest 層と既存 input の合成方式未定義 → Scope 節へ handler 合成パターンを明文化、(P3) UI-10-D2 の Ledger 独立行欠落 → 追加。是正 commit `a659bb8`。
 - Plan Gate rally round 2（Sonnet 5 独立 subagent、fresh context、2026-08-05）: P1×1 / P3×3、全 accept — (P1) D10「5 画面統一」裁定の test 網羅が 2/5 画面で D7（W1〜W5）と非対称 → W10（ManualSale）/ W11（ReturnExchange）/ W12（Stocktake 確定 event = completeMutation、update_count 単位でない旨明記）新設 + W9 の失敗条件を Receiving 単体へ修正 + X13 red 対象を W9〜W12 へ拡張 + Ledger/Trace D10 行更新、(P3) traceability コマンドの `cd src-tauri &&` 欠落 → Scope/AC8 是正、(P3) Contract Audit recommended second pass の判断未記載 → Double Audit opt-in を Test Plan に明記、(P3) department_name 欠落 case の test id 不在 → S16 に null variant case（oracle は既存候補テーブル実表記の独立転記）を義務化。是正 commit は本 round 是正後の content commit を参照。
 
+- Plan Gate rally round 3（Sonnet 5 独立 subagent、fresh context、2026-08-05）: P1×1 / P3×1、全 accept — (P1) Matrix 自身の Mutation-style Adequacy Questions が要求する threshold 変更 / key branch 逆転 / 出力 field 省略の 3 カテゴリが X 表に未操作化 → X15（Enter 分岐反転 → S6）/ X16（debounce 500ms 化 → S1）/ X17（department_name 省略 → S16）新設、(P3) S2/S13/S17 の同種 gap → 記録残しではなく X18〜X20 として追加（Codex 実測予算は制約なしのため全量注入を採用）。AC5 を X1〜X20 へ拡張、Ledger / Trace Matrix の該当行同期。是正 commit は本 round 是正後の content commit を参照。round 4 は新規探索なしの closure 確認限定として実施し、P1/P2=0 verdict を plan-approved の evidence とする。
 - Findings Freeze 起点の確認: 本 packet の Final Review は Double Audit opt-in（Test Plan 参照）のため、Freeze は両 pass 完了後に発効する。
 
 - Findings Freeze: not yet frozen; post-freeze exceptions: none
