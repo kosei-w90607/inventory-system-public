@@ -826,7 +826,7 @@ toast.error(`出力に失敗しました: ${message}`, { id: `export-${reportTyp
 
 **使いどころ**: 取引 4 画面（入庫 61 / 手動販売 62 / 返品・交換 63 / 廃棄・破損 64）+ 棚卸し（73）の商品追加欄。commit 型（Enter 一挙動追加、UI-02-D4 系列 5 契約）を維持したまま、入力中に候補一覧を目視補助として表示する。⑨ SearchBar（一覧 filter 用）とは用途が異なる別 pattern — SearchBar は検索結果が一覧そのものを差し替える filter であり、⑮ は「明細追加という確定アクション」の前段のプレビュー。適用 5 site は UI-02-D14 / UI-04-D16 / UI-03-D21 / UI-05-D16 / UI-10-D12 を正とする。商品一覧・在庫照会・入出庫履歴の SearchBar live 型、および Enter commit 後の既存複数件候補テーブルは明示除外とする（Plan Packet は作業証跡であり durable manifest はここに置く）。
 
-**canonical**: `ProductAddSuggest.tsx` + hook `useProductAddSuggest`（実装 PR で `components/patterns/` 配下へ新設予定。file 未作成の現時点では本節が設計正本）
+**canonical**: [`ProductAddSuggest.tsx`](../../src/components/patterns/ProductAddSuggest.tsx) + hook [`useProductAddSuggest.ts`](../../src/components/patterns/useProductAddSuggest.ts)（`components/patterns/` 配下の実装正本）
 
 **採用の背景（variant B）**: 純 autocomplete 型（Enter 追加廃止）は、スキャナ Enter が候補 async 読込み前に届くため退行となり不採用（owner 方針 2026-08-04）。`cmdk` 等の新規 npm 依存は供給網防御（D-030）下の設計判断として不採用。安全性は下記 D2/D4 の software contract により supported sequence「バーコード文字列 + Enter」の範囲で timing 非依存に成立し、スキャナ物理挙動（方向キー有無・keystroke 間隔）への無条件保証は主張しない。
 
