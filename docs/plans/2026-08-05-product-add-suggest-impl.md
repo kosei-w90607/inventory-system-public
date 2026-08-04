@@ -4,7 +4,7 @@ design 正本 = `docs/design-system/02-component-catalog.md` ⑮（SPEC-SUGGEST-
 
 ## Workflow State
 
-- Phase: implementing
+- Phase: local-verified
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: ef10439
@@ -264,7 +264,10 @@ Contract ID: SPEC-SUGGEST（正本 = catalog ⑮、本 packet は転記しない
 
 ## Implementation Results
 
-Fill after implementation.
+- 共通 `ProductAddSuggest` / `useProductAddSuggest` を新設し、取引 4 画面 + 棚卸しへ既存 handler / lock source を保ったまま配線した。
+- S1〜S20 / W1〜W12 と mutation X1〜X20 を実走し、初回 survivor で判明した検索語・composing change・silent error の test oracle を補強した。補助 review-only で検出した保存 event 同期呼出しの tautology も、公開 controller API の呼出し・command 前順序を弁別する oracle へ是正した。
+- gated Amendment 1 は `StocktakePage.test.tsx` T3 の部門 combobox query 名前付き化 1 行だけを適用し、assert 内容と他の既存画面 test を維持した。
+- Draft PR: [#65](https://github.com/kosei-w90607/inventory-system-public/pull/65)
 
 Do not transcribe exact-HEAD SHA or test counts here (D-035/D-038 Evidence Ownership). Record a qualitative summary and the PR link only.
 
@@ -277,6 +280,7 @@ Do not transcribe exact-HEAD SHA or test counts here (D-035/D-038 Evidence Owner
 - Plan Gate rally round 4 = closure 確認限定（Sonnet 5 独立 subagent、fresh context、2026-08-05）: round 3 是正の完全反映（X15〜X20 = Matrix「必須 mutation 注入」表 X15〜X20 行に実在、AC5 / Ledger / Trace 同期済み、旧範囲表記の残存は `rg -n "X1〜X12|X1〜X14" docs/plans/` hit なし = exit 1 を Coordinator・reviewer 双方が独立実測）と、新設 X15〜X20 の弁別性（各注入と対象 S test assertion の一対一対応）を実読確認。verdict「P1/P2=0、Plan Gate closure 可」。参考記録の既存軽微不整合（Trace Matrix D6 行の S3/X7 欠落、round 3 起因でない）は closure 直後の同 commit で是正済み。
 - 遷移記録（recording compression）: 本 state-only commit は `plan-draft -> plan-gate -> plan-approved -> implementing` の隣接 forward 遷移を一括実体化する。中間遷移の evidence = plan-gate: packet + Test Design Matrix が plan-first commit `ef10439` で committed 済み / plan-approved: 独立 Plan Reviewer（Sonnet 5、Writer = Codex と別 vendor = D-062 充足）rally round 4 verdict「P1/P2=0、Plan Gate closure 可」（上記 rally 記録）+ owner plan 承認 2026-08-05（介入 1/3、承認記録は会話、PR body へ転記予定）/ implementing: plan-first commit `ef10439` が全実装 commit に先行することは本時点で実装 commit ゼロにより自明（PK5 ancestry は pre-merge gate で機械検査）。
 - gated Amendment 1（2026-08-05、owner 承認 = 介入 2/3）: Codex Writer の fail-closed 停止（true positive）— SPEC-SUGGEST-D6 の商品入力常時 `role="combobox"` と、凍結対象 `StocktakePage.test.tsx` T3（L221、L227 の `screen.getByRole("combobox")` 単数 query = 既存部門フィルターの radix Select trigger を取得）が衝突し、D6 どおりの配線で T3 が複数要素エラー red になる。Coordinator 実読検証: T3 L221/L227 実在、他 4 画面 test への同型 `ByRole("combobox")` query は `rg -n 'ByRole\("combobox"' src/features/{receiving,manual-sale,return-exchange,disposal}/*.test.tsx` hit 0（例外は T3 の 1 test に限定可能）。裁定 = T3 の名前付き query への特定化のみ許容（assert 意図〈filter 変更で getStocktakeItems params が変わる〉は不変）。対案の D6 改訂は凍結済み a11y 契約の後退のため不採用。Goal 失敗定義 / AC3 / Ledger 凍結行を本 Amendment で同期。
+- Writer 補助 review-only（Codex、Final Reviewer ではない）: 保存 event 後の listbox 消失だけでは reactive lock close と明示 `invalidateAndClose()` を弁別できない P2 を検出。5 画面の新規 W test で公開 controller API の同期呼出しと保存 command より前の順序を直接観測し、各 Page 呼出し削除 mutation の個別 red を確認。focused closure は P1/P2 なし。
 - Findings Freeze 起点の確認: 本 packet の Final Review は Double Audit opt-in（Test Plan 参照）のため、Freeze は両 pass 完了後に発効する。
 
 - Findings Freeze: not yet frozen; post-freeze exceptions: none
