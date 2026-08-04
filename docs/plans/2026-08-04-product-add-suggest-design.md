@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: implementing
+- Phase: ready-hosted-final
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: 61cd269
@@ -11,7 +11,7 @@
 - Writer: Fable 5（design amendment 起草。docs-only、実装 PR は本 packet の後続で Codex 発注）
 - Plan Reviewer: Sonnet 5 独立 subagent（rally）+ Codex（プラン全体レビュー、owner relay。D-062: Writer と別 vendor 要件は Fable 起草のため Sonnet/Codex どちらでも充足）
 - Final Reviewer: Codex（owner relay）
-- Reviewed Content HEAD: pending
+- Reviewed Content HEAD: 046ef8f
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required（R3 は原則 hosted final 1 run — docs/ci.md Risk Routing。docs-only の paths-ignore で auto run が作成されない場合は CI-TRIGGER-D1 に従い `workflow_dispatch` を 1 回実行し、PR HEAD = PR body L1 SHA = hosted headSha の三点一致を merge 条件とする。Final Review round 1 P2-1 是正 — 当初の not-required は誤分類）
 - Human Gate: owner plan 承認 / Ready 承認（docs-only のため L3 なし。スキャナ実測は実装 PR 側 L3）
@@ -254,4 +254,7 @@ Contract ID: SPEC-SUGGEST
 - Plan Gate（2026-08-04〜05）: Sonnet 5 独立 rally 3 round（P1×3 / P2×5 / P3×3、全 accept — 是正 `9be88a0` / `cdd325f` / `9ba8c31`）→ Codex プラン全体レビュー 4 round（P1×3 / P2×13 / P3×2、全 accept — 是正 `ff3479e` / `db0cb45` / `3a69c32`。相互修正案方式、owner relay 4 往復）→ round 4 verdict「Plan Gate closure 可（P1/P2=0）」。主要な設計改善 = active の onChange 同期解除 + リスト close による timing 非依存化（Codex P1-1 起点）、安全性保証の supported sequence scope 確定（同 round 2 P1-1）、pointer 経路の stale 確定排除（同 P2-1）。設計骨格（variant B・二層不干渉・↓/↑限定 active 生成）は初版から不変。
 - 遷移記録（recording compression）: 本 state-only commit は `plan-gate -> plan-approved -> implementing` の隣接 forward 遷移を一括実体化する。中間遷移の evidence = plan-approved: owner plan 承認 2026-08-05（介入 1/3、承認文言は会話記録、PR body へ転記予定）+ Plan Gate closure verdict「Plan Gate closure 可（P1/P2=0）」（上記 Plan Gate 記録）/ implementing: plan-first commit `61cd269` が amendment 執筆着手に先行して確定済み。
 - Final Review（Codex、owner relay）round 1（2026-08-05）: P1=0 / P2×4 全 accept — (1) Hosted CI Requirement を required へ是正（docs/ci.md Risk Routing 突合で「docs-only = not-required」が誤分類と確認。paths-ignore で auto run が無い場合は workflow_dispatch 1 回 + 三点一致）、(2) catalog ⑮ の適用 manifest を durable 化（Plan Packet 委譲を廃し、D-ID 5 列挙 + 除外 3 画面 / 候補テーブルを catalog 本文へ明記）、(3) 73 §73.5 step 2 の「既存 patterns/SearchBar」記述を実装実態（素の Input）+ ⑮ 結線へ是正（pre-existing drift、UI-10-D12 との矛盾解消）、(4) footer 文言を「候補未選択で Enter: 従来の検索」へ変更（既存 Enter 検索は per_page 10 の先頭ページのみで「全件検索」は実在しない能力の約束 — packet/catalog 計 5 hit を同期し、D6 へ「全一致件数の表示を保証しない」を明記）。是正過程の隣接発見 = catalog 見出し「14 パターン」/ README 索引「13 パターン」の pre-existing 数 drift を 15 へ一括同期（⑭ 追加時の未追随含む）。Ledger 不適合 2 行（UI-10-D12 / SPEC-SUGGEST-D1〜D10）は本是正で解消見込み — closure round で再判定。Codex は mutation 23 変種の独立再実測（全 RED、X8 cross green）と L1 full 独立実走（PASS/CLEAN）も完了済み。数値の実測 evidence: per_page 10 = reviewer 引用の実 file:line（`ReceivingPage.tsx:54` / `ManualSalePage.tsx:61` / `ReturnExchangePage.tsx:64` / `DisposalPage.tsx:60` / `StocktakePage.tsx:100`、`rg -F -n "per_page: 10" src/features` で確認可）、「全件検索」5 hit = 是正前の `rg -n "全件検索" docs/plans/ docs/design-system/` 出力（packet 3 + catalog 2）、23 変種 = Matrix X1〜X17 の変種内訳（X12 3 変種 + X14/X15/X16/X17 各 2 変種 + 単発 12）で `python3 mutation_run.py` 実行出力 23 行と一致。
-- Findings Freeze: not yet frozen（Freeze は Final Review closure 後）
+- Final Review closure（2026-08-05）: 4 是正 + 隣接是正 + PK6 全て CLOSED、Ledger 不適合 2 行は適合へ再判定、packet↔catalog D1〜D10 diff 0 維持。verdict「Final Review PASS（P1/P2=0、Findings Freeze 可）」（audited content HEAD = 046ef8f、Codex 独立検証: doc-consistency 全通過 / PR #64 headRefOid 一致 / tree CLEAN）。
+- 遷移記録（recording compression）: 本 state-only commit は `implementing -> local-verified -> independent-review -> human-confirm -> ready-hosted-final` の隣接 forward 遷移を一括実体化する。中間遷移の evidence = local-verified: L1 full RESULT=PASS / CLEAN（HEAD 6cceccb、evidence log は .local/ci-evidence/。以降の commit は docs/plans + catalog/README/73 の review 是正のみで、Codex が 046ef8f にて doc-consistency 全通過を独立確認。046ef8f 直後にも L1 full PASS/CLEAN を実測済み — 59e0bac 時点の evidence log 参照）/ independent-review: 上記 Final Review PASS（P1/P2=0、audited content HEAD 046ef8f）/ human-confirm: Findings Freeze 発効 + Reviewed Content HEAD 設定（本 commit）+ owner Ready 承認 2026-08-05（介入 2/3。relay 実績 6/3 の超過は事前明示 + 承認時容認）/ ready-hosted-final: owner が PR #64 を Ready 化済み（draft=false 実確認）、Ready event での hosted auto run なし（docs-only paths-ignore、`gh run list` 0 件で確認）。本遷移 commit HEAD で exact-HEAD L1 full を再実行し、CI-TRIGGER-D1 の `workflow_dispatch` 1 回 + 三点一致確認へ進む。merge・closeout は owner 委任（2026-08-05）。
+- 運用逸脱記録（STATECAP、append-only）: 当初 human-confirm 遷移（旧 59e0bac）と ready-hosted-final 遷移（旧 eabc5d1）を別 commit で積み、state-only 遷移 4 件で STATECAP 上限 3 を超過（check-workflow-git が検出。push 前検査を怠り旧 eabc5d1 は一時 push された）。是正 = 両遷移の evidence が本 commit 時点で全て揃っているため、単一 state-only commit への統合（recording compression、gate skip なし）で cap 内へ復帰し force-with-lease で置換。旧 SHA 59e0bac / eabc5d1 は本記録にのみ残す。
+- Findings Freeze: **frozen after Final Review closure（2026-08-05）**; post-freeze exceptions: none
