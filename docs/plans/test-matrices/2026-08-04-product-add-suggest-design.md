@@ -18,17 +18,21 @@ Risk: R3
 - リスト差し替え時の active 持ち越しで、更新直後の Enter が意図しない行を確定する
 - pointer 経由（hover）の active 生成、または候補行 click の確定 semantics 未定義
 - footer 行（「ほか N 件」）が option 集合に含まれ、footer active 時の Enter 挙動が未定義になる
+- 入力変化後も旧 active が残存し、スキャナ Enter が旧候補確定へ化ける（timing 依存の安全性）
+- close 後の pending timer / in-flight 応答が残存し、閉じた候補が再表示される
+- IME 変換中の方向キーが suggest active を生成し、確定後の Enter が候補確定へ化ける
+- anchor literal が plans/archive corpus・他 D 節と衝突し mutation survivor 化する
 - 数値契約（debounce 200ms / per_page 5）の無断改変
 - 既存 commit 型契約文言の意図しない書き換え
 - SCREEN_DESIGN 再掲の同期漏れ
 
 ## Test Matrix
 
-anchor 検査はすべて `rg -c "<literal>" <file>` の完全一致 count で行う。anchor literal は定義文そのものに特定化し、amendment commit 時に `rg -c` で repo 内 uniqueness（想定 file 以外で 0 hit）を検証してから固定する（memory: matrix-anchor-uniqueness）。
+anchor 検査はすべて `rg -c "<literal>" <file>` の完全一致 count で行う。anchor literal は定義文そのものに特定化する。uniqueness の対象 corpus は**変更後の source design docs（docs/function-design/ / docs/design-system/ / docs/UI_TECH_STACK.md / docs/SCREEN_DESIGN.md）に限定し、docs/plans/** と docs/archive/** は除外する**（Packet / Matrix 自身への hit は uniqueness 違反にしない）。各 anchor は対象 file・対象節ごとの exact count で固定し、amendment commit 時に検証してから凍結する（memory: matrix-anchor-uniqueness + Codex plan review round 1 P2-4 是正）。
 
 | Contract | Failure Mode | Test Type | Test Name | Would fail if... |
 |---|---|---|---|---|
-| UI-02-D14 | 61 doc に契約なし | CLI (rg) | M-A1: `rg -c "UI-02-D14" docs/function-design/61-ui-receiving.md` >= 2 | 設計判断表 or §61.5 追記の欠落 |
+| UI-02-D14 | 61 doc に契約なし | CLI (rg) | M-A1: 61 の設計判断表節と §61.5 表示・操作節を節単位に分けて各々 `rg -c "UI-02-D14"` >= 1（一括 count は両節配置を保証しないため節別検査） | 設計判断表 or §61.5 追記の欠落 |
 | UI-04-D16 | 62 doc に契約なし | CLI | M-A2: 同型（62 / UI-04-D16） | 同上 |
 | UI-03-D21 | 63 doc に契約なし | CLI | M-A3: 同型（63 / UI-03-D21） | 同上 |
 | UI-05-D16 | 64 doc に契約なし / D15 整合文なし | CLI | M-A4: `rg -c "UI-05-D16"` >= 2 かつ D16 本文内に `UI-05-D15` 参照 1 hit | D15 整合の明文化漏れ |
@@ -37,17 +41,22 @@ anchor 検査はすべて `rg -c "<literal>" <file>` の完全一致 count で�
 | SPEC-SUGGEST-D2 | 自動 active 化の抜け道 | CLI | M-A7: literal「表示直後の自動 active 化・先頭行自動選択は禁止」 | スキャナ race 防御の核が落ちる |
 | SPEC-SUGGEST-D3 | 数値改変 | CLI | M-A8: literal「debounce 200ms」+「per_page 5」（catalog ⑮ 内） | 発火条件の無断変更 |
 | SPEC-SUGGEST-D4 | 破棄条件欠落 | CLI | M-A9: literal「sequence token で直近要求のみ採用」 | stale 採用を許す |
-| SPEC-SUGGEST-D5 | IME 意味論 drift | CLI | M-A10: literal「onChange / debounce 経路に composing guard は置かず」 | SearchBar 既定と矛盾する二重 guard 化 |
-| SPEC-SUGGEST-D6 | a11y 構造欠落 | CLI | M-A11: literal「aria-activedescendant」（catalog ⑮ 内 >= 1） | focus 移動型（focus 奪取）実装を許す |
-| SPEC-SUGGEST-D7 | 確定 semantics 分裂 | CLI | M-A12: literal「複数件候補テーブルからの選択と同一 handler」 | 画面別の独自確定経路を許す |
+| SPEC-SUGGEST-D5 | IME 意味論 drift | CLI | M-A10: literal「onChange / debounce 経路に composing guard は置かず」+ literal「suggest キー処理全体を行わず IME に委ねる」の両方（Codex P2-2 是正で keyboard branch 全域 guard 化） | SearchBar 既定と矛盾する二重 guard 化 / 変換中方向キーの active 生成 |
+| SPEC-SUGGEST-D6 | a11y 構造欠落 | CLI | M-A11: literal「focus は常に input が保持する（リストへ focus 移動しない）」（D6 固有文言。aria-activedescendant は D2 にも出現し survivor 化するため不採用 — Codex P2-3 是正） | focus 移動型（focus 奪取）実装を許す |
+| SPEC-SUGGEST-D7 | 確定 semantics 分裂 | CLI | M-A12: literal「既存「複数件候補テーブルからの選択」と同一 handler」（D7 凍結文と引用符まで一致 — Codex P2-3 是正） | 画面別の独自確定経路を許す |
 | SPEC-SUGGEST-D8 | 棚卸し経路 drift | CLI | M-A13: literal「find_stocktake_item」（catalog ⑮ D8 内） | searchProducts 直確定への短絡 |
 | SPEC-SUGGEST-D9 | 依存追加 | CLI | M-A14: literal「新規 npm 依存は追加しない」 | cmdk 等の追加を許す |
 | SPEC-SUGGEST-D10 | lock 連動欠落 | CLI | M-A15: literal「suggest fetch を発火せず、表示中リストは close」 | 保存中の候補操作を許す |
 | UI_TECH_STACK 追記 | 横断規定欠落 | CLI | M-A16: §5.3 内 literal「候補プレビュー」>= 1 + §5.4 内「aria-activedescendant」>= 1 | 横断正本の同期漏れ |
-| SCREEN_DESIGN 同期 | 再掲 drift | CLI | M-A17: 商品追加欄再掲節に「候補プレビュー」>= 1 | 写しの取り残し |
+| SCREEN_DESIGN 同期 | 再掲 drift | CLI | M-A17: SCREEN_DESIGN の実在する商品追加欄再掲節を amendment 時に全数列挙し、**節ごとに個別 anchor**「候補プレビュー」>= 1（一括 1 hit は特定節の同期漏れを識別できない — Codex P2-4 是正） | 写しの取り残し |
 | SPEC-SUGGEST-D2 追補 | active 持ち越しによる誤確定 | CLI | M-A18: literal「直前の active 候補は必ず解除し持ち越さない」 | リスト差し替え直後の Enter が旧 index の行を確定する設計を許す |
 | SPEC-SUGGEST-D6 追補 | hover active 化で race 復活 / click 未定義 | CLI | M-A19: literal「マウス hover（mouseenter 等）は active 候補を生成しない」 | pointer 経由の active 生成でスキャナ race 防御が崩れる |
 | SPEC-SUGGEST-D6 追補 | footer 行の a11y 帰属未定義 | CLI | M-A20: literal「`role=\"option\"` を持たない非選択の装飾行」 | footer が option 化され、↓ で active になった footer への Enter 挙動が未定義になる |
+| SPEC-SUGGEST-D4 追補 | lock source 3 分類の欠落 | CLI | M-A21: literal「取引 3 画面〈receiving / manual-sale / return-exchange〉は各画面の既存 `isFormLocked` 派生 state、棚卸しは既存 `isCompleting`」 | 分類の一部を落とした一般化（round 3 P2 同型）を許す |
+| SPEC-SUGGEST-D2 追補 | 入力変化後の旧 active 残存 | CLI | M-A22: literal「入力値が変化した onChange event の時点で active 候補を同期的に解除する」 | ↓後スキャンの Enter が旧候補確定へ化ける（Codex P1-1） |
+| SPEC-SUGGEST-D4 追補 | stale 応答の誤採用 | CLI | M-A23: literal「token と検索語が現在入力値の双方に一致する場合のみ採用」 | generation 更新時点の任意解釈で古い応答を採用しうる |
+| SPEC-SUGGEST-D4 追補 | close 後の timer / in-flight 残存 | CLI | M-A24: literal「pending debounce timer を cancel し、generation を進めて in-flight 応答（success / error とも）を不採用にする」 | Esc/blur/commit 後に候補が再表示される（Codex P2-1） |
+| SPEC-SUGGEST-D10 追補 | hook API 境界未定義 | CLI | M-A25: literal「同期 `isLocked(): boolean` と、保存 event から同期呼出しされる `invalidateAndClose()`」 | disposal の event 境界 race 窓が boolean prop 化で再導入される（Codex P2-6） |
 | 既存契約不変 | 意図しない書き換え | CLI | M-C1: `git diff main -- docs/function-design/` で既存 13 契約（UI-02-D4/D5、UI-04-D4/D5、UI-03-D9/D10、UI-05-D5/D6/D15、UI-10-D2/D11、TRACE-D12、UI-01a-D9）の定義行に変更 hunk なし | 拡張のはずが置換になっている |
 | PK4 | packet link 欠落 | script | M-W1: `scripts/doc-consistency-check.sh` PK 系 WARN 0 | Plans.md link 漏れ |
 
@@ -57,8 +66,8 @@ docs-only のため実 runtime state はないが、設計対象の suggest 層 
 
 | State / subject | Initial | Pending | Success | Invalidate | Refetch | Revisit | Restart | Failure | Retry | Evidence |
 |---|---|---|---|---|---|---|---|---|---|---|
-| suggest リスト | closed | debounce 200ms 待ち + fetch 中（表示は前回内容維持 or closed） | open（<=5 行 + footer） | Enter commit / clear / 確定 / lock で破棄 + close | 入力変化ごとに sequence token 更新 | 画面再訪で closed | — | silent close | 次入力で自然再試行 | SPEC-SUGGEST-D3/D4 |
-| active 候補 | なし | — | ↓/↑ でのみ生成 | close 時解除 | リスト内容更新時は解除（index 持ち越し禁止） | — | — | — | — | SPEC-SUGGEST-D2/D6 |
+| suggest リスト | closed | debounce 200ms 待ち + fetch 中（表示は前回内容維持 or closed、ただし active なし） | open（<=5 行 + footer） | Enter commit / clear / 確定 / lock / Esc / blur / Tab / unmount で timer cancel + in-flight 不採用 + close | 入力変化ごとに sequence generation 更新（debounce 開始前）、採用は token + 検索語の二重一致 | 画面再訪で closed | — | silent close | 次入力で自然再試行 | SPEC-SUGGEST-D3/D4 |
+| active 候補 | なし | — | ↓/↑ でのみ生成（IME composing 中は生成しない） | close 時解除 + 入力値変化の onChange で同期解除 | リスト内容更新時は解除（index 持ち越し禁止）、最新結果採用まで旧リスト上で新規生成しない | — | — | — | — | SPEC-SUGGEST-D2/D5/D6 |
 
 （リスト内容更新時の active 解除は SPEC-SUGGEST-D2 に凍結済み — rally round 1 P1-1 是正で Matrix 側言及から Spec Contract 本文へ昇格）
 
@@ -68,7 +77,7 @@ docs-only のため実 runtime state はないが、設計対象の suggest 層 
 
 | Source pattern / contract | Repository sites inspected | Ported sites | Explicit exclusions and reason | Test / evidence |
 |---|---|---|---|---|
-| IME composing guard（Enter keydown のみ） | SearchBar（2 mode）/ 取引 4 画面検索欄 / 棚卸し 2 欄（実査 2026-08-04 全数） | suggest 層 D5 | onChange 側 guard は置かない（PR #61 P1-2 裁定 a の既定意味論） | M-A10 |
+| IME composing guard（既存は Enter keydown のみ。suggest 層は keyboard branch 全域へ拡張 — Codex P2-2） | SearchBar（2 mode）/ 取引 4 画面検索欄 / 棚卸し 2 欄（実査 2026-08-04 全数） | suggest 層 D5（Enter / ↓ / ↑ / Esc 全域 guard） | onChange 側 guard は置かない（PR #61 P1-2 裁定 a の既定意味論） | M-A10 |
 | debounce 200ms | SearchBar live 型 3 画面 | suggest 層 D3 | SearchBar 本体は不変更 | M-A8 |
 | Enter commit 経路 | 取引 4 画面 handleProductSearch / 棚卸し resolveItem | 変更なし（不干渉が契約） | 全 5 site を明示不変 | M-C1 + 実装 PR 既存 suite |
 | 複数件候補テーブル | 5 画面（キーボード操作なし） | 変更なし | プレビューとの統合は非目的 | Non-scope 節 |
@@ -134,6 +143,11 @@ docs-only のため実 runtime state はないが、設計対象の suggest 層 
 - X9: D2 の「直前の active 候補は必ず解除し持ち越さない」削除 → M-A18 red
 - X10: D6 の「マウス hover（mouseenter 等）は active 候補を生成しない」削除 → M-A19 red
 - X11: D6 の footer 非選択契約（「`role="option"` を持たない非選択の装飾行」）削除 → M-A20 red
+- X12: D4 の lock 3 分類から棚卸し分類（`isCompleting`）を削除 → M-A21 red
+- X13: D2 の「入力値が変化した onChange event の時点で active 候補を同期的に解除する」削除 → M-A22 red
+- X14: D4 の「検索語が現在入力値」一致条件を token 単独一致へ弱体化 → M-A23 red
+- X15: D4 の close 時 timer cancel / in-flight 不採用文を削除 → M-A24 red
+- X16: D10 の `isLocked()` / `invalidateAndClose()` API 契約を削除 → M-A25 red
 - 実行方式: clean tree で mutation を実注入 → M 系 anchor 検査を実行 → red 確認 → checkout 復元（memory: mutation-test-on-clean-tree-only。commit 後の clean tree でのみ実施）
 
 ## Residual Test Gaps
