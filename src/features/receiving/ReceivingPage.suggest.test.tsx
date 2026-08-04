@@ -38,6 +38,25 @@ vi.mock("@/lib/bindings", () => ({
 
 const mockSearchProducts = vi.mocked(commands.searchProducts);
 const mockCreateReceiving = vi.mocked(commands.createReceiving);
+const mockInvalidateAndClose = vi.hoisted(() => vi.fn());
+
+vi.mock("@/components/patterns/useProductAddSuggest", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@/components/patterns/useProductAddSuggest")>();
+  return {
+    ...actual,
+    useProductAddSuggest: (...args: Parameters<typeof actual.useProductAddSuggest>) => {
+      const controller = actual.useProductAddSuggest(...args);
+      return {
+        ...controller,
+        invalidateAndClose: () => {
+          mockInvalidateAndClose();
+          controller.invalidateAndClose();
+        },
+      };
+    },
+  };
+});
 
 function renderPage() {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -66,6 +85,7 @@ beforeEach(() => {
   });
   mockSearchProducts.mockReset();
   mockCreateReceiving.mockReset();
+  mockInvalidateAndClose.mockReset();
 });
 
 describe("ReceivingPage ProductAddSuggest (UI-02-D14)", () => {
@@ -137,6 +157,13 @@ describe("ReceivingPage ProductAddSuggest (UI-02-D14)", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "入庫を保存" }));
 
+    expect(mockInvalidateAndClose).toHaveBeenCalledOnce();
+    await waitFor(() => {
+      expect(mockCreateReceiving).toHaveBeenCalledOnce();
+    });
+    expect(mockInvalidateAndClose.mock.invocationCallOrder[0]).toBeLessThan(
+      mockCreateReceiving.mock.invocationCallOrder[0],
+    );
     await waitFor(() => {
       expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
     });

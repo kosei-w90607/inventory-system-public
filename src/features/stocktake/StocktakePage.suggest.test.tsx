@@ -26,6 +26,25 @@ vi.mock("@/lib/bindings", () => ({
 const mockSearchProducts = vi.mocked(commands.searchProducts);
 const mockFindItem = vi.mocked(commands.findStocktakeItem);
 const mockComplete = vi.mocked(commands.completeStocktake);
+const mockInvalidateAndClose = vi.hoisted(() => vi.fn());
+
+vi.mock("@/components/patterns/useProductAddSuggest", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@/components/patterns/useProductAddSuggest")>();
+  return {
+    ...actual,
+    useProductAddSuggest: (...args: Parameters<typeof actual.useProductAddSuggest>) => {
+      const controller = actual.useProductAddSuggest(...args);
+      return {
+        ...controller,
+        invalidateAndClose: () => {
+          mockInvalidateAndClose();
+          controller.invalidateAndClose();
+        },
+      };
+    },
+  };
+});
 
 function ok<T>(data: T) {
   return { status: "ok" as const, data };
@@ -78,6 +97,7 @@ beforeEach(() => {
   mockSearchProducts.mockReset();
   mockFindItem.mockReset();
   mockComplete.mockReset();
+  mockInvalidateAndClose.mockReset();
 });
 
 describe("StocktakePage ProductAddSuggest (UI-10-D12)", () => {
@@ -145,6 +165,13 @@ describe("StocktakePage ProductAddSuggest (UI-10-D12)", () => {
     );
     fireEvent.click(screen.getByRole("button", { name: "棚卸しを確定する" }));
     fireEvent.click(await screen.findByRole("button", { name: "確定する" }));
+    expect(mockInvalidateAndClose).toHaveBeenCalledOnce();
+    await waitFor(() => {
+      expect(mockComplete).toHaveBeenCalledOnce();
+    });
+    expect(mockInvalidateAndClose.mock.invocationCallOrder[0]).toBeLessThan(
+      mockComplete.mock.invocationCallOrder[0],
+    );
     await waitFor(() => {
       expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
     });

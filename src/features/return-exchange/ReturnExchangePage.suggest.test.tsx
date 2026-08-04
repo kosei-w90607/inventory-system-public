@@ -32,6 +32,25 @@ vi.mock("@/lib/bindings", () => ({
 
 const mockSearchProducts = vi.mocked(commands.searchProducts);
 const mockCreateReturn = vi.mocked(commands.createReturn);
+const mockInvalidateAndClose = vi.hoisted(() => vi.fn());
+
+vi.mock("@/components/patterns/useProductAddSuggest", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@/components/patterns/useProductAddSuggest")>();
+  return {
+    ...actual,
+    useProductAddSuggest: (...args: Parameters<typeof actual.useProductAddSuggest>) => {
+      const controller = actual.useProductAddSuggest(...args);
+      return {
+        ...controller,
+        invalidateAndClose: () => {
+          mockInvalidateAndClose();
+          controller.invalidateAndClose();
+        },
+      };
+    },
+  };
+});
 
 function renderPage() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -57,6 +76,7 @@ beforeEach(() => {
   });
   mockSearchProducts.mockReset();
   mockCreateReturn.mockReset();
+  mockInvalidateAndClose.mockReset();
 });
 
 describe("ReturnExchangePage ProductAddSuggest (UI-03-D21)", () => {
@@ -121,6 +141,13 @@ describe("ReturnExchangePage ProductAddSuggest (UI-03-D21)", () => {
       }),
     );
     fireEvent.click(screen.getByRole("button", { name: "返品・交換を保存" }));
+    expect(mockInvalidateAndClose).toHaveBeenCalledOnce();
+    await waitFor(() => {
+      expect(mockCreateReturn).toHaveBeenCalledOnce();
+    });
+    expect(mockInvalidateAndClose.mock.invocationCallOrder[0]).toBeLessThan(
+      mockCreateReturn.mock.invocationCallOrder[0],
+    );
     await waitFor(() => {
       expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
     });

@@ -32,6 +32,25 @@ vi.mock("@/lib/bindings", () => ({
 
 const mockSearchProducts = vi.mocked(commands.searchProducts);
 const mockCreateManualSale = vi.mocked(commands.createManualSale);
+const mockInvalidateAndClose = vi.hoisted(() => vi.fn());
+
+vi.mock("@/components/patterns/useProductAddSuggest", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@/components/patterns/useProductAddSuggest")>();
+  return {
+    ...actual,
+    useProductAddSuggest: (...args: Parameters<typeof actual.useProductAddSuggest>) => {
+      const controller = actual.useProductAddSuggest(...args);
+      return {
+        ...controller,
+        invalidateAndClose: () => {
+          mockInvalidateAndClose();
+          controller.invalidateAndClose();
+        },
+      };
+    },
+  };
+});
 
 function renderPage() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -56,6 +75,7 @@ beforeEach(() => {
   });
   mockSearchProducts.mockReset();
   mockCreateManualSale.mockReset();
+  mockInvalidateAndClose.mockReset();
 });
 
 describe("ManualSalePage ProductAddSuggest (UI-04-D16)", () => {
@@ -117,6 +137,13 @@ describe("ManualSalePage ProductAddSuggest (UI-04-D16)", () => {
       }),
     );
     fireEvent.click(screen.getByRole("button", { name: "手動販売を保存" }));
+    expect(mockInvalidateAndClose).toHaveBeenCalledOnce();
+    await waitFor(() => {
+      expect(mockCreateManualSale).toHaveBeenCalledOnce();
+    });
+    expect(mockInvalidateAndClose.mock.invocationCallOrder[0]).toBeLessThan(
+      mockCreateManualSale.mock.invocationCallOrder[0],
+    );
     await waitFor(() => {
       expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
     });
