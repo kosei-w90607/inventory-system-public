@@ -17,6 +17,7 @@ Risk: R3
 - 「自動 active 化禁止」が落ち、スキャナ Enter が候補確定に化ける設計解釈を許す
 - リスト差し替え時の active 持ち越しで、更新直後の Enter が意図しない行を確定する
 - pointer 経由（hover）の active 生成、または候補行 click の確定 semantics 未定義
+- footer 行（「ほか N 件」）が option 集合に含まれ、footer active 時の Enter 挙動が未定義になる
 - 数値契約（debounce 200ms / per_page 5）の無断改変
 - 既存 commit 型契約文言の意図しない書き換え
 - SCREEN_DESIGN 再掲の同期漏れ
@@ -46,6 +47,7 @@ anchor 検査はすべて `rg -c "<literal>" <file>` の完全一致 count で�
 | SCREEN_DESIGN 同期 | 再掲 drift | CLI | M-A17: 商品追加欄再掲節に「候補プレビュー」>= 1 | 写しの取り残し |
 | SPEC-SUGGEST-D2 追補 | active 持ち越しによる誤確定 | CLI | M-A18: literal「直前の active 候補は必ず解除し持ち越さない」 | リスト差し替え直後の Enter が旧 index の行を確定する設計を許す |
 | SPEC-SUGGEST-D6 追補 | hover active 化で race 復活 / click 未定義 | CLI | M-A19: literal「マウス hover（mouseenter 等）は active 候補を生成しない」 | pointer 経由の active 生成でスキャナ race 防御が崩れる |
+| SPEC-SUGGEST-D6 追補 | footer 行の a11y 帰属未定義 | CLI | M-A20: literal「`role=\"option\"` を持たない非選択の装飾行」 | footer が option 化され、↓ で active になった footer への Enter 挙動が未定義になる |
 | 既存契約不変 | 意図しない書き換え | CLI | M-C1: `git diff main -- docs/function-design/` で既存 13 契約（UI-02-D4/D5、UI-04-D4/D5、UI-03-D9/D10、UI-05-D5/D6/D15、UI-10-D2/D11、TRACE-D12、UI-01a-D9）の定義行に変更 hunk なし | 拡張のはずが置換になっている |
 | PK4 | packet link 欠落 | script | M-W1: `scripts/doc-consistency-check.sh` PK 系 WARN 0 | Plans.md link 漏れ |
 
@@ -131,6 +133,7 @@ docs-only のため実 runtime state はないが、設計対象の suggest 層 
 - X8: 61 の UI-02-D14 追記だけ落とす（片側 drift）→ M-A1 red、他画面 green のまま = 画面別弁別性あり
 - X9: D2 の「直前の active 候補は必ず解除し持ち越さない」削除 → M-A18 red
 - X10: D6 の「マウス hover（mouseenter 等）は active 候補を生成しない」削除 → M-A19 red
+- X11: D6 の footer 非選択契約（「`role="option"` を持たない非選択の装飾行」）削除 → M-A20 red
 - 実行方式: clean tree で mutation を実注入 → M 系 anchor 検査を実行 → red 確認 → checkout 復元（memory: mutation-test-on-clean-tree-only。commit 後の clean tree でのみ実施）
 
 ## Residual Test Gaps

@@ -172,7 +172,7 @@ Goal Invariant:
 | UI-03-D21（63 追記） | 本 PR docs | M-A3 | 同上 |
 | UI-05-D16（64 追記、D15 整合文含む） | 本 PR docs | M-A4 | 同上 |
 | UI-10-D12（73 追記、D2/D11 接続文含む） | 本 PR docs | M-A5 | 同上 |
-| SPEC-SUGGEST-D1〜D10（catalog ⑮） | 本 PR docs | M-A6〜M-A15 | 同上 |
+| SPEC-SUGGEST-D1〜D10（catalog ⑮） | 本 PR docs | M-A6〜M-A15、M-A18〜M-A20（rally 是正追補: D2 active 解除 / D6 pointer / D6 footer） | 同上 |
 | UI_TECH_STACK §5.3/§5.4 追記 | 本 PR docs | M-A16 | 同上 |
 | SCREEN_DESIGN 再掲同期 | 本 PR docs | M-A17 | 同上 |
 | Plans.md link（PK4） | 本 PR docs | doc-consistency PK4 | — |
@@ -215,11 +215,11 @@ Contract ID: SPEC-SUGGEST
 - D1（二層構造・不干渉）: live 候補プレビューは表示専用の追加層である。既存 Enter commit 経路（検索実行・0/1/複数分岐・行追加・focus 復帰・IME guard）のロジックは変更しない。suggest 層の失敗（fetch error 含む）は commit 経路へ波及せず、候補非表示に縮退する。
 - D2（Enter 分岐）: 候補リストに active 候補（aria-activedescendant が指す行）が存在する場合のみ Enter は候補確定として動作する。active 候補は ↓/↑ キー操作によってのみ生成される（表示直後の自動 active 化・先頭行自動選択は禁止）。active 候補なしの Enter は常に既存 commit 経路を実行する。候補リストの内容が更新された場合（debounce 再 fetch による差し替え）、直前の active 候補は必ず解除し持ち越さない（更新直後の Enter が意図しない行を確定することを防ぐ）。新しいリストで active を得るには再度 ↓/↑ の操作を要する。
 - D3（発火条件）: debounce 200ms（TRACE-D12 と同値）。入力 1 文字以上で発火。取得は per_page 5、総件数超過時は候補末尾に「ほか N 件（Enter で検索）」を表示する。0 件時は非表示（メッセージなし。0 件文言は既存 commit 経路の所掌）。
-- D4（破棄条件）: suggest fetch は sequence token で直近要求のみ採用する。Enter commit 実行・入力欄 clear・候補確定・form lock 成立の各時点で pending fetch の結果は破棄し、リストを close する。保存 lock との整合は UI-05-D15 の event 境界同期に従う。
+- D4（破棄条件）: suggest fetch は sequence token で直近要求のみ採用する。Enter commit 実行・入力欄 clear・候補確定・form lock 成立の各時点で pending fetch の結果は破棄し、リストを close する。保存 lock との整合は D10 の per-画面 lock source 契約に従う（disposal のみ UI-05-D15 の lock ref、他 4 画面は各画面の既存 `isFormLocked` 派生 state を単一 source とする）。
 - D5（IME）: `event.nativeEvent.isComposing` guard は Enter keydown のみ（既存 guard を最優先で維持）。onChange / debounce 経路に composing guard は置かず、変換途中文字列での候補更新を許容する（SearchBar live 型の既定意味論 = PR #61 P1-2 裁定 a と同一）。
-- D6（キーボード・a11y）: input は `role="combobox"` + `aria-expanded` + `aria-controls` + `aria-activedescendant`、リストは `role="listbox"`、行は `role="option"`。focus は常に input が保持する（リストへ focus 移動しない）。↓/↑ で active 移動（端で wrap しない）、Esc で close + active 解除、blur / Tab で close。候補行のクリックは active の有無に関わらず当該行の即時候補確定として扱い、D7 の同一 handler を呼ぶ（`onMouseDown` 時点で default を抑止し、input の blur による close との race を防ぐ）。マウス hover（mouseenter 等）は active 候補を生成しない（active 生成は D2 の ↓/↑ 経由に限定）。
+- D6（キーボード・a11y）: input は `role="combobox"` + `aria-expanded` + `aria-controls` + `aria-activedescendant`、リストは `role="listbox"`、行は `role="option"`。focus は常に input が保持する（リストへ focus 移動しない）。↓/↑ で active 移動（端で wrap しない）、Esc で close + active 解除、blur / Tab で close。候補行のクリックは active の有無に関わらず当該行の即時候補確定として扱い、D7 の同一 handler を呼ぶ（`onMouseDown` 時点で default を抑止し、input の blur による close との race を防ぐ）。マウス hover（mouseenter 等）は active 候補を生成しない（active 生成は D2 の ↓/↑ 経由に限定）。footer 行（「ほか N 件…」）は `role="option"` を持たない非選択の装飾行であり、↓/↑ による active 移動の対象外とする。footer 表示中に active 候補なしで Enter を押した場合の挙動は D2 の既定分岐（既存 commit 経路の実行）と同一であり、footer 文言の「Enter で検索」はその結果を指す。
 - D7（候補行表示・確定 semantics）: 候補行は商品コード + 商品名 + 部門名の統一 3 項目（画面固有列は出さない）。候補確定時の挙動は当該画面の既存「複数件候補テーブルからの選択」と同一 handler を通す。
-- D8（棚卸し）: 棚卸しの suggest fetch は `searchProducts`（部分一致）を用い、候補確定は既存 UI-10-D2 の `find_stocktake_item` 経由で棚卸し対象化する。UI-10-D11 の focus 遷移契約（解決成功で数量欄へ）は候補確定経由でも同一に発火する。
+- D8（棚卸し）: 棚卸しの suggest fetch は `searchProducts`（部分一致）を用い、候補確定は既存 UI-10-D2 の `find_stocktake_item` 経由で棚卸し対象化する。UI-10-D11 の focus 遷移契約（解決成功で数量欄へ）は候補確定経由でも同一に発火する。候補確定後に `find_stocktake_item` が稀に `None` を返す場合は既存 `selectCandidate` の無言 no-op 挙動をそのまま継承する（既知の pre-existing gap、本 change の scope 外）。
 - D9（実装形態・依存）: プレビュー層は新規共通 component + hook として 1 箇所に実装し 5 画面へ配線する。新規 npm 依存は追加しない（cmdk 不採用。radix Popover も不使用 — focus 非奪取要件から素の絶対配置要素で実装）。既存 5 画面の commit 経路コードの共通化・移動は行わない。
 - D10（無効化条件）: form 保存中 lock / disabled 状態では suggest fetch を発火せず、表示中リストは close する。suggest 層は各画面の既存 lock 状態を単一 source として受け取り、新規の lock 機構を作らない。disposal では UI-05-D15 の lock ref がその source である（二重 lock の相互不整合を構造的に排除する）。
 
@@ -232,7 +232,7 @@ Contract ID: SPEC-SUGGEST
 | SPEC-SUGGEST-D3 | 同上 | M-A8 / X3 | 数値（200ms/5 件）の実測整合 | rg anchor |
 | SPEC-SUGGEST-D4 | 同上 | M-A9 / X4 | UI-05-D15 整合 | rg anchor |
 | SPEC-SUGGEST-D5 | 同上 | M-A10 / X5 | SearchBar 既定整合 | rg anchor |
-| SPEC-SUGGEST-D6 | 同上 | M-A11・M-A19 / X6・X10 | a11y 構造 + pointer 契約（click 確定 / hover 非生成） | rg anchor |
+| SPEC-SUGGEST-D6 | 同上 | M-A11・M-A19・M-A20 / X6・X10・X11 | a11y 構造 + pointer 契約（click 確定 / hover 非生成）+ footer 非選択 | rg anchor |
 | SPEC-SUGGEST-D7 | 同上 | M-A12 | 確定 semantics 同一性 | rg anchor |
 | SPEC-SUGGEST-D8 | 73 追記 | M-A13 / M-A5 | UI-10-D2/D11 接続 | rg anchor |
 | SPEC-SUGGEST-D9 | catalog ⑮ | M-A14 / X7 | 依存追加ゼロ | rg anchor |
