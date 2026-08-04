@@ -52,6 +52,7 @@ Risk: R3
 | D10 | lock 中発火 | unit | S18 isLocked() true で fetch 不発火 + 表示中リスト close | lock 判定欠落 |
 | D10/D4 | 保存 event 連動漏れ | unit | S19 invalidateAndClose() 同期呼出しで close + timer cancel + in-flight 不採用 | API 未実装 / 非同期化 |
 | D5 | onChange 側 guard 誤追加 | unit | S20 isComposing 中の onChange でも debounce/fetch が発火する（変換途中文字列での候補更新を許容 = D5 の Don't 側契約） | onChange / debounce 経路に composing guard が追加される |
+| D4 | 外部 clear 経路の close 漏れ | unit | S21 onChange 非経由の外部 value 変更（既存 commit 経路の `setSearchText("")` 相当）で open リストの同期 close + debounce timer cancel（in-flight 不採用は S10 の token + 検索語二重一致が既に cover。gated Amendment 2） | value prop 監視の close 経路が除去され、スキャナ連続スキャン時に旧リスト残置 |
 | D7/UI-02-D14 | 確定迂回 | integration | W1 Receiving: 候補確定が既存 `addProduct` と同一経路で行追加（明細行の実 DOM 出現で assert、REQ-201） | suggest 独自の追加経路が生える |
 | D7/UI-04-D16 | 同上 | integration | W2 ManualSale: 同上（REQ-203） | 同上 |
 | D7/UI-03-D21 | direction 欠落 | integration | W3 ReturnExchange: 候補確定が `addProduct(candidate, effectiveAddDirection)` の direction 込み経路を通る（REQ-202） | direction 引数の欠落 |
@@ -163,6 +164,7 @@ Risk: R3
 | X18 | 0 件応答時に空状態メッセージを表示する UI を追加 | S2 |
 | X19 | aria-activedescendant / role="listbox" の付与を欠落させる | S13 |
 | X20 | suggest fetch error を silent close せず error 表示へ伝播させる | S17 |
+| X21 | 外部 value 変更を監視する close 経路（value 監視 effect）を除去 | S21 |
 
 - 注入は commit 後の clean tree で行い、`git checkout` 復元で未 commit 是正を消さない（memory: mutation-test-on-clean-tree-only）
 - Coordinator 再実測は Writer の記録を参照しない独立導出とする

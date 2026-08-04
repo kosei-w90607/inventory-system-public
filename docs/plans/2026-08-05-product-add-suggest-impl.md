@@ -93,7 +93,7 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 - AC2: 新規 S 系 / W 系 test が Matrix の全行を cover し `npm test` green
 - AC3: 既存 5 画面 test file のうち `StocktakePage.test.tsx` を除く 4 file は diff 0（`git diff main --name-only` に現れない）。`StocktakePage.test.tsx` の diff は T3 の query 特定化のみ（`git diff main -- src/features/stocktake/StocktakePage.test.tsx` で確認し、変更が単数 combobox query の名前付き化に限られ assert 内容不変であることを PR body に記録 = gated Amendment 1）。全既存 test green
 - AC4: `bash scripts/local-ci.sh full` PASS / CLEAN（Writer 完了条件に含む）
-- AC5: Matrix X1〜X20 の各 mutation 注入で `npm test` が red になることを、Writer 自己実測 + Coordinator 独立再実測（clean tree、commit 後）の双方で確認する
+- AC5: Matrix X1〜X21 の各 mutation 注入で `npm test` が red になることを、Writer 自己実測 + Coordinator 独立再実測（clean tree、commit 後）の双方で確認する（X21 は gated Amendment 2 起源のため Coordinator 実測のみで可）
 - AC6: catalog ⑮ canonical 注記が実 file path を指す（`rg -c "file 未作成" docs/design-system/02-component-catalog.md` = 0）
 - AC7: Plans.md「次の行動」が本 packet へ link し PK4 を充足する
 - AC8: 新規 test file が UI-NN / D-ID token を含み `cd src-tauri && cargo run --bin generate_traceability -- --check` 差分なし
@@ -136,7 +136,7 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 | REQ-202 | 63 §63.5 | UI-03-D21 | 同上（addProduct の direction 引数を既存どおり維持） | ReturnExchangePage 配線 | W3 / W8 |
 | REQ-204 | 64 §64.5 | UI-05-D16 | 同上 + UI-05-D15 lock ref 整合 | DisposalPage 配線 | W4 / W6 |
 | 棚卸し | 73 §73.5 | UI-10-D12 | 確定は UI-10-D2 既存経路（findMutation → selectItem）、D11 focus 契約同一発火 | StocktakePage 配線 | W5 / W7 |
-| 横断 | catalog ⑮ | SPEC-SUGGEST-D1〜D10 | 凍結正本の履行 | ProductAddSuggest + hook | S1〜S20 / X1〜X20 |
+| 横断 | catalog ⑮ | SPEC-SUGGEST-D1〜D10 | 凍結正本の履行 | ProductAddSuggest + hook | S1〜S21 / X1〜X21 |
 
 ## Design Intent Audit
 
@@ -185,7 +185,7 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 | SPEC-SUGGEST-D1（二層不干渉・silent 縮退） | ProductAddSuggest + 5 画面配線 | S17 / W8 / X1・X20 | 視認（L3 UX） |
 | SPEC-SUGGEST-D2（Enter 分岐・active 生成/解除・onChange 同期解除 + close） | useProductAddSuggest | S4〜S8 / X1・X2・X15 | — |
 | SPEC-SUGGEST-D3（debounce 200ms・1 文字・per_page 5・footer・0 件非表示） | useProductAddSuggest | S1〜S3 / X7・X16・X18 | L3 UX（debounce 下の候補非発火） |
-| SPEC-SUGGEST-D4（sequence token・close 時 cancel・in-flight 不採用・lock source 3 分類） | useProductAddSuggest + 各画面配線 | S9〜S11・S19 / X3〜X5 | — |
+| SPEC-SUGGEST-D4（sequence token・close 時 cancel・in-flight 不採用・lock source 3 分類・外部 clear 経路） | useProductAddSuggest + 各画面配線 | S9〜S11・S19・S21 / X3〜X5・X21 | — |
 | SPEC-SUGGEST-D5（IME: suggest キー処理全域 guard、onChange 側 guard なし） | ProductAddSuggest onKeyDown / onChange | S12・S20 / X6・X14 | — |
 | SPEC-SUGGEST-D6（a11y 構造・focus input 保持・click/hover/footer 契約） | ProductAddSuggest | S13〜S15・S3 / X7・X8・X11・X12・X19 | — |
 | SPEC-SUGGEST-D7（候補行 3 項目・確定は既存同一 handler） | ProductAddSuggest + 5 画面配線 | S16 / W1〜W5 / X10・X17 | — |
@@ -204,9 +204,9 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 
 Test Design Matrix: `docs/plans/test-matrices/2026-08-05-product-add-suggest-impl.md`
 
-- targeted tests: S1〜S20（component/hook 単体、synthetic mock）、W1〜W12（画面配線、新規 file 隔離）
+- targeted tests: S1〜S21（component/hook 単体、synthetic mock）、W1〜W12（画面配線、新規 file 隔離）
 - Double Audit（rally round 2 P3-3 裁定で opt-in）: 本 change は operator-visible state lifecycle（suggest リスト / active / lock 連動）に触れる R3 のため、DEV_WORKFLOW Contract Audit の recommended second pass に opt-in する。Final Review = 1 pass（Sonnet fresh context、Ledger 突合 + mutation 一次）+ 2 pass（別の Sonnet fresh context による Contract Audit lane 独立再走）。Findings Freeze は両 pass 完了後に発効する
-- negative tests: X1〜X20 mutation 注入（Writer 実測 + Coordinator clean tree 独立再実測）
+- negative tests: X1〜X21 mutation 注入（Writer 実測 + Coordinator clean tree 独立再実測。X21 は Amendment 2 起源で Coordinator 実測のみ）
 - compatibility checks: 既存 5 test file diff 0 + 全 green（AC3）、既存 D-ID 文言不変
 - data safety checks: synthetic 商品データのみ、実店舗データ不使用
 - main wiring/integration checks: AC1（5 画面配線 rg）、AC7（PK4）
@@ -246,7 +246,7 @@ Contract ID: SPEC-SUGGEST（正本 = catalog ⑮、本 packet は転記しない
 | SPEC-SUGGEST-D1 | component + 配線 | S17 / W8 / X1・X20 | 不干渉・silent 縮退 | npm test |
 | SPEC-SUGGEST-D2 | hook keyboard/active | S4〜S8 / X1・X2・X15 | active lifecycle + Enter 分岐反転感度 | npm test |
 | SPEC-SUGGEST-D3 | hook fetch | S1〜S3 / X7・X16・X18 | 発火条件・footer・threshold 感度 | npm test |
-| SPEC-SUGGEST-D4 | hook sequence/cancel | S9〜S11・S19 / X3〜X5 | 破棄条件網羅 | npm test |
+| SPEC-SUGGEST-D4 | hook sequence/cancel | S9〜S11・S19・S21 / X3〜X5・X21 | 破棄条件網羅 + 外部 clear 経路 | npm test |
 | SPEC-SUGGEST-D5 | component IME | S12・S20 / X6・X14 | isComposing 全域 guard + onChange 非 guard | npm test |
 | SPEC-SUGGEST-D6 | component a11y/pointer | S13〜S15・S3 / X7・X8・X11・X12・X19 | 構造・click/hover・footer | npm test |
 | SPEC-SUGGEST-D7 | 確定 semantics | S16 / W1〜W5 / X10・X17 | 同一 handler 委譲・field 省略感度 | npm test |
@@ -281,6 +281,7 @@ Do not transcribe exact-HEAD SHA or test counts here (D-035/D-038 Evidence Owner
 - 遷移記録（recording compression）: 本 state-only commit は `plan-draft -> plan-gate -> plan-approved -> implementing` の隣接 forward 遷移を一括実体化する。中間遷移の evidence = plan-gate: packet + Test Design Matrix が plan-first commit `ef10439` で committed 済み / plan-approved: 独立 Plan Reviewer（Sonnet 5、Writer = Codex と別 vendor = D-062 充足）rally round 4 verdict「P1/P2=0、Plan Gate closure 可」（上記 rally 記録）+ owner plan 承認 2026-08-05（介入 1/3、承認記録は会話、PR body へ転記予定）/ implementing: plan-first commit `ef10439` が全実装 commit に先行することは本時点で実装 commit ゼロにより自明（PK5 ancestry は pre-merge gate で機械検査）。
 - gated Amendment 1（2026-08-05、owner 承認 = 介入 2/3）: Codex Writer の fail-closed 停止（true positive）— SPEC-SUGGEST-D6 の商品入力常時 `role="combobox"` と、凍結対象 `StocktakePage.test.tsx` T3（L221、L227 の `screen.getByRole("combobox")` 単数 query = 既存部門フィルターの radix Select trigger を取得）が衝突し、D6 どおりの配線で T3 が複数要素エラー red になる。Coordinator 実読検証: T3 L221/L227 実在、他 4 画面 test への同型 `ByRole("combobox")` query は `rg -n 'ByRole\("combobox"' src/features/{receiving,manual-sale,return-exchange,disposal}/*.test.tsx` hit 0（例外は T3 の 1 test に限定可能）。裁定 = T3 の名前付き query への特定化のみ許容（assert 意図〈filter 変更で getStocktakeItems params が変わる〉は不変）。対案の D6 改訂は凍結済み a11y 契約の後退のため不採用。Goal 失敗定義 / AC3 / Ledger 凍結行を本 Amendment で同期。
 - Writer 補助 review-only（Codex、Final Reviewer ではない）: 保存 event 後の listbox 消失だけでは reactive lock close と明示 `invalidateAndClose()` を弁別できない P2 を検出。5 画面の新規 W test で公開 controller API の同期呼出しと保存 command より前の順序を直接観測し、各 Page 呼出し削除 mutation の個別 red を確認。focused closure は P1/P2 なし。
-- Findings Freeze 起点の確認: 本 packet の Final Review は Double Audit opt-in（Test Plan 参照）のため、Freeze は両 pass 完了後に発効する。
+- Final Review Double Audit（2026-08-05、対象 = PR #65 HEAD 5d3a575、Sonnet 5 fresh context ×2 並列・相互非参照）: 1 pass（Ledger 全行 re-verification + AC 実走）= P2×1 / P3×2、Ledger 17 行適合（negative-space 1 件除く）・AC1〜AC10 充足確認。2 pass（source docs 直読の Contract Audit lane: negative-space / Adjacent Pattern 実照合 / State Lifecycle / anti-tautology 構造検査）= P2×2。統合裁定: (F-A、両 pass 一致 = P2) `StocktakePage.suggest.test.tsx` の REQ-205 token 欠落 + 90-traceability REQ-205 行未登録（T4 検査は UI token で通過する仕様の隙間）→ accept、token 1 行追加 + 再生成で REQ-205 行へ反映（`cargo run --bin generate_traceability -- --check` OK 再確認）。(F-B、2 pass = P2) 外部 clear 経路（既存 commit 経路の `setSearchText("")` = onChange 非経由の value prop 変化、`useProductAddSuggest.ts` の value 監視 effect）が S 系で未検証 → accept、S21 新設（open リスト同期 close + timer cancel。in-flight 不採用は S10 既検証のため重複追加せず）+ X21 新設。(F-C1、1 pass = P3) act() 警告 → 単独・6 file 一括の双方で再実行し警告 0 件を実測、再現せず・再発時是正の disposition。(F-C2、1 pass = P3) S16 の null variant が否定形 assert → oracle は既存候補テーブル表記（React の null 非レンダリング）の正確な転記であり「部門なし」等の誤表示は検出可能、積極 assert 化は DOM 構造依存を増やすため見送り。是正実施 = Coordinator 直接（relay 予算 2/2 消費済みのため。3 file 軽微修正 + 再生成。writer 自己承認回避のため closure round は独立 fresh context で是正を検証する）。本記録 + S21/X21/REQ-205 是正 = gated Amendment 2。
+- Findings Freeze 起点の確認: 本 packet の Final Review は Double Audit opt-in（Test Plan 参照）のため、Freeze は両 pass 完了後に発効する。closure round（是正検証）完了時に Freeze 発効を宣言する。
 
 - Findings Freeze: not yet frozen; post-freeze exceptions: none

@@ -492,4 +492,29 @@ describe("ProductAddSuggest (SPEC-SUGGEST-D1〜D10)", () => {
     expect(mockSearchProducts).toHaveBeenCalledOnce();
     expect(mockSearchProducts.mock.calls[0]?.[0].keyword).toBe("変換中");
   });
+
+  it("S21: onChange非経由の外部value変更(既存commit経路のclear相当)でclose+timer cancelする", async () => {
+    // (1) リスト open 中の外部 clear → 同期 close
+    mockSearchProducts.mockResolvedValueOnce(okProducts(makeProducts(2)));
+    const view = render(<Harness />);
+    const input = screen.getByRole("combobox");
+    fireEvent.change(input, { target: { value: "候" } });
+    await advance(200);
+    expect(screen.getByRole("listbox")).toBeInTheDocument();
+
+    view.rerender(<Harness externalValue="" />);
+    expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+    view.unmount();
+
+    // (2) debounce pending 中の外部 clear → timer cancel で fetch 不発火
+    mockSearchProducts.mockClear();
+    const view2 = render(<Harness />);
+    const input2 = screen.getByRole("combobox");
+    fireEvent.change(input2, { target: { value: "次" } });
+    view2.rerender(<Harness externalValue="" />);
+    await advance(400);
+    expect(mockSearchProducts).not.toHaveBeenCalled();
+    expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+    // in-flight 応答の外部value変更不採用は S10 が検証済み（token+検索語二重一致）
+  });
 });

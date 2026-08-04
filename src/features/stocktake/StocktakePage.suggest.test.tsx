@@ -1,4 +1,4 @@
-// UI-10-D2/D11/D12 / SPEC-SUGGEST-D8,D10: ProductAddSuggest 配線 W5/W7/W8/W12。
+// REQ-205 / UI-10-D2/D11/D12 / SPEC-SUGGEST-D8,D10: ProductAddSuggest 配線 W5/W7/W8/W12。
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
