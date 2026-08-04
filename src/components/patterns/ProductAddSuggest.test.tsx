@@ -1,7 +1,7 @@
 // UI-02-D14 / UI-04-D16 / UI-03-D21 / UI-05-D16 / UI-10-D12
 // SPEC-SUGGEST-D1〜D10: 商品追加欄 live 候補プレビューの契約テスト。
 
-import { act, fireEvent, render, screen, within } from "@testing-library/react";
+import { act, createEvent, fireEvent, render, screen, within } from "@testing-library/react";
 import type { ReactNode, RefObject } from "react";
 import { useEffect, useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -482,10 +482,11 @@ describe("ProductAddSuggest (SPEC-SUGGEST-D1〜D10)", () => {
   it("S20: composing中のonChangeでもdebounce検索を発火する", async () => {
     mockSearchProducts.mockResolvedValue(okProducts([]));
     render(<Harness />);
-    fireEvent.change(screen.getByRole("combobox"), {
+    const composingChange = createEvent.change(screen.getByRole("combobox"), {
       target: { value: "変換中" },
-      isComposing: true,
     });
+    Object.defineProperty(composingChange, "isComposing", { value: true });
+    fireEvent(screen.getByRole("combobox"), composingChange);
     await advance(200);
 
     expect(mockSearchProducts).toHaveBeenCalledOnce();
