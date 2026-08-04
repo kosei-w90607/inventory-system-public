@@ -51,6 +51,7 @@ Risk: R3
 | D1 | error 波及 | unit | S17 fetch error で silent close（error UI なし、onCommitFallback 経路は生存） | error 表示の新設 / commit 経路へ波及 |
 | D10 | lock 中発火 | unit | S18 isLocked() true で fetch 不発火 + 表示中リスト close | lock 判定欠落 |
 | D10/D4 | 保存 event 連動漏れ | unit | S19 invalidateAndClose() 同期呼出しで close + timer cancel + in-flight 不採用 | API 未実装 / 非同期化 |
+| D5 | onChange 側 guard 誤追加 | unit | S20 isComposing 中の onChange でも debounce/fetch が発火する（変換途中文字列での候補更新を許容 = D5 の Don't 側契約） | onChange / debounce 経路に composing guard が追加される |
 | D7/UI-02-D14 | 確定迂回 | integration | W1 Receiving: 候補確定が既存 `addProduct` と同一経路で行追加（明細行の実 DOM 出現で assert、REQ-201） | suggest 独自の追加経路が生える |
 | D7/UI-04-D16 | 同上 | integration | W2 ManualSale: 同上（REQ-203） | 同上 |
 | D7/UI-03-D21 | direction 欠落 | integration | W3 ReturnExchange: 候補確定が `addProduct(candidate, effectiveAddDirection)` の direction 込み経路を通る（REQ-202） | direction 引数の欠落 |
@@ -58,6 +59,7 @@ Risk: R3
 | D8/UI-10-D12 | 棚卸し確定経路迂回 | integration | W5 Stocktake: 候補確定が findMutation（find_stocktake_item）経由で selectItem に到達 | searchProducts 結果の直接 selectItem |
 | UI-10-D11 | focus 契約破り | integration | W7 Stocktake: 候補確定成功で数量欄へ focus 遷移（T17 と同一契約の候補確定経由版） | 候補確定経由で focus 遷移が発火しない |
 | D1/D2 | commit 経路退行 | integration | W8 各画面: active なし Enter が既存 commit 経路を実行（suggest 配線後の smoke、5 画面各 1 case） | suggest 層が Enter を横取りする |
+| D10 | 保存 event 呼出し漏れ | integration | W9 Receiving: 保存 event handler 内の invalidateAndClose() 同期呼出しで表示中リスト close（reactive 伝播に依存しない明示呼出しの代表 2 系統目。disposal 系統は W4+W6） | 他 4 画面配線で invalidateAndClose() 呼出しが省かれ保存中リスト残置 |
 
 ## State Lifecycle Matrix
 
@@ -82,7 +84,7 @@ Risk: R3
 ## Negative Paths
 
 - missing input: 空文字は fetch 不発火・リスト非表示（S1 の 0 文字 case）
-- invalid input: composing 途中文字列での候補更新は許容（D5、S12 の対偶）
+- invalid input: composing 途中文字列での候補更新は許容（D5、S20 で独立 assert）
 - duplicate/ambiguous input: 同一検索語の再応答は token で直近のみ採用（S9）
 - unknown reference: find_stocktake_item None は既存無言 no-op 継承（D8、pre-existing）
 - dependency missing: fetch error → silent close（S17）
@@ -150,6 +152,8 @@ Risk: R3
 | X10 | 候補確定を既存 handler 迂回の独自追加処理に置換（1 画面） | 当該 W 系（W1〜W5 のいずれか） |
 | X11 | active 移動を端で wrap させる | S5 |
 | X12 | onMouseDown の default 抑止を除去 | S14 |
+| X13 | invalidateAndClose() の close / timer cancel / in-flight 不採用処理を no-op に置換 | S19 / W6 / W9 |
+| X14 | onChange / debounce 経路に composing guard を追加 | S20 |
 
 - 注入は commit 後の clean tree で行い、`git checkout` 復元で未 commit 是正を消さない（memory: mutation-test-on-clean-tree-only）
 - Coordinator 再実測は Writer の記録を参照しない独立導出とする
