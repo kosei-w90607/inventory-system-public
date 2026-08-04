@@ -15,6 +15,8 @@ Risk: R3
 
 - 契約文の欠落・片側 drift（5 画面横並びのうち 1 画面だけ文言が欠ける / ずれる）
 - 「自動 active 化禁止」が落ち、スキャナ Enter が候補確定に化ける設計解釈を許す
+- リスト差し替え時の active 持ち越しで、更新直後の Enter が意図しない行を確定する
+- pointer 経由（hover）の active 生成、または候補行 click の確定 semantics 未定義
 - 数値契約（debounce 200ms / per_page 5）の無断改変
 - 既存 commit 型契約文言の意図しない書き換え
 - SCREEN_DESIGN 再掲の同期漏れ
@@ -42,7 +44,9 @@ anchor 検査はすべて `rg -c "<literal>" <file>` の完全一致 count で�
 | SPEC-SUGGEST-D10 | lock 連動欠落 | CLI | M-A15: literal「suggest fetch を発火せず、表示中リストは close」 | 保存中の候補操作を許す |
 | UI_TECH_STACK 追記 | 横断規定欠落 | CLI | M-A16: §5.3 内 literal「候補プレビュー」>= 1 + §5.4 内「aria-activedescendant」>= 1 | 横断正本の同期漏れ |
 | SCREEN_DESIGN 同期 | 再掲 drift | CLI | M-A17: 商品追加欄再掲節に「候補プレビュー」>= 1 | 写しの取り残し |
-| 既存契約不変 | 意図しない書き換え | CLI | M-C1: `git diff main -- docs/function-design/` で既存 D-ID（UI-02-D4 等 12 契約）の定義行に変更 hunk なし | 拡張のはずが置換になっている |
+| SPEC-SUGGEST-D2 追補 | active 持ち越しによる誤確定 | CLI | M-A18: literal「直前の active 候補は必ず解除し持ち越さない」 | リスト差し替え直後の Enter が旧 index の行を確定する設計を許す |
+| SPEC-SUGGEST-D6 追補 | hover active 化で race 復活 / click 未定義 | CLI | M-A19: literal「マウス hover（mouseenter 等）は active 候補を生成しない」 | pointer 経由の active 生成でスキャナ race 防御が崩れる |
+| 既存契約不変 | 意図しない書き換え | CLI | M-C1: `git diff main -- docs/function-design/` で既存 13 契約（UI-02-D4/D5、UI-04-D4/D5、UI-03-D9/D10、UI-05-D5/D6/D15、UI-10-D2/D11、TRACE-D12、UI-01a-D9）の定義行に変更 hunk なし | 拡張のはずが置換になっている |
 | PK4 | packet link 欠落 | script | M-W1: `scripts/doc-consistency-check.sh` PK 系 WARN 0 | Plans.md link 漏れ |
 
 ## State Lifecycle Matrix
@@ -54,7 +58,9 @@ docs-only のため実 runtime state はないが、設計対象の suggest 層 
 | suggest リスト | closed | debounce 200ms 待ち + fetch 中（表示は前回内容維持 or closed） | open（<=5 行 + footer） | Enter commit / clear / 確定 / lock で破棄 + close | 入力変化ごとに sequence token 更新 | 画面再訪で closed | — | silent close | 次入力で自然再試行 | SPEC-SUGGEST-D3/D4 |
 | active 候補 | なし | — | ↓/↑ でのみ生成 | close 時解除 | リスト内容更新時は解除（index 持ち越し禁止） | — | — | — | — | SPEC-SUGGEST-D2/D6 |
 
-（リスト内容更新時の active 解除は catalog ⑮ D6 の細目として amendment 時に明文化する — 持ち越すと更新直後の Enter が意図しない行を確定する）
+（リスト内容更新時の active 解除は SPEC-SUGGEST-D2 に凍結済み — rally round 1 P1-1 是正で Matrix 側言及から Spec Contract 本文へ昇格）
+
+- unmount / 画面遷移: unmount 時は pending debounce timer を破棄する（React cleanup）。sequence token 比較により in-flight fetch が resolve しても採用されない（rally round 1 P3-2 是正）
 
 ## Adjacent Pattern Audit
 
@@ -123,6 +129,8 @@ docs-only のため実 runtime state はないが、設計対象の suggest 層 
 - X6: D6 の aria-activedescendant 文言削除 → M-A11 red
 - X7: D9 の「新規 npm 依存は追加しない」削除 → M-A14 red
 - X8: 61 の UI-02-D14 追記だけ落とす（片側 drift）→ M-A1 red、他画面 green のまま = 画面別弁別性あり
+- X9: D2 の「直前の active 候補は必ず解除し持ち越さない」削除 → M-A18 red
+- X10: D6 の「マウス hover（mouseenter 等）は active 候補を生成しない」削除 → M-A19 red
 - 実行方式: clean tree で mutation を実注入 → M 系 anchor 検査を実行 → red 確認 → checkout 復元（memory: mutation-test-on-clean-tree-only。commit 後の clean tree でのみ実施）
 
 ## Residual Test Gaps

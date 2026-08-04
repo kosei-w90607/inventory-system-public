@@ -127,7 +127,7 @@ Goal Invariant:
 
 - Source docs can answer what is being built and why without chat history: catalog ⑮ に「なぜ variant B か（スキャナ race）」「なぜ cmdk 不採用か（供給網防御下の依存追加回避 + 既存 radix-ui で不足）」を理由ごと正本化する
 - Plan-only durable decisions found and promoted: 実装形態（プレビュー層のみ共通部品化、commit 経路 5 箇所は不変）を catalog ⑮ へ昇格
-- Assumptions and constraints: HID スキャナは「コード文字列 + Enter」を人間のタイピングより高速に送出し、方向キーは送出しない（UI-02-D5 系の既存前提を継承）
+- Assumptions and constraints: 本 change が新規に置く物理前提（UI-02-D5 の HID キーボード前提の拡張であり、D5 自体は方向キーに言及しない）: HID スキャナは「コード文字列 + Enter」を人間のタイピングより高速に送出し、方向キーは送出しない。実装 PR L3 での実機検証必須（Ledger 前積み済み）
 - Deferred design gaps: 複数件候補テーブルとプレビューの将来統合は非目的として defer（要望発生時に別 change）
 - Test Design Matrix can cite design decision IDs: M 系 anchor が各 D-ID / SPEC-SUGGEST-Dn を引用
 - Absolute guarantee / escape hatch self-check: 「既存 commit 経路不変」は全 5 画面の既存 test（T17/T23 含む）が実装 PR の凍結義務として担保。例外なし
@@ -161,7 +161,7 @@ Goal Invariant:
 
 ## Contract Probe
 
-- N/A: 本 design は新規外部依存・未検証外部前提を導入しない（radix Popover は不採用側の判断、採用側は素の絶対配置 div + 既存 React のみ）。唯一の物理前提「HID スキャナは方向キーを送らず keystroke 間隔 < 200ms」は既存 UI-02-D5 系前提の継承であり、実装 PR の L3 スキャナ実測項目として Ledger に前積みする（design PR 内では検証不能のため）。
+- N/A: 本 design は新規外部依存・未検証外部前提を導入しない（radix Popover は不採用側の判断、採用側は素の絶対配置 div + 既存 React のみ）。唯一の物理前提「HID スキャナは方向キーを送らず keystroke 間隔 < 200ms」は本 change が新規に置く前提（UI-02-D5 の HID キーボード前提の拡張。D5 自体は方向キー非送出を保証しない）であり、実装 PR の L3 スキャナ実測項目として Ledger に前積みする（design PR 内では検証不能のため）。
 
 ## Contract Coverage Ledger
 
@@ -213,26 +213,26 @@ Test Design Matrix: `docs/plans/test-matrices/2026-08-04-product-add-suggest-des
 Contract ID: SPEC-SUGGEST
 
 - D1（二層構造・不干渉）: live 候補プレビューは表示専用の追加層である。既存 Enter commit 経路（検索実行・0/1/複数分岐・行追加・focus 復帰・IME guard）のロジックは変更しない。suggest 層の失敗（fetch error 含む）は commit 経路へ波及せず、候補非表示に縮退する。
-- D2（Enter 分岐）: 候補リストに active 候補（aria-activedescendant が指す行）が存在する場合のみ Enter は候補確定として動作する。active 候補は ↓/↑ キー操作によってのみ生成される（表示直後の自動 active 化・先頭行自動選択は禁止）。active 候補なしの Enter は常に既存 commit 経路を実行する。
+- D2（Enter 分岐）: 候補リストに active 候補（aria-activedescendant が指す行）が存在する場合のみ Enter は候補確定として動作する。active 候補は ↓/↑ キー操作によってのみ生成される（表示直後の自動 active 化・先頭行自動選択は禁止）。active 候補なしの Enter は常に既存 commit 経路を実行する。候補リストの内容が更新された場合（debounce 再 fetch による差し替え）、直前の active 候補は必ず解除し持ち越さない（更新直後の Enter が意図しない行を確定することを防ぐ）。新しいリストで active を得るには再度 ↓/↑ の操作を要する。
 - D3（発火条件）: debounce 200ms（TRACE-D12 と同値）。入力 1 文字以上で発火。取得は per_page 5、総件数超過時は候補末尾に「ほか N 件（Enter で検索）」を表示する。0 件時は非表示（メッセージなし。0 件文言は既存 commit 経路の所掌）。
 - D4（破棄条件）: suggest fetch は sequence token で直近要求のみ採用する。Enter commit 実行・入力欄 clear・候補確定・form lock 成立の各時点で pending fetch の結果は破棄し、リストを close する。保存 lock との整合は UI-05-D15 の event 境界同期に従う。
 - D5（IME）: `event.nativeEvent.isComposing` guard は Enter keydown のみ（既存 guard を最優先で維持）。onChange / debounce 経路に composing guard は置かず、変換途中文字列での候補更新を許容する（SearchBar live 型の既定意味論 = PR #61 P1-2 裁定 a と同一）。
-- D6（キーボード・a11y）: input は `role="combobox"` + `aria-expanded` + `aria-controls` + `aria-activedescendant`、リストは `role="listbox"`、行は `role="option"`。focus は常に input が保持する（リストへ focus 移動しない）。↓/↑ で active 移動（端で wrap しない）、Esc で close + active 解除、blur / Tab で close。
+- D6（キーボード・a11y）: input は `role="combobox"` + `aria-expanded` + `aria-controls` + `aria-activedescendant`、リストは `role="listbox"`、行は `role="option"`。focus は常に input が保持する（リストへ focus 移動しない）。↓/↑ で active 移動（端で wrap しない）、Esc で close + active 解除、blur / Tab で close。候補行のクリックは active の有無に関わらず当該行の即時候補確定として扱い、D7 の同一 handler を呼ぶ（`onMouseDown` 時点で default を抑止し、input の blur による close との race を防ぐ）。マウス hover（mouseenter 等）は active 候補を生成しない（active 生成は D2 の ↓/↑ 経由に限定）。
 - D7（候補行表示・確定 semantics）: 候補行は商品コード + 商品名 + 部門名の統一 3 項目（画面固有列は出さない）。候補確定時の挙動は当該画面の既存「複数件候補テーブルからの選択」と同一 handler を通す。
 - D8（棚卸し）: 棚卸しの suggest fetch は `searchProducts`（部分一致）を用い、候補確定は既存 UI-10-D2 の `find_stocktake_item` 経由で棚卸し対象化する。UI-10-D11 の focus 遷移契約（解決成功で数量欄へ）は候補確定経由でも同一に発火する。
 - D9（実装形態・依存）: プレビュー層は新規共通 component + hook として 1 箇所に実装し 5 画面へ配線する。新規 npm 依存は追加しない（cmdk 不採用。radix Popover も不使用 — focus 非奪取要件から素の絶対配置要素で実装）。既存 5 画面の commit 経路コードの共通化・移動は行わない。
-- D10（無効化条件）: form 保存中 lock / disabled 状態では suggest fetch を発火せず、表示中リストは close する。
+- D10（無効化条件）: form 保存中 lock / disabled 状態では suggest fetch を発火せず、表示中リストは close する。suggest 層は各画面の既存 lock 状態を単一 source として受け取り、新規の lock 機構を作らない。disposal では UI-05-D15 の lock ref がその source である（二重 lock の相互不整合を構造的に排除する）。
 
 ## Trace Matrix
 
 | Spec ID | Plan Step | Test | Review Focus | Evidence |
 |---|---|---|---|---|
 | SPEC-SUGGEST-D1 | catalog ⑮ 起草 | M-A6 / X1 | 不干渉の絶対保証 | rg anchor |
-| SPEC-SUGGEST-D2 | 同上 | M-A7 / X2 | スキャナ race 構造解決 | rg anchor |
+| SPEC-SUGGEST-D2 | 同上 | M-A7・M-A18 / X2・X9 | スキャナ race 構造解決 + active 持ち越し禁止 | rg anchor |
 | SPEC-SUGGEST-D3 | 同上 | M-A8 / X3 | 数値（200ms/5 件）の実測整合 | rg anchor |
 | SPEC-SUGGEST-D4 | 同上 | M-A9 / X4 | UI-05-D15 整合 | rg anchor |
 | SPEC-SUGGEST-D5 | 同上 | M-A10 / X5 | SearchBar 既定整合 | rg anchor |
-| SPEC-SUGGEST-D6 | 同上 | M-A11 / X6 | a11y 構造 | rg anchor |
+| SPEC-SUGGEST-D6 | 同上 | M-A11・M-A19 / X6・X10 | a11y 構造 + pointer 契約（click 確定 / hover 非生成） | rg anchor |
 | SPEC-SUGGEST-D7 | 同上 | M-A12 | 確定 semantics 同一性 | rg anchor |
 | SPEC-SUGGEST-D8 | 73 追記 | M-A13 / M-A5 | UI-10-D2/D11 接続 | rg anchor |
 | SPEC-SUGGEST-D9 | catalog ⑮ | M-A14 / X7 | 依存追加ゼロ | rg anchor |
