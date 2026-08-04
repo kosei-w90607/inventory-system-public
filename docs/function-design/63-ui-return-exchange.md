@@ -38,6 +38,7 @@
 | REQ-202 / cache | UI-03-D17 | 保存成功時の invalidation は [D-052](../decision-log.md) C5 と `src/lib/invalidation-contract.ts` を正本とし、`register_processed=true` では在庫系 consumer を対象外にする。 | レジ戻し済みの返品は在庫を書かないため、条件分岐も含めて mutation 契約で固定する。 |
 | REQ-202 / UI-03 | UI-03-D18 | Windows native L3 は owner 目視確認を必須にする。確認対象は navigation、種別切替、レジ戻し済みフラグの意味、商品検索/スキャン相当 Enter 追加、同一商品+direction 数量加算、validation、画像選択/プレビュー、保存結果、recent list、在庫照会へ戻る導線。 | 新規 operator-facing screen であり、レジ戻し済みの二重計上防止説明、連続入力、画像選択、フォーカス戻しは CI だけでは判断しづらい。 |
 | REQ-202 / note visibility | UI-03-D19 | 備考は返品・交換の確認優先度が高い項目として、入力時は複数行欄にし、保存結果・recent list・詳細画面では「備考」と分かる独立ラベル付き領域で表示する。本文は `text-foreground` 以上の濃さで、入力なしの場合は「備考なし」を muted 表示する。 | Windows native L3 で、備考が項目立てされず薄い文字で内容を判別しづらいことを確認した。返品理由、交換理由、顧客対応メモは後日の問い合わせ・月末確認で読むため、添付画像や補助説明に埋もれさせない。 |
+| REQ-202 / product add suggest | UI-03-D21 | 商品追加欄に live 候補プレビュー（catalog ⑮ ProductAddSuggest / SPEC-SUGGEST-D1〜D10）を追加する。Enter commit 経路（UI-03-D9）とフォーカス戻し（UI-03-D10）は不変。lock source は既存 `isFormLocked` 派生 state、候補確定は既存の複数件候補テーブル選択と同一 handler（現在の種別 / 方向ルールへの反映も既存経路のまま）。 | UI-02-D14 と同一の variant B 判断（純 autocomplete 型はスキャナ退行のため不採用）。契約正本は catalog ⑮。 |
 
 ## 63.2 Component / Route 構成
 
@@ -121,6 +122,7 @@ UI-03 実装 PR では以下を generated binding に出す。
 - ヘッダは `返品日`（既定は今日）、`種別`（返品 / 交換）、`レジ戻し済み`（既定 true）、`備考`（任意）を置く。備考は単一行 input ではなく複数行欄にし、返品理由・交換理由・顧客対応メモを 200 文字以内で読めるようにする。
 - `レジ戻し済み` true では `CSV取込みで反映`、false では `この保存で反映` の日本語 Badge を各選択肢内に出し、説明文も同じ選択肢内で読めるようにする。色だけで状態を表さない。
 - 商品追加欄は `商品コード・JAN・商品名で追加` とし、Enter で検索する。候補が複数ある場合は商品名、商品コード、部門、現在庫を見せる。
+- 商品追加欄は入力中に live 候補プレビュー（商品コード・商品名・部門、最大 5 件 + 超過 footer）を表示する（UI-03-D21、挙動契約は catalog ⑮ SPEC-SUGGEST-D1〜D10）。候補は ↓/↑ または click で選択でき、候補未選択の Enter は従来どおり検索を実行する。入力値が変わると候補は即座に閉じる。
 - 商品が見つからない場合は `商品登録へ` 導線を出す。未登録商品は商品マスタに登録してから返品・交換へ戻ることを日本語で示す。既存明細・入力（画像選択を含む）がある状態での離脱（`商品登録へ` 導線を含む）は未保存編集の離脱ガード（UI_TECH_STACK §6.11 `useUnsavedChangesWarning`）が破棄確認を出す。
 - 明細表は商品名、商品コード、部門、現在庫、方向（戻り / 渡し）、数量、単位、行削除を表示する。生地は `cm` 単位を主表示にする。
 - 返品種別が `返品` の場合、方向は `戻り` 固定にし、渡し行がある場合は保存前 validation で止める。
@@ -184,6 +186,7 @@ UI-03 実装 PR では以下を generated binding に出す。
 
 | 日付 | 版 | 内容 |
 |---|---|---|
+| 2026-08-05 | product add suggest design | UI-03-D21 新設: 商品追加欄の live 候補プレビュー（正本 = catalog ⑮ SPEC-SUGGEST-D1〜D10）。Enter commit 経路・フォーカス戻しは不変。 |
 | 2026-08-03 | UI safety net implementation | 返品・交換 form（receipt 画像選択を含む）の dirty 判定を共通離脱ガードへ接続し、保存中 / 保存結果の非 block を実装。 |
 | 2026-06-30 | UI-03 note visibility Design Phase | 備考を確認優先度が高い項目として複数行入力、保存結果、recent list、詳細画面で独立ラベル付き・通常本文色で表示する UI-03-D19 を追加。入力なしの場合は「備考なし」と表示する。 |
 | 2026-06-28 | UI-03 visibility follow-up | Windows native L3 で備考が項目立てされておらず、文字が薄く内容を判別しづらいことを確認。返品・交換では備考の必要性が高いため、次回改善で独立項目化とコントラストを見直す。 |

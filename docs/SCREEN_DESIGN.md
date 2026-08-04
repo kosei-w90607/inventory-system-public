@@ -240,6 +240,7 @@
   - UI は generated `commands.createReceiving(req)` / `commands.listReceivings(page, perPage, dateFrom, dateTo)` のみを使う。実装 PR では CMD-02 を tauri-specta binding に追加する
   - 入庫ヘッダは入庫日（既定は今日）、取引先（任意）、備考（任意）。取引先候補は `commands.listSuppliers()` 由来の complete master data とし、inline 新規取引先作成は初回実装では扱わない
   - 商品追加欄は商品コード / JAN / 商品名を同じ入力で扱う。Enter で検索し、1件なら明細追加、複数件なら候補から選択、0件なら商品登録への導線を出す
+  - 商品追加欄は入力中に live 候補プレビューを表示する（正本 = design-system/02-component-catalog.md ⑮。Enter commit 経路は不変）
   - バーコードスキャナは HID キーボード入力として商品追加欄に入る前提。初回実装ではグローバル検知を置かず、フォーカス中の入力欄 + Enter + 追加後フォーカス戻しに限定する
   - 同一商品を再追加した場合は重複行を作らず、既存行の数量を +1 する
   - 明細は商品名、商品コード、現在庫、入庫数量、原価、単位、削除を表示する。数量は整数 `> 0`、原価は整数 `>= 0` を保存前に検証する
@@ -258,6 +259,7 @@
   - UI は generated `commands.createReturn(req)` / `commands.listReturns(page, perPage, dateFrom, dateTo)` / `commands.saveReceiptImage(request)` のみを使う。実装 PR では CMD-03 と画像保存 command を tauri-specta binding に追加する
   - ヘッダは返品日（既定は今日）、種別（返品 / 交換）、レジ戻し済み（既定 true）、備考（任意）。レジ戻し済み true では在庫は CSV 取込みで反映、false ではこの保存で在庫反映することを、各選択肢内の日本語 Badge と説明で示す。備考は返品・交換の確認優先度が高い項目として、単一行ではなく複数行欄で入力する
   - 商品追加欄は商品コード / JAN / 商品名を同じ入力で扱う。Enter で検索し、1件なら明細追加、複数件なら候補から選択、0件なら商品登録への導線を出す
+  - 商品追加欄は入力中に live 候補プレビューを表示する（正本 = design-system/02-component-catalog.md ⑮。Enter commit 経路は不変）
   - バーコードスキャナは HID キーボード入力として商品追加欄に入る前提。初回実装ではグローバル検知を置かず、フォーカス中の入力欄 + Enter + 追加後フォーカス戻しに限定する
   - 明細は商品名、商品コード、部門、現在庫、方向（戻り / 渡し）、数量、単位、削除を表示する。返品では `戻り` のみ、交換では `戻り` と `渡し` の両方を要求する
   - 明細の一意性は商品コード + 方向。同じ商品を同じ方向で再追加した場合は数量を +1 し、交換で同じ商品が戻り/渡し両方にある場合は別行として残す
