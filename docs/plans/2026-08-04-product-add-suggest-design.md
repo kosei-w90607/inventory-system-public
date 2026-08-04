@@ -13,7 +13,7 @@
 - Final Reviewer: Codex（owner relay）
 - Reviewed Content HEAD: pending
 - Final Exact-HEAD Evidence: PR body
-- Hosted CI Requirement: not-required（docs-only、`paths-ignore` 構成どおり。Ready 時に変更 path 実績で CI-TRIGGER-D1 の 4 state から再判定）
+- Hosted CI Requirement: required（R3 は原則 hosted final 1 run — docs/ci.md Risk Routing。docs-only の paths-ignore で auto run が作成されない場合は CI-TRIGGER-D1 に従い `workflow_dispatch` を 1 回実行し、PR HEAD = PR body L1 SHA = hosted headSha の三点一致を merge 条件とする。Final Review round 1 P2-1 是正 — 当初の not-required は誤分類）
 - Human Gate: owner plan 承認 / Ready 承認（docs-only のため L3 なし。スキャナ実測は実装 PR 側 L3）
 
 ## Owner Effort Budget
@@ -155,7 +155,7 @@ Goal Invariant:
 - Backend function design: 不変
 - Command / DTO / data contract: 不変（ProductSearchQuery 流用、per_page はプレビュー専用値 5 を UI 側定数で持つ — D-031 clamp と無関係）
 - Persistence / transaction / audit impact: なし
-- Operator workflow / Japanese UI wording: 候補行 = 商品コード + 商品名 + 部門名、footer 文言「ほか N 件（候補未選択で Enter: 全件検索）」を catalog ⑮ で確定
+- Operator workflow / Japanese UI wording: 候補行 = 商品コード + 商品名 + 部門名、footer 文言「ほか N 件（候補未選択で Enter: 従来の検索）」を catalog ⑮ で確定
 - Error, empty, retry, and recovery behavior: fetch 失敗は silent close（commit 経路の error 表示と分離）、0 件は非表示
 - Testability and traceability IDs: 各 D-ID + SPEC-SUGGEST-Dn
 
@@ -214,10 +214,10 @@ Contract ID: SPEC-SUGGEST
 
 - D1（二層構造・不干渉）: live 候補プレビューは表示専用の追加層である。既存 Enter commit 経路（検索実行・0/1/複数分岐・行追加・focus 復帰・IME guard）のロジックは変更しない。suggest 層の失敗（fetch error 含む）は commit 経路へ波及せず、候補非表示に縮退する。
 - D2（Enter 分岐）: 候補リストに active 候補（aria-activedescendant が指す行）が存在する場合のみ Enter は候補確定として動作する。active 候補は ↓/↑ キー操作によってのみ生成される（表示直後の自動 active 化・先頭行自動選択は禁止）。active 候補なしの Enter は常に既存 commit 経路を実行する。候補リストの内容が更新された場合（debounce 再 fetch による差し替え）、直前の active 候補は必ず解除し持ち越さない（更新直後の Enter が意図しない行を確定することを防ぐ）。新しいリストで active を得るには再度 ↓/↑ の操作を要する。さらに、入力値が変化した onChange event の時点で active 候補を同期的に解除する。同時に表示中のリストを close し、新しいリストは現在入力値に対する最新結果の採用後にのみ open する（旧リストの表示維持・click 操作は行わない — pointer 経路の stale 確定を構造的に排除）。この同期解除 + close により、Enter commit 経路の到達はスキャナ timing・debounce 残量に依存しない。
-- D3（発火条件）: debounce 200ms（TRACE-D12 と同値）。入力 1 文字以上で発火。取得は per_page 5、総件数超過時は候補末尾に「ほか N 件（候補未選択で Enter: 全件検索）」を表示する。0 件時は非表示（メッセージなし。0 件文言は既存 commit 経路の所掌）。
+- D3（発火条件）: debounce 200ms（TRACE-D12 と同値）。入力 1 文字以上で発火。取得は per_page 5、総件数超過時は候補末尾に「ほか N 件（候補未選択で Enter: 従来の検索）」を表示する。0 件時は非表示（メッセージなし。0 件文言は既存 commit 経路の所掌）。
 - D4（破棄条件）: suggest fetch は sequence token で直近要求のみ採用する。sequence generation は各入力変更時（debounce 開始前）に更新し、応答は token と検索語が現在入力値の双方に一致する場合のみ採用する。Enter commit 実行・入力欄 clear・候補確定・lock 成立・Esc・blur / Tab・unmount の各時点では、リスト / active の close に加え、pending debounce timer を cancel し、generation を進めて in-flight 応答（success / error とも）を不採用にする。保存 lock との整合は D10 の per-画面 lock source 契約に従う（disposal のみ UI-05-D15 の lock ref、取引 3 画面〈receiving / manual-sale / return-exchange〉は各画面の既存 `isFormLocked` 派生 state、棚卸しは既存 `isCompleting`〈`completeMutation.isPending`〉派生 state を単一 source とする）。
 - D5（IME）: suggest 層の onKeyDown は冒頭で `event.nativeEvent.isComposing` を判定し、true の間は Enter / ↓ / ↑ / Esc を含む suggest キー処理全体を行わず IME に委ねる（変換候補操作の方向キーで active を生成しない。既存 commit 経路の Enter guard も従来どおり維持）。onChange / debounce 経路に composing guard は置かず、変換途中文字列での候補更新を許容する（SearchBar live 型の既定意味論 = PR #61 P1-2 裁定 a と同一）。
-- D6（キーボード・a11y）: input は `role="combobox"` + `aria-expanded` + `aria-controls` + `aria-activedescendant`、リストは `role="listbox"`、行は `role="option"`。focus は常に input が保持する（リストへ focus 移動しない）。↓/↑ で active 移動（端で wrap しない）、Esc で close + active 解除、blur / Tab で close。候補行のクリックは active の有無に関わらず当該行の即時候補確定として扱い、D7 の同一 handler を呼ぶ（`onMouseDown` 時点で default を抑止し、input の blur による close との race を防ぐ）。マウス hover（mouseenter 等）は active 候補を生成しない（active 生成は D2 の ↓/↑ 経由に限定）。footer 行（「ほか N 件…」）は `role="option"` を持たない非選択の装飾行であり、↓/↑ による active 移動の対象外とする。footer 表示中に active 候補なしで Enter を押した場合の挙動は D2 の既定分岐（既存 commit 経路の実行）と同一であり、footer 文言の「候補未選択で Enter: 全件検索」はその結果を指す。
+- D6（キーボード・a11y）: input は `role="combobox"` + `aria-expanded` + `aria-controls` + `aria-activedescendant`、リストは `role="listbox"`、行は `role="option"`。focus は常に input が保持する（リストへ focus 移動しない）。↓/↑ で active 移動（端で wrap しない）、Esc で close + active 解除、blur / Tab で close。候補行のクリックは active の有無に関わらず当該行の即時候補確定として扱い、D7 の同一 handler を呼ぶ（`onMouseDown` 時点で default を抑止し、input の blur による close との race を防ぐ）。マウス hover（mouseenter 等）は active 候補を生成しない（active 生成は D2 の ↓/↑ 経由に限定）。footer 行（「ほか N 件…」）は `role="option"` を持たない非選択の装飾行であり、↓/↑ による active 移動の対象外とする。footer 表示中に active 候補なしで Enter を押した場合の挙動は D2 の既定分岐（既存 commit 経路の実行）と同一であり、footer 文言の「候補未選択で Enter: 従来の検索」はその結果（既存 commit 経路へ戻ること）を指し、全一致件数の表示を保証しない。
 - D7（候補行表示・確定 semantics）: 候補行は商品コード + 商品名 + 部門名の統一 3 項目（画面固有列は出さない）。候補確定時の挙動は当該画面の既存「複数件候補テーブルからの選択」と同一 handler を通す。
 - D8（棚卸し）: 棚卸しの suggest fetch は `searchProducts`（部分一致）を用い、候補確定は既存 UI-10-D2 の `find_stocktake_item` 経由で棚卸し対象化する。UI-10-D11 の focus 遷移契約（解決成功で数量欄へ）は候補確定経由でも同一に発火する。候補確定後に `find_stocktake_item` が稀に `None` を返す場合は既存 `selectCandidate` の無言 no-op 挙動をそのまま継承する（既知の pre-existing gap、本 change の scope 外）。
 - D9（実装形態・依存）: プレビュー層は新規共通 component + hook として 1 箇所に実装し 5 画面へ配線する。新規 npm 依存は追加しない（cmdk 不採用。radix Popover も不使用 — focus 非奪取要件から素の絶対配置要素で実装）。既存 5 画面の commit 経路コードの共通化・移動は行わない。
@@ -253,4 +253,5 @@ Contract ID: SPEC-SUGGEST
 
 - Plan Gate（2026-08-04〜05）: Sonnet 5 独立 rally 3 round（P1×3 / P2×5 / P3×3、全 accept — 是正 `9be88a0` / `cdd325f` / `9ba8c31`）→ Codex プラン全体レビュー 4 round（P1×3 / P2×13 / P3×2、全 accept — 是正 `ff3479e` / `db0cb45` / `3a69c32`。相互修正案方式、owner relay 4 往復）→ round 4 verdict「Plan Gate closure 可（P1/P2=0）」。主要な設計改善 = active の onChange 同期解除 + リスト close による timing 非依存化（Codex P1-1 起点）、安全性保証の supported sequence scope 確定（同 round 2 P1-1）、pointer 経路の stale 確定排除（同 P2-1）。設計骨格（variant B・二層不干渉・↓/↑限定 active 生成）は初版から不変。
 - 遷移記録（recording compression）: 本 state-only commit は `plan-gate -> plan-approved -> implementing` の隣接 forward 遷移を一括実体化する。中間遷移の evidence = plan-approved: owner plan 承認 2026-08-05（介入 1/3、承認文言は会話記録、PR body へ転記予定）+ Plan Gate closure verdict「Plan Gate closure 可（P1/P2=0）」（上記 Plan Gate 記録）/ implementing: plan-first commit `61cd269` が amendment 執筆着手に先行して確定済み。
-- Findings Freeze: not yet frozen（Freeze は Final Review 後）
+- Final Review（Codex、owner relay）round 1（2026-08-05）: P1=0 / P2×4 全 accept — (1) Hosted CI Requirement を required へ是正（docs/ci.md Risk Routing 突合で「docs-only = not-required」が誤分類と確認。paths-ignore で auto run が無い場合は workflow_dispatch 1 回 + 三点一致）、(2) catalog ⑮ の適用 manifest を durable 化（Plan Packet 委譲を廃し、D-ID 5 列挙 + 除外 3 画面 / 候補テーブルを catalog 本文へ明記）、(3) 73 §73.5 step 2 の「既存 patterns/SearchBar」記述を実装実態（素の Input）+ ⑮ 結線へ是正（pre-existing drift、UI-10-D12 との矛盾解消）、(4) footer 文言を「候補未選択で Enter: 従来の検索」へ変更（既存 Enter 検索は per_page 10 の先頭ページのみで「全件検索」は実在しない能力の約束 — packet/catalog 計 5 hit を同期し、D6 へ「全一致件数の表示を保証しない」を明記）。是正過程の隣接発見 = catalog 見出し「14 パターン」/ README 索引「13 パターン」の pre-existing 数 drift を 15 へ一括同期（⑭ 追加時の未追随含む）。Ledger 不適合 2 行（UI-10-D12 / SPEC-SUGGEST-D1〜D10）は本是正で解消見込み — closure round で再判定。Codex は mutation 23 変種の独立再実測（全 RED、X8 cross green）と L1 full 独立実走（PASS/CLEAN）も完了済み。
+- Findings Freeze: not yet frozen（Freeze は Final Review closure 後）
