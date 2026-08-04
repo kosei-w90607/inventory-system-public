@@ -245,9 +245,10 @@ describe("ProductAddSuggest (SPEC-SUGGEST-D1〜D10)", () => {
     render(<Harness />);
     const input = screen.getByRole("combobox");
 
-    fireEvent.change(input, { target: { value: "旧" } });
+    fireEvent.change(input, { target: { value: "同一語" } });
     await advance(200);
-    fireEvent.change(input, { target: { value: "新" } });
+    fireEvent.change(input, { target: { value: "別語" } });
+    fireEvent.change(input, { target: { value: "同一語" } });
     await advance(200);
     second.resolve(
       okProducts([makeMockProductWithRelations({ product_code: "NEW", name: "新応答" })]),
