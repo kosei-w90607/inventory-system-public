@@ -58,7 +58,7 @@ anchor 検査はすべて `rg -c "<literal>" <file>` の完全一致 count で�
 | SPEC-SUGGEST-D4 追補 | stale 応答の誤採用 | CLI | M-A23: 2 literal 必須 — (a)「token と検索語が現在入力値の双方に一致する場合のみ採用」(b)「sequence generation は各入力変更時（debounce 開始前）に更新」 | generation 更新時点句の削除・任意解釈で古い応答を採用しうる |
 | SPEC-SUGGEST-D4 追補 | close 後の timer / in-flight 残存 | CLI | M-A24: 2 literal 必須 — (a)「pending debounce timer を cancel し、generation を進めて in-flight 応答（success / error とも）を不採用にする」(b) close event 集合全文「Enter commit 実行・入力欄 clear・候補確定・lock 成立・Esc・blur / Tab・unmount」 | event 集合の部分削除（Esc/blur 等）でも green になる survivor を防ぐ |
 | SPEC-SUGGEST-D10 追補 | hook API 境界未定義 | CLI | M-A25: 2 literal 必須 — (a)「同期 `isLocked(): boolean` と、保存 event から同期呼出しされる `invalidateAndClose()`」(b)「UI-05-D15 の lock ref を更新した同じ event 内で `invalidateAndClose()` を呼ぶ」 | disposal の event 境界 race 窓が boolean prop 化 / 呼出し時点未定義で再導入される |
-| SPEC-SUGGEST-D2 追補 | pending 中の旧リスト click | CLI | M-A26: literal「新しいリストは現在入力値に対する最新結果の採用後にのみ open する」 | 入力変更後の旧リスト click で現在入力と無関係な候補が確定する（Codex round 2 P2-1） |
+| SPEC-SUGGEST-D2 追補 | pending 中の旧リスト click | CLI | M-A26: 2 literal 全て必須 — (a)「旧リストの表示維持・click 操作は行わない」(b)「新しいリストは現在入力値に対する最新結果の採用後にのみ open する」（(b) 単独では旧リスト維持型への反転を検出できない — Codex round 3 P2-A 是正） | 入力変更後の旧リスト click で現在入力と無関係な候補が確定する（Codex round 2 P2-1） |
 | 既存契約不変 | 意図しない書き換え | CLI | M-C1: `git diff main -- docs/function-design/` で既存 13 契約（UI-02-D4/D5、UI-04-D4/D5、UI-03-D9/D10、UI-05-D5/D6/D15、UI-10-D2/D11、TRACE-D12、UI-01a-D9）の定義行に変更 hunk なし | 拡張のはずが置換になっている |
 | PK4 | packet link 欠落 | script | M-W1: `scripts/doc-consistency-check.sh` PK 系 WARN 0 | Plans.md link 漏れ |
 
@@ -69,7 +69,7 @@ docs-only のため実 runtime state はないが、設計対象の suggest 層 
 | State / subject | Initial | Pending | Success | Invalidate | Refetch | Revisit | Restart | Failure | Retry | Evidence |
 |---|---|---|---|---|---|---|---|---|---|---|
 | suggest リスト | closed | debounce 200ms 待ち + fetch 中（closed — 入力変化時に close 済み、最新結果採用まで open しない） | open（<=5 行 + footer） | Enter commit / clear / 確定 / lock / Esc / blur / Tab / unmount で timer cancel + in-flight 不採用 + close | 入力変化ごとに sequence generation 更新（debounce 開始前）、採用は token + 検索語の二重一致 | 画面再訪で closed | — | silent close | 次入力で自然再試行 | SPEC-SUGGEST-D3/D4 |
-| active 候補 | なし | — | ↓/↑ でのみ生成（IME composing 中は生成しない） | close 時解除 + 入力値変化の onChange で同期解除 | リスト内容更新時は解除（index 持ち越し禁止）、最新結果採用まで旧リスト上で新規生成しない | — | — | — | — | SPEC-SUGGEST-D2/D5/D6 |
+| active 候補 | なし | — | ↓/↑ でのみ生成（IME composing 中は生成しない） | close 時解除 + 入力値変化の onChange で同期解除 | リスト内容更新時は解除（index 持ち越し禁止）、入力変更時に解除し最新結果が採用・open されるまで新規生成しない（pending 中のリストは closed） | — | — | — | — | SPEC-SUGGEST-D2/D5/D6 |
 
 （リスト内容更新時の active 解除は SPEC-SUGGEST-D2 に凍結済み — rally round 1 P1-1 是正で Matrix 側言及から Spec Contract 本文へ昇格）
 
@@ -150,7 +150,7 @@ docs-only のため実 runtime state はないが、設計対象の suggest 層 
 - X14: (a) 「検索語が現在入力値」一致条件を token 単独一致へ弱体化 / (b) 「debounce 開始前」の generation 更新時点句を削除 → M-A23 の該当 literal red
 - X15: (a) timer cancel / in-flight 不採用文を削除 / (b) close event 集合から Esc・blur / Tab を削除 → M-A24 の該当 literal red
 - X16: (a) `isLocked()` / `invalidateAndClose()` API 契約を削除 / (b) disposal の同一 event 内呼出し句を削除 → M-A25 の該当 literal red
-- X17: D2 の「新しいリストは現在入力値に対する最新結果の採用後にのみ open する」削除 → M-A26 red
+- X17: (a) D2 の「旧リストの表示維持・click 操作は行わない」を削除または「旧リストを表示維持し click を許可する」へ反転 / (b) 「新しいリストは現在入力値に対する最新結果の採用後にのみ open する」句を削除 → M-A26 の該当 literal red
 - 実行方式: clean tree で mutation を実注入 → M 系 anchor 検査を実行 → red 確認 → checkout 復元（memory: mutation-test-on-clean-tree-only。commit 後の clean tree でのみ実施）
 
 ## Residual Test Gaps

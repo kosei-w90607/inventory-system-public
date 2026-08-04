@@ -172,7 +172,7 @@ Goal Invariant:
 | UI-03-D21（63 追記） | 本 PR docs | M-A3 | 同上 |
 | UI-05-D16（64 追記、D15 整合文含む） | 本 PR docs | M-A4 | 同上 |
 | UI-10-D12（73 追記、D2/D11 接続文含む） | 本 PR docs | M-A5 | 同上 |
-| SPEC-SUGGEST-D1〜D10（catalog ⑮） | 本 PR docs | M-A6〜M-A15、M-A18〜M-A25（rally + Codex review 是正追補） | 同上 |
+| SPEC-SUGGEST-D1〜D10（catalog ⑮） | 本 PR docs | M-A6〜M-A15、M-A18〜M-A26（rally + Codex review 是正追補） | 同上 |
 | UI_TECH_STACK §5.3/§5.4 追記 | 本 PR docs | M-A16 | 同上 |
 | SCREEN_DESIGN 再掲同期 | 本 PR docs | M-A17 | 同上 |
 | Plans.md link（PK4） | 本 PR docs | doc-consistency PK4 | — |
