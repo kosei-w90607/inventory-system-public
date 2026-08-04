@@ -266,16 +266,18 @@ describe("ProductAddSuggest (SPEC-SUGGEST-D1〜D10)", () => {
   it("S10: token一致でも応答検索語が現在値と違えば採用しない", async () => {
     const pending = deferred<ReturnType<typeof okProducts>>();
     mockSearchProducts.mockReturnValueOnce(pending.promise);
-    const view = render(<Harness externalValue="旧" />);
+    const view = render(<Harness externalValue="" />);
     const input = screen.getByRole("combobox");
     fireEvent.change(input, { target: { value: "旧" } });
     await advance(200);
+    expect(mockSearchProducts).toHaveBeenCalledOnce();
 
     view.rerender(<Harness externalValue="新" />);
     pending.resolve(
       okProducts([makeMockProductWithRelations({ product_code: "OLD", name: "旧検索結果" })]),
     );
     await act(async () => pending.promise);
+    await advance(0);
 
     expect(screen.queryByText("旧検索結果")).not.toBeInTheDocument();
   });
