@@ -110,7 +110,7 @@ Risk: R3
 
 ## Compatibility Checks
 
-- old schema/input: 既存 5 画面 test file diff 0 + green（AC3、T17 = `StocktakePage.test.tsx` L255 / T23 = 同 L649 を含む）
+- old schema/input: 既存 5 画面 test file diff 0 + green（AC3、T17 = `StocktakePage.test.tsx` L255 / T23 = 同 L649 を含む。T3 の単数 combobox query 特定化のみ gated Amendment 1 の owner 承認例外 — assert 内容不変）
 - new schema/input: 新規 test は新規 file のみ（S 系 1 file + W 系 5 file）
 - output order: 候補行は searchProducts 応答順のまま（並び替えなし）
 - optional field behavior: department_name 欠落時の表示は既存候補テーブルの実表記を継承（S16 の null variant case で assert、oracle は実表記の独立転記）

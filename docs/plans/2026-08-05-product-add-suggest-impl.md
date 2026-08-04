@@ -52,7 +52,7 @@ Goal Invariant:
 
 ### 失敗定義
 
-- 既存 5 画面 test（`ReceivingPage.test.tsx` / `ManualSalePage.test.tsx` / `ReturnExchangePage.test.tsx` / `DisposalPage.test.tsx` / `StocktakePage.test.tsx`、T17/T23 含む）のいずれかが変更される、または red になる。
+- 既存 5 画面 test（`ReceivingPage.test.tsx` / `ManualSalePage.test.tsx` / `ReturnExchangePage.test.tsx` / `DisposalPage.test.tsx` / `StocktakePage.test.tsx`、T17/T23 含む）のいずれかが変更される、または red になる。（限定例外 = gated Amendment 1、owner 承認 2026-08-05: `StocktakePage.test.tsx` T3〈L227〉の `getByRole("combobox")` 単数 query は D6 の商品入力 combobox 追加で複数要素エラーになるため、名前付き query への特定化のみ許容する。T3 の assert 内容・他の全 test は不変のまま）
 - SPEC-SUGGEST-D1〜D10 のいずれかに反する実装（自動 active 化、旧リスト click 許可、focus 奪取、新規 npm 依存等）。
 
 ### 非目的
@@ -91,7 +91,7 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 
 - AC1: `ProductAddSuggest` component + `useProductAddSuggest` hook が `src/components/patterns/` に存在し、5 画面すべてに配線されている（`rg -l "ProductAddSuggest" src/features` が 5 画面の Page file を返す）
 - AC2: 新規 S 系 / W 系 test が Matrix の全行を cover し `npm test` green
-- AC3: 既存 5 画面 test file の diff が 0（`git diff main --name-only` に当該 5 file が現れない）かつ全既存 test green
+- AC3: 既存 5 画面 test file のうち `StocktakePage.test.tsx` を除く 4 file は diff 0（`git diff main --name-only` に現れない）。`StocktakePage.test.tsx` の diff は T3 の query 特定化のみ（`git diff main -- src/features/stocktake/StocktakePage.test.tsx` で確認し、変更が単数 combobox query の名前付き化に限られ assert 内容不変であることを PR body に記録 = gated Amendment 1）。全既存 test green
 - AC4: `bash scripts/local-ci.sh full` PASS / CLEAN（Writer 完了条件に含む）
 - AC5: Matrix X1〜X20 の各 mutation 注入で `npm test` が red になることを、Writer 自己実測 + Coordinator 独立再実測（clean tree、commit 後）の双方で確認する
 - AC6: catalog ⑮ canonical 注記が実 file path を指す（`rg -c "file 未作成" docs/design-system/02-component-catalog.md` = 0）
@@ -196,7 +196,7 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 | UI-05-D15（disposal lock ref 整合、同 event 内 invalidateAndClose） | DisposalPage 配線 | W6 | — |
 | UI-10-D2（候補確定は find_stocktake_item 経由、searchProducts 結果を直接 selectItem しない） | StocktakePage 配線 | W5 | — |
 | UI-10-D11（focus 遷移契約の候補確定経由同一発火） | StocktakePage 配線 | W7 | — |
-| 既存 commit 経路 test 不変（T17 = `StocktakePage.test.tsx` L255 / T23 = 同 L649 含む既存 5 test file） | 凍結義務 | AC3（diff 0 + green） | 凍結義務 |
+| 既存 commit 経路 test 不変（T17 = `StocktakePage.test.tsx` L255 / T23 = 同 L649 含む既存 5 test file。T3 query 特定化のみ gated Amendment 1 例外） | 凍結義務 | AC3（4 file diff 0 + T3 限定 diff 検分 + green） | 凍結義務 |
 | スキャナ実測（supported sequence〈バーコード文字列 + Enter〉適合の互換性確認 + UX 確認） | — | — | L3 行（PR body Human Gate） |
 | catalog ⑮ canonical 注記の実在同期 | docs | AC6 | — |
 
@@ -276,6 +276,7 @@ Do not transcribe exact-HEAD SHA or test counts here (D-035/D-038 Evidence Owner
 - Plan Gate rally round 3（Sonnet 5 独立 subagent、fresh context、2026-08-05）: P1×1 / P3×1、全 accept — (P1) Matrix 自身の Mutation-style Adequacy Questions が要求する threshold 変更 / key branch 逆転 / 出力 field 省略の 3 カテゴリが X 表に未操作化 → X15（Enter 分岐反転 → S6）/ X16（debounce 500ms 化 → S1）/ X17（department_name 省略 → S16）新設、(P3) S2/S13/S17 の同種 gap → 記録残しではなく X18〜X20 として追加（Codex 実測予算は制約なしのため全量注入を採用）。AC5 を X1〜X20 へ拡張、Ledger / Trace Matrix の該当行同期。是正 commit は本 round 是正後の content commit を参照。round 4 は新規探索なしの closure 確認限定として実施し、P1/P2=0 verdict を plan-approved の evidence とする。
 - Plan Gate rally round 4 = closure 確認限定（Sonnet 5 独立 subagent、fresh context、2026-08-05）: round 3 是正の完全反映（X15〜X20 = Matrix「必須 mutation 注入」表 X15〜X20 行に実在、AC5 / Ledger / Trace 同期済み、旧範囲表記の残存は `rg -n "X1〜X12|X1〜X14" docs/plans/` hit なし = exit 1 を Coordinator・reviewer 双方が独立実測）と、新設 X15〜X20 の弁別性（各注入と対象 S test assertion の一対一対応）を実読確認。verdict「P1/P2=0、Plan Gate closure 可」。参考記録の既存軽微不整合（Trace Matrix D6 行の S3/X7 欠落、round 3 起因でない）は closure 直後の同 commit で是正済み。
 - 遷移記録（recording compression）: 本 state-only commit は `plan-draft -> plan-gate -> plan-approved -> implementing` の隣接 forward 遷移を一括実体化する。中間遷移の evidence = plan-gate: packet + Test Design Matrix が plan-first commit `ef10439` で committed 済み / plan-approved: 独立 Plan Reviewer（Sonnet 5、Writer = Codex と別 vendor = D-062 充足）rally round 4 verdict「P1/P2=0、Plan Gate closure 可」（上記 rally 記録）+ owner plan 承認 2026-08-05（介入 1/3、承認記録は会話、PR body へ転記予定）/ implementing: plan-first commit `ef10439` が全実装 commit に先行することは本時点で実装 commit ゼロにより自明（PK5 ancestry は pre-merge gate で機械検査）。
+- gated Amendment 1（2026-08-05、owner 承認 = 介入 2/3）: Codex Writer の fail-closed 停止（true positive）— SPEC-SUGGEST-D6 の商品入力常時 `role="combobox"` と、凍結対象 `StocktakePage.test.tsx` T3（L221、L227 の `screen.getByRole("combobox")` 単数 query = 既存部門フィルターの radix Select trigger を取得）が衝突し、D6 どおりの配線で T3 が複数要素エラー red になる。Coordinator 実読検証: T3 L221/L227 実在、他 4 画面 test への同型 `ByRole("combobox")` query は `rg -n 'ByRole\("combobox"' src/features/{receiving,manual-sale,return-exchange,disposal}/*.test.tsx` hit 0（例外は T3 の 1 test に限定可能）。裁定 = T3 の名前付き query への特定化のみ許容（assert 意図〈filter 変更で getStocktakeItems params が変わる〉は不変）。対案の D6 改訂は凍結済み a11y 契約の後退のため不採用。Goal 失敗定義 / AC3 / Ledger 凍結行を本 Amendment で同期。
 - Findings Freeze 起点の確認: 本 packet の Final Review は Double Audit opt-in（Test Plan 参照）のため、Freeze は両 pass 完了後に発効する。
 
 - Findings Freeze: not yet frozen; post-freeze exceptions: none
