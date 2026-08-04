@@ -436,7 +436,7 @@ describe("ProductAddSuggest (SPEC-SUGGEST-D1〜D10)", () => {
     await advance(200);
 
     expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
-    expect(screen.queryByText("suggest failure")).not.toBeInTheDocument();
+    expect(screen.queryByText(/suggest failure/)).not.toBeInTheDocument();
     fireEvent.keyDown(input, { key: "Enter" });
     expect(onFallback).toHaveBeenCalledOnce();
   });
