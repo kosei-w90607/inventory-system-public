@@ -248,7 +248,7 @@ Contract ID: SPEC-SUGGEST（正本 = catalog ⑮、本 packet は転記しない
 | SPEC-SUGGEST-D3 | hook fetch | S1〜S3 / X7・X16・X18 | 発火条件・footer・threshold 感度 | npm test |
 | SPEC-SUGGEST-D4 | hook sequence/cancel | S9〜S11・S19 / X3〜X5 | 破棄条件網羅 | npm test |
 | SPEC-SUGGEST-D5 | component IME | S12・S20 / X6・X14 | isComposing 全域 guard + onChange 非 guard | npm test |
-| SPEC-SUGGEST-D6 | component a11y/pointer | S13〜S15 / X8・X11・X12・X19 | 構造・click/hover | npm test |
+| SPEC-SUGGEST-D6 | component a11y/pointer | S13〜S15・S3 / X7・X8・X11・X12・X19 | 構造・click/hover・footer | npm test |
 | SPEC-SUGGEST-D7 | 確定 semantics | S16 / W1〜W5 / X10・X17 | 同一 handler 委譲・field 省略感度 | npm test |
 | SPEC-SUGGEST-D8 | StocktakePage 配線 | W5 / W7 | find_stocktake_item 経由 | npm test |
 | SPEC-SUGGEST-D9 | 実装形態 | AC1 / AC9 / AC3 | 依存ゼロ・コード不変 | git diff / rg |
@@ -274,6 +274,7 @@ Do not transcribe exact-HEAD SHA or test counts here (D-035/D-038 Evidence Owner
 - Plan Gate rally round 2（Sonnet 5 独立 subagent、fresh context、2026-08-05）: P1×1 / P3×3、全 accept — (P1) D10「5 画面統一」裁定の test 網羅が 2/5 画面で D7（W1〜W5）と非対称 → W10（ManualSale）/ W11（ReturnExchange）/ W12（Stocktake 確定 event = completeMutation、update_count 単位でない旨明記）新設 + W9 の失敗条件を Receiving 単体へ修正 + X13 red 対象を W9〜W12 へ拡張 + Ledger/Trace D10 行更新、(P3) traceability コマンドの `cd src-tauri &&` 欠落 → Scope/AC8 是正、(P3) Contract Audit recommended second pass の判断未記載 → Double Audit opt-in を Test Plan に明記、(P3) department_name 欠落 case の test id 不在 → S16 に null variant case（oracle は既存候補テーブル実表記の独立転記）を義務化。是正 commit は本 round 是正後の content commit を参照。
 
 - Plan Gate rally round 3（Sonnet 5 独立 subagent、fresh context、2026-08-05）: P1×1 / P3×1、全 accept — (P1) Matrix 自身の Mutation-style Adequacy Questions が要求する threshold 変更 / key branch 逆転 / 出力 field 省略の 3 カテゴリが X 表に未操作化 → X15（Enter 分岐反転 → S6）/ X16（debounce 500ms 化 → S1）/ X17（department_name 省略 → S16）新設、(P3) S2/S13/S17 の同種 gap → 記録残しではなく X18〜X20 として追加（Codex 実測予算は制約なしのため全量注入を採用）。AC5 を X1〜X20 へ拡張、Ledger / Trace Matrix の該当行同期。是正 commit は本 round 是正後の content commit を参照。round 4 は新規探索なしの closure 確認限定として実施し、P1/P2=0 verdict を plan-approved の evidence とする。
+- Plan Gate rally round 4 = closure 確認限定（Sonnet 5 独立 subagent、fresh context、2026-08-05）: round 3 是正の完全反映（X15〜X20 = Matrix「必須 mutation 注入」表 X15〜X20 行に実在、AC5 / Ledger / Trace 同期済み、旧範囲表記の残存は `rg -n "X1〜X12|X1〜X14" docs/plans/` hit なし = exit 1 を Coordinator・reviewer 双方が独立実測）と、新設 X15〜X20 の弁別性（各注入と対象 S test assertion の一対一対応）を実読確認。verdict「P1/P2=0、Plan Gate closure 可」。参考記録の既存軽微不整合（Trace Matrix D6 行の S3/X7 欠落、round 3 起因でない）は closure 直後の同 commit で是正済み。
 - Findings Freeze 起点の確認: 本 packet の Final Review は Double Audit opt-in（Test Plan 参照）のため、Freeze は両 pass 完了後に発効する。
 
 - Findings Freeze: not yet frozen; post-freeze exceptions: none
