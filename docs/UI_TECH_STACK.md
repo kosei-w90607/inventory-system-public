@@ -454,12 +454,14 @@ Tauri 初期ウィンドウは `src-tauri/tauri.conf.json` で 1280x800、最小
 **実装要件**:
 - スキャン中は他のキー入力（例: メニュー操作）を**中断しない**（フォーカス奪取しない）
 - スキャン検知ロジックを導入する場合は、連続した文字入力の間隔が20ms未満 → バーコードと判定（一般的な閾値）を候補にする。ただし UI-02 初回実装では focused field + Enter で扱い、検知ロジックは実店舗確認後の follow-up とする
+- 取引 4 画面 + 棚卸しの商品追加欄は、入力中の live 候補プレビュー（[design-system/02-component-catalog.md](design-system/02-component-catalog.md) ⑮）を併設できる。候補プレビューは commit 経路（focused field + Enter）に不干渉であり、supported sequence「バーコード文字列 + Enter」はプレビューの async 読込みと無関係に従来どおり動作する（SPEC-SUGGEST-D1/D2）
 
 ### 5.4 フォーカス管理
 
 - **フォーカスリング明示**: 全フォーカス可能要素で可視の focus 表示を維持する（outcome 契約。ブラウザデフォルト outline を抑制する要素は代替の focus ring を必ず持つ）。実装パターンは 2 系統を正とする: ①現行 shadcn/ui primitive（button / input / checkbox 等）と SidebarLink は `focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50` 系（§52.1 参照）、②native date / month input・segmented-control 等は design-system/02-component-catalog.md の規定（`focus-visible:ring-2` 系）に従う。2 系統の統一は将来判断（旧記載 `ring-2 ring-ring ring-offset-2` の全要素一律規範は実装乖離のため 2026-08-03 に本 outcome 契約へ改訂。UI backlog batch A packet 起源）
 - **フォーカストラップ**: Dialog / AlertDialog / Sheet 内では Tab でダイアログ外に出ない。Radix UI の仕様で標準装備
 - **初期フォーカス**: 各画面の「一番使う要素」に自動フォーカス（検索画面なら検索ボックス、フォーム画面なら先頭入力）
+- **候補プレビューの focus 非奪取**: 商品追加欄の live 候補プレビュー（catalog ⑮）は focus を input に保持したまま `aria-activedescendant` で選択状態を表現する（リストへ focus を移さない）。↓/↑・Esc・click・footer の挙動は catalog ⑮ D6 を正とする
 
 ### 5.5 コントラスト比
 

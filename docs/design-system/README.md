@@ -11,7 +11,7 @@
 |--------|------|--------|
 | [00-foundations.md](00-foundations.md) | デザイントークン（色 / タイポ / スペーシング / アイコン）の正典 | カラーパレット・セマンティックトークン・タイポグラフィ階層・スペーシングスケール・アイコンサイズ・業務ステータス視認性 |
 | [01-decision-rules.md](01-decision-rules.md) | DSR-01〜15: 実装判断を一意に決めるルール集 | 主動線 CTA / Tabs vs SegmentedControl / Toast vs Alert 3 階層 / ステータスバッジ配置 / read-only vs disabled / 必須表示 / 確認ダイアログ境界 / semantic 色 / Form セクション / フィルタソース / 空状態・Tooltip / truncate・密度 / 表示スケール / ファイル選択方式 / returnTo 検証 |
-| [02-component-catalog.md](02-component-catalog.md) | 13 パターンカタログ（使いどころ / JSX skeleton / トークン / 状態 / a11y / Do-Don't / canonical ファイル参照） | ①ページヘッダ ②サマリカード ③テーブル ④フォームセクション ⑤SegmentedControl ⑥空状態・エラー・ローディング ⑦Toast ⑧Dialog/確認 ⑨検索+フィルタ ⑩ページネーション ⑪日付・月ナビ ⑫行インライン展開 ⑬ステータスバッジ |
+| [02-component-catalog.md](02-component-catalog.md) | 15 パターンカタログ（使いどころ / JSX skeleton / トークン / 状態 / a11y / Do-Don't / canonical ファイル参照） | ①ページヘッダ ②サマリカード ③テーブル ④フォームセクション ⑤SegmentedControl ⑥空状態・エラー・ローディング ⑦Toast ⑧Dialog/確認 ⑨検索+フィルタ ⑩ページネーション ⑪日付・月ナビ ⑫行インライン展開 ⑬ステータスバッジ ⑭FilePicker ⑮商品追加欄live候補プレビュー |
 | [03-philosophy.md](03-philosophy.md) | 参照哲学の正典（何を取り、何を取らないか） | 核心4本柱（refactoring-ui / ux-principles / GOV.UK / IBM Carbon）+ 補助3原則（Polaris / Atlassian / Fluent 2）+ japanese-webdesign 観点借用 |
 
 ---

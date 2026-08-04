@@ -1,7 +1,7 @@
-# コンポーネントカタログ（14 パターン）
+# コンポーネントカタログ（15 パターン）
 
 > **親文書**: [README.md](README.md)
-> **責務**: 繰り返し使われる 14 パターンの canonical 定義。各パターンに使いどころ・JSX skeleton・使用トークン・全状態・a11y 要件・Do-Don't・canonical ファイル参照を記載する。
+> **責務**: 繰り返し使われる 15 パターンの canonical 定義。各パターンに使いどころ・JSX skeleton・使用トークン・全状態・a11y 要件・Do-Don't・canonical ファイル参照を記載する。
 
 ---
 
@@ -819,6 +819,40 @@ toast.error(`出力に失敗しました: ${message}`, { id: `export-${reportTyp
 - `src/features/products/import/ProductImportDropzone.tsx`（商品マスタ一括インポート、初期選択）
 - `src/features/products/import/ProductImportPreview.tsx`（商品マスタ一括インポート、プレビュー段階の選び直し）
 - `src/features/return-exchange/ReturnExchangePage.tsx`（返品・交換、レシート画像添付）
+
+---
+
+## ⑮ 商品追加欄 live 候補プレビュー（ProductAddSuggest）
+
+**使いどころ**: 取引 4 画面（入庫 61 / 手動販売 62 / 返品・交換 63 / 廃棄・破損 64）+ 棚卸し（73）の商品追加欄。commit 型（Enter 一挙動追加、UI-02-D4 系列 5 契約）を維持したまま、入力中に候補一覧を目視補助として表示する。⑨ SearchBar（一覧 filter 用）とは用途が異なる別 pattern — SearchBar は検索結果が一覧そのものを差し替える filter であり、⑮ は「明細追加という確定アクション」の前段のプレビュー。適用 5 site は UI-02-D14 / UI-04-D16 / UI-03-D21 / UI-05-D16 / UI-10-D12 を正とする。商品一覧・在庫照会・入出庫履歴の SearchBar live 型、および Enter commit 後の既存複数件候補テーブルは明示除外とする（Plan Packet は作業証跡であり durable manifest はここに置く）。
+
+**canonical**: `ProductAddSuggest.tsx` + hook `useProductAddSuggest`（実装 PR で `components/patterns/` 配下へ新設予定。file 未作成の現時点では本節が設計正本）
+
+**採用の背景（variant B）**: 純 autocomplete 型（Enter 追加廃止）は、スキャナ Enter が候補 async 読込み前に届くため退行となり不採用（owner 方針 2026-08-04）。`cmdk` 等の新規 npm 依存は供給網防御（D-030）下の設計判断として不採用。安全性は下記 D2/D4 の software contract により supported sequence「バーコード文字列 + Enter」の範囲で timing 非依存に成立し、スキャナ物理挙動（方向キー有無・keystroke 間隔）への無条件保証は主張しない。
+
+**契約（SPEC-SUGGEST-D1〜D10、凍結正本）**:
+
+- D1（二層構造・不干渉）: live 候補プレビューは表示専用の追加層である。既存 Enter commit 経路（検索実行・0/1/複数分岐・行追加・focus 復帰・IME guard）のロジックは変更しない。suggest 層の失敗（fetch error 含む）は commit 経路へ波及せず、候補非表示に縮退する。
+- D2（Enter 分岐）: 候補リストに active 候補（aria-activedescendant が指す行）が存在する場合のみ Enter は候補確定として動作する。active 候補は ↓/↑ キー操作によってのみ生成される（表示直後の自動 active 化・先頭行自動選択は禁止）。active 候補なしの Enter は常に既存 commit 経路を実行する。候補リストの内容が更新された場合（debounce 再 fetch による差し替え）、直前の active 候補は必ず解除し持ち越さない（更新直後の Enter が意図しない行を確定することを防ぐ）。新しいリストで active を得るには再度 ↓/↑ の操作を要する。さらに、入力値が変化した onChange event の時点で active 候補を同期的に解除する。同時に表示中のリストを close し、新しいリストは現在入力値に対する最新結果の採用後にのみ open する（旧リストの表示維持・click 操作は行わない — pointer 経路の stale 確定を構造的に排除）。この同期解除 + close により、Enter commit 経路の到達はスキャナ timing・debounce 残量に依存しない。
+- D3（発火条件）: debounce 200ms（TRACE-D12 と同値）。入力 1 文字以上で発火。取得は per_page 5、総件数超過時は候補末尾に「ほか N 件（候補未選択で Enter: 従来の検索）」を表示する。0 件時は非表示（メッセージなし。0 件文言は既存 commit 経路の所掌）。
+- D4（破棄条件）: suggest fetch は sequence token で直近要求のみ採用する。sequence generation は各入力変更時（debounce 開始前）に更新し、応答は token と検索語が現在入力値の双方に一致する場合のみ採用する。Enter commit 実行・入力欄 clear・候補確定・lock 成立・Esc・blur / Tab・unmount の各時点では、リスト / active の close に加え、pending debounce timer を cancel し、generation を進めて in-flight 応答（success / error とも）を不採用にする。保存 lock との整合は D10 の per-画面 lock source 契約に従う（disposal のみ UI-05-D15 の lock ref、取引 3 画面〈receiving / manual-sale / return-exchange〉は各画面の既存 `isFormLocked` 派生 state、棚卸しは既存 `isCompleting`〈`completeMutation.isPending`〉派生 state を単一 source とする）。
+- D5（IME）: suggest 層の onKeyDown は冒頭で `event.nativeEvent.isComposing` を判定し、true の間は Enter / ↓ / ↑ / Esc を含む suggest キー処理全体を行わず IME に委ねる（変換候補操作の方向キーで active を生成しない。既存 commit 経路の Enter guard も従来どおり維持）。onChange / debounce 経路に composing guard は置かず、変換途中文字列での候補更新を許容する（SearchBar live 型の既定意味論 = PR #61 P1-2 裁定 a と同一）。
+- D6（キーボード・a11y）: input は `role="combobox"` + `aria-expanded` + `aria-controls` + `aria-activedescendant`、リストは `role="listbox"`、行は `role="option"`。focus は常に input が保持する（リストへ focus 移動しない）。↓/↑ で active 移動（端で wrap しない）、Esc で close + active 解除、blur / Tab で close。候補行のクリックは active の有無に関わらず当該行の即時候補確定として扱い、D7 の同一 handler を呼ぶ（`onMouseDown` 時点で default を抑止し、input の blur による close との race を防ぐ）。マウス hover（mouseenter 等）は active 候補を生成しない（active 生成は D2 の ↓/↑ 経由に限定）。footer 行（「ほか N 件…」）は `role="option"` を持たない非選択の装飾行であり、↓/↑ による active 移動の対象外とする。footer 表示中に active 候補なしで Enter を押した場合の挙動は D2 の既定分岐（既存 commit 経路の実行）と同一であり、footer 文言の「候補未選択で Enter: 従来の検索」はその結果（既存 commit 経路へ戻ること）を指し、全一致件数の表示を保証しない。
+- D7（候補行表示・確定 semantics）: 候補行は商品コード + 商品名 + 部門名の統一 3 項目（画面固有列は出さない）。候補確定時の挙動は当該画面の既存「複数件候補テーブルからの選択」と同一 handler を通す。
+- D8（棚卸し）: 棚卸しの suggest fetch は `searchProducts`（部分一致）を用い、候補確定は既存 UI-10-D2 の `find_stocktake_item` 経由で棚卸し対象化する。UI-10-D11 の focus 遷移契約（解決成功で数量欄へ）は候補確定経由でも同一に発火する。候補確定後に `find_stocktake_item` が稀に `None` を返す場合は既存 `selectCandidate` の無言 no-op 挙動をそのまま継承する（既知の pre-existing gap、本 change の scope 外）。
+- D9（実装形態・依存）: プレビュー層は新規共通 component + hook として 1 箇所に実装し 5 画面へ配線する。新規 npm 依存は追加しない（cmdk 不採用。radix Popover も不使用 — focus 非奪取要件から素の絶対配置要素で実装）。既存 5 画面の commit 経路コードの共通化・移動は行わない。
+- D10（無効化条件）: form 保存中 lock / disabled 状態では suggest fetch を発火せず、表示中リストは close する。suggest 層は各画面の既存 lock 状態を単一 source として受け取り、新規の lock 機構を作らない。disposal では UI-05-D15 の lock ref がその source である（二重 lock の相互不整合を構造的に排除する）。catalog ⑮ の component / hook API は、候補操作・timer・応答採否の全てが読む同期 `isLocked(): boolean` と、保存 event から同期呼出しされる `invalidateAndClose()` を持つ。disposal は UI-05-D15 の lock ref を更新した同じ event 内で `invalidateAndClose()` を呼ぶ（これは新規 lock source ではない）。
+
+**Do**:
+- 候補確定は既存 handler（各画面の複数件候補テーブル選択と同一）へ委譲する
+- 入力値が変わったら active 解除 + リスト close を同期的に行う（D2）
+- close 系 event では timer cancel + in-flight 不採用まで行う（D4）
+
+**Don't**:
+- 表示直後・hover での自動 active 化（スキャナ race 防御の核を壊す）
+- 旧リストの表示維持・click 許可（stale 確定の再導入）
+- 既存 commit 経路のロジック・focus 復帰・IME guard への変更（D1 違反）
+- 新規 npm 依存の追加（D9 違反）
 
 ---
 

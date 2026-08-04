@@ -111,6 +111,13 @@
 - **Rejected**: なし（実装漏れの是正であり、新規の設計判断選択肢はない）。
 - **Revisit trigger**: `UI_TECH_STACK.md` §5.3 の「global scan detection」（連続文字入力の間隔での自動判定）を実店舗確認後に採用する場合、本フォーカス遷移ロジックとの整合を再検討する。
 
+### UI-10-D12: 対象確認欄の live 候補プレビュー
+
+- **決定**: 検索/スキャン欄（対象確認欄）に catalog ⑮（ProductAddSuggest、SPEC-SUGGEST-D1〜D10）の live 候補プレビューを追加する。suggest fetch は `commands.searchProducts`（部分一致）、候補確定は UI-10-D2 の `find_stocktake_item` 経由の既存経路で棚卸し対象化し、確定成功後の数量欄へのフォーカス遷移は UI-10-D11 の既存契約がそのまま発火する。候補確定後に解決が `None` の場合の無言 no-op 継承を含め、確定 semantics は既存 `selectCandidate` と同一。lock source は既存 `isCompleting`（`completeMutation.isPending`）派生 state（SPEC-SUGGEST-D4/D10）。
+- **Why**: 商品名でしか探せない商品（JAN なし・コード不明）の対象確認が、現行の「Enter 検索 → フォールバック候補テーブル」より早く目視でき、誤 Enter 前に気付ける。コード/JAN スキャンの主動線（スキャン → 即解決 → 数量入力）は SPEC-SUGGEST-D1/D2 により不変。
+- **Rejected**: 純 autocomplete 型（Enter 追加廃止）はスキャナ Enter が候補 async 読込み前に届くため退行、不採用（owner 方針 2026-08-04）。
+- **Revisit trigger**: catalog ⑮ の契約変更時。
+
 ## 73.4 Route / 状態遷移 / Components（future）
 
 ```
@@ -186,8 +193,8 @@ function useFindStocktakeItem(): UseMutationResult<StocktakeItemDetail | null, I
 ## 73.5 カウント導線（処理ステップ）
 
 1. `counting` 状態で、部門フィルタ・未入力のみ toggle を指定して `get_stocktake_items` を呼び、明細一覧（`StocktakeItemDetail[]` + `progress`）を取得する。
-2. 検索欄（既存 `patterns/SearchBar`、HID スキャナは Enter キー入力として扱う既存パターンを踏襲）に商品コードまたは JAN を入力する。商品名で探したい場合は既存の商品検索（`commands.searchProducts`、入出庫系画面の商品追加と同じ経路）で候補から選び、その `product_code` を使う。
-3. 入力値（商品コード/JAN）を `find_stocktake_item({ stocktake_id, code })` に渡し、該当明細（`StocktakeItemDetail`）を 1 発解決する（UI-10-D2、§73.8）。解決できたら数量入力欄にフォーカスを移す。counted 済み商品を指定した場合も同じ導線で現在値を初期表示し、上書き入力を許可する（UI-10-D2）。`None` の場合、`commands.searchProducts` で商品名検索にフォールバックする（UI-10-D2 契約監査追記）: 0 件は §73.9 の回復に従う。1 件は自動的にその `product_code` で再解決して選択。複数件は候補テーブル（商品コード/商品名/部門）を表示し、選択した `product_code` で再解決する。
+2. 検索/スキャン欄（対象確認欄。素の `Input` 直接実装で、catalog ⑮ ProductAddSuggest の live 候補プレビューを結線する — ⑨ SearchBar は一覧 filter 用のため本欄には用いない）に商品コードまたは JAN を入力する。HID スキャナは Enter キー入力として扱う既存パターンを踏襲する。商品名で探したい場合は既存の商品検索（`commands.searchProducts`、入出庫系画面の商品追加と同じ経路）で候補から選び、その `product_code` を使う。
+3. 入力値（商品コード/JAN）を `find_stocktake_item({ stocktake_id, code })` に渡し、該当明細（`StocktakeItemDetail`）を 1 発解決する（UI-10-D2、§73.8）。解決できたら数量入力欄にフォーカスを移す。counted 済み商品を指定した場合も同じ導線で現在値を初期表示し、上書き入力を許可する（UI-10-D2）。`None` の場合、`commands.searchProducts` で商品名検索にフォールバックする（UI-10-D2 契約監査追記）: 0 件は §73.9 の回復に従う。1 件は自動的にその `product_code` で再解決して選択。複数件は候補テーブル（商品コード/商品名/部門）を表示し、選択した `product_code` で再解決する。検索/スキャン欄は入力中に live 候補プレビュー（UI-10-D12、catalog ⑮）を表示し、プレビューからの候補確定も本 step の `find_stocktake_item` 解決と同じ経路を通る。
 4. 数量入力後 Enter または保存操作で `update_count({ stocktake_item_id, actual_count })` を呼ぶ。負数は送信前に FieldError で止める（CMD 側も同じ検証を持つ防御的二重チェック）。
 5. 保存成功で該当行の `actual_count` / `current_difference` / `counted_at` を即時反映する。1 件保存ごとの toast は出さない（4000 件規模の反復操作で toast が積み重なるとかえって妨げになるため、一覧行の即時反映のみで結果を示す）。
 6. 一覧・進捗（`progress.counted_items` / `uncounted_items`）を invalidate して次の入力に備える。
