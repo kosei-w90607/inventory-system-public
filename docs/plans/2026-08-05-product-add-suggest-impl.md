@@ -1,0 +1,271 @@
+# Plan Packet: 商品追加欄 live 候補プレビュー（ProductAddSuggest）実装
+
+design 正本 = `docs/design-system/02-component-catalog.md` ⑮（SPEC-SUGGEST-D1〜D10、凍結）+ 画面別 5 D-ID。design-first の経緯・裁定は [archived design packet](../archive/plans/2026-08-04-product-add-suggest-design.md)（PR #64）を参照。
+
+## Workflow State
+
+- Phase: plan-draft
+- Risk: R3
+- Execution Mode: fable-window
+- Plan Commit: pending
+- Amendments: none
+- Coordinator: Fable 5（main thread）
+- Writer: Codex（発注書駆動、public-writer clone。発注書は Plan Gate closure 後に提示）
+- Plan Reviewer: Sonnet 5 独立 subagent（rally、3 round 天井。D-062: Writer = Codex と別 vendor 要件を充足）
+- Final Reviewer: Sonnet 5 独立 subagent（fresh context、Plan Reviewer とは別 context）
+- Reviewed Content HEAD: pending
+- Final Exact-HEAD Evidence: PR body
+- Hosted CI Requirement: required（R3 frontend change。Ready event で hosted CI が auto run される通常経路）
+- Human Gate: owner plan 承認 / L3（スキャナ supported sequence 互換性確認 + UX 確認、Windows native）/ Ready 承認
+
+## Owner Effort Budget
+
+- 介入回数上限: 3（plan 承認 / L3 実施 / Ready 承認）
+- 実働時間上限: 30分
+- relay 往復上限: 2（Codex 発注 1 + 予備 1）
+
+承認依頼フォーマット: `この change での介入 N 回目 / 予算 3 回` + 利用者可視の完了 1 文。
+
+STATECAP 予算 3 本設計（state-only 遷移 commit）: ① `plan-gate -> plan-approved -> implementing`（発注直前に一括実体化）② `independent-review -> human-confirm` ③ `human-confirm -> ready-hosted-final`。その他の遷移は content commit 同乗。各 forward materialize 直後に `bash scripts/check-workflow-git.sh` を実行する。
+
+## Consultation Relay
+
+- Review Order Artifact: none
+- Review Order Ref: none
+
+（Codex への実装発注は通常の発注書 relay 方式。§5.5 order branch 分離は使わない）
+
+## Risk
+
+Risk: R3
+
+Reason:
+operator の主要入力動線（スキャン一挙動追加フロー）に隣接する 5 画面横断の UI 実装。挙動退行が起きると全取引記録の入力速度に直結する。設計契約（catalog ⑮）は凍結済みで、本 PR はその実装凍結義務の履行。
+
+## Goal
+
+Goal Invariant:
+
+### 最小完了条件
+
+- 取引 4 画面（入庫 61 / 手動販売 62 / 返品・交換 63 / 廃棄・破損 64）+ 棚卸し（73）の商品追加欄で、入力中に live 候補プレビュー（catalog ⑮ SPEC-SUGGEST-D1〜D10 準拠）が表示され、既存 Enter commit（スキャン一挙動追加）経路が不変のまま動作する。
+
+### 失敗定義
+
+- 既存 5 画面 test（`ReceivingPage.test.tsx` / `ManualSalePage.test.tsx` / `ReturnExchangePage.test.tsx` / `DisposalPage.test.tsx` / `StocktakePage.test.tsx`、T17/T23 含む）のいずれかが変更される、または red になる。
+- SPEC-SUGGEST-D1〜D10 のいずれかに反する実装（自動 active 化、旧リスト click 許可、focus 奪取、新規 npm 依存等）。
+
+### 非目的
+
+- 既存 5 画面の commit 経路コード（`handleProductSearch` / `resolveItem` / `addProduct` / `selectCandidate` / focus 復帰 / IME guard）のリファクタ・共通化・移動（D9）。
+- SearchBar 系 live 型 3 画面（商品一覧 / 在庫照会 / 入出庫履歴）の変更。
+- Enter commit 後の既存「複数件候補テーブル」の変更・キーボード操作追加。
+- `search_products` backend / bindings / DB の変更。
+- 新規 npm 依存の追加（D9 で不採用契約済み）。
+
+Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
+
+## Scope
+
+- `src/components/patterns/ProductAddSuggest.tsx` 新設（component。named function export、patterns 配下の既存慣行に従う）
+- `src/components/patterns/useProductAddSuggest.ts` 新設（hook。debounce 200ms + sequence token + isLocked()/invalidateAndClose() API。component と同 file に置くかは Writer 裁量、配置は patterns 配下固定）
+- `src/components/patterns/ProductAddSuggest.test.tsx` 新設（S 系 = D1〜D10 契約 test）
+- 5 画面への配線: `ReceivingPage.tsx` / `ManualSalePage.tsx` / `ReturnExchangePage.tsx` / `DisposalPage.tsx` / `StocktakePage.tsx`（既存 commit 経路コードは不変、suggest 層の追加配線のみ）
+- 配線 test は新規 file に隔離: 各画面 `*.suggest.test.tsx`（W 系。既存 test file への追記は凍結義務と衝突するため禁止）
+- 新規 test file への UI-NN / D-ID token 付与 + `cargo run --bin generate_traceability -- --check` の差分なし確認（差分が出る場合は再生成を同 PR に同梱）
+- `docs/design-system/02-component-catalog.md` ⑮ canonical 注記の実在同期（「実装 PR で新設予定。file 未作成の現時点では本節が設計正本」→ 実 file path へ。契約 D1〜D10 本文は不変）
+- `docs/Plans.md`: backlog 行へ着手注記 + 「次の行動」active packet link（PK4）
+- 本 packet + Test Design Matrix
+
+## Non-scope
+
+- 既存 5 画面 test file の一切の変更（凍結義務）
+- `src-tauri/` 配下・bindings・DB・wire の一切
+- 61/62/63/64/73 の function-design doc 本文変更（設計契約は PR #64 で確定済み。実装 status 注記が必要になった場合のみ Amendment で判断）
+- 複数件候補テーブル・SearchBar 系の変更
+- daily-report 系画面への展開
+
+## Acceptance Criteria
+
+- AC1: `ProductAddSuggest` component + `useProductAddSuggest` hook が `src/components/patterns/` に存在し、5 画面すべてに配線されている（`rg -l "ProductAddSuggest" src/features` が 5 画面の Page file を返す）
+- AC2: 新規 S 系 / W 系 test が Matrix の全行を cover し `npm test` green
+- AC3: 既存 5 画面 test file の diff が 0（`git diff main --name-only` に当該 5 file が現れない）かつ全既存 test green
+- AC4: `bash scripts/local-ci.sh full` PASS / CLEAN（Writer 完了条件に含む）
+- AC5: Matrix X1〜X12 の各 mutation 注入で `npm test` が red になることを、Writer 自己実測 + Coordinator 独立再実測（clean tree、commit 後）の双方で確認する
+- AC6: catalog ⑮ canonical 注記が実 file path を指す（`rg -c "file 未作成" docs/design-system/02-component-catalog.md` = 0）
+- AC7: Plans.md「次の行動」が本 packet へ link し PK4 を充足する
+- AC8: 新規 test file が UI-NN / D-ID token を含み `cargo run --bin generate_traceability -- --check` 差分なし
+- AC9: `package.json` / `package-lock.json` の diff なし（npm 依存追加ゼロ = D9）
+- AC10: `cargo check --release` PASS（L3 native build 前提の Writer 完了条件、CI gate ではない）
+- AC11: L3（スキャナ supported sequence 互換性確認 + UX 確認）の結果が PR body Human Gate に記録され `gh pr view --json body` で確認可能
+
+## Design Sources
+
+- Requirements / spec: REQ-201〜204（取引 4 画面）、棚卸し（73）
+- Architecture: `docs/ARCHITECTURE.md`（UI 層のみ。CMD/BIZ/IO 不変）
+- Function / command / DTO: `docs/function-design/20-io-product-repo.md`（search_products 契約、流用・不変）
+- Screen / UI: `61-ui-receiving.md` UI-02-D14 / `62-ui-manual-sale.md` UI-04-D16 / `63-ui-return-exchange.md` UI-03-D21 / `64-ui-disposal.md` UI-05-D16（+ UI-05-D15 lock ref）/ `73-ui-stocktake.md` UI-10-D12（+ UI-10-D2 / D11）
+- Design system: `docs/design-system/02-component-catalog.md` ⑮（SPEC-SUGGEST-D1〜D10 = 凍結正本）、`docs/UI_TECH_STACK.md` §5.3 / §5.4
+- Decision log / ADR: D-030（npm 依存不採用の背景）、D-031（pagination clamp、参照のみ）
+
+## Required Design Artifacts
+
+| Area touched by upcoming work | Required source doc / artifact | Status |
+|---|---|---|
+| Backend function / command / repository / validation / error | 変更なし（search_products 流用） | existing sufficient |
+| Command / DTO / generated binding / wire shape | 変更なし | existing sufficient |
+| DB / transaction / audit / rollback / migration | 変更なし | existing sufficient |
+| Screen / UI / route state / Japanese wording | catalog ⑮ + 画面別 5 D-ID（PR #64 で正本化済み） | existing sufficient |
+| CSV / TSV / report / import / export format | 変更なし | existing sufficient |
+| Durable decision / ADR | catalog ⑮ が durable 正本。本 PR は canonical 注記の実在同期のみ | updated in this PR |
+
+## Registration / Generation Obligations
+
+- Tauri command / route / operator 画面 / function-design doc の新設: 該当なし
+- REQ coverage: 該当あり — 新規 test file（S 系 / W 系）に UI-NN / D-ID token を付与する。traceability T4 検査は「REQ/UI token なし FE test file 数」の両方向 baseline 検査のため、token なしの新規 test file は ERROR になる。`cargo run --bin generate_traceability -- --check` で差分なしを確認し、差分が出る場合は再生成を同 PR に同梱する（PR #61 gated Amendment 1 の教訓を Scope に前積み）
+- component 新設の catalog 登録: 登録済み（⑮ が既存）。canonical 注記の実在同期のみ Scope に含む
+
+## Design Intent Trace
+
+| Spec / requirement ID | Source design doc section | Decision ID | Why / rejected alternatives | Implementation target | Test target |
+|---|---|---|---|---|---|
+| REQ-201 | 61 §61.5 | UI-02-D14 | variant B（設計裁定済み、PR #64） | ReceivingPage 配線 | W1 / W8 |
+| REQ-203 | 62 §62.5 | UI-04-D16 | 同上 | ManualSalePage 配線 | W2 / W8 |
+| REQ-202 | 63 §63.5 | UI-03-D21 | 同上（addProduct の direction 引数を既存どおり維持） | ReturnExchangePage 配線 | W3 / W8 |
+| REQ-204 | 64 §64.5 | UI-05-D16 | 同上 + UI-05-D15 lock ref 整合 | DisposalPage 配線 | W4 / W6 |
+| 棚卸し | 73 §73.5 | UI-10-D12 | 確定は UI-10-D2 既存経路（findMutation → selectItem）、D11 focus 契約同一発火 | StocktakePage 配線 | W5 / W7 |
+| 横断 | catalog ⑮ | SPEC-SUGGEST-D1〜D10 | 凍結正本の履行 | ProductAddSuggest + hook | S1〜S19 / X1〜X12 |
+
+## Design Intent Audit
+
+- Source docs can answer what is being built and why without chat history: catalog ⑮ に契約・採用背景・除外 manifest が正本化済み（PR #64）
+- Plan-only durable decisions found and promoted: なし（本 packet は実装 scope のみ。durable 判断は全て catalog ⑮ 側に既存）
+- Assumptions and constraints: 実装実態の実査（2026-08-05 Explore + Coordinator rg 裏取り）= 5 画面とも `commands.searchProducts` 直接 await（TanStack Query 非経由）/ lock 実名 = `isFormLocked`（receiving L179 / manual-sale L199 / return-exchange L250、派生変数）・`isFormLockedRef`（disposal L127、UI-05-D15 ref）・`isCompleting`（stocktake L131）/ T17 = `StocktakePage.test.tsx` L255（UI-10-D11 focus 遷移）・T23 = 同 L649（IME）。`rg -n` 出力で確認済み
+- Deferred design gaps: stocktake のカウント入力欄 `disabled` prop と suggest 層 lock source（isCompleting）の関係は D4/D10 契約どおり isCompleting を単一 source とする。`disabled` prop は既存 commit 経路の所掌で不変。実装時に疑義が出れば Writer は fail-closed 停止
+- Test Design Matrix can cite design decision IDs: S/W/X 系が各 D-ID / SPEC-SUGGEST-Dn を引用
+- Absolute guarantee / escape hatch self-check: 「既存 commit 経路不変」は既存 5 test file の diff 0（AC3）+ W8 smoke で担保。配線 test を新規 file に隔離することで凍結と test 追加の衝突を構造的に回避
+
+## Impact Review Lenses
+
+| Lens | Applicability / finding | Follow-up artifact |
+|---|---|---|
+| Adapter / core boundary | UI 層内で完結。CMD/BIZ/IO 不変 | not applicable |
+| Fact check / design decision split | 実装実態（handler 名 / lock 実名 / test 番号）は 2026-08-05 実査 + rg 裏取り済み（Design Intent Audit 参照） | 本 packet |
+| Lifecycle / retry | suggest fetch の open/close/active/stale 破棄 lifecycle を State Lifecycle Matrix で cover | Matrix |
+| Operator workflow | スキャン一挙動フロー不変が Goal Invariant。候補プレビューは目視補助のみ | L3 |
+| Replacement path | 追加のみ。既存候補テーブル残置 | Non-scope |
+| Data safety / evidence | 実データ不使用（synthetic mock のみ） | Data Safety |
+| Reporting / accounting semantics | not applicable（表示層のみ） | — |
+| Manual verification | スキャナ実測 = supported sequence〈バーコード文字列 + Enter〉適合の互換性確認 + UX 確認（debounce 下の候補非発火）。安全性は D2/D4 software contract 側で担保（PR #64 裁定） | Ledger L3 行 |
+| 環境・再現性 | 新規環境依存なし（npm 依存追加ゼロ = D9）。L3 は既存 Windows native build 手順のみ | AC9 / AC10 |
+
+## Design Readiness
+
+- Existing design docs are sufficient because: 実装契約は catalog ⑮ SPEC-SUGGEST-D1〜D10 + 画面別 5 D-ID で完結しており、未解決の設計問題はない（PR #64 で Plan Gate 7 round + Final Review 2 round を経て凍結）
+- Source docs updated in this PR: catalog ⑮ canonical 注記の実在同期のみ（契約本文不変）
+- Design gaps intentionally deferred: `find_stocktake_item` None 時の無言 no-op は D8 で既知 pre-existing gap として継承
+- Layer ownership: UI のみ
+- Backend function design: 不変
+- Command / DTO / data contract: 不変（`ProductSearchQuery` 流用、per_page 5 は UI 側定数）
+- Persistence / transaction / audit impact: なし
+- Operator workflow / Japanese UI wording: 候補行 = 商品コード + 商品名 + 部門名、footer「ほか N 件（候補未選択で Enter: 従来の検索）」（catalog ⑮ 確定済み文言）
+- Error, empty, retry, and recovery behavior: fetch 失敗 silent close、0 件非表示（D1/D3）
+- Testability and traceability IDs: SPEC-SUGGEST-Dn + 画面別 D-ID + REQ-201〜204
+
+## Contract Probe
+
+- N/A: 未検証外部前提なし。searchProducts は既存流用（wire 不変）、npm 依存追加ゼロ、素の絶対配置要素 + 既存 React のみ（design packet の probe 裁定を継承。スキャナ物理挙動は L3 の互換性確認であり Plan Gate 前 probe の対象外 — 安全性は D2/D4 の timing 非依存 software contract で成立）。
+
+## Contract Coverage Ledger
+
+| Design contract / decision ID | Implementation target | Automated test | L3 or non-scope |
+|---|---|---|---|
+| SPEC-SUGGEST-D1（二層不干渉・silent 縮退） | ProductAddSuggest + 5 画面配線 | S17 / W8 / X1 | 視認（L3 UX） |
+| SPEC-SUGGEST-D2（Enter 分岐・active 生成/解除・onChange 同期解除 + close） | useProductAddSuggest | S4〜S8 / X1・X2 | — |
+| SPEC-SUGGEST-D3（debounce 200ms・1 文字・per_page 5・footer・0 件非表示） | useProductAddSuggest | S1〜S3 / X7 | L3 UX（debounce 下の候補非発火） |
+| SPEC-SUGGEST-D4（sequence token・close 時 cancel・in-flight 不採用・lock source 3 分類） | useProductAddSuggest + 各画面配線 | S9〜S11・S19 / X3〜X5 | — |
+| SPEC-SUGGEST-D5（IME: suggest キー処理全域 guard、onChange 側 guard なし） | ProductAddSuggest onKeyDown | S12 / X6 | — |
+| SPEC-SUGGEST-D6（a11y 構造・focus input 保持・click/hover/footer 契約） | ProductAddSuggest | S13〜S15・S3 / X7・X8・X11・X12 | — |
+| SPEC-SUGGEST-D7（候補行 3 項目・確定は既存同一 handler） | ProductAddSuggest + 5 画面配線 | S16 / W1〜W5 / X10 | — |
+| SPEC-SUGGEST-D8（棚卸し: searchProducts fetch + find_stocktake_item 確定 + D11 focus 同一発火） | StocktakePage 配線 | W5 / W7 | — |
+| SPEC-SUGGEST-D9（patterns 配下 1 箇所実装・npm 依存ゼロ・commit 経路コード不変） | 実装形態全体 | AC1 / AC9 / AC3 | — |
+| SPEC-SUGGEST-D10（isLocked() / invalidateAndClose() API・lock 単一 source） | useProductAddSuggest API + 5 画面配線 | S18・S19 / W6・W7 / X9 | — |
+| UI-02-D14 / UI-04-D16 / UI-03-D21 / UI-05-D16 / UI-10-D12（画面別適用） | 各 Page 配線 | W1〜W5 | 視認 |
+| UI-05-D15（disposal lock ref 整合、同 event 内 invalidateAndClose） | DisposalPage 配線 | W6 | — |
+| UI-10-D11（focus 遷移契約の候補確定経由同一発火） | StocktakePage 配線 | W7 | — |
+| 既存 commit 経路 test 不変（T17 = `StocktakePage.test.tsx` L255 / T23 = 同 L649 含む既存 5 test file） | 凍結義務 | AC3（diff 0 + green） | 凍結義務 |
+| スキャナ実測（supported sequence〈バーコード文字列 + Enter〉適合の互換性確認 + UX 確認） | — | — | L3 行（PR body Human Gate） |
+| catalog ⑮ canonical 注記の実在同期 | docs | AC6 | — |
+
+## Test Plan
+
+Test Design Matrix: `docs/plans/test-matrices/2026-08-05-product-add-suggest-impl.md`
+
+- targeted tests: S1〜S19（component/hook 単体、synthetic mock）、W1〜W8（画面配線、新規 file 隔離）
+- negative tests: X1〜X12 mutation 注入（Writer 実測 + Coordinator clean tree 独立再実測）
+- compatibility checks: 既存 5 test file diff 0 + 全 green（AC3）、既存 D-ID 文言不変
+- data safety checks: synthetic 商品データのみ、実店舗データ不使用
+- main wiring/integration checks: AC1（5 画面配線 rg）、AC7（PK4）
+- Writer 完了条件: `bash scripts/local-ci.sh full` PASS/CLEAN（AC4）+ `cargo check --release`（AC10、L3 native build 前提）
+
+## Boundary / Wire Contract
+
+- producer: `commands.searchProducts`（既存、変更なし）
+- consumer: `useProductAddSuggest`（新設）
+- wire type: `ProductSearchQuery` / `PaginatedResult<ProductWithRelations>`（不変）
+- internal type: 候補行は product_code / name / department_name の 3 field のみ参照（D7）
+- precision/range: per_page 5（UI 定数、D-031 clamp 200 の範囲内）
+- round-trip path: なし（表示のみ）
+- invalid input: 空文字は fetch 不発火（D3）、composing 中の候補更新は許容（D5）
+- compatibility: 既存 5 画面の searchProducts 呼び出し形（commit 経路）は不変
+
+## Review Focus
+
+- D2 の実装が「自動 active 化ゼロ」「onChange 同期解除 + close」を本当に満たすか（表示直後 / 差し替え直後 / スキャナ高速入力の 3 局面）
+- D4 sequence token の二重一致（token + 検索語）と close 系 event 全列挙（Enter commit / clear / 候補確定 / lock 成立 / Esc / blur / Tab / unmount）の網羅
+- 5 画面配線の lock source が契約の 3 分類（isFormLocked 派生 ×3 / isFormLockedRef / isCompleting）と一致するか
+- W 系 test が既存 handler（addProduct / findMutation→selectItem）を実際に通ることを assert しているか（mock 貫通の tautology でないか）
+- 既存 5 test file の diff 0 が保たれているか（凍結義務）
+- S 系 oracle が production 定数（debounce 値等）を import せず独立転記になっているか
+
+## Spec Contract
+
+Contract ID: SPEC-SUGGEST（正本 = catalog ⑮、本 packet は転記しない — 凍結済み契約の履行 PR であり、契約本文の重複保持は drift 源になるため参照のみとする）
+
+- SPEC-SUGGEST-D1〜D10: `docs/design-system/02-component-catalog.md` ⑮「契約（SPEC-SUGGEST-D1〜D10、凍結正本）」節を唯一の正とする
+- 実装が契約と矛盾する実態を発見した場合、Writer は契約を再解釈せず fail-closed 停止し Coordinator へ報告する
+
+## Trace Matrix
+
+| Spec ID | Plan Step | Test | Review Focus | Evidence |
+|---|---|---|---|---|
+| SPEC-SUGGEST-D1 | component + 配線 | S17 / W8 / X1 | 不干渉・silent 縮退 | npm test |
+| SPEC-SUGGEST-D2 | hook keyboard/active | S4〜S8 / X1・X2 | active lifecycle | npm test |
+| SPEC-SUGGEST-D3 | hook fetch | S1〜S3 / X7 | 発火条件・footer | npm test |
+| SPEC-SUGGEST-D4 | hook sequence/cancel | S9〜S11・S19 / X3〜X5 | 破棄条件網羅 | npm test |
+| SPEC-SUGGEST-D5 | component IME | S12 / X6 | isComposing 全域 guard | npm test |
+| SPEC-SUGGEST-D6 | component a11y/pointer | S13〜S15 / X8・X11・X12 | 構造・click/hover | npm test |
+| SPEC-SUGGEST-D7 | 確定 semantics | S16 / W1〜W5 / X10 | 同一 handler 委譲 | npm test |
+| SPEC-SUGGEST-D8 | StocktakePage 配線 | W5 / W7 | find_stocktake_item 経由 | npm test |
+| SPEC-SUGGEST-D9 | 実装形態 | AC1 / AC9 / AC3 | 依存ゼロ・コード不変 | git diff / rg |
+| SPEC-SUGGEST-D10 | lock API | S18・S19 / W6・W7 / X9 | lock 単一 source | npm test |
+| 画面別 D-ID ×5 | 各 Page 配線 | W1〜W5 | 5 画面横並び | npm test + L3 視認 |
+| 凍結義務 | — | AC3 | diff 0 | git diff --name-only |
+
+## Data Safety
+
+- 実店舗データ・実商品名・実 JAN は test / 例示に使わない（synthetic のみ）
+- local-only paths: なし
+- committed 対象: src/ + docs/ のみ
+
+## Implementation Results
+
+Fill after implementation.
+
+Do not transcribe exact-HEAD SHA or test counts here (D-035/D-038 Evidence Ownership). Record a qualitative summary and the PR link only.
+
+## Review Response
+
+Fill after review.
+
+- Findings Freeze: not yet frozen; post-freeze exceptions: none
