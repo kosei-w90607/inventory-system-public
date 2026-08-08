@@ -1,10 +1,10 @@
 # Plan Packet: 商品追加欄 live 候補プレビュー（ProductAddSuggest）実装
 
-design 正本 = `docs/design-system/02-component-catalog.md` ⑮（SPEC-SUGGEST-D1〜D11、凍結。D11 は gated Amendment 3 で追加）+ 画面別 5 D-ID。design-first の経緯・裁定は [archived design packet](../archive/plans/2026-08-04-product-add-suggest-design.md)（PR #64）を参照。
+design 正本 = `docs/design-system/02-component-catalog.md` ⑮（SPEC-SUGGEST-D1〜D11、凍結。D11 は gated Amendment 3 で追加）+ 画面別 5 D-ID。design-first の経緯・裁定は [archived design packet](2026-08-04-product-add-suggest-design.md)（PR #64）を参照。
 
 ## Workflow State
 
-- Phase: ready-hosted-final
+- Phase: archive
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: ef10439
@@ -209,7 +209,7 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 
 ## Test Plan
 
-Test Design Matrix: `docs/plans/test-matrices/2026-08-05-product-add-suggest-impl.md`
+Test Design Matrix: `docs/archive/plans/test-matrices/2026-08-05-product-add-suggest-impl.md`
 
 - targeted tests: S1〜S21（component/hook 単体、synthetic mock）、W1〜W12（画面配線、新規 file 隔離）
 - Double Audit（rally round 2 P3-3 裁定で opt-in）: 本 change は operator-visible state lifecycle（suggest リスト / active / lock 連動）に触れる R3 のため、DEV_WORKFLOW Contract Audit の recommended second pass に opt-in する。Final Review = 1 pass（Sonnet fresh context、Ledger 突合 + mutation 一次）+ 2 pass（別の Sonnet fresh context による Contract Audit lane 独立再走）。Findings Freeze は両 pass 完了後に発効する
@@ -301,3 +301,4 @@ Do not transcribe exact-HEAD SHA or test counts here (D-035/D-038 Evidence Owner
 - 遷移記録（recording compression、本 content commit に同乗）: `implementing -> local-verified -> independent-review -> human-confirm` の隣接 forward 遷移を一括実体化する（STATECAP 残枠温存のため state-only commit を使わない = Amendment 3 の予算追記どおり）。evidence = local-verified: Writer L1 full PASS/CLEAN（発注報告）+ Coordinator 独立 L1 full 再実行 RESULT=PASS（2026-08-09、HEAD 9d31540）/ independent-review: 上記 Final Review 再走 verdict + Coordinator mutation 独立再実測 kill 5/5 / human-confirm: Findings Freeze 再発効 + Reviewed Content HEAD = 9d31540 設定（本 commit）。残 Human Gate = 再 L3（Ledger L3 行の IME ON/OFF 項目表 6 点）+ Ready 承認（介入 5/5 の 1 decision point）。
 - L3 closure（2026-08-09）: 再 L3 は Amendment 3 の基本動作（IME ON 一スキャン一追加・日本語手入力非破壊・IME OFF 退行なし・JAN 専用欄無変更・WebView2 実イベント順）を PASS としたうえで、間欠的な文字欠落（composition 確定前の上流欠落、D11 regression ではない）を検出し一旦 HOLD。切り分け（観測負荷除去）と Coordinator のスキャナ設定マニュアル実読調査（キャラクタ間遅延 default 1ms / Alt+Number の IME 迂回）に基づく owner の段階実測で、スキャナ側確定設定により欠落の再現なしを確認し closure。確定設定・実測数の正本は PR body（evidence ownership により本 packet へは転記しない）。是正はアプリ変更なし = D11 は防御層として残置、スキャナ設定と defense in depth を構成。予算実績 = 介入 5/5（recorded-reason 調整後の上限内）・relay 3/3・STATECAP forward 3/3。
 - Findings Freeze: **re-frozen after Amendment 3 re-walk closure（2026-08-09）**; post-freeze exceptions: gated Amendment 3（2026-08-09、初回 L3 runtime blocker〈IME 全角数字化 + Enter 消費〉→ 再走 closure で解消済み。L3 の文字欠落は環境側是正で解消、post-freeze の実装変更なし）
+- 遷移記録（recording compression、本 closeout commit に同乗）: `ready-hosted-final -> merge -> archive`。evidence = hosted final: CI run `31279446658` success（exact-HEAD 0b0179b）/ merge: owner による squash merge `ea54705`（2026-08-09）/ archive: 本 commit で packet + Matrix を docs/archive/plans/ へ移動、Plans.md 完了記録同期。
