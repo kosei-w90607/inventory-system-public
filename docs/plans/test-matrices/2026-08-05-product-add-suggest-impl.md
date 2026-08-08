@@ -6,7 +6,7 @@ Risk: R3
 
 ## Contracts Under Test
 
-- SPEC-SUGGEST-D1〜D10（`docs/design-system/02-component-catalog.md` ⑮、凍結正本）
+- SPEC-SUGGEST-D1〜D11（`docs/design-system/02-component-catalog.md` ⑮、凍結正本。D11 = IME 全角数字正規化 + compositionend commit、gated Amendment 3 で追加）
 - UI-02-D14 / UI-04-D16 / UI-03-D21 / UI-05-D16 / UI-10-D12（画面別適用）
 - UI-05-D15（disposal lock ref 整合）/ UI-10-D2（find_stocktake_item 確定経路）/ UI-10-D11（focus 遷移の候補確定経由同一発火）
 - 凍結義務: 既存 5 画面 test file（T17/T23 含む）の diff 0 + 全 green
@@ -23,12 +23,15 @@ Risk: R3
 - lock 中の fetch 発火・リスト残置（D10 破り）
 - 既存 commit 経路コード・test の変更（D1/D9 破り、凍結義務違反）
 - mock 貫通 tautology: W 系が実 handler を通らず mock 応答だけで green になる
+- 日本語 IME 有効時にスキャナ入力が全角数字 composition となり、Enter が変換確定に消費されて検索/追加が発火せず次スキャンが連結される（D11 破り = gated Amendment 3 起点の実機 blocker）
+- compositionend 起点 commit と直後の Enter keydown で commit が二重発火する、または stale closure で旧 state 値を検索する（D11 破り）
 
 ## Test Matrix
 
 - Before citing an existing test as regression coverage, use `rg` or an equivalent repository search to verify that the cited test exists.
 - S 系 = `src/components/patterns/ProductAddSuggest.test.tsx`（新設、synthetic mock）。W 系 = 各画面 `*.suggest.test.tsx`（新設 file 隔離。既存 test file への追記禁止）。
 - oracle 独立性: debounce 200ms / per_page 5 / footer 文言は test 内 literal 転記とし、production 定数・共有定数 module を import しない。
+- gated Amendment 3（2026-08-09）: S22〜S27 / W13〜W17 / X22〜X26 を追加（D11）。test 内の数字列は synthetic のみ（実 JAN / 実 ISBN、初回 L3 実測で用いた ISBN を含め使用禁止）。実 IME のイベント順 race は RTL harness で再現不能のため、S24 の guard 検証は合成イベント列によるロジック検証であり、実機挙動の最終検証は Windows native L3 の所掌。
 
 | Contract | Failure Mode | Test Type | Test Name | Would fail if... |
 |---|---|---|---|---|
@@ -53,6 +56,12 @@ Risk: R3
 | D10/D4 | 保存 event 連動漏れ | unit | S19 invalidateAndClose() 同期呼出しで close + timer cancel + in-flight 不採用 | API 未実装 / 非同期化 |
 | D5 | onChange 側 guard 誤追加 | unit | S20 isComposing 中の onChange でも debounce/fetch が発火する（変換途中文字列での候補更新を許容 = D5 の Don't 側契約） | onChange / debounce 経路に composing guard が追加される |
 | D4 | 外部 clear 経路の close 漏れ | unit | S21 onChange 非経由の外部 value 変更（既存 commit 経路の `setSearchText("")` 相当）で open リストの同期 close + debounce timer cancel（in-flight 不採用は S10 の token + 検索語二重一致が既に cover。gated Amendment 2） | value prop 監視の close 経路が除去され、スキャナ連続スキャン時に旧リスト残置 |
+| D11 | IME 全角数字の取りこぼし | unit | S22 compositionend で確定値が全角数字のみなら、正規化値（半角）での onChange 1 回 + onComposedDigitsCommit(正規化値) 1 回（synthetic 数字列） | 正規化・commit のいずれかが欠落 / 複数回発火 / 全角値のまま commit |
+| D11 | 過剰正規化 | unit | S23 英字・かな・記号を含む確定値は無加工のまま、onComposedDigitsCommit を呼ばない | 混在値で正規化・commit が発火する |
+| D11 | 二重 commit | unit | S24 compositionend 起点 commit 直後の isComposing=false Enter keydown で commit が再発火しない（one-shot guard。合成イベント列によるロジック検証、実機は L3） | guard 欠落で 1 スキャン 2 発火 |
+| D11 | 半角確定の取りこぼし | unit | S25 確定値が半角数字のみでも onComposedDigitsCommit 1 回（IME 半角英数モードの変換確定吸収） | 全角時のみ commit する分岐 |
+| D11/D2 | 確定経路混線 | unit | S26 リスト open 中（active なし）の compositionend commit は onComposedDigitsCommit のみ呼び、候補確定 callback（onSelect）を呼ばない | selectSuggestion 経由の誤確定 |
+| D11 | util 境界破り | unit | S27 正規化 util 単体: U+FF10/U+FF19 境界写像・空文字不変・全角記号（－/．等）混在は不変・写像対象は全角数字 10 文字のみ | 写像範囲の過不足（かな/記号まで変換 or 境界文字漏れ） |
 | D7/UI-02-D14 | 確定迂回 | integration | W1 Receiving: 候補確定が既存 `addProduct` と同一経路で行追加（明細行の実 DOM 出現で assert、REQ-201） | suggest 独自の追加経路が生える |
 | D7/UI-04-D16 | 同上 | integration | W2 ManualSale: 同上（REQ-203） | 同上 |
 | D7/UI-03-D21 | direction 欠落 | integration | W3 ReturnExchange: 候補確定が `addProduct(candidate, effectiveAddDirection)` の direction 込み経路を通る（REQ-202） | direction 引数の欠落 |
@@ -64,6 +73,11 @@ Risk: R3
 | D10 | 保存 event 呼出し漏れ | integration | W10 ManualSale: 同上（保存 event で表示中リスト close を実 DOM assert） | ManualSale 配線で呼出しが省かれる |
 | D10 | 保存 event 呼出し漏れ | integration | W11 ReturnExchange: 同上 | ReturnExchange 配線で呼出しが省かれる |
 | D10 | 確定 event 呼出し漏れ | integration | W12 Stocktake: 棚卸し確定 event（completeMutation 実行 = isCompleting の source。update_count 単位ではない）で invalidateAndClose() が同期呼出しされリスト close | Stocktake 配線で確定 event の呼出しが省かれる |
+| D11/UI-02-D14 | stale closure | integration | W13 Receiving: onComposedDigitsCommit が正規化済み文字列を明示引数で既存検索関数へ渡し、引数値で検索が実行される（state 旧値でないことを assert） | 配線欠落 / state 暗黙参照の stale 検索 |
+| D11/UI-04-D16 | 同上 | integration | W14 ManualSale: 同上 | 同上 |
+| D11/UI-03-D21 | 同上 | integration | W15 ReturnExchange: 同上 | 同上 |
+| D11/UI-05-D16 | lock 中 commit | integration | W16 Disposal: 同上 + isLocked() true 中は compositionend でも正規化・commit とも不発火（D11 (b) の isLocked 尊重） | lock 中のスキャンが追加を発火する |
+| D11/UI-10-D12 | 確定経路迂回 | integration | W17 Stocktake: 同上（既存 resolveItem 経由、UI-10-D2 の find_stocktake_item 確定経路不変） | resolveItem 迂回の独自検索経路 |
 
 ## State Lifecycle Matrix
 
@@ -165,6 +179,11 @@ Risk: R3
 | X19 | aria-activedescendant / role="listbox" の付与を欠落させる | S13 |
 | X20 | suggest fetch error を silent close せず error 表示へ伝播させる | S17 |
 | X21 | 外部 value 変更を監視する close 経路（value 監視 effect）を除去 | S21 |
+| X22 | 正規化判定の文字クラスから全角数字を除外（`[0-9]+` 化） | S22 |
+| X23 | onComposedDigitsCommit 呼出しを除去 | S22 / S25 |
+| X24 | 二重発火 one-shot guard を除去 | S24 |
+| X25 | 全体一致条件を除去し混在値も正規化・commit する | S23 |
+| X26 | 画面配線の明示引数渡しを state 参照へ置換（1 画面） | 当該 W 系（W13〜W17 のいずれか） |
 
 - 注入は commit 後の clean tree で行い、`git checkout` 復元で未 commit 是正を消さない（memory: mutation-test-on-clean-tree-only）
 - Coordinator 再実測は Writer の記録を参照しない独立導出とする

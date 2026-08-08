@@ -31,7 +31,7 @@
 | REQ-201 / list | UI-02-D11 | 画面下部に最近の入庫記録を `listReceivings(1, 10, null, null)` で表示する。詳細表示・編集・削除は初回実装では扱わない。 | CMD-02 の一覧契約を UI から疎通確認でき、直近伝票の保存結果も確認しやすい。詳細/取消は業務影響が大きく別設計にする。 |
 | REQ-201 / cache | UI-02-D12 | 保存成功時の invalidation は [D-052](../decision-log.md) C4 と `src/lib/invalidation-contract.ts` を正本とする。 | 入庫で変わる在庫・履歴とその consumer を table.column 導出で一貫して stale 化し、画面側の key 列挙を廃止する。 |
 | REQ-201 / UI-02 | UI-02-D13 | Windows native L3 は owner 目視確認を必須にする。確認対象は navigation、取引先候補、商品検索/スキャン相当 Enter 追加、同一商品数量加算、cm 表示、validation、保存中 disable、結果表示、recent list、在庫照会/商品登録導線。 | 新規 operator-facing screen であり、連続入力・日本語商品名・フォーカス戻しは CI だけでは判断しづらい。 |
-| REQ-201 / product add suggest | UI-02-D14 | 商品追加欄に live 候補プレビュー（catalog ⑮ ProductAddSuggest / SPEC-SUGGEST-D1〜D10）を追加する。Enter commit 経路（UI-02-D4）とフォーカス戻し（UI-02-D5）は不変。lock source は既存 `isFormLocked` 派生 state、候補確定は既存の複数件候補テーブル選択と同一 handler。 | variant B。純 autocomplete 型（Enter 追加廃止）はスキャナ Enter が候補 async 読込み前に届くため退行・不採用（owner 方針 2026-08-04）。契約正本は catalog ⑮ に一元化し、画面 doc には画面固有の結線のみ置く（5 画面複製 drift 防止）。 |
+| REQ-201 / product add suggest | UI-02-D14 | 商品追加欄に live 候補プレビュー（catalog ⑮ ProductAddSuggest / SPEC-SUGGEST-D1〜D11）を追加する。Enter commit 経路（UI-02-D4）とフォーカス戻し（UI-02-D5）は不変。lock source は既存 `isFormLocked` 派生 state、候補確定は既存の複数件候補テーブル選択と同一 handler。 | variant B。純 autocomplete 型（Enter 追加廃止）はスキャナ Enter が候補 async 読込み前に届くため退行・不採用（owner 方針 2026-08-04）。契約正本は catalog ⑮ に一元化し、画面 doc には画面固有の結線のみ置く（5 画面複製 drift 防止）。 |
 
 ## 61.2 Component / Route 構成
 
@@ -105,7 +105,7 @@ UI-02 実装 PR では以下を generated binding に出す。
 - PageHeader title は `入庫記録`、subtitle は仕入れ商品の到着時に在庫へ反映する作業であることを短く示す。
 - ヘッダは `入庫日`（既定は今日）、`取引先`（任意）、`備考`（任意）を置く。取引先取得失敗時は警告を出し、取引先未指定の保存は許可する。
 - 商品追加欄は `商品コード・JAN・商品名で追加` とし、Enter で検索する。候補が複数ある場合は小さな候補リストで商品名、商品コード、部門、現在庫を見せる。
-- 商品追加欄は入力中に live 候補プレビュー（商品コード・商品名・部門、最大 5 件 + 超過 footer）を表示する（UI-02-D14、挙動契約は catalog ⑮ SPEC-SUGGEST-D1〜D10）。候補は ↓/↑ または click で選択でき、候補未選択の Enter は従来どおり検索を実行する。入力値が変わると候補は即座に閉じる。
+- 商品追加欄は入力中に live 候補プレビュー（商品コード・商品名・部門、最大 5 件 + 超過 footer）を表示する（UI-02-D14、挙動契約は catalog ⑮ SPEC-SUGGEST-D1〜D11）。候補は ↓/↑ または click で選択でき、候補未選択の Enter は従来どおり検索を実行する。入力値が変わると候補は即座に閉じる。
 - 商品が見つからない場合は `商品登録へ` 導線を出す。入庫フォームは自動保存しないため、明細・入力がある状態での離脱（`商品登録へ` 導線を含む）は未保存編集の離脱ガード（UI_TECH_STACK §6.11 `useUnsavedChangesWarning`）が破棄確認を出す。
 - 明細表は商品名、商品コード、現在庫、入庫数量、原価、単位、行削除を表示する。生地は `cm` 単位を主表示にする。
 - 明細が 0 件の場合、保存ボタンは disabled にし、理由を「商品が追加されていません」と表示する。
