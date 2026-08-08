@@ -8,7 +8,7 @@ design 正本 = `docs/design-system/02-component-catalog.md` ⑮（SPEC-SUGGEST-
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: ef10439
-- Amendments: 284f664, 00719e1
+- Amendments: 284f664, 00719e1, 0d1ea42
 - Coordinator: Fable 5（main thread）
 - Writer: Codex（発注書駆動、public-writer clone。発注書は Plan Gate closure 後に提示）
 - Plan Reviewer: Sonnet 5 独立 subagent（rally、3 round 天井。D-062: Writer = Codex と別 vendor 要件を充足）
