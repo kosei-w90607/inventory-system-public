@@ -25,7 +25,9 @@ import {
 } from "@/components/ui/table";
 import { EmptyState } from "@/components/patterns/EmptyState";
 import { PageHeader } from "@/components/patterns/PageHeader";
+import { ProductAddSuggest } from "@/components/patterns/ProductAddSuggest";
 import { UnsavedChangesDialog } from "@/components/patterns/UnsavedChangesDialog";
+import { useProductAddSuggest } from "@/components/patterns/useProductAddSuggest";
 import { useUnsavedChangesWarning } from "@/hooks/useUnsavedChangesWarning";
 import { commands, type ProductWithRelations, type ReturnCreateResult } from "@/lib/bindings";
 import { describeError } from "@/lib/describe-error";
@@ -259,6 +261,13 @@ export function ReturnExchangePage() {
   const unsavedChanges = useUnsavedChangesWarning(hasInputChanges && !isFormLocked);
   const effectiveAddDirection: ReturnDirection =
     values.returnType === "exchange" ? addDirection : "in";
+  const productSuggest = useProductAddSuggest({
+    value: searchText,
+    isLocked: () => isFormLocked,
+    onSelect: (product) => {
+      addProduct(product, effectiveAddDirection);
+    },
+  });
 
   useEffect(() => {
     if (recentQuery.isError) {
@@ -311,8 +320,8 @@ export function ReturnExchangePage() {
     window.setTimeout(() => searchInputRef.current?.focus(), 0);
   }
 
-  async function handleProductSearch() {
-    const keyword = searchText.trim();
+  async function handleProductSearch(keywordOverride?: string) {
+    const keyword = (keywordOverride ?? searchText).trim();
     if (keyword === "" || isFormLocked) return;
     setSearchMessage(null);
     setCandidates([]);
@@ -660,24 +669,31 @@ export function ReturnExchangePage() {
         <div className="flex flex-wrap items-end gap-2">
           <div className="min-w-[18rem] flex-1 space-y-2">
             <Label htmlFor="return-product-search">商品追加</Label>
-            <Input
-              ref={searchInputRef}
-              id="return-product-search"
-              value={searchText}
-              disabled={isFormLocked}
-              placeholder="商品コード・JAN・商品名を入力"
-              aria-label="返品・交換商品検索"
-              onChange={(event) => {
-                setSearchText(event.target.value);
+            <ProductAddSuggest
+              controller={productSuggest}
+              onComposedDigitsCommit={(normalized) => {
+                void handleProductSearch(normalized);
               }}
-              onKeyDown={(event) => {
-                if (event.nativeEvent.isComposing) return;
-                if (event.key === "Enter") {
-                  event.preventDefault();
-                  void handleProductSearch();
-                }
-              }}
-            />
+            >
+              <Input
+                ref={searchInputRef}
+                id="return-product-search"
+                value={searchText}
+                disabled={isFormLocked}
+                placeholder="商品コード・JAN・商品名を入力"
+                aria-label="返品・交換商品検索"
+                onChange={(event) => {
+                  setSearchText(event.target.value);
+                }}
+                onKeyDown={(event) => {
+                  if (event.nativeEvent.isComposing) return;
+                  if (event.key === "Enter") {
+                    event.preventDefault();
+                    void handleProductSearch();
+                  }
+                }}
+              />
+            </ProductAddSuggest>
           </div>
           <div className="w-40 space-y-2">
             <Label htmlFor="return-add-direction">追加方向</Label>
@@ -887,6 +903,7 @@ export function ReturnExchangePage() {
             type="button"
             disabled={!canSubmit}
             onClick={() => {
+              productSuggest.invalidateAndClose();
               setSaveError(null);
               createMutation.mutate();
             }}

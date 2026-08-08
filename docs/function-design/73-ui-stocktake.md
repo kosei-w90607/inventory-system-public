@@ -113,7 +113,7 @@
 
 ### UI-10-D12: 対象確認欄の live 候補プレビュー
 
-- **決定**: 検索/スキャン欄（対象確認欄）に catalog ⑮（ProductAddSuggest、SPEC-SUGGEST-D1〜D10）の live 候補プレビューを追加する。suggest fetch は `commands.searchProducts`（部分一致）、候補確定は UI-10-D2 の `find_stocktake_item` 経由の既存経路で棚卸し対象化し、確定成功後の数量欄へのフォーカス遷移は UI-10-D11 の既存契約がそのまま発火する。候補確定後に解決が `None` の場合の無言 no-op 継承を含め、確定 semantics は既存 `selectCandidate` と同一。lock source は既存 `isCompleting`（`completeMutation.isPending`）派生 state（SPEC-SUGGEST-D4/D10）。
+- **決定**: 検索/スキャン欄（対象確認欄）に catalog ⑮（ProductAddSuggest、SPEC-SUGGEST-D1〜D11）の live 候補プレビューを追加する。suggest fetch は `commands.searchProducts`（部分一致）、候補確定は UI-10-D2 の `find_stocktake_item` 経由の既存経路で棚卸し対象化し、確定成功後の数量欄へのフォーカス遷移は UI-10-D11 の既存契約がそのまま発火する。候補確定後に解決が `None` の場合の無言 no-op 継承を含め、確定 semantics は既存 `selectCandidate` と同一。lock source は既存 `isCompleting`（`completeMutation.isPending`）派生 state（SPEC-SUGGEST-D4/D10）。
 - **Why**: 商品名でしか探せない商品（JAN なし・コード不明）の対象確認が、現行の「Enter 検索 → フォールバック候補テーブル」より早く目視でき、誤 Enter 前に気付ける。コード/JAN スキャンの主動線（スキャン → 即解決 → 数量入力）は SPEC-SUGGEST-D1/D2 により不変。
 - **Rejected**: 純 autocomplete 型（Enter 追加廃止）はスキャナ Enter が候補 async 読込み前に届くため退行、不採用（owner 方針 2026-08-04）。
 - **Revisit trigger**: catalog ⑮ の契約変更時。

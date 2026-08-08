@@ -33,7 +33,7 @@
 | REQ-204 / cache | UI-05-D13 | 保存成功時の invalidation は [D-052](../decision-log.md) C7 と `src/lib/invalidation-contract.ts` を正本とする。 | 廃棄で変わる在庫・履歴 consumer を一貫して stale 化し、画面側の key 列挙を廃止する。 |
 | REQ-204 / UI-05 | UI-05-D14 | Windows native L3 は owner 目視確認を必須にする。確認対象は navigation、商品検索/スキャン相当 Enter 追加、同一商品+種別+理由の数量加算、種別/理由/原価 validation、保存中 disable、保存結果、recent list、在庫照会へ戻る導線。 | 新規 operator-facing screen であり、ロス理由の入力、連続入力、フォーカス戻し、保存結果の可読性は CI だけでは判断しづらい。 |
 | REQ-204 / async result gate | UI-05-D15 | 非同期商品検索結果の採否に使う form lock ref は render 中に同期せず、保存eventの先頭でlock、validation / command失敗eventとreset eventでunlock、保存成功後はlock維持とする。商品候補の選択eventと検索完了callbackはこのrefを読む。 | render-phase ref更新は未commit renderのlockを残し得る。effect同期だけでは保存eventからcommit/effectまでに検索結果が解決するraceを閉じないためevent境界を採用する。保存clickからpending renderまでの極小窓で従来は結果が反映され得たのに対し、本方式は保存開始時点から破棄する。この可視差はUI-05-D10の「保存中は商品追加をlock」に合わせる是正だが、Plan Gateのowner裁定対象とする。 |
-| REQ-204 / product add suggest | UI-05-D16 | 商品追加欄に live 候補プレビュー（catalog ⑮ ProductAddSuggest / SPEC-SUGGEST-D1〜D10）を追加する。Enter commit 経路（UI-05-D5）とフォーカス戻し（UI-05-D6）は不変。lock source は UI-05-D15 の lock ref（suggest 層は同 ref を `isLocked()` として読み、保存 event 内で `invalidateAndClose()` を同期呼出しする。新規 lock は作らない）。候補確定は既存の複数件候補テーブル選択と同一 handler。 | UI-02-D14 と同一の variant B 判断 + 本画面固有の async lock 整合（catalog ⑮ D4/D10）。契約正本は catalog ⑮。 |
+| REQ-204 / product add suggest | UI-05-D16 | 商品追加欄に live 候補プレビュー（catalog ⑮ ProductAddSuggest / SPEC-SUGGEST-D1〜D11）を追加する。Enter commit 経路（UI-05-D5）とフォーカス戻し（UI-05-D6）は不変。lock source は UI-05-D15 の lock ref（suggest 層は同 ref を `isLocked()` として読み、保存 event 内で `invalidateAndClose()` を同期呼出しする。新規 lock は作らない）。候補確定は既存の複数件候補テーブル選択と同一 handler。 | UI-02-D14 と同一の variant B 判断 + 本画面固有の async lock 整合（catalog ⑮ D4/D10）。契約正本は catalog ⑮。 |
 
 ## 64.2 Component / Route 構成
 
@@ -109,7 +109,7 @@ UI-05 実装 PR では以下を generated binding に出す。
 - PageHeader title は `廃棄・破損`、subtitle は販売ではない理由で在庫を減らし、ロス理由と原価を残す作業であることを短く示す。
 - ヘッダは `廃棄日`（既定は今日）のみを置く。理由は明細単位に置く。
 - 商品追加欄は `商品コード・JAN・商品名で追加` とし、Enter で検索する。候補が複数ある場合は商品名、商品コード、部門、現在庫、原価を見せる。
-- 商品追加欄は入力中に live 候補プレビュー（商品コード・商品名・部門、最大 5 件 + 超過 footer）を表示する（UI-05-D16、挙動契約は catalog ⑮ SPEC-SUGGEST-D1〜D10）。候補は ↓/↑ または click で選択でき、候補未選択の Enter は従来どおり検索を実行する。入力値が変わると候補は即座に閉じる。
+- 商品追加欄は入力中に live 候補プレビュー（商品コード・商品名・部門、最大 5 件 + 超過 footer）を表示する（UI-05-D16、挙動契約は catalog ⑮ SPEC-SUGGEST-D1〜D11）。候補は ↓/↑ または click で選択でき、候補未選択の Enter は従来どおり検索を実行する。入力値が変わると候補は即座に閉じる。
 - 商品が見つからない場合は `商品登録へ` 導線を出す。未登録商品は商品マスタに登録してから廃棄・破損へ戻ることを日本語で示す。既存明細・入力がある状態での離脱（`商品登録へ` 導線を含む）は未保存編集の離脱ガード（UI_TECH_STACK §6.11 `useUnsavedChangesWarning`）が破棄確認を出す。
 - 明細表は商品名、商品コード、部門、現在庫、種別、数量、原価、理由、単位、行削除を表示する。生地は `cm` 単位を主表示にする。
 - 種別は日本語ラベルで `廃棄` / `破損` / `その他` と表示する。wire value の英語は画面に出さない。

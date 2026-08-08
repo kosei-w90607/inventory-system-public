@@ -24,7 +24,9 @@ import {
 } from "@/components/ui/table";
 import { EmptyState } from "@/components/patterns/EmptyState";
 import { PageHeader } from "@/components/patterns/PageHeader";
+import { ProductAddSuggest } from "@/components/patterns/ProductAddSuggest";
 import { UnsavedChangesDialog } from "@/components/patterns/UnsavedChangesDialog";
+import { useProductAddSuggest } from "@/components/patterns/useProductAddSuggest";
 import { useUnsavedChangesWarning } from "@/hooks/useUnsavedChangesWarning";
 import { commands, type ProductWithRelations, type ReceivingCreateResult } from "@/lib/bindings";
 import { describeError } from "@/lib/describe-error";
@@ -177,6 +179,11 @@ export function ReceivingPage() {
 
   const isSaving = createMutation.isPending;
   const isFormLocked = isSaving || result !== null;
+  const productSuggest = useProductAddSuggest({
+    value: searchText,
+    isLocked: () => isFormLocked,
+    onSelect: addProduct,
+  });
   const canSubmit = values.rows.length > 0 && values.receivingDate.trim() !== "" && !isFormLocked;
   const hasInputChanges =
     values.rows.length > 0 ||
@@ -215,8 +222,8 @@ export function ReceivingPage() {
     window.setTimeout(() => searchInputRef.current?.focus(), 0);
   }
 
-  async function handleProductSearch() {
-    const keyword = searchText.trim();
+  async function handleProductSearch(keywordOverride?: string) {
+    const keyword = (keywordOverride ?? searchText).trim();
     if (keyword === "" || isFormLocked) return;
     setSearchMessage(null);
     setCandidates([]);
@@ -403,24 +410,31 @@ export function ReceivingPage() {
         <div className="flex flex-wrap items-end gap-2">
           <div className="min-w-[18rem] flex-1 space-y-2">
             <Label htmlFor="receiving-product-search">商品追加</Label>
-            <Input
-              ref={searchInputRef}
-              id="receiving-product-search"
-              value={searchText}
-              disabled={isFormLocked}
-              placeholder="商品コード・JAN・商品名を入力"
-              aria-label="入庫商品検索"
-              onChange={(event) => {
-                setSearchText(event.target.value);
+            <ProductAddSuggest
+              controller={productSuggest}
+              onComposedDigitsCommit={(normalized) => {
+                void handleProductSearch(normalized);
               }}
-              onKeyDown={(event) => {
-                if (event.nativeEvent.isComposing) return;
-                if (event.key === "Enter") {
-                  event.preventDefault();
-                  void handleProductSearch();
-                }
-              }}
-            />
+            >
+              <Input
+                ref={searchInputRef}
+                id="receiving-product-search"
+                value={searchText}
+                disabled={isFormLocked}
+                placeholder="商品コード・JAN・商品名を入力"
+                aria-label="入庫商品検索"
+                onChange={(event) => {
+                  setSearchText(event.target.value);
+                }}
+                onKeyDown={(event) => {
+                  if (event.nativeEvent.isComposing) return;
+                  if (event.key === "Enter") {
+                    event.preventDefault();
+                    void handleProductSearch();
+                  }
+                }}
+              />
+            </ProductAddSuggest>
           </div>
           <Button
             type="button"
@@ -603,6 +617,7 @@ export function ReceivingPage() {
             type="button"
             disabled={!canSubmit}
             onClick={() => {
+              productSuggest.invalidateAndClose();
               setSaveError(null);
               createMutation.mutate();
             }}
