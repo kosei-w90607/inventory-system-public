@@ -7,12 +7,17 @@ import {
   RotateCcw,
   Search,
 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
 
 import { DepartmentFilter } from "@/components/patterns/DepartmentFilter";
 import { EmptyState } from "@/components/patterns/EmptyState";
 import { FormSection } from "@/components/patterns/FormSection";
 import { PageHeader } from "@/components/patterns/PageHeader";
+import {
+  ProductAddSuggest,
+  type ProductAddSuggestController,
+} from "@/components/patterns/ProductAddSuggest";
+import { useProductAddSuggest } from "@/components/patterns/useProductAddSuggest";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   AlertDialog,
@@ -112,6 +117,7 @@ export function StocktakePage({ search, onSearchChange }: StocktakePageProps) {
   const [lastStocktakeSnapshot, setLastStocktakeSnapshot] = useState<
     LastStocktakeSummary | null | undefined
   >(undefined);
+  const productSuggestRef = useRef<ProductAddSuggestController | null>(null);
 
   useEffect(() => {
     setEffectiveSearch(search);
@@ -165,6 +171,7 @@ export function StocktakePage({ search, onSearchChange }: StocktakePageProps) {
   }
 
   async function handleCompleteConfirm(forceFill: boolean) {
+    productSuggestRef.current?.invalidateAndClose();
     if (activeStocktakeId === null) return;
     setErrorMessage(null);
     setIsConfirmOpen(false);
@@ -260,6 +267,7 @@ export function StocktakePage({ search, onSearchChange }: StocktakePageProps) {
           <StocktakeCountEntry
             stocktakeId={activeStocktakeId}
             disabled={isCompleting}
+            productSuggestRef={productSuggestRef}
             findMutation={findMutation}
             updateMutation={updateMutation}
             onError={setErrorMessage}
@@ -378,6 +386,7 @@ export function StocktakeProgressHeader({ startedAt, progress }: StocktakeProgre
 interface StocktakeCountEntryProps {
   stocktakeId: number;
   disabled: boolean;
+  productSuggestRef: RefObject<ProductAddSuggestController | null>;
   findMutation: ReturnType<typeof useFindStocktakeItem>;
   updateMutation: ReturnType<typeof useUpdateCount>;
   onError: (message: string | null) => void;
@@ -387,6 +396,7 @@ interface StocktakeCountEntryProps {
 export function StocktakeCountEntry({
   stocktakeId,
   disabled,
+  productSuggestRef,
   findMutation,
   updateMutation,
   onError,
@@ -401,6 +411,18 @@ export function StocktakeCountEntry({
   const [candidates, setCandidates] = useState<ProductWithRelations[]>([]);
   const codeInputRef = useRef<HTMLInputElement>(null);
   const quantityInputRef = useRef<HTMLInputElement>(null);
+  const productSuggest = useProductAddSuggest({
+    value: code,
+    isLocked: () => disabled,
+    onSelect: (product) => selectCandidate(product.product_code),
+  });
+
+  useEffect(() => {
+    productSuggestRef.current = productSuggest;
+    return () => {
+      productSuggestRef.current = null;
+    };
+  }, [productSuggest, productSuggestRef]);
 
   useEffect(() => {
     codeInputRef.current?.focus();
@@ -414,8 +436,8 @@ export function StocktakeCountEntry({
     window.setTimeout(() => quantityInputRef.current?.focus(), 0);
   }
 
-  async function resolveItem() {
-    const trimmed = code.trim();
+  async function resolveItem(codeOverride?: string) {
+    const trimmed = (codeOverride ?? code).trim();
     if (trimmed.length === 0 || disabled) return;
     setFieldError(null);
     setTargetMessage(null);
@@ -505,22 +527,29 @@ export function StocktakeCountEntry({
       >
         <div className="space-y-2">
           <Label htmlFor="stocktake-code">商品を検索・スキャン</Label>
-          <Input
-            id="stocktake-code"
-            ref={codeInputRef}
-            value={code}
-            placeholder="商品コード・JAN・商品名を入力"
-            onChange={(event) => {
-              setCode(event.target.value);
+          <ProductAddSuggest
+            controller={productSuggest}
+            onComposedDigitsCommit={(normalized) => {
+              void resolveItem(normalized);
             }}
-            onKeyDown={(event) => {
-              if (event.nativeEvent.isComposing) return;
-              if (event.key === "Enter") {
-                event.preventDefault();
-                void resolveItem();
-              }
-            }}
-          />
+          >
+            <Input
+              id="stocktake-code"
+              ref={codeInputRef}
+              value={code}
+              placeholder="商品コード・JAN・商品名を入力"
+              onChange={(event) => {
+                setCode(event.target.value);
+              }}
+              onKeyDown={(event) => {
+                if (event.nativeEvent.isComposing) return;
+                if (event.key === "Enter") {
+                  event.preventDefault();
+                  void resolveItem();
+                }
+              }}
+            />
+          </ProductAddSuggest>
         </div>
         <div className="flex items-end">
           <Button type="button" variant="outline" onClick={() => void resolveItem()}>

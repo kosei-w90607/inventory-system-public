@@ -224,7 +224,7 @@ describe("StocktakePage (UI-10)", () => {
     await renderPage();
     await screen.findByText("棚卸し中（開始日: 2026-10-01 09:00:00）");
 
-    await user.click(screen.getByRole("combobox"));
+    await user.click(screen.getByRole("combobox", { name: "部門" }));
     await user.click(screen.getByRole("option", { name: "毛糸" }));
     await user.click(screen.getByLabelText("未入力のみ表示"));
 
