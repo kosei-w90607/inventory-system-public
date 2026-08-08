@@ -176,4 +176,18 @@ describe("StocktakePage ProductAddSuggest (UI-10-D12)", () => {
       expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
     });
   });
+
+  it("W17: compositionendの正規化済み引数を既存resolveItem経路へ渡す", async () => {
+    mockFindItem.mockResolvedValue(ok(item({ product_code: "ST-C1", name: "合成入力棚卸し商品" })));
+    renderPage();
+
+    fireEvent.compositionEnd(await screen.findByLabelText("商品を検索・スキャン"), {
+      target: { value: "６７８９０" },
+    });
+
+    await waitFor(() => {
+      expect(mockFindItem).toHaveBeenCalledWith(77, "67890");
+    });
+    expect(mockFindItem).not.toHaveBeenCalledWith(77, "６７８９０");
+  });
 });

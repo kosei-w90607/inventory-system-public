@@ -320,8 +320,8 @@ export function ReturnExchangePage() {
     window.setTimeout(() => searchInputRef.current?.focus(), 0);
   }
 
-  async function handleProductSearch() {
-    const keyword = searchText.trim();
+  async function handleProductSearch(keywordOverride?: string) {
+    const keyword = (keywordOverride ?? searchText).trim();
     if (keyword === "" || isFormLocked) return;
     setSearchMessage(null);
     setCandidates([]);
@@ -669,7 +669,12 @@ export function ReturnExchangePage() {
         <div className="flex flex-wrap items-end gap-2">
           <div className="min-w-[18rem] flex-1 space-y-2">
             <Label htmlFor="return-product-search">商品追加</Label>
-            <ProductAddSuggest controller={productSuggest}>
+            <ProductAddSuggest
+              controller={productSuggest}
+              onComposedDigitsCommit={(normalized) => {
+                void handleProductSearch(normalized);
+              }}
+            >
               <Input
                 ref={searchInputRef}
                 id="return-product-search"

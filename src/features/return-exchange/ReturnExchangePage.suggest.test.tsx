@@ -152,4 +152,24 @@ describe("ReturnExchangePage ProductAddSuggest (UI-03-D21)", () => {
       expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
     });
   });
+
+  it("W15: compositionendの正規化済み引数で既存検索を実行する", async () => {
+    mockSearchProducts.mockResolvedValue(
+      result([makeMockProductWithRelations({ product_code: "RT-C1", name: "合成入力商品" })], 10),
+    );
+    renderPage();
+
+    fireEvent.compositionEnd(await screen.findByLabelText("返品・交換商品検索"), {
+      target: { value: "３４５６７" },
+    });
+
+    await waitFor(() => {
+      expect(mockSearchProducts).toHaveBeenCalledWith(
+        expect.objectContaining({ keyword: "34567", per_page: 10 }),
+      );
+    });
+    expect(mockSearchProducts).not.toHaveBeenCalledWith(
+      expect.objectContaining({ keyword: "３４５６７", per_page: 10 }),
+    );
+  });
 });

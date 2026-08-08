@@ -1,5 +1,5 @@
 // UI-02-D14 / UI-04-D16 / UI-03-D21 / UI-05-D16 / UI-10-D12
-// SPEC-SUGGEST-D1〜D10: 商品追加欄 live 候補プレビューの契約テスト。
+// SPEC-SUGGEST-D1〜D11: 商品追加欄 live 候補プレビューの契約テスト。
 
 import { act, createEvent, fireEvent, render, screen, within } from "@testing-library/react";
 import type { ReactNode, RefObject } from "react";
@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { makeMockProductWithRelations } from "@/features/products/lib/test-fixtures";
 import { commands, type ProductWithRelations } from "@/lib/bindings";
 import { ProductAddSuggest, type ProductAddSuggestController } from "./ProductAddSuggest";
+import { normalizeComposedDigits } from "./normalizeComposedDigits";
 import { useProductAddSuggest } from "./useProductAddSuggest";
 
 vi.mock("@/lib/bindings", () => ({
@@ -51,6 +52,8 @@ interface HarnessProps {
   locked?: boolean;
   externalValue?: string;
   onFallback?: () => void;
+  onInputChange?: (value: string) => void;
+  onComposedDigitsCommit?: (normalized: string) => void;
   onSelect?: (product: ProductWithRelations) => void;
   controllerRef?: RefObject<ProductAddSuggestController | null>;
   children?: ReactNode;
@@ -60,6 +63,8 @@ function Harness({
   locked = false,
   externalValue,
   onFallback = vi.fn(),
+  onInputChange = vi.fn(),
+  onComposedDigitsCommit,
   onSelect = vi.fn(),
   controllerRef,
 }: HarnessProps) {
@@ -76,12 +81,13 @@ function Harness({
   }, [controller, controllerRef]);
 
   return (
-    <ProductAddSuggest controller={controller}>
+    <ProductAddSuggest controller={controller} onComposedDigitsCommit={onComposedDigitsCommit}>
       <Input
         aria-label="商品追加"
         value={value}
         onChange={(event) => {
           setInternalValue(event.target.value);
+          onInputChange(event.target.value);
         }}
         onKeyDown={(event) => {
           if (event.nativeEvent.isComposing) return;
@@ -115,7 +121,7 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-describe("ProductAddSuggest (SPEC-SUGGEST-D1〜D10)", () => {
+describe("ProductAddSuggest (SPEC-SUGGEST-D1〜D11)", () => {
   it("S1: 1文字入力の199ms後は未発火、200ms後にper_page 5で検索する", async () => {
     mockSearchProducts.mockResolvedValue(okProducts([]));
     render(<Harness />);
@@ -516,5 +522,85 @@ describe("ProductAddSuggest (SPEC-SUGGEST-D1〜D10)", () => {
     expect(mockSearchProducts).not.toHaveBeenCalled();
     expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
     // in-flight 応答の外部value変更不採用は S10 が検証済み（token+検索語二重一致）
+  });
+
+  it("S22: 全角数字だけのcompositionendは半角onChange後にcommitを1回呼ぶ", () => {
+    const onInputChange = vi.fn();
+    const onComposedDigitsCommit = vi.fn();
+    render(
+      <Harness onInputChange={onInputChange} onComposedDigitsCommit={onComposedDigitsCommit} />,
+    );
+
+    fireEvent.compositionEnd(screen.getByRole("combobox"), {
+      target: { value: "１２３４５" },
+    });
+
+    expect(onInputChange).toHaveBeenCalledOnce();
+    expect(onInputChange).toHaveBeenCalledWith("12345");
+    expect(onComposedDigitsCommit).toHaveBeenCalledOnce();
+    expect(onComposedDigitsCommit).toHaveBeenCalledWith("12345");
+  });
+
+  it("S23: 英字・かな・記号を含むcompositionendは加工もcommitもしない", () => {
+    const onInputChange = vi.fn();
+    const onComposedDigitsCommit = vi.fn();
+    render(
+      <Harness onInputChange={onInputChange} onComposedDigitsCommit={onComposedDigitsCommit} />,
+    );
+    const input = screen.getByRole("combobox");
+
+    fireEvent.compositionEnd(input, { target: { value: "１２Aあ－３" } });
+
+    expect(input).toHaveValue("１２Aあ－３");
+    expect(onInputChange).not.toHaveBeenCalled();
+    expect(onComposedDigitsCommit).not.toHaveBeenCalled();
+  });
+
+  it("S24: compositionend commit直後の非composing Enterをone-shotで抑止する", () => {
+    const onFallback = vi.fn();
+    const onComposedDigitsCommit = vi.fn();
+    render(<Harness onFallback={onFallback} onComposedDigitsCommit={onComposedDigitsCommit} />);
+    const input = screen.getByRole("combobox");
+
+    fireEvent.compositionEnd(input, { target: { value: "５４３２１" } });
+    fireEvent.keyDown(input, { key: "Enter", isComposing: false });
+
+    expect(onComposedDigitsCommit).toHaveBeenCalledOnce();
+    expect(onFallback).not.toHaveBeenCalled();
+  });
+
+  it("S25: 半角数字だけのcompositionendもcommitを1回呼ぶ", () => {
+    const onComposedDigitsCommit = vi.fn();
+    render(<Harness onComposedDigitsCommit={onComposedDigitsCommit} />);
+
+    fireEvent.compositionEnd(screen.getByRole("combobox"), {
+      target: { value: "24680" },
+    });
+
+    expect(onComposedDigitsCommit).toHaveBeenCalledOnce();
+    expect(onComposedDigitsCommit).toHaveBeenCalledWith("24680");
+  });
+
+  it("S26: リストopen中のcompositionendはfallbackだけを通り候補確定しない", async () => {
+    const onComposedDigitsCommit = vi.fn();
+    const onSelect = vi.fn();
+    render(<Harness onComposedDigitsCommit={onComposedDigitsCommit} onSelect={onSelect} />);
+    await openSuggestions();
+
+    fireEvent.compositionEnd(screen.getByRole("combobox"), {
+      target: { value: "８６４２０" },
+    });
+
+    expect(onComposedDigitsCommit).toHaveBeenCalledWith("86420");
+    expect(onSelect).not.toHaveBeenCalled();
+    expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+  });
+
+  it("S27: 数字10文字だけを境界どおり写像し空文字・全角記号混在は不変にする", () => {
+    expect(normalizeComposedDigits("０１２３４５６７８９")).toBe("0123456789");
+    expect(normalizeComposedDigits("０9")).toBe("09");
+    expect(normalizeComposedDigits("")).toBe("");
+    expect(normalizeComposedDigits("１２－３")).toBe("１２－３");
+    expect(normalizeComposedDigits("１２．３")).toBe("１２．３");
   });
 });

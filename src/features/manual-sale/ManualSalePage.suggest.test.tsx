@@ -148,4 +148,24 @@ describe("ManualSalePage ProductAddSuggest (UI-04-D16)", () => {
       expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
     });
   });
+
+  it("W14: compositionendの正規化済み引数で既存検索を実行する", async () => {
+    mockSearchProducts.mockResolvedValue(
+      result([makeMockProductWithRelations({ product_code: "MS-C1", name: "合成入力商品" })], 10),
+    );
+    renderPage();
+
+    fireEvent.compositionEnd(await screen.findByLabelText("手動販売商品検索"), {
+      target: { value: "２３４５６" },
+    });
+
+    await waitFor(() => {
+      expect(mockSearchProducts).toHaveBeenCalledWith(
+        expect.objectContaining({ keyword: "23456", per_page: 10 }),
+      );
+    });
+    expect(mockSearchProducts).not.toHaveBeenCalledWith(
+      expect.objectContaining({ keyword: "２３４５６", per_page: 10 }),
+    );
+  });
 });

@@ -436,8 +436,8 @@ export function StocktakeCountEntry({
     window.setTimeout(() => quantityInputRef.current?.focus(), 0);
   }
 
-  async function resolveItem() {
-    const trimmed = code.trim();
+  async function resolveItem(codeOverride?: string) {
+    const trimmed = (codeOverride ?? code).trim();
     if (trimmed.length === 0 || disabled) return;
     setFieldError(null);
     setTargetMessage(null);
@@ -527,7 +527,12 @@ export function StocktakeCountEntry({
       >
         <div className="space-y-2">
           <Label htmlFor="stocktake-code">商品を検索・スキャン</Label>
-          <ProductAddSuggest controller={productSuggest}>
+          <ProductAddSuggest
+            controller={productSuggest}
+            onComposedDigitsCommit={(normalized) => {
+              void resolveItem(normalized);
+            }}
+          >
             <Input
               id="stocktake-code"
               ref={codeInputRef}

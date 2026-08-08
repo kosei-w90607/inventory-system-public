@@ -137,4 +137,40 @@ describe("DisposalPage ProductAddSuggest (UI-05-D15/D16)", () => {
       expect.objectContaining({ keyword: "DP-E1", per_page: 10 }),
     );
   });
+
+  it("W16: compositionendは正規化済み引数で検索しlock中は発火しない", async () => {
+    mockSearchProducts.mockResolvedValueOnce(
+      result([makeMockProductWithRelations({ product_code: "DP-C1", name: "合成入力商品" })], 10),
+    );
+    renderPage();
+
+    fireEvent.compositionEnd(await screen.findByLabelText("廃棄・破損商品検索"), {
+      target: { value: "４５６７８" },
+    });
+    await waitFor(() => {
+      expect(mockSearchProducts).toHaveBeenCalledWith(
+        expect.objectContaining({ keyword: "45678", per_page: 10 }),
+      );
+    });
+    expect(await screen.findByText("合成入力商品")).toBeInTheDocument();
+
+    mockCreateDisposal.mockReturnValue(
+      new Promise(() => {
+        // lock 中の compositionend を観測するため、意図的に未解決のままにする。
+      }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "廃棄・破損を保存" }));
+    await waitFor(() => {
+      expect(mockCreateDisposal).toHaveBeenCalledOnce();
+    });
+    mockSearchProducts.mockClear();
+
+    const lockedInput = screen.getByLabelText("廃棄・破損商品検索");
+    fireEvent.compositionEnd(lockedInput, {
+      target: { value: "５６７８９" },
+    });
+
+    expect(lockedInput).toHaveValue("５６７８９");
+    expect(mockSearchProducts).not.toHaveBeenCalled();
+  });
 });

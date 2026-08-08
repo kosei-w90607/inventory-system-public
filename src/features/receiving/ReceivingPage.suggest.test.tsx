@@ -168,4 +168,27 @@ describe("ReceivingPage ProductAddSuggest (UI-02-D14)", () => {
       expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
     });
   });
+
+  it("W13: compositionendの正規化済み引数で既存検索を実行する", async () => {
+    mockSearchProducts.mockResolvedValue(
+      searchResult(
+        [makeMockProductWithRelations({ product_code: "RC-C1", name: "合成入力商品" })],
+        10,
+      ),
+    );
+    renderPage();
+
+    fireEvent.compositionEnd(await screen.findByLabelText("入庫商品検索"), {
+      target: { value: "１２３４５" },
+    });
+
+    await waitFor(() => {
+      expect(mockSearchProducts).toHaveBeenCalledWith(
+        expect.objectContaining({ keyword: "12345", per_page: 10 }),
+      );
+    });
+    expect(mockSearchProducts).not.toHaveBeenCalledWith(
+      expect.objectContaining({ keyword: "１２３４５", per_page: 10 }),
+    );
+  });
 });
