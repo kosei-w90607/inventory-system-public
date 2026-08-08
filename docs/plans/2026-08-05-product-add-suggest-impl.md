@@ -4,7 +4,7 @@ design 正本 = `docs/design-system/02-component-catalog.md` ⑮（SPEC-SUGGEST-
 
 ## Workflow State
 
-- Phase: human-confirm
+- Phase: ready-hosted-final
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: ef10439
