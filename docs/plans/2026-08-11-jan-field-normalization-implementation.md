@@ -422,7 +422,11 @@ Contract ID: SPEC-JAN-NORMALIZATION-IMPL
 
 ## Implementation Results
 
-未着手。Plan Gate と owner plan 承認後に Codex Writer へ発注する。
+- Codex Writer が W1〜W7 を実装完了。frontend JAN helper、ProductForm / request builder、ProductAddSuggest D12、BIZ JAN core / create validation を配線した。
+- fixture replacement は本 Packet の置換対象表どおり実施し、旧 create literal 0 hit、import / POS adapter / DB lookup / 5 画面 test の frozen path diff 0 を再測定した。
+- TDD Red を実測後に targeted test を Green 化し、mutation X1〜X11 は全 class で Red を実測して一時差分を全て戻した。
+- `generate_traceability` で `90-traceability.md` を再生成し、bindings diff 0、frontend / Rust / docs / env / design / release gates を Green 化した。exact content HEAD と L1 full evidence は Draft PR body に記録する。
+- Windows native L3 と independent Final Review は未実施であり、Coordinator / owner の後続 Human Gate として残す。
 
 ## Review Response
 
@@ -433,4 +437,5 @@ Contract ID: SPEC-JAN-NORMALIZATION-IMPL
   - P3-2（Matrix に None 明示行がない・design archive「None通過」引用）: 前提を refute — 引用された文言は設計正本に存在せず（`rg -n 'None'` 0 hit）、Matrix Negative Paths / Boundary Checks に None 契約は既存。evidence 紐付け欠如のみ accept し、Negative Paths へ「`default_create_request()`（jan_code: None、product_service.rs L955 実読）を使う既存 create test 群の無改変 green 維持」を検証条件として追記。round 2 で独立再検証する。
 - Plan Review rally round 2（Sonnet 5 independent / fresh context、2026-08-11、reviewed HEAD 9dbde52）: round 1 裁定 3 件（P2-1 itemize / P3-1 `jan_code.rs` 命名の repo 慣行整合 / P3-2 refute + None 検証条件）を独立再検証で全件 VERIFY、新規指摘 0。fixture sweep 17+4 行・D-ID 6 個・step 1g の空き文字・W3/W4 の実装現況前提（`ProductForm.tsx` `id="jan-code"` 1 箇所 / `onCompositionEnd` 未配線 / `product-form-request.ts` trim のみ / ProductAddSuggest non-composition onChange 未正規化）も現 HEAD 実測と一致。**rally 収束（P1/P2 = 0、新規指摘 0）、owner plan 承認待ちへ遷移。**
 - owner plan 承認（2026-08-11、介入 1/3）: rally 収束（P1/P2 = 0、round 2 新規指摘 0）を受けた plan 承認。併せて owner 指示 = repo root の stale `Plans.md`（公開スナップショット初期化残骸、live 正本 = `docs/Plans.md`）の整理を本 change 完了後すぐ着手 → Plans.md backlog へ起票。遷移 `plan-gate -> plan-approved -> implementing` は state-only 遷移 commit（STATECAP ①）で実体化、Plan Commit = `2439c03`（承認対象の packet 状態 = rally 収束記録込み）。
+- Writer implementation handoff（Codex、2026-08-11）: W1〜W7、全 automated gate、mutation X1〜X11 の Red / revert、fixture / frozen sweep を完了し Draft PR へ引き渡す。Workflow State / `docs/Plans.md` の遷移は Coordinator 所有のため未変更。
 - Final Review: pending independent Sonnet 5 fresh-context review。

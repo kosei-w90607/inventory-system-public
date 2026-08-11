@@ -7,6 +7,7 @@ pub mod csv_import_service;
 pub mod daily_report_import_service;
 pub mod integrity_service;
 pub mod inventory_service;
+pub mod jan_code;
 pub mod plu_export_service;
 pub mod product_service;
 pub mod sales_service;

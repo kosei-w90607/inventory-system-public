@@ -17,7 +17,7 @@ const noPrefixDepartment = makeMockDepartment({ id: 2, name: "通常部門", cod
 function validValues(overrides: Partial<ProductFormValues> = {}): ProductFormValues {
   return {
     ...createProductFormDefaults,
-    janCode: "4901234567890",
+    janCode: "2000000000138",
     name: "テスト商品",
     departmentId: 1,
     sellingPrice: "500",
@@ -33,7 +33,7 @@ describe("buildCreateProductRequest (UI-01b-D4/D6)", () => {
 
     expect(result.errors).toEqual({});
     expect(result.request).toMatchObject({
-      jan_code: "4901234567890",
+      jan_code: "2000000000138",
       department_id: 1,
       stock_unit: "pcs",
       initial_stock: 10,
@@ -71,6 +71,48 @@ describe("buildCreateProductRequest (UI-01b-D4/D6)", () => {
 
     expect(result.request).toMatchObject({ plu_target: true });
   });
+
+  it("REQ-101 saves trimmed normalized JAN wire value", () => {
+    const result = buildCreateProductRequest(
+      validValues({ janCode: " ４９０１２３４５６７８８７ " }),
+      [prefixDepartment],
+    );
+
+    expect(result.errors).toEqual({});
+    expect(result.request).toMatchObject({ jan_code: "4901234567887" });
+  });
+
+  it.each(["4901234567887", "96385074", "49123456"])(
+    "REQ-101 accepts a valid JAN-8 or JAN-13 wire value: %s",
+    (janCode) => {
+      const result = buildCreateProductRequest(validValues({ janCode }), [prefixDepartment]);
+
+      expect(result.errors).toEqual({});
+      expect(result.request).toMatchObject({ jan_code: janCode });
+    },
+  );
+
+  it.each(["123456789012", "490123456788A"])(
+    "REQ-101 returns exact JAN length error: %s",
+    (janCode) => {
+      const result = buildCreateProductRequest(validValues({ janCode }), [prefixDepartment]);
+
+      expect(result.request).toBeNull();
+      expect(result.errors.janCode).toBe("JANコードは13桁または8桁で入力してください");
+    },
+  );
+
+  it.each(["4901234567890", "49123457"])(
+    "REQ-101 returns exact JAN check digit error: %s",
+    (janCode) => {
+      const result = buildCreateProductRequest(validValues({ janCode }), [prefixDepartment]);
+
+      expect(result.request).toBeNull();
+      expect(result.errors.janCode).toBe(
+        "JANコードのチェックディジットが一致しません。入力値を確認してください",
+      );
+    },
+  );
 });
 
 describe("buildUpdateProductRequest (UI-01b-D5)", () => {

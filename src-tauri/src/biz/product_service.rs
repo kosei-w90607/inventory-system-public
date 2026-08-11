@@ -7,7 +7,7 @@ use crate::db::product_repo::{self, NewPriceHistory, NewProduct, ProductUpdates}
 use crate::db::system_repo::{self, NewOperationLog};
 use crate::db::{inventory_repo, stocktake_repo, DbConnection, DbError, PaginatedResult};
 
-use super::BizError;
+use super::{jan_code, BizError};
 use crate::db::inventory_repo::{MovementType, NewMovement};
 use crate::db::product_repo::{
     ProductSearchQuery, ProductStockUnit, ProductTaxRate, ProductWithRelations,
@@ -481,6 +481,10 @@ fn validate_create_request(
                 "指定された取引先が存在しません".to_string(),
             ));
         }
+    }
+    if let Some(jan_code) = req.jan_code.as_deref() {
+        jan_code::validate(jan_code)
+            .map_err(|error| BizError::ValidationFailed(error.message().to_string()))?;
     }
     Ok(())
 }
@@ -1038,12 +1042,12 @@ mod tests {
         // REQ-101: JAN有りで正常登録
         let (_dir, mut conn) = setup_test_db();
         let mut req = default_create_request();
-        req.jan_code = Some("4976383262108".to_string());
+        req.jan_code = Some("2000000000015".to_string());
         req.name = "ハマナカ アミアミ極太".to_string();
         req.department_id = 3; // 毛糸
 
         let result = create_product(&mut conn, req).unwrap();
-        assert_eq!(result.product_code, "4976383262108");
+        assert_eq!(result.product_code, "2000000000015");
     }
 
     #[test]
@@ -1063,7 +1067,7 @@ mod tests {
         // REQ-101 / REQ-402: 商品登録時のPLU対象フラグはrequest値を保存する。
         let (_dir, mut conn) = setup_test_db();
         let mut req = default_create_request();
-        req.jan_code = Some("CREATE-PLU-TARGET".to_string());
+        req.jan_code = Some("2000000000022".to_string());
         req.department_id = 3;
         req.plu_target = true;
 
@@ -1196,17 +1200,105 @@ mod tests {
 
     #[test]
     #[serial]
+    fn test_create_product_req101_accepts_valid_jan_8_and_jan_13() {
+        for jan_code in ["4901234567887", "96385074", "49123456"] {
+            let (_dir, mut conn) = setup_test_db();
+            let mut req = default_create_request();
+            req.jan_code = Some(jan_code.to_string());
+            req.department_id = 3;
+
+            let result = create_product(&mut conn, req).unwrap();
+            assert_eq!(result.product_code, jan_code);
+        }
+    }
+
+    #[test]
+    #[serial]
+    fn test_create_product_req101_rejects_invalid_jan_wire_with_exact_message() {
+        for jan_code in ["123456789012", "490123456788A"] {
+            let (_dir, mut conn) = setup_test_db();
+            let mut req = default_create_request();
+            req.jan_code = Some(jan_code.to_string());
+            req.department_id = 3;
+
+            let result = create_product(&mut conn, req);
+            assert!(matches!(
+                result,
+                Err(BizError::ValidationFailed(ref message))
+                    if message == "JANコードは13桁または8桁で入力してください"
+            ));
+        }
+
+        for jan_code in ["4901234567890", "49123457"] {
+            let (_dir, mut conn) = setup_test_db();
+            let mut req = default_create_request();
+            req.jan_code = Some(jan_code.to_string());
+            req.department_id = 3;
+
+            let result = create_product(&mut conn, req);
+            assert!(matches!(
+                result,
+                Err(BizError::ValidationFailed(ref message))
+                    if message
+                        == "JANコードのチェックディジットが一致しません。入力値を確認してください"
+            ));
+        }
+    }
+
+    #[test]
+    #[serial]
+    fn test_create_product_req101_does_not_normalize_fullwidth_or_spaced_jan_wire() {
+        for jan_code in ["４９０１２３４５６７８８７", " 4901234567887 "] {
+            let (_dir, mut conn) = setup_test_db();
+            let mut req = default_create_request();
+            req.jan_code = Some(jan_code.to_string());
+            req.department_id = 3;
+
+            let result = create_product(&mut conn, req);
+            assert!(matches!(
+                result,
+                Err(BizError::ValidationFailed(ref message))
+                    if message == "JANコードは13桁または8桁で入力してください"
+            ));
+        }
+    }
+
+    #[test]
+    fn test_should_default_plu_target_req402_uses_normalized_ascii_ean_13_domain() {
+        let cases = [
+            (None, false),
+            (Some("4901234567887"), true),
+            (Some("96385074"), false),
+            (Some("４９０１２３４５６７８８７"), false),
+            (Some(" 4901234567887 "), false),
+            (Some(" ４９０１２３４５６７８８７ "), false),
+            (Some("490123456788A"), false),
+            (Some("123456789012"), false),
+            (Some("12345678901234"), false),
+        ];
+
+        for (jan_code, expected) in cases {
+            assert_eq!(
+                should_default_plu_target(jan_code),
+                expected,
+                "jan={jan_code:?}"
+            );
+        }
+    }
+
+    #[test]
+    #[serial]
     fn test_create_product_req101_duplicate_jan() {
         // REQ-101: 商品登録 — JANコード重複はDuplicateProductCode
         // 事前チェックで重複検出
         let (_dir, mut conn) = setup_test_db();
         let mut req1 = default_create_request();
-        req1.jan_code = Some("4976383262108".to_string());
+        req1.jan_code = Some("2000000000039".to_string());
         req1.department_id = 3;
         create_product(&mut conn, req1).unwrap();
 
         let mut req2 = default_create_request();
-        req2.jan_code = Some("4976383262108".to_string());
+        req2.jan_code = Some("2000000000039".to_string());
         req2.department_id = 3;
         let result = create_product(&mut conn, req2);
         assert!(matches!(result, Err(BizError::DuplicateProductCode(_))));
@@ -1307,7 +1399,7 @@ mod tests {
         // REQ-102: 売価変更で price_history 記録 + plu_dirty=true
         let (_dir, mut conn) = setup_test_db();
         let mut req = default_create_request();
-        req.jan_code = Some("UP-PRICE".to_string());
+        req.jan_code = Some("2000000000046".to_string());
         req.department_id = 3;
         create_product(&mut conn, req).unwrap();
 
@@ -1315,12 +1407,12 @@ mod tests {
             selling_price: Some(999),
             ..Default::default()
         };
-        update_product(&mut conn, "UP-PRICE", &update_req).unwrap();
+        update_product(&mut conn, "2000000000046", &update_req).unwrap();
 
         // price_history が記録された
         let count: i64 = conn
             .query_row(
-                "SELECT COUNT(*) FROM price_history WHERE product_code = 'UP-PRICE'",
+                "SELECT COUNT(*) FROM price_history WHERE product_code = '2000000000046'",
                 [],
                 |row| row.get(0),
             )
@@ -1328,7 +1420,7 @@ mod tests {
         assert_eq!(count, 1);
 
         // plu_dirty=true
-        let found = product_repo::find_by_product_code(&conn, "UP-PRICE")
+        let found = product_repo::find_by_product_code(&conn, "2000000000046")
             .unwrap()
             .unwrap();
         assert!(found.product.plu_dirty);
@@ -1340,14 +1432,14 @@ mod tests {
         // REQ-102: 原価のみ変更で price_history あり、plu_dirty 変更なし
         let (_dir, mut conn) = setup_test_db();
         let mut req = default_create_request();
-        req.jan_code = Some("UP-COST".to_string());
+        req.jan_code = Some("2000000000053".to_string());
         req.department_id = 3;
         create_product(&mut conn, req).unwrap();
 
         // plu_dirty を false にリセット
         product_repo::update_product(
             &conn,
-            "UP-COST",
+            "2000000000053",
             &ProductUpdates {
                 plu_dirty: Some(false),
                 ..Default::default()
@@ -1359,18 +1451,18 @@ mod tests {
             cost_price: Some(999),
             ..Default::default()
         };
-        update_product(&mut conn, "UP-COST", &update_req).unwrap();
+        update_product(&mut conn, "2000000000053", &update_req).unwrap();
 
         let count: i64 = conn
             .query_row(
-                "SELECT COUNT(*) FROM price_history WHERE product_code = 'UP-COST'",
+                "SELECT COUNT(*) FROM price_history WHERE product_code = '2000000000053'",
                 [],
                 |row| row.get(0),
             )
             .unwrap();
         assert_eq!(count, 1, "price_history が記録されるべき");
 
-        let found = product_repo::find_by_product_code(&conn, "UP-COST")
+        let found = product_repo::find_by_product_code(&conn, "2000000000053")
             .unwrap()
             .unwrap();
         assert!(
@@ -1385,14 +1477,14 @@ mod tests {
         // REQ-102 / REQ-402: PLU対象 0→1 は未反映化し、1→0 は未反映を増やさない。
         let (_dir, mut conn) = setup_test_db();
         let mut req = default_create_request();
-        req.jan_code = Some("UP-PLU-TARGET".to_string());
+        req.jan_code = Some("2000000000060".to_string());
         req.department_id = 3;
         req.plu_target = false;
         create_product(&mut conn, req).unwrap();
 
         product_repo::update_product(
             &conn,
-            "UP-PLU-TARGET",
+            "2000000000060",
             &ProductUpdates {
                 plu_dirty: Some(false),
                 ..Default::default()
@@ -1402,14 +1494,14 @@ mod tests {
 
         update_product(
             &mut conn,
-            "UP-PLU-TARGET",
+            "2000000000060",
             &ProductUpdateRequest {
                 plu_target: Some(true),
                 ..Default::default()
             },
         )
         .unwrap();
-        let enabled = product_repo::find_by_product_code(&conn, "UP-PLU-TARGET")
+        let enabled = product_repo::find_by_product_code(&conn, "2000000000060")
             .unwrap()
             .unwrap();
         assert!(enabled.product.plu_target);
@@ -1417,7 +1509,7 @@ mod tests {
 
         product_repo::update_product(
             &conn,
-            "UP-PLU-TARGET",
+            "2000000000060",
             &ProductUpdates {
                 plu_dirty: Some(false),
                 ..Default::default()
@@ -1427,14 +1519,14 @@ mod tests {
 
         update_product(
             &mut conn,
-            "UP-PLU-TARGET",
+            "2000000000060",
             &ProductUpdateRequest {
                 plu_target: Some(false),
                 ..Default::default()
             },
         )
         .unwrap();
-        let disabled = product_repo::find_by_product_code(&conn, "UP-PLU-TARGET")
+        let disabled = product_repo::find_by_product_code(&conn, "2000000000060")
             .unwrap()
             .unwrap();
         assert!(!disabled.product.plu_target);
@@ -1461,7 +1553,7 @@ mod tests {
         // update_product: 不正 department_id → ValidationFailed（P1レビュー指摘対応）
         let (_dir, mut conn) = setup_test_db();
         let mut req = default_create_request();
-        req.jan_code = Some("UP-DEPT".to_string());
+        req.jan_code = Some("2000000000077".to_string());
         req.department_id = 3;
         create_product(&mut conn, req).unwrap();
 
@@ -1469,7 +1561,7 @@ mod tests {
             department_id: Some(9999),
             ..Default::default()
         };
-        let result = update_product(&mut conn, "UP-DEPT", &update_req);
+        let result = update_product(&mut conn, "2000000000077", &update_req);
         assert!(
             matches!(result, Err(BizError::ValidationFailed(_))),
             "不正department_idでValidationFailed: {:?}",
@@ -1484,7 +1576,7 @@ mod tests {
         // update_product: 不正 supplier_id → ValidationFailed（P1レビュー指摘対応）
         let (_dir, mut conn) = setup_test_db();
         let mut req = default_create_request();
-        req.jan_code = Some("UP-SUP".to_string());
+        req.jan_code = Some("2000000000084".to_string());
         req.department_id = 3;
         create_product(&mut conn, req).unwrap();
 
@@ -1492,7 +1584,7 @@ mod tests {
             supplier_id: Some(Some(9999)),
             ..Default::default()
         };
-        let result = update_product(&mut conn, "UP-SUP", &update_req);
+        let result = update_product(&mut conn, "2000000000084", &update_req);
         assert!(
             matches!(result, Err(BizError::ValidationFailed(_))),
             "不正supplier_idでValidationFailed: {:?}",
@@ -1523,7 +1615,7 @@ mod tests {
         // update_product: 売価変更で detail_json に変更前後が記録される（P2レビュー指摘対応）
         let (_dir, mut conn) = setup_test_db();
         let mut req = default_create_request();
-        req.jan_code = Some("UP-JSON".to_string());
+        req.jan_code = Some("2000000000091".to_string());
         req.department_id = 3;
         create_product(&mut conn, req).unwrap();
 
@@ -1531,7 +1623,7 @@ mod tests {
             selling_price: Some(999),
             ..Default::default()
         };
-        update_product(&mut conn, "UP-JSON", &update_req).unwrap();
+        update_product(&mut conn, "2000000000091", &update_req).unwrap();
 
         let detail: Option<String> = conn
             .query_row(
@@ -1624,7 +1716,7 @@ mod tests {
         // TX rollback: price_history INSERT 後に failpoint → 全て巻き戻る
         let (_dir, mut conn) = setup_test_db();
         let mut req = default_create_request();
-        req.jan_code = Some("UP-RB".to_string());
+        req.jan_code = Some("2000000000107".to_string());
         req.department_id = 3;
         create_product(&mut conn, req).unwrap();
 
@@ -1634,13 +1726,13 @@ mod tests {
             selling_price: Some(999),
             ..Default::default()
         };
-        let result = update_product(&mut conn, "UP-RB", &update_req);
+        let result = update_product(&mut conn, "2000000000107", &update_req);
         assert!(result.is_err());
 
         // price_history が巻き戻っている
         let ph_count: i64 = conn
             .query_row(
-                "SELECT COUNT(*) FROM price_history WHERE product_code = 'UP-RB'",
+                "SELECT COUNT(*) FROM price_history WHERE product_code = '2000000000107'",
                 [],
                 |row| row.get(0),
             )
@@ -1648,7 +1740,7 @@ mod tests {
         assert_eq!(ph_count, 0, "price_history が巻き戻っているべき");
 
         // products の selling_price が変わっていない
-        let found = product_repo::find_by_product_code(&conn, "UP-RB")
+        let found = product_repo::find_by_product_code(&conn, "2000000000107")
             .unwrap()
             .unwrap();
         assert_eq!(found.product.selling_price, 500, "selling_price が元のまま");
@@ -1662,14 +1754,14 @@ mod tests {
         // REQ-102: false→true（廃番化）
         let (_dir, mut conn) = setup_test_db();
         let mut req = default_create_request();
-        req.jan_code = Some("DISC-01".to_string());
+        req.jan_code = Some("2000000000114".to_string());
         req.department_id = 3;
         create_product(&mut conn, req).unwrap();
 
-        let new_status = toggle_discontinue(&mut conn, "DISC-01").unwrap();
+        let new_status = toggle_discontinue(&mut conn, "2000000000114").unwrap();
         assert!(new_status, "廃番になるべき");
 
-        let found = product_repo::find_by_product_code(&conn, "DISC-01")
+        let found = product_repo::find_by_product_code(&conn, "2000000000114")
             .unwrap()
             .unwrap();
         assert!(found.product.is_discontinued);
@@ -1682,12 +1774,12 @@ mod tests {
         // REQ-102: true→false（復帰）
         let (_dir, mut conn) = setup_test_db();
         let mut req = default_create_request();
-        req.jan_code = Some("DISC-02".to_string());
+        req.jan_code = Some("2000000000121".to_string());
         req.department_id = 3;
         create_product(&mut conn, req).unwrap();
 
-        toggle_discontinue(&mut conn, "DISC-02").unwrap(); // → true
-        let new_status = toggle_discontinue(&mut conn, "DISC-02").unwrap(); // → false
+        toggle_discontinue(&mut conn, "2000000000121").unwrap(); // → true
+        let new_status = toggle_discontinue(&mut conn, "2000000000121").unwrap(); // → false
         assert!(!new_status, "復帰するべき");
     }
 

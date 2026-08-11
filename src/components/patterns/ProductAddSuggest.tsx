@@ -43,8 +43,13 @@ export function ProductAddSuggest({
     autoComplete: children.props.autoComplete ?? "off",
     onChange: (event: ChangeEvent<HTMLInputElement>) => {
       setSuppressNextEnter(false);
+      const input = event.currentTarget;
+      const nextValue = (event.nativeEvent as InputEvent).isComposing
+        ? input.value
+        : normalizeComposedDigits(input.value);
+      input.value = nextValue;
       childOnChange?.(event);
-      controller.onInputChange(event.currentTarget.value);
+      controller.onInputChange(nextValue);
     },
     onKeyDown: (event: KeyboardEvent<HTMLInputElement>) => {
       if (event.nativeEvent.isComposing) {
