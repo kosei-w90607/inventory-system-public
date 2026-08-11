@@ -225,9 +225,9 @@ Contract ID: SPEC-JAN-D1〜D8
 
 - SPEC-JAN-D1: ProductForm の JAN 専用欄は、(a) composition 中でない onChange（キー入力・paste を含む全経路）と (b) onCompositionEnd の確定値の両方で、値全体が `[0-9０-９]+` に一致する場合のみ U+FF10〜U+FF19 -> ASCII 数字の文字写像を適用する。混在値は無変換、composition 中は不加工。NFKC・trim 変更・記号/かな変換・チェックディジット補正は行わない。util は `normalizeComposedDigits` / `isComposedDigitsOnly` の既存実装を import 流用し、複製・挙動変更を禁止する
 - SPEC-JAN-D2: `suggestPluTarget` は正規化適用後の値で評価する。判定は ASCII 数字 13 桁のみ true（JAN-8 は false 維持 = PLU 書出し 13 桁前提との整合）。composition 中は D1 により正規化されないため評価は transient になり得るが、onCompositionEnd の正規化で収束する。この transient は許容し追加の抑制はしない（rally round 2 P3-C 明記）
-- SPEC-JAN-D3: create 保存時、janCode 非 null なら「trim -> D1 と同一写像の全角→半角正規化 -> 検証」の順で適用し、正規化後の値が「ASCII 数字 8 桁または 13 桁」かつ「モジュラス 10 チェックディジット整合」を必須とする。保存値は正規化後の値とする（入力時正規化 D1 と重ねて冪等。前後空白 + 全角数字の入力が D1 の全体一致条件を外れて全角のまま保存検証に到達する経路を閉じる = rally round 2 P2-B 是正）。桁数違反文言 = 「JANコードは13桁または8桁で入力してください」、チェックディジット不一致文言 = 「JANコードのチェックディジットが一致しません。入力値を確認してください」。既存の blank + code_prefix なし部門の規則・文言は不変
+- SPEC-JAN-D3: create 保存時、janCode 非 null なら「trim -> D1 と同一写像の全角→半角正規化 -> 検証」の順で適用する。この trim -> 正規化 -> 検証は `product-form-request.ts`（frontend）が実行し、BIZ-01-D1（SPEC-JAN-D4）は受領済みの正規化後 wire 値を検証のみ行う（再正規化しない = rally round 3 P3-1 明確化）。正規化後の値が「ASCII 数字 8 桁または 13 桁」かつ「モジュラス 10 チェックディジット整合」を必須とする。保存値は正規化後の値とする（入力時正規化 D1 と重ねて冪等。前後空白 + 全角数字の入力が D1 の全体一致条件を外れて全角のまま保存検証に到達する経路を閉じる = rally round 2 P2-B 是正）。桁数違反文言 = 「JANコードは13桁または8桁で入力してください」、チェックディジット不一致文言 = 「JANコードのチェックディジットが一致しません。入力値を確認してください」。既存の blank + code_prefix なし部門の規則・文言は不変
 - SPEC-JAN-D4: BIZ `validate_create_request` に同一契約の検証を追加し、違反は `ValidationFailed`。チェックディジット判定は io の `is_valid_ean13_code` + 新設 `is_valid_ean8_code` を共有し、BIZ 側複製を禁止する。`is_valid_ean8_code` は 7 桁データ部の先頭桁（idx 0）に重み 3 を割り当てる交互配分（idx 偶数 = 3 / 奇数 = 1）とし、`is_valid_ean13_code`（idx 偶数 = 1 / 奇数 = 3）とは重み配分の偶奇が逆であることを契約に明記し、既存関数のコピー実装を禁止する（rally round 1 P1-1 是正）
-- SPEC-JAN-D5: 新 validation の適用は手入力 create 経路のみ。edit（jan_code readOnly）・CSV/Z004 import 経路・既存 DB 行は対象外。DB CHECK/UNIQUE は追加しない（同一 JAN 複数商品のグループコード運用維持）。既存 test が fixture として新契約違反の jan_code 値（非 JAN 文字列や、チェックディジット不一致の合成値。例 = `test_create_product_req101_jan` の `4976383262108`〈正 check 5 / 実末尾 8〉、product-form-request.test の `4901234567890`〈正 check 4 / 実末尾 0〉、update 系 setup の `UP-*` 文字列）を `create_product` / `buildCreateProductRequest` 経由で使用している場合、実装 PR は **fixture 値のみを synthetic 有効 EAN-8/13 値へ置換する**（assert 構造の変更・test 削除・skip は禁止）。対象の全数列挙は実装 PR 発注前に Coordinator が rg sweep で行い実装 packet に記録する（rally round 2 P1-A 是正）
+- SPEC-JAN-D5: 新 validation の適用は手入力 create 経路のみ。edit（jan_code readOnly）・CSV/Z004 import 経路・既存 DB 行は対象外。DB CHECK/UNIQUE は追加しない（同一 JAN 複数商品のグループコード運用維持）。既存 test が fixture として新契約違反の jan_code 値（非 JAN 文字列や、チェックディジット不一致の合成値。例 = `test_create_product_req101_jan` の `4976383262108`〈正 check 5 / 実末尾 8〉、product-form-request.test の `4901234567890`〈正 check 4 / 実末尾 0〉、update 系 setup の `UP-*` 文字列）を `create_product` / `buildCreateProductRequest` 経由で使用している場合、実装 PR は **fixture 値のみを synthetic 有効 EAN-8/13 値へ置換する**（assert 構造の変更・test 削除・skip は禁止）。対象の全数列挙は実装 PR 発注前に Coordinator が rg sweep で行い実装 packet に記録する（rally round 2 P1-A 是正。規模の既知情報 = `rg -c 'jan_code = Some\(' src-tauri/src/biz/product_service.rs` -> 17 行 / distinct 14 値の Coordinator 実測あり、正確な置換対象は sweep で経路別に確定 — rally round 3 P3-2）
 - SPEC-JAN-D6: frontend `suggestPluTarget` と BIZ `should_default_plu_target` は「ASCII 数字 13 桁のみ true」の同一意味論を持つ意図的二重実装として契約化し、51 / 30-biz の相互参照で結ぶ。実装統合はしない。両側に独立転記 oracle の同一ケース表 drift-guard test を置く
 - SPEC-JAN-D7（= SPEC-SUGGEST-D12）: ProductAddSuggest は composition 中でない onChange について、値全体が `[0-9０-９]+` に一致する場合のみ正規化値で親 onChange を発火する（paste 経由を含む）。半角のみの値は写像で同値のため既存挙動不変。D1〜D11 は不変とし、D11 の paste 除外文言は D12 参照へ更新する
 - SPEC-JAN-D8: UI_TECH_STACK §6.4 の JAN 桁数文言は 51 UI-01b-D17 を正本とする実体 validation 文言である旨の参照を §6.4 に追記する
@@ -239,11 +239,11 @@ Contract ID: SPEC-JAN-D1〜D8
 | SPEC-JAN-D1 | 51 §7.5 追記 + UI-01b-D16 | Matrix M-J1 系 | 正規化の適用経路網羅 | rg -c PASS |
 | SPEC-JAN-D2 | 同上 | Matrix M-J2 系 | JAN-8 false 維持の整合 | rg -c PASS |
 | SPEC-JAN-D3 | 51 §7.6 追記 + UI-01b-D17 | Matrix M-J3 系 | 文言・blank 規則不変 | rg -c PASS |
-| SPEC-JAN-D4 | 30-biz §4.2 追記 + BIZ-01-D1 | Matrix M-J4 系 | io 共有・複製禁止 | rg -c PASS |
+| SPEC-JAN-D4 | 30-biz §4.2 追記 + BIZ-01-D1 | Matrix M-J4 系 + M-J7a | io 共有・複製禁止・EAN-8 重み配分 | rg -c PASS |
 | SPEC-JAN-D5 | 30-biz + master-tables 追記 | Matrix M-J5 系 | 凍結 test との無矛盾 | rg -c PASS |
 | SPEC-JAN-D6 | 51 + 30-biz 相互参照 | Matrix M-J6 系 | oracle 独立性の設計 | rg -c PASS |
-| SPEC-JAN-D7 | catalog ⑮ D12 追加 | Matrix M-J7 系 | D1〜D11 不変 | rg -c PASS |
-| SPEC-JAN-D8 | UI_TECH_STACK §6.4 追記 | Matrix M-J8 系 | 参照の一方向性 | rg -c PASS |
+| SPEC-JAN-D7 | catalog ⑮ D12 追加 | Matrix M-J8 系 | D1〜D11 不変 | rg -c PASS |
+| SPEC-JAN-D8 | UI_TECH_STACK §6.4 追記 | Matrix M-J10 系 | 参照の一方向性 | rg -c PASS |
 
 ## Data Safety
 
@@ -266,4 +266,9 @@ Fill after implementation.
   - P1-A（既存 test の fixture 衝突が Non-scope 監査から漏れ、字義通り実装すると核心 happy-path `test_create_product_req101_jan`〈fixture `4976383262108` は check 5 / 実末尾 8 の invalid 値〉+ update 系 setup の `UP-*` 非 JAN 文字列 + frontend 共有 fixture `4901234567890`〈check 4 / 実末尾 0〉が即 fail し、既存 test 削除禁止規律と正面衝突）: SPEC-JAN-D5 へ fixture 値のみ置換の限定許可（assert 構造変更・削除・skip 禁止）+ 発注前 rg sweep 義務を明文化、Non-scope 更新、Matrix M-J5b + 予約節追記。Coordinator は fixture 実在とチェックディジット不一致を独立再計算・rg で裏取り済み。
   - P2-B（D1 の全体一致条件と D3 の trim 後検証の適用順ギャップ = 前後空白 + 全角数字の実バーコードが誤拒否される新規経路）: SPEC-JAN-D3 を「trim -> D1 同一写像の正規化 -> 検証、保存値は正規化後の値」へ改訂。
   - P3-C（composition 中の suggestPluTarget transient 評価が未規定）: SPEC-JAN-D2 へ transient 許容 + onCompositionEnd 収束を明記。
+- Plan Gate rally round 3（Sonnet 5 独立 subagent・fresh context、2026-08-11、天井 round）: round 2 是正 3 点は独立再検証で全て一致（fixture の checkdigit 不一致は独立計算で再確認、BIZ `product_code = jan.clone()` 経路と D3 の frontend 責務の整合も実読確認）。新規 P1 = 0 / P2×1 / P3×2、全件 accept・同 round 内是正。
+  - P2-1（Trace Matrix の Test 列 drift = D7 行が M-J7〈IO-04-D2 用〉、D8 行が M-J8〈catalog 用〉を誤参照、D4 行の M-J7a 欠落）: D7 -> M-J8 系 / D8 -> M-J10 系 / D4 -> M-J4 系 + M-J7a へ是正（Coordinator の転記ミス、Matrix 本体の検査は独立に有効）。
+  - P3-1（D3 の「保存値 = 正規化後」の層責務が prose 単独で未確定）: D3 へ「frontend が実行、BIZ は正規化後 wire 値の検証のみ（再正規化しない）」を明文化。
+  - P3-2（fixture 置換対象の実規模が例示 3 件より広い）: Coordinator 実測 = `rg -c 'jan_code = Some\(' src-tauri/src/biz/product_service.rs` -> 17 行（distinct fixture 値 14 個、`rg -o ... | sort -u | wc -l` -> 14。うち新契約適合は 0 個の見込みで、正確な置換対象は発注前 sweep で経路別に確定）。D5 へ規模の既知情報を追記。
+  - verdict = P1/P2 は本 round 是正で 0。同一 vendor rally は 3 round 天井に到達、reviewer 勧告どおり cross-vendor（Codex プラン全体レビュー、owner relay）へ切替。
 - Findings Freeze: not yet frozen
