@@ -4,7 +4,7 @@
 
 Use the field definitions, enums, transition evidence, packet-selection rule, and fail-closed behavior from `docs/DEV_WORKFLOW.md` `Workflow State`. Keep exactly one `- Key: value` line per field.
 
-- Phase: ready-hosted-final
+- Phase: archive
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: a0fb1df
@@ -250,9 +250,7 @@ Contract ID: SPEC-NPM-B
 
 ## Implementation Results
 
-Fill after implementation.
-
-Do not transcribe exact-HEAD SHA or test counts here (D-035/D-038 Evidence Ownership). Record a qualitative summary and the PR link only.
+単一 PR #71（squash merge `c27ad0a`、2026-08-12）。step 1（名指し transitive 更新）+ step 2（markdownlint-cli2@0.23.2 exact 更新）+ step 3（D-066 起草 -> owner 裁定で accepted）で audit 7 -> 0。検分表 45 エントリはすべて 2026-08-04 攻撃窓（Shai-Hulud）前の publish、keyv 系 5 package は byte 一致で不変、`.npmrc` / `.markdownlint*` 不変。Writer の停止条件は 2 回発動（esbuild range 不達 / 期待リスト外の orphan 削除検出）— いずれも true positive で、gated Amendment 1（tsx 名指し追加）/ Amendment 2（orphan 削除許容 + 共有 tree ownership 宣言）で解決。実績 = 介入 3/3・relay 3/2（超過 1 は停止条件起因の継続発注で、Amendment 裁定と同時提示・容認）・STATECAP forward 3/3。exact-HEAD evidence・hosted run は PR body を正とする（D-035/D-038）。
 
 ## Review Response
 
