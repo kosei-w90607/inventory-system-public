@@ -8,7 +8,7 @@ Use the field definitions, enums, transition evidence, packet-selection rule, an
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: a0fb1df
-- Amendments: none
+- Amendments: 51a0424（Amendment 1: step 1 へ tsx 名指し更新を追加、owner 承認 介入 2/3）
 - Coordinator: Fable (Claude Fable 5, main thread)
 - Writer: Codex (GPT-5.6, owner relay 経由)
 - Plan Reviewer: 独立 Sonnet subagent（fresh context、Writer と別 vendor、D-062 (c)）
@@ -197,7 +197,7 @@ Minimum design checks for business-app work: いずれも該当なし（Layer / 
 
 Test Design Matrix: `docs/plans/test-matrices/2026-08-12-npm-audit-remediation-b.md`
 
-- targeted tests: `npm audit --json` 内訳照合（step 1 後の中間 / 最終 HEAD）、`npm ls js-yaml brace-expansion nanoid postcss esbuild markdown-it` の解決 version 確認
+- targeted tests: `npm audit --json` 内訳照合（step 1 後の中間 / 最終 HEAD）、`npm ls js-yaml brace-expansion nanoid postcss esbuild tsx markdown-it` の解決 version 確認
 - negative tests: `npm audit --audit-level=high` の exit code（step 1 後は非 0 = js-yaml 残存を正しく検出、最終 HEAD では 0。最終 oracle は `--json` total を正とする）
 - compatibility checks: step 2 の docs gate 全 corpus、`npm ci --ignore-scripts` の再現 install 成功、npm 12 検分（採用時 lockfileVersion 互換）
 - data safety checks: PR body に token / 個人情報を含めない。`.local/ci-evidence/` は local-only
