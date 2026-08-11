@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: human-confirm
+- Phase: ready-hosted-final
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: 0b36e7a
@@ -235,3 +235,4 @@ Test Design Matrix: [2026-08-12-workflow-docs-wer-deferred.md](test-matrices/202
 - P3 disposition（Coordinator 裁定）: 現状維持。該当 2 行の一方は M-W3 の凍結 anchor `受理せず差し戻す` そのもので、是正には gated Amendment + Matrix 改訂 + anchor 再測が必要となり可読性の便益に対し過大。将来 template を触る PR での英語化を備忘として本記録に残す（新規 backlog は作らない）。
 - Coordinator mutation 独立再実測（2026-08-12、注入形独自設計・Writer / Final Reviewer 非参照）: X1〜X3 全 red（X1 は 3 点整合の一角消失まで観測、X2 は 2→1、X3 は 1→0）+ 追加形 = M-W8 保全 token `candidate safety` 単独削除で baseline 比較 red を確認（append-only 契約の検査感度実証）。survivor 0、復元後 doc-consistency 全通過・tree clean 実証済み。
 - 遷移 implementing -> local-verified -> independent-review -> human-confirm を本 state-only commit（STATECAP ②）で一括実体化。evidence = Writer L1 full PASS（PR #70 body）+ Final Review Double Audit P1/P2 = 0 + Coordinator mutation / append-only 独立再検証。
+- owner Ready/merge 承認（2026-08-12、介入 3/3、owner 表明 = 「承認で終結させよう」）: Ready 化・hosted final（workflow docs-only につき explicit dispatch 1 run 可）・squash merge・closeout の終結処理を Coordinator へ委任。遷移 human-confirm -> ready-hosted-final を state-only commit（STATECAP ③）で実体化。exact-HEAD L1 / hosted 三点一致の volatile evidence は PR body 所有。
