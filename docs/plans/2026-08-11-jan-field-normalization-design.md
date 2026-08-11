@@ -91,7 +91,7 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 
 - AC1: 新設 D-ID 7 個（UI-01b-D16 / UI-01b-D17 / UI-01b-D18 / BIZ-01-D1 / BIZ-01-D2 / IO-04-D2 / SPEC-SUGGEST-D12）が各対応 doc に存在し、`rg -c` で各 doc 内 2 箇所以上に出現する
 - AC2: SPEC-JAN-D1〜D8（下記 Spec Contract）の各契約文が対応正本 doc に 1 対 1 で存在する（検査 = Matrix M-J 系の `rg -c "<literal>"` が全て期待 count で PASS）
-- AC3: catalog ⑮ D11 の既存契約文（値全体一致時のみ写像 / composition 中不加工 / one-shot guard / isLocked 尊重）が改変されずに残存する（Matrix M-J 系の既存 literal 検査 PASS）
+- AC3: catalog ⑮ D11 の既存契約文（値全体一致時のみ写像 / composition 中不加工 / one-shot guard / isLocked 尊重）が改変されずに残存する（検査 = Matrix M-J9 の `rg -c "<D11 既存 literal>" docs/design-system/02-component-catalog.md` が全 anchor で >= 1 を維持）
 - AC4: `scripts/local-ci.sh full` PASS/CLEAN（docs-only、doc-consistency / traceability 差分なし）
 - AC5: Plans.md backlog 行と「次の行動」が本 packet へ link し PK4 を充足する
 - AC6: Plan Review closure P1/P2=0 の verdict が PR body に転記され `gh pr view --json body` で確認可能
