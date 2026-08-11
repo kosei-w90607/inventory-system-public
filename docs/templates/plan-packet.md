@@ -25,6 +25,7 @@ If a state-only commit materializes multiple phases, list the complete adjacent 
 - 介入回数上限: <N>
 - 実働時間上限: <N分>
 - relay 往復上限: <N>
+- Plan Review round 天井: <N>（既定 3）
 
 既定値と超過時の Coordinator 責務は `docs/DEV_WORKFLOW.md` `Owner Effort Budget` 参照。
 承認依頼フォーマット: `この change での介入 N 回目 / 予算 M 回` + `承認すると利用者から見て何が完了するか1文`。

@@ -507,3 +507,13 @@ Use concise ADR-style entries.
 - Why: D-061 の一律 derive、DB 変換失敗、file guard、round-trip 表現をそのまま適用すると、response-only 型に不要な request 契約を与え、REQ-303 の legacy fallback と stock_unit file 経路の実挙動に矛盾する。既存挙動を変えずに generated enum の検査方向を正確に表現するため amendment とする。
 - Impact: D-061 (a)(c)、archive packet SPEC-P41-D1 / D5 (iii) の該当箇所を本 decision が supersede する。対象実装は domain family (2)〜(14)、`ImportRow` file 境界、MovementRecord DB mapping、方向別 wire oracle。archive は履歴として書き換えない。
 - Revisit: response-only family を request にも利用するとき、REQ-303 の legacy 互換を廃止するとき、または stock_unit file validation を挙動変更として新設するとき。
+
+## D-065
+
+- Decision: formation WER の Deferred Change 1〜4 と JAN field normalization WER の Change 1〜2 を workflow 正本へ昇格する。具体的には、review finding の具体的修正案と差し戻し運用、Plan Review rally の hard cap 3 と到達時 disposition、Coordinator による packet 是正時の同 packet / Matrix / `Plans.md` 全節 sweep、従来型 Writer 発注書の STATECAP canonical subject と narrative のみの遷移主張禁止、変則 provenance packet の 9 観点監査採用、不在・stale・複製・乖離を主張する前の file type 確認を採用する。
+- Status: accepted（2026-08-12、owner 裁定と Plan Gate 承認により確定）
+- Why: [formation WER](archive/plans/2026-08-04-d062c-formation-workflow-effectiveness-review.md) では、修正案義務・Coordinator sweep・canonical subject の発注書直書きが後続 change で先行 dogfood され、長い rally の原因も reviewer vendor ではなく Coordinator 起草・是正の残存漏れにあると確認された。[JAN field normalization WER](archive/plans/2026-08-12-jan-field-normalization-workflow-effectiveness-review.md) では、正式フロー外起草 packet を監査採用して品質を維持できた一方、symlink の file type を確認せず stale 複製と誤診断した事例が確認された。実測済みの改善を正本へ集約し、発注書直書きや memory 依存を解消する。
+- Impact: `docs/DEV_WORKFLOW.md`、`docs/AGENT_OPERATING_MANUAL.md`、Plan Packet / review-only packet template が同じ運用を参照する。rally は 3 round で単純打ち切りにせず、残 findings を同型指摘の一括是正、backlog 化、owner escalation のいずれかへ disposition する。§5.4 の read-only slot 専用 profile、state 遷移の作成主体、checker / scripts / product behavior は変更しない。
+- Alternatives considered: rally を「目安」とする soft 運用（owner 裁定で hard cap を選択したため不採用）; Writer 契約を §5.4 へ混載する案（同節は read-only slot 専用で Writer / state 遷移管理を対象外とするため不採用）; provenance 監査へ特定 change の実例語彙を転記する案（再利用性を失うため一般化した 9 観点を採用）。
+- Rollback: 本 commit revert のみ。
+- Revisit: rally cap 到達時 disposition、変則 provenance 監査、または file type 先行確認の次回 dogfood で、再起草漏れ・owner escalation の過不足・誤診断再発が観測されたとき。
