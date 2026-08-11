@@ -296,4 +296,6 @@ Fill after implementation.
   - P2-3（節抽出コマンドが placeholder のまま、30-biz は `###` 見出しで共通 `^##` 不成立、M-J9 base SHA 未定）: accept、実ファイル・実見出しの実コマンドを preamble に固定、exact count 凍結規律と M-J9 の Plan Commit 実 SHA 置換義務（未置換 = 検査失敗）を明記。
   - P2-4（ISBN 裁定・master-tables 同期が Matrix から脱落）: accept、M-J5c 新設 + Trace Matrix D5 行更新。
   - P3-1（round 1 是正後の旧記述残存 = synthetic のみ表記 / D-ID 7 個 / 旧 Failure Mode）: accept、全箇所 sweep 是正。
+- Codex プラン全体レビュー round 3（owner relay、2026-08-11）: P1 = 0 / P2×1、accept・同 round 内是正。
+  - P2（M-J5c の products 節抽出範囲が部門 17 を含まず、2 anchor が必ず 0 件 = round 2 P2-4 の未閉塞）: Coordinator 実査で部門 17 が `## 2. departments` 節（L99 配下、部門行 L154）にあることを確認し accept。M-J5c を M-J5c-1（products 節 = jan_code 列説明）/ M-J5c-2（departments 節 = 部門 17 + ISBN-10 注記）へ二分割し、preamble の節抽出コマンドへ departments 節と実見出し行番号を追加。
 - Findings Freeze: not yet frozen
