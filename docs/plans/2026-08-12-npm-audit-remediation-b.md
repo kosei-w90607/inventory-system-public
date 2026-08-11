@@ -71,8 +71,8 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。AC や�
 
 単一 PR で実装する（1 packet = 1 PR、squash merge 前提）。PR 内を 2 step に分け、step 1 完了時点の中間 evidence を PR body に記録する:
 
-- **Step 1（名指し transitive 更新、lockfile-only）**: `npm update brace-expansion nanoid postcss esbuild`。
-  期待解消: brace-expansion high ×2 advisory（1 系 -> 1.1.18 / 5 系 -> 5.0.9）、nanoid high（-> 3.3.17 以上）、postcss moderate（-> 8.5.23 以上）、esbuild low（-> 0.28.1 以上）。
+- **Step 1（名指し transitive 更新、lockfile-only）**: `npm update brace-expansion nanoid postcss esbuild tsx`（tsx は gated Amendment 1 で追加 — esbuild は tsx@4.21.0 の `~0.27.0` pin と dedupe 共有されており、tsx を 4.22.0 以上（`~0.28.0` 系列、親 range `^4.19.2` 内）へ更新しないと 0.28.1 に到達しない）。
+  期待解消: brace-expansion high ×2 advisory（1 系 -> 1.1.18 / 5 系 -> 5.0.9）、nanoid high（-> 3.3.17 以上）、postcss moderate（-> 8.5.23 以上）、esbuild low（-> 0.28.1 以上、tsx -> 4.22.0 以上を同時解決）。
   中間確認: step 1 直後に `npm audit --json` で `high: 1, moderate: 2, low: 0, total: 3`（js-yaml / markdown-it / markdownlint-cli2 のみ残存。markdownlint-cli2@0.22.1 の pin により in-range 解決不可、audit `fixAvailable` 実測より）となることを実測し、`metadata.vulnerabilities` を PR body に転記する。step 1 完了時点で commit を切り、その commit SHA を PR body に記録する — 独立 reviewer が squash merge 前に当該 SHA を checkout して `npm audit --json` を再実行し、転記の実在を検証できるようにする。
 - **Step 2（markdownlint-cli2 更新 + npm 12 採否）**: `npm install markdownlint-cli2@0.23.2 --save-dev --save-exact`（0.22.1 -> 0.23.2、semver-major 相当）。transitive の js-yaml -> 4.3.1 以上（advisory 3 件全充足には 4.3.1 が必要）・markdown-it -> 14.2.0 以上を解消し audit 0 化。changelog（0.23.0〜0.23.2）実読と docs gate 全 corpus 通過で breaking 検分。@eslint/eslintrc 側の dedupe された js-yaml も同時に 4.3.1 以上へ更新されることを `npm ls js-yaml` で確認。npm CLI 12 採否の decision-log 追記と `docs/DEV_SETUP_CHECKLIST.md` 追随（採用時）も step 2 に含める。docs gate の新規違反が docs 修正で吸収不能と判明した場合の撤退経路: step 2 の package.json / lockfile 変更のみを revert して step 1 のみの縮小完了とし、縮小自体は本 packet の gated Amendment（D-039、Amendments 行へ SHA append）として記録して owner に諮る。markdownlint-cli2 更新の再開（audit 0 化・Issue #45 close の Goal Invariant 達成を含む）は本 packet close 後の新規 Plan Packet として Plans.md backlog に起票し、本 packet の Plans.md entry には Goal Invariant 未達である旨を明記する。`.markdownlint*` 設定の緩和による fix-forward 強行はしない。
 - **GHSA-g7cv-rxg3-hmpx 再評価**: 実測（2026-08-12: `withdrawn_at: null`、active 継続）に基づき `WATCHED_ADVISORIES` 維持。本 packet への記録のみで script 変更なし。
@@ -178,7 +178,7 @@ Minimum design checks for business-app work: いずれも該当なし（Layer / 
 - keyv 系 lockfile 現況: keyv@4.5.4 / flat-cache@4.0.1 / file-entry-cache@8.0.0 / flatted@3.4.2（eslint@9.39.4 経由の旧安定版 pin、08-04 wave 非該当）。keyv 系 4 package の registry 最新版はいずれも 08-04 publish で攻撃窓と一致し、更新禁止の根拠
 - 9 GHSA 全件を `gh api /advisories/` で実読: 全件通常の DoS / 情報漏えい系（malware 混入 advisory なし）、全件 devDep transitive のみで runtime 影響なし
 - 未実測（step 2 実装時に Writer が確認）: markdownlint-cli2@0.23.2 の依存 range が js-yaml 4.3.1 以上 / markdown-it 14.2.0 以上を解決すること（`npm view markdownlint-cli2@0.23.2 dependencies` + install 後 `npm ls`）
-- 未実測（step 1 実装時に Writer が確認）: esbuild 0.28.1 以上が vite@7.3.6 / tsx の range 内で解決されること（audit `fixAvailable: true` 実測から可能と推定）
+- esbuild 経路の実測（2026-08-12、Writer step 1 初回実行の停止報告を受けた Coordinator 追加実測 = gated Amendment 1 の根拠）: vite@7.3.6 の esbuild range は `^0.27.0 || ^0.28.0` で 0.28.1 を許容。ブロッカーは tsx@4.21.0 の `~0.27.0` pin（esbuild を dedupe 共有）。tsx は 4.22.0 で `~0.28.0` へ切替済み、親 range は `@tanstack/router-generator@1.166.32` の `^4.19.2` で 4.23 系まで許容。cooldown 適合の解決候補は tsx 4.23.5（08-02 publish、Shai-Hulud 窓より前）近辺、esbuild は 0.28.2（08-08）が cooldown 中のため 0.28.1（06-11 publish）
 
 ## Contract Coverage Ledger
 
@@ -216,7 +216,7 @@ Test Design Matrix: `docs/plans/test-matrices/2026-08-12-npm-audit-remediation-b
 
 ## Review Focus
 
-- lockfile diff の全行が期待リスト（step 1: brace-expansion ×2 系統 / nanoid / postcss / esbuild、step 2: markdownlint-cli2 / js-yaml / markdown-it とその内部依存）に収まっているか。想定外の package 混入・keyv 系の変動は P1
+- lockfile diff の全行が期待リスト（step 1: brace-expansion ×2 系統 / nanoid / postcss / esbuild / tsx、step 2: markdownlint-cli2 / js-yaml / markdown-it とその内部依存）に収まっているか。想定外の package 混入・keyv 系の変動は P1
 - publish 日検分表の網羅性（diff に現れた全 package が載っているか）
 - markdownlint-cli2 0.23 系の挙動変化が docs gate 設定の緩和で吸収されていないか（AC-5）
 - 常設ガード・禁止操作（D-030）への抵触がないか

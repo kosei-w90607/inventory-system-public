@@ -77,7 +77,7 @@ For workflow-state changes, add explicit rows for: 本 change は workflow-state
 - threshold: min-release-age=7 の境界 — nanoid 3.3.18（08-07）、postcss 8.5.26（08-06）、esbuild 0.28.2（08-08）は 08-12 時点 cooldown 中。実装日に解決点が変わるため、oracle は「fix version 以上 + publish 日検分」とし特定 version に固定しない
 - null/default: 該当なし
 - empty/non-empty: audit total 0 は「空」を期待する oracle — step 1 後の非空（total 3）照合と対にして、audit 実行自体の失敗を 0 と誤認しない（`metadata` field の存在確認を伴う）
-- min/max: js-yaml >= 4.3.1 / markdown-it >= 14.2.0 / brace-expansion >= 1.1.18（1 系）・>= 5.0.9（5 系）/ esbuild >= 0.28.1 / postcss >= 8.5.23
+- min/max: js-yaml >= 4.3.1 / markdown-it >= 14.2.0 / brace-expansion >= 1.1.18（1 系）・>= 5.0.9（5 系）/ esbuild >= 0.28.1 / postcss >= 8.5.23 / tsx >= 4.22.0（gated Amendment 1）
 - status/policy enum: Issue state OPEN -> CLOSED、monitor exit 0/1/2 の区別（exit 2 は close 根拠にならない）
 - wire type: lockfileVersion 3 維持
 - internal type / producer/consumer / round-trip token / precision/range / cross-language parse: packet の Boundary / Wire Contract 節参照（npm 11/12 互換）
