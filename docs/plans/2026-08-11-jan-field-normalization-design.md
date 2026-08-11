@@ -2,10 +2,10 @@
 
 ## Workflow State
 
-- Phase: plan-gate
+- Phase: implementing
 - Risk: R3
 - Execution Mode: fable-window
-- Plan Commit: pending
+- Plan Commit: e1ee908
 - Amendments: none
 - Coordinator: Fable 5（main thread）
 - Writer: Fable 5（design amendment 起草。docs-only、実装 PR は本 packet の後続で Codex 発注）
@@ -167,7 +167,7 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 
 - Existing design docs are sufficient because: 不足（保存時 JAN validation の規定が皆無、UI_TECH_STACK §6.4 の文言が例示止まり、D11 known limitation が未解消）を本 PR で埋める
 - Source docs updated in this PR: Scope 節の 7 doc
-- Design gaps intentionally deferred: import 経路 validation（Non-scope 明記）
+- Design gaps intentionally deferred: import 経路 validation（Non-scope 明記）、部門 17「本」のバーコードなし本・ISBN-10 本の登録経路（owner 裁定で対象外。owner 指示により Plans.md backlog へ起票 2026-08-11 — 要望発生時に code_prefix 付与 or ISBN-10 対応を再裁定）
 - Durable decisions discovered in this plan and promoted to source docs: SPEC-JAN-D5 / D6
 
 Minimum design checks:
@@ -300,4 +300,5 @@ Fill after implementation.
   - P2（M-J5c の products 節抽出範囲が部門 17 を含まず、2 anchor が必ず 0 件 = round 2 P2-4 の未閉塞）: Coordinator 実査で部門 17 が `## 2. departments` 節（L99 配下、部門行 L154）にあることを確認し accept。M-J5c を M-J5c-1（products 節 = jan_code 列説明）/ M-J5c-2（departments 節 = 部門 17 + ISBN-10 注記）へ二分割し、preamble の節抽出コマンドへ departments 節と実見出し行番号を追加。是正 commit = `1123de7`。
 - relay 予算の recorded-reason 調整（D-038、2026-08-11）: 3 -> 4。理由 = Codex round 3 verdict に機械的 P2×1 が同梱され、その閉塞確認に 1 往復が不可避。owner は調整提示後の closure 確認 relay 実行をもって承認。
 - **Plan Gate closure（2026-08-11）**: Codex 最終 verdict「Plan Gate closure 可（P1/P2=0）」（対象 = `1123de7`）。経路 = Sonnet 独立 rally 3 round（P1+P2: 3→2→1 単調収束）+ Codex cross-vendor 3 round（P2: 8→4→1 単調収束）、全 findings accept・是正済み。relay 実績 4/4（調整後）。
+- owner plan 承認（2026-08-11、介入 2/3）: Plan Gate closure 後の plan 承認。併せて「ISBN-10・バーコードなし本の登録経路 gap は対応すべき点として残す」との owner 指示 → Plans.md backlog へ起票済み。遷移 `plan-gate -> plan-approved -> implementing` は本 content commit に同乗して実体化（STATECAP state-only 残枠温存）、Plan Commit = `e1ee908`（承認対象の packet 状態）。M-J9 の base SHA も同時に実値へ置換。
 - Findings Freeze: not yet frozen
