@@ -73,8 +73,8 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。AC や�
 
 - **Step 1（名指し transitive 更新、lockfile-only）**: `npm update brace-expansion nanoid postcss esbuild`。
   期待解消: brace-expansion high ×2 advisory（1 系 -> 1.1.18 / 5 系 -> 5.0.9）、nanoid high（-> 3.3.17 以上）、postcss moderate（-> 8.5.23 以上）、esbuild low（-> 0.28.1 以上）。
-  中間確認: step 1 直後に `npm audit --json` で `high: 1, moderate: 2, low: 0, total: 3`（js-yaml / markdown-it / markdownlint-cli2 のみ残存。markdownlint-cli2@0.22.1 の pin により in-range 解決不可、audit `fixAvailable` 実測より）となることを実測し、`metadata.vulnerabilities` を PR body に転記する。
-- **Step 2（markdownlint-cli2 更新 + npm 12 採否）**: `npm install markdownlint-cli2@0.23.2 --save-dev --save-exact`（0.22.1 -> 0.23.2、semver-major 相当）。transitive の js-yaml -> 4.3.1 以上（advisory 3 件全充足には 4.3.1 が必要）・markdown-it -> 14.2.0 以上を解消し audit 0 化。changelog（0.23.0〜0.23.2）実読と docs gate 全 corpus 通過で breaking 検分。@eslint/eslintrc 側の dedupe された js-yaml も同時に 4.3.1 以上へ更新されることを `npm ls js-yaml` で確認。npm CLI 12 採否の decision-log 追記と `docs/DEV_SETUP_CHECKLIST.md` 追随（採用時）も step 2 に含める。
+  中間確認: step 1 直後に `npm audit --json` で `high: 1, moderate: 2, low: 0, total: 3`（js-yaml / markdown-it / markdownlint-cli2 のみ残存。markdownlint-cli2@0.22.1 の pin により in-range 解決不可、audit `fixAvailable` 実測より）となることを実測し、`metadata.vulnerabilities` を PR body に転記する。step 1 完了時点で commit を切り、その commit SHA を PR body に記録する — 独立 reviewer が squash merge 前に当該 SHA を checkout して `npm audit --json` を再実行し、転記の実在を検証できるようにする。
+- **Step 2（markdownlint-cli2 更新 + npm 12 採否）**: `npm install markdownlint-cli2@0.23.2 --save-dev --save-exact`（0.22.1 -> 0.23.2、semver-major 相当）。transitive の js-yaml -> 4.3.1 以上（advisory 3 件全充足には 4.3.1 が必要）・markdown-it -> 14.2.0 以上を解消し audit 0 化。changelog（0.23.0〜0.23.2）実読と docs gate 全 corpus 通過で breaking 検分。@eslint/eslintrc 側の dedupe された js-yaml も同時に 4.3.1 以上へ更新されることを `npm ls js-yaml` で確認。npm CLI 12 採否の decision-log 追記と `docs/DEV_SETUP_CHECKLIST.md` 追随（採用時）も step 2 に含める。docs gate の新規違反が docs 修正で吸収不能と判明した場合の撤退経路: step 2 の package.json / lockfile 変更のみを revert し、step 1 のみの縮小完了 + markdownlint-cli2 更新の follow-up Amendment 化を owner に諮る（`.markdownlint*` 設定の緩和による fix-forward 強行はしない）。
 - **GHSA-g7cv-rxg3-hmpx 再評価**: 実測（2026-08-12: `withdrawn_at: null`、active 継続）に基づき `WATCHED_ADVISORIES` 維持。本 packet への記録のみで script 変更なし。
 - **Issue #45 消化**: PR merge 後に `npm-security-monitor.yml` を `workflow_dispatch` し、exit 0 -> 自動 close を確認。monitor 運用は現状維持（weekly + manual、D-033。high+critical のみ通知は仕様であり moderate 非通知は欠陥でない）と評価を記録。
 - **供給網検分規律（両 step 共通の実装契約）**: lockfile diff の全変更 package について (a) 本 packet の期待リスト内であること (b) resolved version の publish 日を `npm view <pkg> time` で実測し、2026-08-04 攻撃窓以降の publish は個別に正当性を検分して PR body に記録すること。
@@ -89,7 +89,7 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。AC や�
 
 ## Acceptance Criteria
 
-- AC-1: step 1 完了時点で `npm audit --json` が `high: 1, moderate: 2, low: 0, total: 3`。evidence: PR body の step 1 中間記録（`metadata.vulnerabilities` 転記）
+- AC-1: step 1 完了時点で `npm audit --json` が `high: 1, moderate: 2, low: 0, total: 3`。evidence: PR body の step 1 中間記録（`metadata.vulnerabilities` 転記 + step 1 commit SHA。squash 前に当該 SHA を checkout した独立再実行で検証可能）
 - AC-2: PR 最終 HEAD で `npm audit --json` の `total: 0`（`metadata` field の存在を伴う）。evidence: PR body の audit 出力
 - AC-3: lockfile diff の変更 package 一覧（`git diff main -- package-lock.json` から抽出）が本 packet の期待リストと一致し、各 resolved version の publish 日が `npm view <pkg> time` 実測で PR body の検分表に記録される。2026-08-04 以降 publish の version を採る場合は個別検分理由が併記される。evidence: PR body の検分表（`npm view` 出力 + 抽出 package 一覧の突合）
 - AC-4: `.npmrc` は PR で diff に現れない（`git diff --name-only main` に `.npmrc` が含まれない）。evidence: PR diff
@@ -256,6 +256,8 @@ Do not transcribe exact-HEAD SHA or test counts here (D-035/D-038 Evidence Owner
 ## Review Response
 
 Plan Gate rally round 1（独立 Sonnet、2026-08-12）: P1 ×2 / P2 ×3 / P3 ×1 — 全件 accept。P1-2 / P2-2 / P3-1 は 2 PR 構成を単一 PR + 2 step 構成へ再設計して根治（1 packet = 1 PR、PK5 ancestry・decision point 計上を同時解消）。P1-1 は Plans.md 進行中 entry 追加、P2-1 は非実在 gate 引用を人的確認へ訂正、P2-3 は AC-3 / AC-8 へ観測 token 追加。是正後に `bash scripts/doc-consistency-check.sh --target plan` ERROR/WARN 0 を再実測。
+
+Plan Gate rally round 2（独立 Sonnet fresh context、2026-08-12）: P1 ×0 / P2 ×2 / P3 ×0 — 全件 accept。P2-1 は step 1 中間 evidence へ commit SHA アンカー追加（squash 前の独立再実行検証を可能化）、P2-2 は docs gate 恒久 fail 時の撤退経路（step 2 revert + 縮小完了 + follow-up Amendment 化）を Scope / Negative Paths に明記。round 2 は `npm audit --json`（total 7 一致）・package-lock.json 現況・`gh api /advisories/` 2 件・`gh issue view 45`（OPEN）・`scripts/npm-security-monitor.sh` 実装・`.npmrc` の 6 系統を reviewer が独立再実測し、packet 記述との一致を確認済み。是正後に `bash scripts/doc-consistency-check.sh --target plan` を再実行して通過を確認。
 
 If R3 review-only sub-agent is skipped, record an explicit line beginning with `Review-only skipped because:` and the reason.
 - Findings Freeze: not yet frozen; post-freeze exceptions: none.

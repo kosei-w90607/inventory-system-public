@@ -32,6 +32,7 @@ Risk: R3
 | Contract | Failure Mode | Test Type | Test Name | Would fail if... |
 |---|---|---|---|---|
 | SPEC-NPM-B-1 | FM-2 / FM-5 / FM-8 | CLI | `npm audit --json` 内訳照合（step 1 後、期待: high 1 / moderate 2 / low 0 / total 3） | 名指し更新が効いていない、または期待外の解消・残存がある |
+| SPEC-NPM-B-1 | FM-2 | review/evidence | step 1 commit SHA 照合: PR body 記録の SHA を squash 前に checkout し `npm audit --json` を独立再実行して total 3 を再現 | Writer の転記が実状態と乖離している（自己申告のみで検証不能） |
 | SPEC-NPM-B-2 | FM-4 / FM-5 | CLI | `npm audit --json` で `total: 0`（PR 最終 HEAD。`--audit-level=high` の exit code ではなく total を oracle にする） | js-yaml 4.3.1 未満 / markdown-it 14.2.0 未満 / esbuild 未達で残存する |
 | SPEC-NPM-B-2 | FM-4 | CLI | `npm ls js-yaml markdown-it` で解決 version を実表示し PR body に転記 | dedupe された @eslint/eslintrc 側 js-yaml が旧版のまま残る |
 | SPEC-NPM-B-3 | FM-1 | review/evidence | PR body 検分表: lockfile diff の全変更 package × `npm view <pkg> time` publish 日 | diff に現れた package が検分表に載っていない、または 08-04 以降 publish が無検分で採用される |
@@ -67,6 +68,7 @@ For workflow-state changes, add explicit rows for: 本 change は workflow-state
 - duplicate/ambiguous input: brace-expansion は 2 系統（1.x / 5.x）が別 node_modules に存在 -> `npm ls brace-expansion` で両系統の解決を個別確認
 - unknown reference: audit が新規 advisory を報告した場合（実装日ずれで出現し得る）-> scope 追加せず packet Amendment で扱いを決める
 - dependency missing: `npm ci --ignore-scripts` fail -> lockfile 巻き戻し
+- docs gate 恒久 fail（markdownlint-cli2 0.23 系の rule 変化を docs 修正で吸収不能）: step 2 の package.json / lockfile 変更のみ revert -> step 1 縮小完了 + follow-up Amendment 化を owner 裁定へ（設定緩和での強行禁止）
 - permission/write failure: registry 不達（sandbox）-> 実装環境を owner relay（Codex 側）に切替
 - dry-run side effect: audit / view / ls は read-only。update は branch 上でのみ実行
 
