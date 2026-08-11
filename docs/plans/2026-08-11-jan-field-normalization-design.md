@@ -79,7 +79,7 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 ## Non-scope
 
 - `src/` / `src-tauri/` 配下の一切（実装 PR で実施）
-- 既存 test の変更・削除。特に以下は凍結（新契約が矛盾しないことを D5 の適用境界で保証する）:
+- 既存 test の変更・削除。限定例外 = SPEC-JAN-D5 の fixture 値置換（新契約違反の jan_code fixture を synthetic 有効値へ値のみ置換。assert 構造変更・削除・skip は引き続き禁止、対象は実装 PR 発注前の rg sweep で全数列挙 — rally round 2 P1-A）。特に以下は凍結（新契約が矛盾しないことを D5 の適用境界で保証する）:
   - `src-tauri/src/biz/product_service.rs` `test_commit_import_req104_derives_plu_target_like_backfill_and_keeps_on_overwrite`（非正規 JAN 値 `IMP-SHORT` 12 桁 / `IMP-ALPHA` 英字混在の import 保存を固定）
   - `src-tauri/src/db/product_repo.rs` `test_find_by_jan_code_req103_*`（同一 jan_code 複数商品の許容を固定）
   - `src/features/products/` 配下の既存 ProductForm / product-form-request / ProductFormPage test（実装 PR では仕様反映の追記のみ、既存 assert の削除・skip 禁止）
@@ -185,7 +185,7 @@ Minimum design checks:
 | SPEC-JAN-D2（PLU 提案は正規化後評価、13 桁 ASCII のみ true、JAN-8 false 維持） | suggestPluTarget 呼出し順（実装 PR） | 実装 PR S 系 | — |
 | SPEC-JAN-D3（保存時 8/13 桁 + チェックディジット、固定文言 2 種、blank 規則不変） | product-form-request.ts（実装 PR） | 実装 PR S 系 | 実装 PR L3（保存拒否/許可） |
 | SPEC-JAN-D4（BIZ defense in depth、io 関数共有、ValidationFailed） | validate_create_request（実装 PR） | 実装 PR T 系 | — |
-| SPEC-JAN-D5（適用境界: create 手入力のみ。import・既存行・DB CHECK 対象外） | 30-biz / master-tables 契約文 | 既存 import test 凍結が実質 guard | non-scope 境界の明文化 |
+| SPEC-JAN-D5（適用境界: create 手入力のみ。import・既存行・DB CHECK 対象外 + fixture 値置換の限定許可） | 30-biz / master-tables 契約文 | 既存 import test 凍結が実質 guard + 実装 PR 発注前の fixture rg sweep（違反 fixture の全数列挙を実装 packet に記録） | non-scope 境界の明文化 |
 | SPEC-JAN-D6（二重実装の契約化 + 独立転記 oracle drift-guard 両側） | 51 / 30-biz 相互参照（実装 PR で test） | 実装 PR S/T 系 | — |
 | SPEC-JAN-D7 = SPEC-SUGGEST-D12（兼用 5 欄 paste 正規化、D1〜D11 不変） | ProductAddSuggest（実装 PR） | 実装 PR S/W 系 | 実装 PR L3（paste 実機） |
 | SPEC-JAN-D8（UI_TECH_STACK §6.4 例示文言の実体化参照） | §6.4 追記（本 PR） | Matrix M-J 系 rg 検査 | — |
@@ -224,10 +224,10 @@ Test Design Matrix: `docs/plans/test-matrices/2026-08-11-jan-field-normalization
 Contract ID: SPEC-JAN-D1〜D8
 
 - SPEC-JAN-D1: ProductForm の JAN 専用欄は、(a) composition 中でない onChange（キー入力・paste を含む全経路）と (b) onCompositionEnd の確定値の両方で、値全体が `[0-9０-９]+` に一致する場合のみ U+FF10〜U+FF19 -> ASCII 数字の文字写像を適用する。混在値は無変換、composition 中は不加工。NFKC・trim 変更・記号/かな変換・チェックディジット補正は行わない。util は `normalizeComposedDigits` / `isComposedDigitsOnly` の既存実装を import 流用し、複製・挙動変更を禁止する
-- SPEC-JAN-D2: `suggestPluTarget` は正規化適用後の値で評価する。判定は ASCII 数字 13 桁のみ true（JAN-8 は false 維持 = PLU 書出し 13 桁前提との整合）
-- SPEC-JAN-D3: create 保存時、janCode 非 null なら trim 後の値が「ASCII 数字 8 桁または 13 桁」かつ「モジュラス 10 チェックディジット整合」を必須とする。桁数違反文言 = 「JANコードは13桁または8桁で入力してください」、チェックディジット不一致文言 = 「JANコードのチェックディジットが一致しません。入力値を確認してください」。既存の blank + code_prefix なし部門の規則・文言は不変
+- SPEC-JAN-D2: `suggestPluTarget` は正規化適用後の値で評価する。判定は ASCII 数字 13 桁のみ true（JAN-8 は false 維持 = PLU 書出し 13 桁前提との整合）。composition 中は D1 により正規化されないため評価は transient になり得るが、onCompositionEnd の正規化で収束する。この transient は許容し追加の抑制はしない（rally round 2 P3-C 明記）
+- SPEC-JAN-D3: create 保存時、janCode 非 null なら「trim -> D1 と同一写像の全角→半角正規化 -> 検証」の順で適用し、正規化後の値が「ASCII 数字 8 桁または 13 桁」かつ「モジュラス 10 チェックディジット整合」を必須とする。保存値は正規化後の値とする（入力時正規化 D1 と重ねて冪等。前後空白 + 全角数字の入力が D1 の全体一致条件を外れて全角のまま保存検証に到達する経路を閉じる = rally round 2 P2-B 是正）。桁数違反文言 = 「JANコードは13桁または8桁で入力してください」、チェックディジット不一致文言 = 「JANコードのチェックディジットが一致しません。入力値を確認してください」。既存の blank + code_prefix なし部門の規則・文言は不変
 - SPEC-JAN-D4: BIZ `validate_create_request` に同一契約の検証を追加し、違反は `ValidationFailed`。チェックディジット判定は io の `is_valid_ean13_code` + 新設 `is_valid_ean8_code` を共有し、BIZ 側複製を禁止する。`is_valid_ean8_code` は 7 桁データ部の先頭桁（idx 0）に重み 3 を割り当てる交互配分（idx 偶数 = 3 / 奇数 = 1）とし、`is_valid_ean13_code`（idx 偶数 = 1 / 奇数 = 3）とは重み配分の偶奇が逆であることを契約に明記し、既存関数のコピー実装を禁止する（rally round 1 P1-1 是正）
-- SPEC-JAN-D5: 新 validation の適用は手入力 create 経路のみ。edit（jan_code readOnly）・CSV/Z004 import 経路・既存 DB 行は対象外。DB CHECK/UNIQUE は追加しない（同一 JAN 複数商品のグループコード運用維持）
+- SPEC-JAN-D5: 新 validation の適用は手入力 create 経路のみ。edit（jan_code readOnly）・CSV/Z004 import 経路・既存 DB 行は対象外。DB CHECK/UNIQUE は追加しない（同一 JAN 複数商品のグループコード運用維持）。既存 test が fixture として新契約違反の jan_code 値（非 JAN 文字列や、チェックディジット不一致の合成値。例 = `test_create_product_req101_jan` の `4976383262108`〈正 check 5 / 実末尾 8〉、product-form-request.test の `4901234567890`〈正 check 4 / 実末尾 0〉、update 系 setup の `UP-*` 文字列）を `create_product` / `buildCreateProductRequest` 経由で使用している場合、実装 PR は **fixture 値のみを synthetic 有効 EAN-8/13 値へ置換する**（assert 構造の変更・test 削除・skip は禁止）。対象の全数列挙は実装 PR 発注前に Coordinator が rg sweep で行い実装 packet に記録する（rally round 2 P1-A 是正）
 - SPEC-JAN-D6: frontend `suggestPluTarget` と BIZ `should_default_plu_target` は「ASCII 数字 13 桁のみ true」の同一意味論を持つ意図的二重実装として契約化し、51 / 30-biz の相互参照で結ぶ。実装統合はしない。両側に独立転記 oracle の同一ケース表 drift-guard test を置く
 - SPEC-JAN-D7（= SPEC-SUGGEST-D12）: ProductAddSuggest は composition 中でない onChange について、値全体が `[0-9０-９]+` に一致する場合のみ正規化値で親 onChange を発火する（paste 経由を含む）。半角のみの値は写像で同値のため既存挙動不変。D1〜D11 は不変とし、D11 の paste 除外文言は D12 参照へ更新する
 - SPEC-JAN-D8: UI_TECH_STACK §6.4 の JAN 桁数文言は 51 UI-01b-D17 を正本とする実体 validation 文言である旨の参照を §6.4 に追記する
@@ -262,4 +262,8 @@ Fill after implementation.
   - P2-1（Non-scope の凍結 test パス誤り `io/product_repo.rs` -> `db/product_repo.rs`）: Coordinator が `fd` で db/ 実在・io/ 不在を実査のうえ是正。packet 内 sweep で同型残存なし。
   - P2-2（AC1 の「全 D-ID 2 箇所以上」と Matrix 検査範囲の不一致）: AC1 を doc 流儀別（51 系 = 節単位 2 箇所 / narrative 系 = 1 箇所 + literal 検査）へ改訂、M-J6b 新設・M-J8 強化。
   - P3-1（25-io の既存契約は §12 narrative で、関数名 `is_valid_ean13_code` の doc 言及は本 amendment が初出）: accept、IO-04-D2 文言を §12 実体に即して明確化。
+- Plan Gate rally round 2（Sonnet 5 独立 subagent・fresh context、2026-08-11）: round 1 是正 3 点は独立再検証で全て一致（EAN-8 重み配分は実装 ground truth + GS1 標準 + golden 値再計算の三点整合）。新規 P1×1 / P2×1 / P3×1、全件 accept・同 round 内是正。
+  - P1-A（既存 test の fixture 衝突が Non-scope 監査から漏れ、字義通り実装すると核心 happy-path `test_create_product_req101_jan`〈fixture `4976383262108` は check 5 / 実末尾 8 の invalid 値〉+ update 系 setup の `UP-*` 非 JAN 文字列 + frontend 共有 fixture `4901234567890`〈check 4 / 実末尾 0〉が即 fail し、既存 test 削除禁止規律と正面衝突）: SPEC-JAN-D5 へ fixture 値のみ置換の限定許可（assert 構造変更・削除・skip 禁止）+ 発注前 rg sweep 義務を明文化、Non-scope 更新、Matrix M-J5b + 予約節追記。Coordinator は fixture 実在とチェックディジット不一致を独立再計算・rg で裏取り済み。
+  - P2-B（D1 の全体一致条件と D3 の trim 後検証の適用順ギャップ = 前後空白 + 全角数字の実バーコードが誤拒否される新規経路）: SPEC-JAN-D3 を「trim -> D1 同一写像の正規化 -> 検証、保存値は正規化後の値」へ改訂。
+  - P3-C（composition 中の suggestPluTarget transient 評価が未規定）: SPEC-JAN-D2 へ transient 許容 + onCompositionEnd 収束を明記。
 - Findings Freeze: not yet frozen

@@ -17,6 +17,8 @@ Risk: R3
 
 - 保存 validation 契約が「桁数のみ」へ縮退し、チェックディジット防御が落ちる
 - 適用境界（create 手入力のみ）が欠落し、import 経路・既存 DB 行へ波及する設計解釈を許す
+- 既存 test の新契約違反 fixture（invalid checkdigit 合成値・非 JAN 文字列）が未列挙のまま実装へ進み、happy-path test が即 fail する（rally round 2 P1-A）
+- trim と正規化の適用順が未規定で、前後空白 + 全角数字の実バーコード手入力が誤拒否される（rally round 2 P2-B）
 - 正規化の適用経路（非 composition onChange / compositionend / paste）が部分欠落する
 - suggestPluTarget の評価順（正規化後）が未定義になり、全角 13 桁 false 問題が残存する
 - JAN-8 の PLU 提案 false 維持が欠落し、8 桁商品が PLU 書出し対象へ紛れる
@@ -46,6 +48,7 @@ anchor 検査はすべて `rg -c "<literal>" <file>` の完全一致 count で�
 | SPEC-JAN-D4 | BIZ 複製許容 | CLI | M-J4a: 30-biz 内 literal「BIZ 側複製を禁止」+ literal「`is_valid_ean8_code`」 | チェックディジット判定の二重実装 drift を許す |
 | SPEC-JAN-D5 | 適用境界欠落 | CLI | M-J5: 30-biz 内 literal「手入力 create 経路のみ」+ literal「CSV/Z004 import 経路と既存 DB 行は対象外」 | import 波及の設計解釈を許し既存凍結 test と矛盾する |
 | SPEC-JAN-D5 | DB 制約混入 | CLI | M-J5a: master-tables 内 literal「DB CHECK は追加しない」（products 設計意図節）+ 既存の UNIQUE 非付与理由文が literal 不変 | schema 変更の混入 / グループコード運用の破壊 |
+| SPEC-JAN-D5 | fixture 置換許可の欠落 | CLI | M-J5b: 51 or 30-biz 内 2 literal 必須 — (a)「fixture 値のみを synthetic 有効 EAN-8/13 値へ置換する」(b)「assert 構造の変更・test 削除・skip は禁止」（rally round 2 P1-A 是正） | 契約違反 fixture の扱いが未定義のまま実装へ進み既存 test 規律と正面衝突する |
 | UI-01b-D18 / BIZ-01-D2 | 相互参照の片側欠落 | CLI | M-J6: 51 内 `rg -c "BIZ-01-D2"` >= 1 かつ 30-biz 内 `rg -c "UI-01b-D18"` >= 1（相互方向を個別検査） | 片側参照だけの契約化で drift-guard 根拠が失われる |
 | UI-01b-D18 | 51 内の配置片寄り | CLI | M-J6b: 51 の §7.1 設計判断節と該当契約節を節単位に分けて各々 `rg -c "UI-01b-D18"` >= 1（rally round 1 P2-2 是正） | 設計判断 or 契約節追記の欠落 |
 | SPEC-JAN-D6 | 意味論定義の欠落 | CLI | M-J6a: 51 と 30-biz の両 doc に literal「ASCII 数字 13 桁のみ true」各 >= 1 + 51 内 literal「独立転記 oracle」>= 1 | 二重実装の同一意味論契約が曖昧化する |
@@ -63,7 +66,8 @@ anchor 検査はすべて `rg -c "<literal>" <file>` の完全一致 count で�
 実装 PR 側 Matrix が最低限含むべき系列（本 design の凍結義務として引き継ぐ）:
 
 - S 系（frontend）: JAN 欄正規化（半角キー入力不変 / 全角 paste 写像 / 混在無変換 / composition 中不加工 / compositionend 写像）、suggestPluTarget 正規化後評価（全角 13 桁 -> true になること）、保存 validation（8/13 桁 + チェックディジット、synthetic 値の valid/invalid 両系、blank 規則不変）
-- T 系（backend）: validate_create_request の JAN 検証（valid 8/13 通過・invalid 拒否・None 通過）、is_valid_ean8_code 単体（GS1 モジュラス 10 synthetic 値）、import 経路の非波及（既存 test 凍結が guard）
+- T 系（backend）: validate_create_request の JAN 検証（valid 8/13 通過・invalid 拒否・None 通過）、is_valid_ean8_code 単体（GS1 モジュラス 10 synthetic 値、golden = `96385074` / `49123456` の独立転記）、import 経路の非波及（既存 test 凍結が guard）
+- fixture 事前 sweep（発注前 Coordinator 義務）: `create_product` / `buildCreateProductRequest` 経由で新契約違反の jan_code fixture を使う既存 test を rg で全数列挙し、synthetic 有効値への置換対象として実装 packet に記録する（値のみ置換、assert 構造不変 — rally round 2 P1-A）
 - ドリフト系: suggestPluTarget / should_default_plu_target の同一ケース表 drift-guard（独立転記 oracle、production 定数から導出しない）
 - W 系: ProductAddSuggest paste 正規化の配線（既存 5 画面 test 凍結不変 + D12 追加 assert は新規 test 内へ隔離）
 - X 系 mutation: 正規化条件の反転・チェックディジット判定の恒真化・適用境界の拡大等、S/T/W の各 oracle が kill できることを Writer 実測 + Coordinator clean tree 独立再実測の双方で確認
