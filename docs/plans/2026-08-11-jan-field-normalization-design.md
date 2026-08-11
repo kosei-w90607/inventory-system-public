@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: implementing
+- Phase: human-confirm
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: e1ee908
@@ -11,7 +11,7 @@
 - Writer: Fable 5（design amendment 起草。docs-only、実装 PR は本 packet の後続で Codex 発注）
 - Plan Reviewer: Sonnet 5 独立 subagent（rally）+ Codex（プラン全体レビュー、owner relay。D-062: Writer と別 vendor 要件は Fable 起草のため Sonnet/Codex どちらでも充足）
 - Final Reviewer: Codex（owner relay）
-- Reviewed Content HEAD: pending
+- Reviewed Content HEAD: e2f4736
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required（R3 は原則 hosted final 1 run。docs-only の paths-ignore で auto run が作成されない場合は CI-TRIGGER-D1 に従い `workflow_dispatch` を 1 回実行し、PR HEAD = PR body L1 SHA = hosted headSha の三点一致を merge 条件とする）
 - Human Gate: owner plan 承認 / Ready 承認（docs-only のため L3 なし。実機の入力・保存実測は実装 PR 側 L3）
@@ -307,4 +307,6 @@ Fill after implementation.
   - FR-P2-1（Frozen anchor counts が記載実行形式で再現不能 = M-J3a の節スコープと file 全体値の混同 / M-J3c row の旧 literal「D1」残存 / M-J5c・M-J9 の placeholder 未固定）: Matrix を実文言・節スコープ値へ全面固定（M-J3a = 1/1/1〈節〉、M-J3c (a) = UI-01b-D16 表記、M-J5c-1/2 と M-J9 D11 anchor 4 本を引用符付き完全 literal 化）、再実測で全一致確認。
   - FR-P2-2（PR body の L1 SHA `2ab97c7` が PR HEAD `4bc1f71` と不一致 = 後続 packet commit が evidence 対象外）: 本是正 commit を含む最終 HEAD で L1 full を再実行し、PR body の exact HEAD / evidence を更新。
   - FR-P3（relay 調整の数値主張が PK6 WARN）: 予算宣言値（実測値ではない）と明示する表現へ是正。
-- Findings Freeze: not yet frozen
+- Final Review closure（Codex、owner relay、2026-08-11）: 是正 commit `e2f4736`（= PR #67 HEAD = L1 exact HEAD）に対し最終 verdict「Final Review PASS（P1/P2=0）」。
+- 遷移記録（recording compression、本 content commit に同乗 — state-only 残枠は ③ ready-hosted-final へ温存）: `implementing -> local-verified -> independent-review -> human-confirm` の隣接 forward 遷移を一括実体化する。evidence = local-verified: L1 full RESULT=PASS / EXIT_CODE=0（exact HEAD `e2f4736`、PR body Verification 節が evidence owner）/ independent-review: Final Review round 1 P2×2 是正 + closure verdict PASS（本節）/ human-confirm: Findings Freeze 発効 + Reviewed Content HEAD = `e2f4736` 設定（本 commit）。残 Human Gate = owner Ready 承認（介入 3/3）。
+- Findings Freeze: **frozen after Final Review closure（2026-08-11）**; post-freeze exceptions: none
