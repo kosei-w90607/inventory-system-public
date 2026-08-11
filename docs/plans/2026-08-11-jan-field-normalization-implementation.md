@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: human-confirm
+- Phase: ready-hosted-final
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: 2439c03
@@ -441,3 +441,5 @@ Contract ID: SPEC-JAN-NORMALIZATION-IMPL
 - Final Review（Sonnet 5 independent / fresh context、2026-08-11、reviewed content = 834f5e9）: Contract Coverage Ledger 13/13 適合、P1/P2 = 0、P3×1（compositionend 二重発火は jsdom で exercise 不能 — Matrix Residual Test Gaps 開示済みのため追加対応不要と裁定、L3-2 を実機優先確認へ繰上げ）。frozen 境界 diff 0 + 実行 green、fixture 置換の表準拠、EAN-8/13 重み独立検算一致、エラー文言 frontend/BIZ 完全一致、層境界 drift なしを独立確認。
 - Coordinator mutation 独立再実測（2026-08-11、注入形は Matrix 定義から独自設計・Writer 注入形非参照）: X1〜X11 全 class kill を再現（X5/X6/X7 は等価でない変形でも red、X10 は通知順序形も red）。X11 主形（adapter が core を流用）は `pub(super)` 可視性により compile-time で構造遮断（E0603）— Matrix 想定の diff guard より強い防御を確認。注記 1 = X2 の helper 内部 guard 単独撤去形は call-site の同一 guard 重複（defense-in-depth）により素通し（両 guard 同時撤去で red）。helper `normalizeComposedDigits` は本 PR diff 外の PR #65 既存コードで直接 unit oracle を持たない — production 欠陥ではなく mutation adequacy 注記として記録。注記 2 = X7 の index shift は EAN-13 データ桁 12（偶数）で weight swap と代数的等価のため非等価変形が構成不能（EAN-8 データ桁 7 では非等価変形の red を確認済み）。
 - 遷移 implementing -> local-verified -> independent-review -> human-confirm を本 state-only commit（STATECAP ②）で一括実体化。evidence = Writer L1 full PASS（PR #68 body）+ Final Review P1/P2 = 0 + Coordinator の mutation / fixture / frozen 独立再検証。
+- Windows native L3（owner、2026-08-11、tested HEAD = e066090）: L3-1〜L3-11 全件 PASS（L3-2 の二重入力なし優先確認を含む）。evidence 正本 = PR #68 body。
+- owner Ready/merge authorization（2026-08-11、介入 3/3、owner 表明 = 「終結」）: Ready 化・hosted final・squash merge・archive closeout の終結処理を Coordinator へ委任。遷移 human-confirm -> ready-hosted-final を state-only commit（STATECAP ③）で実体化。exact-HEAD L1 / hosted 三点一致の volatile evidence は PR body 所有。
