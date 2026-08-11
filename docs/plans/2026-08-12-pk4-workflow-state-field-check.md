@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: human-confirm
+- Phase: ready-hosted-final
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: 3160376
@@ -259,3 +259,4 @@ Test Design Matrix: [2026-08-12-pk4-workflow-state-field-check.md](test-matrices
 - Final Review（Sonnet 5 independent / fresh context、2026-08-12、reviewed content = 0470d5c）: Contract Coverage Ledger 8/8 適合、P1/P2/P3 = 0。W1 絶対条件（生行マッチ regex の空値 fixture 実測 / bash 配列 quoted 展開 / Hosted CI Requirement if/elif 排他 / archive skip・R2 閾値の分岐位置不変 / 既存検査無改変）を実装照合、実 repo full run（`bash scripts/doc-consistency-check.sh` 全チェック通過）+ 実 archive packet 3 件への `bash scripts/doc-consistency-check.sh --target plan <archive path>` 直接実行で誤検出 0 を実地確認、DEV_WORKFLOW 同期は記述同期のみで新規契約なし、oracle は inline literal で SSOT 汚染なし。reviewer 自身も隔離 scratch 環境で独自注入形の mutation 再実測を実施し X1〜X4 全件 RED/GREEN 一致。
 - Coordinator mutation 独立再実測（2026-08-12、注入形は Matrix 定義から独自設計・Writer / Final Reviewer 非参照）: X1〜X4 全 class kill、survivor 0。X1 は Coordinator に加え複数語 field `Human Gate` の除外形でも kill を確認（data-driven loop の全 field 感度）。X2 は自己比較恒真化、X3 は skip 行削除、X4 は閾値不能化の各独自形。復元後 baseline 再実行 PASS、tree clean 実証済み。
 - 遷移 implementing -> local-verified -> independent-review -> human-confirm を本 state-only commit（STATECAP ②）で一括実体化。evidence = Writer L1 full PASS（PR #69 body）+ Final Review P1/P2 = 0 + Coordinator mutation / frozen 境界独立再検証。
+- owner Ready/merge 承認（2026-08-12、介入 2/3）: Ready 化・hosted final・squash merge・closeout の終結処理を Coordinator へ委任。あわせて次タスク = formation WER Deferred の workflow docs PR 着手を owner が確認。遷移 human-confirm -> ready-hosted-final を state-only commit（STATECAP ③）で実体化。exact-HEAD L1 / hosted 三点一致の volatile evidence は PR body 所有。
