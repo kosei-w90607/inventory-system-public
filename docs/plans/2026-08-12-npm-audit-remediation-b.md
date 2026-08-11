@@ -16,7 +16,7 @@ Use the field definitions, enums, transition evidence, packet-selection rule, an
 - Reviewed Content HEAD: pending
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
-- Human Gate: plan 承認 / npm CLI 12 採否判断 / PR merge（B1・B2 の 2 本） / L3 なし
+- Human Gate: plan 承認 / PR merge（npm CLI 12 採否は merge 承認と同一 session で bundle） / L3 なし
 
 ## Owner Effort Budget
 
@@ -25,8 +25,10 @@ Use the field definitions, enums, transition evidence, packet-selection rule, an
 - relay 往復上限: 2
 - Plan Review round 天井: 3（既定 3）
 
+decision point の計上設計: plan 承認（1 回目）/ PR merge 承認 + npm CLI 12 採否の bundle（2 回目）の計 2 回を基本とし、予備 1 回を rally disposition・Amendment 承認に充てる。
+
 既定値と超過時の Coordinator 責務は `docs/DEV_WORKFLOW.md` `Owner Effort Budget` 参照。
-承認依頼フォーマット: `この change での介入 N 回目 / 予算 M 回` + `承認すると利用者から見て何が完了するか1文`。
+承認依頼フォーマット: `この change での介入 N 回目 / 予算 M 回` + `承認すると利用者可視に何が完了するか1文`。
 
 ## Consultation Relay
 
@@ -46,7 +48,7 @@ Goal Invariant: `npm audit` の既知 7 脆弱性（high 3 / moderate 3 / low 1�
 
 ### 最小完了条件
 
-- `npm audit --json` の `metadata.vulnerabilities.total` が 0（B1 + B2 merge 後）
+- `npm audit --json` の `metadata.vulnerabilities.total` が 0（PR merge 後）
 - Issue #45 が monitor の clean 判定（exit 0）で close される
 - npm CLI 12 の採否が decision-log に記録される（採用・見送りどちらでも可。採否自体が完了条件であり、採用は条件でない）
 
@@ -67,13 +69,15 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。AC や�
 
 ## Scope
 
-- **PR B1（lockfile-only）**: 名指し transitive 更新 `npm update brace-expansion nanoid postcss esbuild`。
+単一 PR で実装する（1 packet = 1 PR、squash merge 前提）。PR 内を 2 step に分け、step 1 完了時点の中間 evidence を PR body に記録する:
+
+- **Step 1（名指し transitive 更新、lockfile-only）**: `npm update brace-expansion nanoid postcss esbuild`。
   期待解消: brace-expansion high ×2 advisory（1 系 -> 1.1.18 / 5 系 -> 5.0.9）、nanoid high（-> 3.3.17 以上）、postcss moderate（-> 8.5.23 以上）、esbuild low（-> 0.28.1 以上）。
-  期待残存: js-yaml high / markdown-it moderate / markdownlint-cli2 moderate の 3 件（markdownlint-cli2@0.22.1 の pin により in-range 解決不可、audit `fixAvailable` 実測より）。
-- **PR B2**: `npm install markdownlint-cli2@0.23.2 --save-dev --save-exact`（0.22.1 -> 0.23.2、semver-major 相当）。transitive の js-yaml -> 4.3.1 以上（advisory 3 件全充足には 4.3.1 が必要）・markdown-it -> 14.2.0 以上を解消し audit 0 化。changelog（0.23.0〜0.23.2）実読と docs gate 全 corpus 通過で breaking 検分。@eslint/eslintrc 側の dedupe された js-yaml も同時に 4.3.1 以上へ更新されることを `npm ls js-yaml` で確認。npm CLI 12 採否の decision-log 追記と `docs/DEV_SETUP_CHECKLIST.md` 追随（採用時）も B2 に同乗。
+  中間確認: step 1 直後に `npm audit --json` で `high: 1, moderate: 2, low: 0, total: 3`（js-yaml / markdown-it / markdownlint-cli2 のみ残存。markdownlint-cli2@0.22.1 の pin により in-range 解決不可、audit `fixAvailable` 実測より）となることを実測し、`metadata.vulnerabilities` を PR body に転記する。
+- **Step 2（markdownlint-cli2 更新 + npm 12 採否）**: `npm install markdownlint-cli2@0.23.2 --save-dev --save-exact`（0.22.1 -> 0.23.2、semver-major 相当）。transitive の js-yaml -> 4.3.1 以上（advisory 3 件全充足には 4.3.1 が必要）・markdown-it -> 14.2.0 以上を解消し audit 0 化。changelog（0.23.0〜0.23.2）実読と docs gate 全 corpus 通過で breaking 検分。@eslint/eslintrc 側の dedupe された js-yaml も同時に 4.3.1 以上へ更新されることを `npm ls js-yaml` で確認。npm CLI 12 採否の decision-log 追記と `docs/DEV_SETUP_CHECKLIST.md` 追随（採用時）も step 2 に含める。
 - **GHSA-g7cv-rxg3-hmpx 再評価**: 実測（2026-08-12: `withdrawn_at: null`、active 継続）に基づき `WATCHED_ADVISORIES` 維持。本 packet への記録のみで script 変更なし。
-- **Issue #45 消化**: B1 + B2 merge 後に `npm-security-monitor.yml` を `workflow_dispatch` し、exit 0 -> 自動 close を確認。monitor 運用は現状維持（weekly + manual、D-033。high+critical のみ通知は仕様であり moderate 非通知は欠陥でない）と評価を記録。
-- **供給網検分規律（B1 / B2 共通の実装契約）**: lockfile diff の全変更 package について (a) 本 packet の期待リスト内であること (b) resolved version の publish 日を `npm view <pkg> time` で実測し、2026-08-04 攻撃窓以降の publish は個別に正当性を検分して PR body に記録すること。
+- **Issue #45 消化**: PR merge 後に `npm-security-monitor.yml` を `workflow_dispatch` し、exit 0 -> 自動 close を確認。monitor 運用は現状維持（weekly + manual、D-033。high+critical のみ通知は仕様であり moderate 非通知は欠陥でない）と評価を記録。
+- **供給網検分規律（両 step 共通の実装契約）**: lockfile diff の全変更 package について (a) 本 packet の期待リスト内であること (b) resolved version の publish 日を `npm view <pkg> time` で実測し、2026-08-04 攻撃窓以降の publish は個別に正当性を検分して PR body に記録すること。
 
 ## Non-scope
 
@@ -81,18 +85,18 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。AC や�
 - keyv 系 5 package の更新（非目的に同じ、明示除外）
 - `min-release-age-exclude[]` の追加（owner 明示承認必須事項、本 change では使わない）
 - npm-security-monitor script / workflow の変更
-- CI runner 側 npm の版固定（npm 12 採用時も CI は Node 24 同梱 npm 11 系のまま。lockfile 互換性は B2 の npm 12 検分項目で確認し、CI 側変更は必要が実証された場合の follow-up とする）
+- CI runner 側 npm の版固定（npm 12 採用時も CI は Node 24 同梱 npm 11 系のまま。lockfile 互換性は step 2 の npm 12 検分項目で確認し、CI 側変更は必要が実証された場合の follow-up とする）
 
 ## Acceptance Criteria
 
-- AC-1: B1 merge 後、`npm audit --json` で `high: 1, moderate: 2, low: 0, total: 3`（js-yaml / markdown-it / markdownlint-cli2 のみ残存）。evidence: PR B1 body の audit 出力
-- AC-2: B2 merge 後、`npm audit --json` で `total: 0`。evidence: PR B2 body の audit 出力
-- AC-3: B1 / B2 とも lockfile diff の変更 package 一覧が本 packet の期待リストと一致し、各 resolved version の publish 日実測が PR body に記録される。08-04 以降 publish の version を採る場合は個別検分理由が併記される。evidence: PR body の検分表
-- AC-4: `.npmrc` は両 PR で diff に現れない（`git diff --name-only` に `.npmrc` が含まれない）。evidence: PR diff
-- AC-5: B2 で docs gate（markdownlint）が L1 full で green。新規違反が出た場合は rule 側の意図的変更を確認のうえ docs 修正で吸収し、`.markdownlint*` 設定の緩和で逃げない。evidence: L1 evidence log の docs gate PASS
+- AC-1: step 1 完了時点で `npm audit --json` が `high: 1, moderate: 2, low: 0, total: 3`。evidence: PR body の step 1 中間記録（`metadata.vulnerabilities` 転記）
+- AC-2: PR 最終 HEAD で `npm audit --json` の `total: 0`（`metadata` field の存在を伴う）。evidence: PR body の audit 出力
+- AC-3: lockfile diff の変更 package 一覧（`git diff main -- package-lock.json` から抽出）が本 packet の期待リストと一致し、各 resolved version の publish 日が `npm view <pkg> time` 実測で PR body の検分表に記録される。2026-08-04 以降 publish の version を採る場合は個別検分理由が併記される。evidence: PR body の検分表（`npm view` 出力 + 抽出 package 一覧の突合）
+- AC-4: `.npmrc` は PR で diff に現れない（`git diff --name-only main` に `.npmrc` が含まれない）。evidence: PR diff
+- AC-5: step 2 で docs gate（markdownlint）が L1 full で green。新規違反が出た場合は rule 側の意図的変更を確認のうえ docs 修正で吸収し、`.markdownlint*` 設定の緩和で逃げない。evidence: L1 evidence log の docs gate PASS
 - AC-6: npm CLI 12 の採否が decision-log に D 番号付きで記録される（採用時は `docs/DEV_SETUP_CHECKLIST.md` も追随）。evidence: decision-log entry
 - AC-7: merge 後の monitor `workflow_dispatch` が exit 0 で完走し、Issue #45 が close される。evidence: workflow run URL + issue state CLOSED
-- AC-8: 各 PR で L1 full green（HEAD 一致は PR body 記録）。evidence: PR body の L1 SHA
+- AC-8: PR 最終 HEAD で `bash scripts/local-ci.sh full` が green（HEAD 一致 SHA と evidence log の RESULT 行は PR body に記録）。evidence: PR body の L1 SHA + `.local/ci-evidence/` の RESULT 行
 
 ## Design Sources
 
@@ -114,7 +118,7 @@ Use `docs/DEV_WORKFLOW.md` Design artifact selection to decide what must exist b
 | DB / transaction / audit / rollback / migration | 該当なし | — |
 | Screen / UI / route state / Japanese wording | 該当なし | — |
 | CSV / TSV / report / import / export format | 該当なし | — |
-| Durable decision / ADR | decision-log（npm 12 採否 + change B 実施記録） | updated in this PR (B2) |
+| Durable decision / ADR | decision-log（npm 12 採否 + change B 実施記録） | updated in this PR (step 2) |
 
 ## Registration / Generation Obligations
 
@@ -124,18 +128,18 @@ Use `docs/DEV_WORKFLOW.md` Design artifact selection to decide what must exist b
 
 | Spec / requirement ID | Source design doc section | Decision ID | Why / rejected alternatives | Implementation target | Test target |
 |---|---|---|---|---|---|
-| SPEC-NPM-B-1 | CLAUDE.md 逐次投入手順 | D-030 | `npm audit fix --force` は禁止。名指し `npm update` 4 package で in-range 解決（PR #41 change A と同型） | PR B1 lockfile | audit 残存内訳 AC-1 |
-| SPEC-NPM-B-2 | CLAUDE.md 逐次投入手順 | D-030 | js-yaml 3 advisory は markdownlint-cli2 pin により in-range 不可。親の名指し版上げ（0.23.2、publish 07-27 で cooldown 満了）を採る。設定緩和・fork・audit 例外化は却下 | PR B2 package.json + lockfile | audit 0 化 AC-2 / docs gate AC-5 |
-| SPEC-NPM-B-3 | 本 packet 供給網検分規律 | B-D1 | Shai-Hulud（08-04）侵害 version は cooldown 7 日を既に経過し min-release-age では防げない。publish 日実測 + 期待リスト照合を lockfile diff review に義務付け。keyv 系は更新自体を禁止 | PR B1 / B2 の検分表 | AC-3 / matrix FM-1 |
+| SPEC-NPM-B-1 | CLAUDE.md 逐次投入手順 | D-030 | `npm audit fix --force` は禁止。名指し `npm update` 4 package で in-range 解決（PR #41 change A と同型） | step 1 lockfile diff | audit 中間内訳 AC-1 |
+| SPEC-NPM-B-2 | CLAUDE.md 逐次投入手順 | D-030 | js-yaml 3 advisory は markdownlint-cli2 pin により in-range 不可。親の名指し版上げ（0.23.2、publish 07-27 で cooldown 満了）を採る。設定緩和・fork・audit 例外化は却下 | step 2 package.json + lockfile | audit 0 化 AC-2 / docs gate AC-5 |
+| SPEC-NPM-B-3 | 本 packet 供給網検分規律 | B-D1 | Shai-Hulud（08-04）侵害 version は cooldown 7 日を既に経過し min-release-age では防げない。publish 日実測 + 期待リスト照合を lockfile diff review に義務付け。keyv 系は更新自体を禁止 | PR body 検分表 | AC-3 / matrix FM-1 |
 | SPEC-NPM-B-4 | D-029 残課題 | B-D2 | allowScripts 評価は npm 12 で native 化（allowScripts / --allow-git / --allow-remote 既定 off）。採否判断のみ本 change の完了条件とし、採用実施は owner 判断に従う | decision-log + DEV_SETUP_CHECKLIST | AC-6 |
 | SPEC-NPM-B-5 | monitor 運用（D-033） | B-D3 | audit 0 化後の monitor clean 判定で Issue #45 を自動 close（手動 close は失敗定義）。運用は現状維持 | workflow_dispatch 実行 | AC-7 |
 
 ## Design Intent Audit
 
 - Source docs can answer what is being built and why without chat history or archived Plan Packets: yes（CLAUDE.md 防御ルール + decision-log + 本 packet）
-- Plan-only durable decisions found and promoted to source docs / decision-log / ADR: npm 12 採否と change B 実施記録を decision-log へ昇格（B2）
+- Plan-only durable decisions found and promoted to source docs / decision-log / ADR: npm 12 採否と change B 実施記録を decision-log へ昇格（step 2）
 - Assumptions and constraints: registry 到達可能な環境で実装する（Contract Probe 参照）。実装日が進むと min-release-age の解決点が変わり得るため、期待 version は「以上」で規定し実測で固定する
-- Deferred design gaps, risk, and follow-up target: CI 側 npm の版差（local 12 / CI 11）は B2 検分で互換性確認のみ行い、pin は follow-up
+- Deferred design gaps, risk, and follow-up target: CI 側 npm の版差（local 12 / CI 11）は step 2 検分で互換性確認のみ行い、pin は follow-up
 - Test Design Matrix can cite design decision IDs or source doc sections: yes（B-D1〜B-D3 / SPEC-NPM-B-*）
 - Absolute guarantee / escape hatch self-check completed, with every exception checked and compatibility stated: 例外は「08-04 以降 publish version の個別検分採用」のみで、AC-3 が検分記録を強制する
 
@@ -151,7 +155,7 @@ Use `docs/DEV_WORKFLOW.md` Design artifact selection to decide what must exist b
 | Data safety / evidence | lockfile diff 検分表と publish 日実測を PR body に記録 | AC-3 |
 | Reporting / accounting semantics | not applicable | — |
 | Manual verification | .npmrc 不変・keyv 系不変は diff review でのみ担保（自動 gate なし）。AC-4 と matrix FM-2 で明示 | PR review checklist |
-| 環境・再現性 | local npm 12 採用時、CI は npm 11 系のまま。lockfileVersion 互換を B2 で検分し、非互換なら採用見送り or follow-up | AC-6 / decision-log |
+| 環境・再現性 | local npm 12 採用時、CI は npm 11 系のまま。lockfileVersion 互換を step 2 で検分し、非互換なら採用見送り or follow-up | AC-6 / decision-log |
 
 環境・再現性 lens: 新設の環境依存（toolchain / CI runner / OS 差異等）は repo-pinned config で強制するか、明示的に defer するかを記録する。Node 24 `.node-version` single-owner pin の教訓（`docs/archive/plans/2026-07-30-node24-toolchain-alignment.md`）を参照。
 
@@ -173,31 +177,31 @@ Minimum design checks for business-app work: いずれも該当なし（Layer / 
 - GHSA-g7cv-rxg3-hmpx: `withdrawn_at: null`、active 継続（`gh api /advisories/`）
 - keyv 系 lockfile 現況: keyv@4.5.4 / flat-cache@4.0.1 / file-entry-cache@8.0.0 / flatted@3.4.2（eslint@9.39.4 経由の旧安定版 pin、08-04 wave 非該当）。keyv 系 4 package の registry 最新版はいずれも 08-04 publish で攻撃窓と一致し、更新禁止の根拠
 - 9 GHSA 全件を `gh api /advisories/` で実読: 全件通常の DoS / 情報漏えい系（malware 混入 advisory なし）、全件 devDep transitive のみで runtime 影響なし
-- 未実測（B2 実装時に Writer が確認）: markdownlint-cli2@0.23.2 の依存 range が js-yaml 4.3.1 以上 / markdown-it 14.2.0 以上を解決すること（`npm view markdownlint-cli2@0.23.2 dependencies` + install 後 `npm ls`）
-- 未実測（B1 実装時に Writer が確認）: esbuild 0.28.1 以上が vite@7.3.6 / tsx の range 内で解決されること（audit `fixAvailable: true` 実測から可能と推定）
+- 未実測（step 2 実装時に Writer が確認）: markdownlint-cli2@0.23.2 の依存 range が js-yaml 4.3.1 以上 / markdown-it 14.2.0 以上を解決すること（`npm view markdownlint-cli2@0.23.2 dependencies` + install 後 `npm ls`）
+- 未実測（step 1 実装時に Writer が確認）: esbuild 0.28.1 以上が vite@7.3.6 / tsx の range 内で解決されること（audit `fixAvailable: true` 実測から可能と推定）
 
 ## Contract Coverage Ledger
 
 | Design contract / decision ID | Implementation target | Automated test | L3 or non-scope |
 |---|---|---|---|
-| D-030 常設ガード維持（.npmrc 2 行不変） | B1 / B2 diff | なし（gate 未整備） | PR diff review で AC-4 を人的確認 |
-| D-030 名指し更新のみ | B1 / B2 実装コマンド | なし | PR body のコマンド記録 + lockfile diff 期待リスト照合（AC-3） |
-| SPEC-NPM-B-1 audit 部分解消（B1 後 total 3） | B1 lockfile | `npm audit --json` 内訳（AC-1） | — |
-| SPEC-NPM-B-2 audit 0 化（B2 後） | B2 package.json + lockfile | `npm audit --json` total 0（AC-2）+ `npm audit --audit-level=high` exit 0 | — |
-| B-D1 攻撃窓 version 排除・keyv 系不変 | B1 / B2 lockfile diff | なし | 検分表（AC-3）+ diff review で keyv 系不在確認 |
-| AC-5 docs gate green（markdownlint 0.23 系） | B2 | L1 full docs gate | — |
-| B-D2 npm 12 採否記録 | decision-log / DEV_SETUP_CHECKLIST | doc consistency gate | owner 採否判断 |
+| D-030 常設ガード維持（.npmrc 2 行不変） | PR diff | なし（gate 未整備） | PR diff review で AC-4 を人的確認 |
+| D-030 名指し更新のみ | step 1 / step 2 実装コマンド | なし | PR body のコマンド記録 + lockfile diff 期待リスト照合（AC-3） |
+| SPEC-NPM-B-1 audit 部分解消（step 1 後 total 3） | step 1 lockfile | `npm audit --json` 内訳（AC-1） | — |
+| SPEC-NPM-B-2 audit 0 化（step 2 後） | step 2 package.json + lockfile | `npm audit --json` total 0（AC-2） | — |
+| B-D1 攻撃窓 version 排除・keyv 系不変 | lockfile diff | なし | 検分表（AC-3）+ diff review で keyv 系不在確認 |
+| AC-5 docs gate green（markdownlint 0.23 系） | step 2 | L1 full docs gate | — |
+| B-D2 npm 12 採否記録 | decision-log / DEV_SETUP_CHECKLIST | なし（PR review で D 番号・Decision/Status/Why/Impact 必須項目を人的確認） | owner 採否判断 |
 | B-D3 Issue #45 clean close | monitor dispatch | workflow run exit 0 | issue state CLOSED を owner / Coordinator 確認 |
 
 ## Test Plan
 
 Test Design Matrix: `docs/plans/test-matrices/2026-08-12-npm-audit-remediation-b.md`
 
-- targeted tests: `npm audit --json` 内訳照合（B1 後 / B2 後）、`npm ls js-yaml brace-expansion nanoid postcss esbuild markdown-it` の解決 version 確認
-- negative tests: `npm audit --audit-level=high` の exit code（B1 後は非 0 = js-yaml 残存を正しく検出、B2 後は 0）
-- compatibility checks: B2 の docs gate 全 corpus、`npm ci --ignore-scripts` の再現 install 成功、npm 12 検分（採用時 lockfileVersion 互換）
+- targeted tests: `npm audit --json` 内訳照合（step 1 後の中間 / 最終 HEAD）、`npm ls js-yaml brace-expansion nanoid postcss esbuild markdown-it` の解決 version 確認
+- negative tests: `npm audit --audit-level=high` の exit code（step 1 後は非 0 = js-yaml 残存を正しく検出、最終 HEAD では 0。最終 oracle は `--json` total を正とする）
+- compatibility checks: step 2 の docs gate 全 corpus、`npm ci --ignore-scripts` の再現 install 成功、npm 12 検分（採用時 lockfileVersion 互換）
 - data safety checks: PR body に token / 個人情報を含めない。`.local/ci-evidence/` は local-only
-- main wiring/integration checks: L1 full（typecheck / lint / format / test / build / docs gate）green ×2 PR — 依存更新が build 経路に実際に載ることの確認
+- main wiring/integration checks: PR 最終 HEAD で L1 full（typecheck / lint / format / test / build / docs gate）green — 依存更新が build 経路に実際に載ることの確認
 
 ## Boundary / Wire Contract
 
@@ -208,11 +212,11 @@ Test Design Matrix: `docs/plans/test-matrices/2026-08-12-npm-audit-remediation-b
 - precision/range: 該当なし
 - round-trip path: install -> lockfile -> `npm ci` 再現 install
 - invalid input: 侵害 version 混入は publish 日検分（AC-3）で排除
-- compatibility: npm 12 で lockfile を書き換える場合、npm 11 系 `npm ci` での再現可否を B2 で検分（非互換なら npm 12 採用を見送り or CI 側 follow-up）
+- compatibility: npm 12 で lockfile を書き換える場合、npm 11 系 `npm ci` での再現可否を step 2 で検分（非互換なら npm 12 採用を見送り or CI 側 follow-up）
 
 ## Review Focus
 
-- lockfile diff の全行が期待リスト（brace-expansion ×2 系統 / nanoid / postcss / esbuild、B2 で markdownlint-cli2 / js-yaml / markdown-it とその内部依存）に収まっているか。想定外の package 混入・keyv 系の変動は P1
+- lockfile diff の全行が期待リスト（step 1: brace-expansion ×2 系統 / nanoid / postcss / esbuild、step 2: markdownlint-cli2 / js-yaml / markdown-it とその内部依存）に収まっているか。想定外の package 混入・keyv 系の変動は P1
 - publish 日検分表の網羅性（diff に現れた全 package が載っているか）
 - markdownlint-cli2 0.23 系の挙動変化が docs gate 設定の緩和で吸収されていないか（AC-5）
 - 常設ガード・禁止操作（D-030）への抵触がないか
@@ -221,9 +225,9 @@ Test Design Matrix: `docs/plans/test-matrices/2026-08-12-npm-audit-remediation-b
 
 Contract ID: SPEC-NPM-B
 
-- SPEC-NPM-B-1: B1 は名指し 4 package の in-range 更新のみで、audit を high 1 / moderate 2 / low 0 に減らす
-- SPEC-NPM-B-2: B2 は markdownlint-cli2@0.23.2 の exact pin 更新で audit を 0 にする（js-yaml は 4.3.1 以上、markdown-it は 14.2.0 以上に解決）
-- SPEC-NPM-B-3: 両 PR の lockfile diff は期待リスト内に収まり、全変更 version の publish 日が実測記録される。keyv / cacheable / flat-cache / file-entry-cache / flatted は変化しない
+- SPEC-NPM-B-1: step 1 は名指し 4 package の in-range 更新のみで、audit を high 1 / moderate 2 / low 0 の中間状態に減らす
+- SPEC-NPM-B-2: step 2 は markdownlint-cli2@0.23.2 の exact pin 更新で audit を 0 にする（js-yaml は 4.3.1 以上、markdown-it は 14.2.0 以上に解決）
+- SPEC-NPM-B-3: PR の lockfile diff は期待リスト内に収まり、全変更 version の publish 日が実測記録される。keyv / cacheable / flat-cache / file-entry-cache / flatted は変化しない
 - SPEC-NPM-B-4: npm CLI 12 の採否が decision-log に記録される
 - SPEC-NPM-B-5: Issue #45 は monitor の clean 判定でのみ close される
 
@@ -231,10 +235,10 @@ Contract ID: SPEC-NPM-B
 
 | Spec ID | Plan Step | Test | Review Focus | Evidence |
 |---|---|---|---|---|
-| SPEC-NPM-B-1 | PR B1 | audit 内訳照合（AC-1） | 期待リスト外の diff | PR B1 body |
-| SPEC-NPM-B-2 | PR B2 | audit total 0（AC-2）+ docs gate（AC-5） | 設定緩和の有無 | PR B2 body + L1 log |
-| SPEC-NPM-B-3 | B1 / B2 共通 | 検分表（AC-3）+ .npmrc 不変（AC-4） | keyv 系不変・publish 日網羅 | PR body 検分表 |
-| SPEC-NPM-B-4 | B2 同乗 | doc consistency gate（AC-6） | 採否理由の妥当性 | decision-log |
+| SPEC-NPM-B-1 | step 1 | audit 中間内訳照合（AC-1） | 期待リスト外の diff | PR body（step 1 中間記録） |
+| SPEC-NPM-B-2 | step 2 | audit total 0（AC-2）+ docs gate（AC-5） | 設定緩和の有無 | PR body + L1 log |
+| SPEC-NPM-B-3 | step 1 / 2 共通 | 検分表（AC-3）+ .npmrc 不変（AC-4） | keyv 系不変・publish 日網羅 | PR body 検分表 |
+| SPEC-NPM-B-4 | step 2 同乗 | PR review（AC-6） | 採否理由の妥当性 | decision-log |
 | SPEC-NPM-B-5 | merge 後 | workflow run exit 0（AC-7） | 手動 close していないこと | run URL + issue state |
 
 ## Data Safety
@@ -251,6 +255,7 @@ Do not transcribe exact-HEAD SHA or test counts here (D-035/D-038 Evidence Owner
 
 ## Review Response
 
-Fill after review.
+Plan Gate rally round 1（独立 Sonnet、2026-08-12）: P1 ×2 / P2 ×3 / P3 ×1 — 全件 accept。P1-2 / P2-2 / P3-1 は 2 PR 構成を単一 PR + 2 step 構成へ再設計して根治（1 packet = 1 PR、PK5 ancestry・decision point 計上を同時解消）。P1-1 は Plans.md 進行中 entry 追加、P2-1 は非実在 gate 引用を人的確認へ訂正、P2-3 は AC-3 / AC-8 へ観測 token 追加。是正後に `bash scripts/doc-consistency-check.sh --target plan` ERROR/WARN 0 を再実測。
+
 If R3 review-only sub-agent is skipped, record an explicit line beginning with `Review-only skipped because:` and the reason.
 - Findings Freeze: not yet frozen; post-freeze exceptions: none.

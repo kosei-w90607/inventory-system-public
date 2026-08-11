@@ -6,13 +6,13 @@ Risk: R3
 
 ## Contracts Under Test
 
-- SPEC-NPM-B-1: B1（名指し 4 package 更新）で audit が high 1 / moderate 2 / low 0 に減る
-- SPEC-NPM-B-2: B2（markdownlint-cli2@0.23.2 exact pin）で audit total 0（js-yaml >= 4.3.1、markdown-it >= 14.2.0）
+- SPEC-NPM-B-1: step 1（名指し 4 package 更新）で audit が high 1 / moderate 2 / low 0 の中間状態に減る
+- SPEC-NPM-B-2: step 2（markdownlint-cli2@0.23.2 exact pin）で audit total 0（js-yaml >= 4.3.1、markdown-it >= 14.2.0）
 - SPEC-NPM-B-3: lockfile diff は期待リスト内のみ、全変更 version の publish 日実測記録、keyv 系 5 package 不変
 - SPEC-NPM-B-4: npm CLI 12 採否の decision-log 記録
 - SPEC-NPM-B-5: Issue #45 は monitor clean 判定でのみ close
-- AC-4: `.npmrc`（`ignore-scripts=true` / `min-release-age=7`）が両 PR の diff に現れない
-- AC-5: B2 後の docs gate green を設定緩和なしで達成
+- AC-4: `.npmrc`（`ignore-scripts=true` / `min-release-age=7`）が PR の diff に現れない
+- AC-5: step 2 後の docs gate green を設定緩和なしで達成
 
 ## Failure Modes
 
@@ -31,15 +31,15 @@ Risk: R3
 
 | Contract | Failure Mode | Test Type | Test Name | Would fail if... |
 |---|---|---|---|---|
-| SPEC-NPM-B-1 | FM-2 / FM-5 / FM-8 | CLI | `npm audit --json` 内訳照合（B1 後、期待: high 1 / moderate 2 / low 0 / total 3） | 名指し更新が効いていない、または期待外の解消・残存がある |
-| SPEC-NPM-B-2 | FM-4 / FM-5 | CLI | `npm audit --json` で `total: 0`（B2 後。`--audit-level=high` の exit code ではなく total を oracle にする） | js-yaml 4.3.1 未満 / markdown-it 14.2.0 未満 / esbuild 未達で残存する |
+| SPEC-NPM-B-1 | FM-2 / FM-5 / FM-8 | CLI | `npm audit --json` 内訳照合（step 1 後、期待: high 1 / moderate 2 / low 0 / total 3） | 名指し更新が効いていない、または期待外の解消・残存がある |
+| SPEC-NPM-B-2 | FM-4 / FM-5 | CLI | `npm audit --json` で `total: 0`（PR 最終 HEAD。`--audit-level=high` の exit code ではなく total を oracle にする） | js-yaml 4.3.1 未満 / markdown-it 14.2.0 未満 / esbuild 未達で残存する |
 | SPEC-NPM-B-2 | FM-4 | CLI | `npm ls js-yaml markdown-it` で解決 version を実表示し PR body に転記 | dedupe された @eslint/eslintrc 側 js-yaml が旧版のまま残る |
 | SPEC-NPM-B-3 | FM-1 | review/evidence | PR body 検分表: lockfile diff の全変更 package × `npm view <pkg> time` publish 日 | diff に現れた package が検分表に載っていない、または 08-04 以降 publish が無検分で採用される |
 | SPEC-NPM-B-3 | FM-2 | CLI + review | `git diff main -- package-lock.json` の変更 package 抽出と期待リスト照合、`rg '"node_modules/(keyv|cacheable|flat-cache|file-entry-cache|flatted)"' -A 2` の before/after 一致 | keyv 系または期待外 package が変動している |
 | AC-4 | — | CLI | `git diff --name-only main` に `.npmrc` が含まれない | 常設ガードが変更されている |
 | AC-5 | FM-3 | integration | L1 full の docs gate PASS + `git diff --name-only main` に `.markdownlint*` が含まれない（docs 本文の修正は可） | rule 緩和で fail を隠している |
-| SPEC-NPM-B-1/2 共通 | FM-7 | integration | L1 full の frontend-install（`npm ci --ignore-scripts`）成功 ×2 PR | lockfile が再現 install 不能・script 実行に依存 |
-| SPEC-NPM-B-4 | — | schema | doc consistency gate（decision-log 形式検査） | D 番号・形式不備 |
+| SPEC-NPM-B-1/2 共通 | FM-7 | integration | PR 最終 HEAD の L1 full frontend-install（`npm ci --ignore-scripts`）成功 | lockfile が再現 install 不能・script 実行に依存 |
+| SPEC-NPM-B-4 | — | review | PR review: decision-log D 番号形式 + Decision/Status/Why/Impact 必須項目の目視確認 | D 番号・形式不備 |
 | SPEC-NPM-B-5 | FM-6 | CLI | merge 後 `gh workflow run npm-security-monitor.yml` -> run exit 0 -> `gh issue view 45 --json state` = CLOSED | 手動 close された、または audit 残存で monitor が exit 1 を返す |
 
 ## State Lifecycle Matrix
@@ -48,7 +48,7 @@ UI / data / cache / route 状態を持たない change のため、対象は loc
 
 | State / subject | Initial | Pending | Success | Invalidate | Refetch | Revisit | Restart | Failure | Retry | Evidence |
 |---|---|---|---|---|---|---|---|---|---|---|
-| package-lock.json | main の 7 vuln 状態 | B1 branch 更新 | B1 merge（3 vuln） -> B2 merge（0 vuln） | 期待外 diff 発見 | `git restore` + 名指し再実行 | `npm ci` 再現 install | clean tree から再 update | 侵害 version 混入 | lockfile 復元後に対象を絞って再実行 | PR diff + 検分表 |
+| package-lock.json | main の 7 vuln 状態 | step 1 / step 2 の branch 更新 | step 1（total 3 中間実測）-> step 2（total 0）-> merge | 期待外 diff 発見 | `git restore` + 名指し再実行 | `npm ci` 再現 install | clean tree から再 update | 侵害 version 混入 | lockfile 復元後に対象を絞って再実行 | PR diff + 検分表 |
 | Issue #45 | OPEN（high 3 報告済み） | merge 待ち | monitor exit 0 で CLOSED | 新規 advisory 出現で再 OPEN | 週次 cron | — | — | monitor exit 2（check 失敗） | dispatch 再実行 | run URL + issue state |
 
 For workflow-state changes, add explicit rows for: 本 change は workflow-state contract を変更しないため該当なし。通常の phase 遷移（content candidate -> L1 / independent review -> state-only human-confirm commit -> Ready -> merge 三点一致）は DEV_WORKFLOW の標準経路に従う。
@@ -57,7 +57,7 @@ For workflow-state changes, add explicit rows for: 本 change は workflow-state
 
 | Source pattern / contract | Repository sites inspected | Ported sites | Explicit exclusions and reason | Test / evidence |
 |---|---|---|---|---|
-| PR #41「change A」名指し transitive 更新手順（D-030 逐次投入） | `docs/archive/plans/2026-07-05-npm-policy-d030-sequential-installs.md` / Plans.md backlog 節 | PR B1 の update コマンドと lockfile diff review | change A に無かった publish 日検分（B-D1）を追加 — Shai-Hulud 08-04 以後は cooldown 通過済み侵害 version があり得るため | AC-3 検分表 |
+| PR #41「change A」名指し transitive 更新手順（D-030 逐次投入） | `docs/archive/plans/2026-07-05-npm-policy-d030-sequential-installs.md` / Plans.md backlog 節 | step 1 の update コマンドと lockfile diff review | change A に無かった publish 日検分（B-D1）を追加 — Shai-Hulud 08-04 以後は cooldown 通過済み侵害 version があり得るため | AC-3 検分表 |
 | npm-security-monitor の clean close 経路 | `.github/workflows/npm-security-monitor.yml` / `scripts/npm-security-monitor.sh` | merge 後 dispatch（SPEC-NPM-B-5） | script 本体の変更は non-scope | run URL |
 
 ## Negative Paths
@@ -74,7 +74,7 @@ For workflow-state changes, add explicit rows for: 本 change は workflow-state
 
 - threshold: min-release-age=7 の境界 — nanoid 3.3.18（08-07）、postcss 8.5.26（08-06）、esbuild 0.28.2（08-08）は 08-12 時点 cooldown 中。実装日に解決点が変わるため、oracle は「fix version 以上 + publish 日検分」とし特定 version に固定しない
 - null/default: 該当なし
-- empty/non-empty: audit total 0 は「空」を期待する oracle — B1 後の非空（total 3）照合と対にして、audit 実行自体の失敗を 0 と誤認しない（`metadata` field の存在確認を伴う）
+- empty/non-empty: audit total 0 は「空」を期待する oracle — step 1 後の非空（total 3）照合と対にして、audit 実行自体の失敗を 0 と誤認しない（`metadata` field の存在確認を伴う）
 - min/max: js-yaml >= 4.3.1 / markdown-it >= 14.2.0 / brace-expansion >= 1.1.18（1 系）・>= 5.0.9（5 系）/ esbuild >= 0.28.1 / postcss >= 8.5.23
 - status/policy enum: Issue state OPEN -> CLOSED、monitor exit 0/1/2 の区別（exit 2 は close 根拠にならない）
 - wire type: lockfileVersion 3 維持
@@ -99,7 +99,7 @@ For workflow-state changes, add explicit rows for: 本 change は workflow-state
 
 - helper connected to main path: 更新された transitive が実際に build/lint/test 経路で使われることを L1 full green で確認
 - output reaches manifest/report: audit 出力 / 検分表が PR body に到達
-- effective config reaches runtime: `.npmrc` が install 時に有効（`npm config get ignore-scripts` = true を B1 実装冒頭で確認）
+- effective config reaches runtime: `.npmrc` が install 時に有効（`npm config get ignore-scripts` = true を step 1 実装冒頭で確認）
 - CLI arg reaches implementation: 該当なし
 
 ## Mutation-style Adequacy Questions
