@@ -2,10 +2,10 @@
 
 ## Workflow State
 
-- Phase: plan-gate
+- Phase: implementing
 - Risk: R3
 - Execution Mode: fable-window
-- Plan Commit: pending
+- Plan Commit: 0b36e7a
 - Amendments: none
 - Coordinator: Fable 5（main thread / owner relay）
 - Writer: Codex（本 branch の実装担当）
@@ -14,7 +14,7 @@
 - Reviewed Content HEAD: pending
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
-- Human Gate: owner plan approval; Ready/merge approval（Windows native L3 なし — operator 可視挙動の変更を含まない workflow docs change）
+- Human Gate: owner plan approval（消化済み 2026-08-12、介入 2/3。§5.6 縮小裁定の追認を含む）; Ready/merge approval（Windows native L3 なし — operator 可視挙動の変更を含まない workflow docs change）
 
 STATECAP 予算 3 本設計（state-only 遷移 commit）: ① `plan-gate -> plan-approved -> implementing`（発注直前に一括実体化）② `independent-review -> human-confirm` ③ `human-confirm -> ready-hosted-final`。その他の遷移は content commit 同乗。各 forward materialize 直後に `bash scripts/check-workflow-git.sh` を実行する。
 
@@ -229,4 +229,5 @@ Test Design Matrix: [2026-08-12-workflow-docs-wer-deferred.md](test-matrices/202
 - Plan Review rally round 2（Sonnet 5 independent / fresh context、2026-08-12）: round 1 裁定 4 件を独立再検証で全件 VERIFY（M-W1〜M-W9 全 anchor の baseline `rg -c` = 0・cross-hit なしを実測、12→9 観点の集約対応も過不足なしと判定）。新規 P1×1 = Goal 最小完了条件（L52）に round 1 で否認済みの旧文言「state 遷移の Coordinator 所有」が能動的仕様として残存する sweep 漏れ — 本 packet が正本化する sweep 規則が防ぐ失敗パターンの実例（Coordinator の sweep keyword が狭すぎた: `Coordinator 所有であり Writer scope 外` では L52 の異表現を検出できず、`Coordinator 所有` の広い pattern が必要だった）。
 - round 2 P1 是正: accept、L52 を W3 / SPEC-WD-4 と同語の縮小後契約へ置換。再 sweep は広い pattern `rg -n 'Coordinator 所有'` で実施し、残存は §5.7 観点④（Coordinator 所有 field — 別語義）と履歴記録のみであることを確認。
 - Plan Review rally round 3（Sonnet 5 independent / fresh context、2026-08-12、reviewed HEAD 356834d）: round 2 是正を独立再検証で VERIFY（`rg -n 'Coordinator 所有'` の残存 6 hit は全件履歴文 or §5.7 観点④の別語義で能動的仕様 0）。最終 sweep = 全 file:line 引用実在・Ledger⇔Trace⇔Matrix 3 点整合・12→9 観点の畳み込み過不足なし・anchor 一意性（file 単位 scope で cross-hit リスクなし）・X1〜X3 red oracle 成立・STATECAP/ci.md 分類整合を実測確認、**新規指摘 0。rally 収束（P1/P2 = 0、3 round、天井内）、owner plan 承認待ちへ遷移。**
+- owner plan 承認（2026-08-12、介入 2/3）: rally 収束（P1/P2 = 0、天井 3 round 内）を受けた plan 承認と Codex 発注指示。§5.4 → §5.6 の置き場所訂正と §5.6 の範囲縮小（canonical subject + narrative 遷移主張禁止のみ）を明示提示のうえ追認。遷移 `plan-gate -> plan-approved -> implementing` は state-only 遷移 commit（STATECAP ①）で実体化、Plan Commit = `0b36e7a`。
 - Final Review: pending independent Sonnet 5 fresh-context Double Audit。
