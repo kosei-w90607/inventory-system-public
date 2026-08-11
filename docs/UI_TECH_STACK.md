@@ -510,7 +510,7 @@ CMD層の `CmdError` は `kind: string` / `message: string` / `field?` / `error_
 
 | kind | UI表示戦略 | 例 |
 |------|----------|---|
-| `validation` | `message` をそのまま表示（BIZ/CMD層で日本語化済み） | "JANコードは13桁または8桁で入力してください" |
+| `validation` | `message` をそのまま表示（BIZ/CMD層で日本語化済み） | "JANコードは13桁または8桁で入力してください"（この JAN 文言の実体 validation 正本 = [51-ui-product-form.md](function-design/51-ui-product-form.md) UI-01b-D17） |
 | `duplicate` | `message` を表示。既存レコードへの導線は画面側で追加してよい | "商品コード HZ-0047 は既に登録されています。[既存商品を開く]" |
 | `not_found` | `message` を表示。戻り先の提示は画面側で追加してよい | "指定された商品が見つかりません。[商品一覧に戻る]" |
 | `internal` | `message`（操作文脈の定型文言。raw 技術詳細は CMD-ERR-D2 により含まれない）+ エラーID + 診断ログへの誘導 | "バックアップ一覧の取得でエラーが発生しました（エラーID: E-20260726-153021-a1b2）。詳細は診断ログに記録されています。" |

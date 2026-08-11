@@ -28,6 +28,9 @@
 | REQ-102 | UI-01b-D13 | 「廃番にする」操作は確認ダイアログ（`DiscontinueConfirmDialog`、shadcn AlertDialog）を通す。「表示に戻す」は確認なしで直接実行する。 | 廃番化は一覧の通常表示から外れる片方向の状態変更で、誤操作の影響が大きいため確認する。復帰は影響が小さく、戻す操作にさらに確認を挟むと操作が重くなるため直接実行する。先例は CSV 取込みの `OverwriteConfirmDialog`。 |
 | REQ-101 / REQ-102 | UI-01b-D14 | 保存成功は `toast.success`（`id: "product-save-success"`、`duration: 5000`）で示し、navigate より前に発火する。create は登録した商品コードを含め、edit は保存完了を伝える。 | 保存後すぐ一覧へ戻るため、成功は一覧に遷移してからでなく form 上の通知で確実に伝える。id 固定で連打時に通知が積み重ならないようにする。alert を画面内に残すと遷移と二重になるため toast を使う。 |
 | REQ-101 / REQ-102 | UI-01b-D15 | create、update、廃番化・復帰の成功時 invalidation は [D-052](../decision-log.md) C1/C2 と `src/lib/invalidation-contract.ts` を正本とし、form 内に query key 集合を列挙しない。 | 商品・在庫・PLU・棚卸し consumer への追随を mutation 単位の SSOT で保証し、page と設計書の二重管理を避ける。 |
+| REQ-101 / REQ-402 | UI-01b-D16 | create の JAN 欄は全角数字を半角へ正規化する。適用点は composition 中でない onChange（キー入力・paste を含む全経路）と onCompositionEnd の確定値の 2 点。値全体が数字（半角/全角）の場合のみ写像し、混在値は無変換、composition 中は不加工。NFKC・trim 変更・記号/かな変換・チェックディジット補正は行わない。util は `normalizeComposedDigits` / `isComposedDigitsOnly` の既存実装を import 流用し、複製・挙動変更を禁止する。 | 日本語 IME 下のスキャナ/手入力・paste で全角数字が残ると保存 validation（UI-01b-D17）と PLU 提案（UI-01b-D18）が誤動作する（PR #65 初回 L3 の IME blocker 起源）。catalog ⑮ SPEC-SUGGEST-D11/D12 と同一写像で挙動を揃える。JAN 欄専用の別実装は D11 と drift するため不採用。 |
+| REQ-101 | UI-01b-D17 | create 保存時、jan_code 非 null なら「trim -> UI-01b-D16 と同一写像の全角→半角正規化 -> 検証」の順で適用し、正規化後の値が ASCII 数字 8 桁または 13 桁かつモジュラス 10 チェックディジット整合であることを必須とする。保存値は正規化後の値とする。この pipeline は frontend（`src/features/products/lib/jan-code.ts` 新設 + `product-form-request.ts`）が実行し、BIZ（BIZ-01-D1）は正規化後 wire 値を検証のみ行い再正規化しない。既存の blank + code_prefix 規則・文言は不変。ISBN-10 は許容しない（本は 13 桁 JAN〈EAN-13/ISBN-13〉で登録 = owner 裁定 2026-08-11）。 | 手入力 typo・読み違いの防御（実バーコードはチェックディジット整合が保証される）。warn-only は防御にならず不採用。JAN 欄空白 + 独自コード発番部門の既存経路が escape hatch として残る。 |
+| REQ-402 | UI-01b-D18 | `suggestPluTarget` は trim と UI-01b-D16 写像を適用した candidate、すなわち正規化適用後の値で評価し、ASCII 数字 13 桁のみ true とする（JAN-8 は false 維持 = PLU 書出し 13 桁前提との整合）。BIZ `should_default_plu_target`（BIZ-01-D2）と同一意味論の意図的二重実装とし、実装統合はせず、両側に同一ケース表の独立転記 oracle drift-guard test を置く。composition 中の評価は transient で onCompositionEnd の正規化で収束し、追加の抑制はしない。 | 全角 13 桁入力で PLU 提案が false になる既知問題を入力正規化で根治する。wire 越えの SSOT 化は bindings 定数 export の重さに見合わず不採用（判定は 1 行規模）。 |
 
 ## 7.2 Component / Route 構成
 
@@ -104,9 +107,10 @@ UI-01b は以下の generated binding を使用する。
    - JANコードあり: JANコードを入力する。保存時は `jan_code=Some(value)` になり、BIZ が `product_code=jan_code` として登録する。
    - JANコードなし: JAN欄を空にし、独自コード発番対象部門を選ぶ。UI は「保存時に自動発番」と表示する。
    - JAN欄が空で、選択部門に `code_prefix` がない場合は保存しない。
+   - JAN 欄の全角数字は UI-01b-D16 に従い半角へ正規化する（composition 中でない onChange と onCompositionEnd の 2 点で適用、paste 経由を含む。composition 中は不加工）。
 3. 必須項目を入力する。
 4. `stock_unit='cm'` に変更した場合、`pos_stock_sync=false` を提案する。`stock_unit='pcs'` に戻した場合は既定の `true` を復元する。自動提案は `onPosStockSyncSuggest`（touched を立てない）経路を使い、利用者の checkbox 操作（touched を立てる `onPosStockSyncChange`）と区別する。利用者が toggle を触った後（touched=true）はどちらの単位変更でも提案を発火しない。
-4b. `plu_target`（レジにバーコード登録する）は JAN 欄の値から初期値を提案する: 13 桁数字なら on、それ以外（空・不正形式）は off。利用者は変更できる。自動提案は pos_stock_sync と同じ touched 区別パターンを使う（D-028。詳細仕様と実装は後続 R3 PR / UI-01b 実装 PR で確定）。
+4b. `plu_target`（レジにバーコード登録する）は JAN 欄の値から初期値を提案する: 13 桁数字なら on、それ以外（空・不正形式）は off。利用者は変更できる。自動提案は pos_stock_sync と同じ touched 区別パターンを使う（D-028。詳細仕様と実装は後続 R3 PR / UI-01b 実装 PR で確定）。判定の candidate は UI-01b-D18 に従い trim + 正規化適用後の値とする（全角 13 桁も正規化後に on 提案）。
 5. 保存時に `commands.createProduct(req)` を呼ぶ。
 6. 成功時は保存された `product_code` を含む成功 toast（`toast.success`、`id: "product-save-success"`、`duration: 5000`）を navigate より前に発火し、safe な `returnTo` または `/products` へ遷移する。safe な `returnTo` は `/products` 一覧 route とその search params のみ（UI-01b-D14）。
 
@@ -147,6 +151,9 @@ Frontend validation:
 - `tax_rate`: `"10" | "8" | "0"` 以外 → `税率を選択してください`
 - `stock_unit`: create mode で `"pcs" | "cm"` 以外 → `数量単位を選択してください`
 - `jan_code` blank + `department.code_prefix == null` → `JANコードを入力するか、独自コード発番対象の部門を選択してください`
+- `jan_code` 非 null（create のみ、UI-01b-D17）: trim と正規化を適用した後の値が ASCII 数字 8 桁または 13 桁でない → `JANコードは13桁または8桁で入力してください`
+- `jan_code` 非 null（create のみ、UI-01b-D17）: 桁数を満たすがモジュラス 10 チェックディジット整合でない → `JANコードのチェックディジットが一致しません。入力値を確認してください`
+- 上記 2 検査の実体は `src/features/products/lib/jan-code.ts`（named export、UI-01b-D18 の suggest 評価 pipeline と共用）が所有し、`product-form-request.ts` への inline 実装は禁止する。
 
 **enum 契約化（D-061）**: `tax_rate` / `stock_unit` の SSOT は generated union で、frontend は bindings 由来型を利用する。select guard・validation 文言・UI 挙動は不変。
 
@@ -167,6 +174,7 @@ Error recovery:
 - cm / m 表示切替 UI。UI-01b では `cm` を入力・表示できるが、`m` 換算表示 toggle は別 Design Phase で扱う。
 - dedicated scanner UX / 連続スキャン検知。
 - supplier / department select の shared component 化。
+- 部門 17（本）のバーコードなし本・ISBN-10 本の登録経路（owner 裁定 2026-08-11 で対象外。Plans.md backlog で追跡、要望発生時に code_prefix 付与 or ISBN-10 対応を再裁定）。
 
 ## 7.8 Test Focus
 
@@ -189,6 +197,7 @@ Error recovery:
 
 | 日付 | 版 | 内容 |
 |---|---|---|
+| 2026-08-11 | JAN 専用欄正規化 design | UI-01b-D16〜D18 を追加（JAN 欄の全角→半角正規化 / 保存時 JAN-8/13 + チェックディジット validation / PLU 提案の正規化後評価と BIZ 二重実装契約）。§7.5 / §7.6 / §7.7 を整合。実装は後続 PR。 |
 | 2026-08-03 | UI safety net implementation | 商品 form の dirty 判定を共通離脱ガードへ接続し、保存成功時の baseline 同期を実装。 |
 | 2026-06-09 | UI-01b Design Phase | TanStack Router route、generated command 方針、supplier 候補、JANなし商品コード、edit read-only fields、cm / m defer、Windows native L3 を Design Phase 基準で整理。 |
 | 2026-06-12 | UI-01b polish | UI-01b-D10〜D12 を追加（4 セクション分割、read-only 表示、必須項目ラベル）。§7.2 を実装構成へ更新。 |

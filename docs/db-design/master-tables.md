@@ -14,7 +14,7 @@
 | カラム名 | 型 | 制約 | 説明 |
 |---------|---|----|------|
 | product_code | TEXT | PK | システム管理の一意コード。JAN個別管理商品はJANそのまま、それ以外は独自コード（例: HZ-0046, NU-0003） |
-| jan_code | TEXT | NULLABLE, INDEX | JANコード（13桁）。複数商品が同じJANを共有する場合がある（グループコード）。NULLならJAN無し商品 |
+| jan_code | TEXT | NULLABLE, INDEX | JANコード（JAN-8 または JAN-13 = ASCII 数字 8/13 桁。手入力 create 経路の形式 validation は 51 UI-01b-D17 / 30-biz BIZ-01-D1 が所有し、import 経路・既存行は対象外）。複数商品が同じJANを共有する場合がある（グループコード）。NULLならJAN無し商品 |
 | name | TEXT | NOT NULL | 商品名（例: ハマナカ アミアミ極太 col.42） |
 | department_id | INTEGER | FK → departments.id, NOT NULL | 所属部門 |
 | supplier_id | INTEGER | FK → suppliers.id, NULLABLE | 主な取引先（任意） |
@@ -37,6 +37,7 @@
 - **jan_codeにINDEXを張る理由**: CSV取込み時にZ004のJANコードでproductsを検索する。INDEXがないと4000件のフルスキャンになる
 - **jan_codeがNULLABLEな理由**: ボタンのように品番もJANもない商品がある
 - **jan_codeのUNIQUE制約をつけない理由**: 同じJANを複数商品が共有するケースがある（グループコード）。UNIQUE制約をつけると登録できなくなる
+- **jan_code の形式 validation を DB に置かない理由（2026-08-11、JAN 専用欄正規化 change）**: 手入力 create 経路の JAN-8/13 + チェックディジット検証は BIZ 保存時（BIZ-01-D1）と frontend（51 UI-01b-D17）が所有し、DB CHECK は追加しない。既存 DB 行と CSV/Z004 import 経路には非 JAN 値・非 13 桁値が実在し得るため（既存データ互換）、DB 制約は既存データの migration を強制してしまう。UNIQUE を付けない既存判断も不変。
 - **selling_price / cost_priceをINTEGERにした理由**: 日本円は小数点以下がないため整数で十分。浮動小数点の丸め誤差を避ける
 - **plu_dirtyフラグの理由**: 「レジ登録データ作成」画面の差分書出しモード（REQ-402）で「前回以降に変更があった商品」を高速に抽出するため。売価変更・新規登録でON、TSV生成だけではOFFにせず、UI-08で保存後に利用者が書出し済み確認した時点でOFFにする（D-027）。
 - **plu_exported_atの理由**: plu_dirtyだけでは「未書出し」と「アプリ側では書出し済み」の区別がつかない。書出し済み確認日時を記録しておけば「最後にアプリでPLU TSVを作成・保存済みにしたのはいつか」が分かる。ただしPCツール受理やレジ側反映確認はAPIがないため、この値では証明しない。
@@ -151,7 +152,7 @@
 | 14 | 雑貨 | 雑貨 | ZK | あり | |
 | 15 | 帽子 | 帽子 | NULL | なし | |
 | 16 | ビューティ関連 | ビューティ関連 | NULL | なし | |
-| 17 | 本 | 本 | NULL | JAN/ISBN有り | |
+| 17 | 本 | 本 | NULL | 13 桁 JAN（EAN-13/ISBN-13）有り | ISBN-10 非対応（owner 裁定 2026-08-11。バーコードなし本・ISBN-10 のみの古書は登録不能 — Plans.md backlog で追跡） |
 | 18 | ボタン | ボタン | BT | あり | 中分類でレジ打ち |
 | 19 | ファスナー | ファスナー | FS | あり | グループコード商品含む |
 | 20 | 針 | 針 | NULL | ほぼJAN有り | 単品JAN発行可能 |
