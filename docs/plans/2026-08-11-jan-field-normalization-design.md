@@ -88,13 +88,13 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 
 ### fixture 置換対象表（Codex round 1 P2-8 起源、Coordinator 実測 2026-08-11）
 
-実測 = `rg -n 'jan_code = Some\("[^"]*"' -o src-tauri/src/biz/product_service.rs` -> 17 occurrence / 14 unique 値。境界規律 = **fixture 値と、それに対応する期待 literal（例: `assert_eq!(result.product_code, "<fixture>")`）の同値置換のみ許可。assert の構造・意味の変更、test 削除・skip は禁止。import 側 fixture は完全凍結**。
+実測 = `rg -n 'jan_code = Some\("[^"]*"' -o src-tauri/src/biz/product_service.rs` -> 17 occurrence / 14 unique 値。置換は occurrence 単位ではなく**論理 fixture 単位**で行い、入力値・product_code 参照・期待 literal を同じ値へ連動置換する（Codex round 2 P2-2 是正）。境界規律 = **同値置換のみ許可。assert の構造・意味の変更、test 削除・skip は禁止。import 側 fixture は完全凍結**。
 
 | 区分 | 対象（行番号 = 2026-08-11 時点） | 裁定 |
 |---|---|---|
-| create 側 Rust（置換対象） | L1041/L1204/L1209 `4976383262108`（invalid: 正 check 5 / 実末尾 8）、L1066 `CREATE-PLU-TARGET`、L1310 `UP-PRICE`、L1343 `UP-COST`、L1388 `UP-PLU-TARGET`、L1464 `UP-DEPT`、L1487 `UP-SUP`、L1526 `UP-JSON`、L1627 `UP-RB`、L1665 `DISC-01`、L1685 `DISC-02`（計 13 occurrence / 11 unique、全て新契約違反） | test 固有の有効 synthetic EAN-13 へ置換（値の相互重複不可）。期待 product_code literal の同値置換込み |
+| create 側 Rust（置換対象） | L1041 `4976383262108`（invalid: 正 check 5 / 実末尾 8）、L1066 `CREATE-PLU-TARGET`、L1310 `UP-PRICE`、L1343 `UP-COST`、L1388 `UP-PLU-TARGET`、L1464 `UP-DEPT`、L1487 `UP-SUP`、L1526 `UP-JSON`、L1627 `UP-RB`、L1665 `DISC-01`、L1685 `DISC-02`、および L1199 `test_create_product_req101_duplicate_jan` の L1204/L1209 同一値 pair（計 13 occurrence / 11 unique、全て新契約違反） | test 間では固有の有効 synthetic EAN-13 へ置換。**ただし意図的重複 test の L1204/L1209 pair は同一値を維持**（重複検出の test 意味論を保存）。期待 product_code literal の連動置換込み |
 | import 側 Rust（凍結） | L2087 `4901234567894`（valid）、L2091/L2110 `123456789012`、L2093 `49012345678A4` | 完全凍結（import 経路は SPEC-JAN-D5 で validation 対象外。なお `IMP-SHORT` / `IMP-ALPHA` は product_code であり jan fixture は左記値） |
-| frontend TS | `product-form-request.test.ts` L20/L36/L89 `4901234567890`（invalid: 正 check 4 / 実末尾 0） | 有効 synthetic へ置換（期待 wire literal の同値置換込み）。L102 `DIFFERENT` は update 経路（jan_code 非送信）のため凍結 |
+| frontend TS | `product-form-request.test.ts` の論理 fixture 1 個 = L20 入力 `4901234567890`（invalid: 正 check 4 / 実末尾 0）+ L36 期待 wire literal の 2 occurrence | 有効 synthetic へ連動置換。**L89 は update 経路 test（jan_code 非送信、SPEC-JAN-D5 で edit 対象外）のため L102 `DIFFERENT` と同じく凍結**（Codex round 2 P2-2 是正） |
 
 ## Acceptance Criteria
 
@@ -158,7 +158,7 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 | Lifecycle / retry | validation は同期・保存前。retry 概念なし | not applicable |
 | Operator workflow | 拒否文言は是正方法（桁数確認・再スキャン）へ誘導する日本語固定文言。JAN なし商品は従来どおり欄空白 + code_prefix 部門で登録可 | 51 §7.6 文言 |
 | Replacement path | なし（新規契約の追加のみ） | not applicable |
-| Data safety / evidence | 実店舗 JAN は使わない。契約例・test は synthetic 値のみ | Data Safety 節 |
+| Data safety / evidence | 実店舗 JAN は使わない。契約例・test は公開標準例 + synthetic 値の区別使用 | Data Safety 節 |
 | Reporting / accounting semantics | 影響なし（集計・帳票は jan_code 形式に依存しない） | not applicable |
 | Manual verification | 実装 PR 側 L3（IME ON/OFF・paste・スキャナ・保存拒否/許可の実機確認） | 実装 PR packet |
 | 環境・再現性 | 新設の環境依存なし（既存 toolchain のまま） | not applicable |
@@ -178,13 +178,13 @@ Minimum design checks:
 - Persistence / transaction / audit impact: なし（schema・transaction 不変）
 - Operator workflow / Japanese UI wording: 拒否文言 2 種を D17 で固定
 - Error, empty, retry, and recovery behavior: 空欄は既存 blank 規則、違反は同期エラー表示、回復 = 入力修正
-- Testability and traceability IDs: REQ-101 / REQ-402 配下、新設 D-ID 7 個
+- Testability and traceability IDs: REQ-101 / REQ-402 配下、新設 D-ID 6 個（IO-04-D2 は Codex round 1 P2-1 裁定で廃止）
 
 ## Contract Probe
 
 - adapter/core 境界（Codex round 1 P2-1 裁定）: `io/plu_formatter.rs` の `is_valid_ean13_code` は CV17 出力検証専用の CASIO adapter 所有（ARCHITECTURE.md「POS Adapter Boundary」/ D-023 を実読確認）。core 保存 validation は共有せず BIZ 所有 validator を新設し、golden 独立転記 oracle で drift を拘束する
 - 正規化 util の流用可能性: `src/components/patterns/normalizeComposedDigits.ts` は DOM 非依存の純関数 named export -> import のみで流用可。probe 済み（実読）
-- EAN-8 チェックディジットの重み配分（rally round 1 P1-1 起源、probe 済み）: GS1 公表例 `96385074` = 9·3+6·1+3·3+8·1+5·3+0·1+7·3 = 86 -> check 4 一致 / synthetic `49123456` = 4·3+9·1+1·3+2·1+3·3+4·1+5·3 = 54 -> check 6 一致。7 桁データ部は先頭桁 idx 0 が重み 3（EAN-13 の先頭重み 1 と偶奇逆）。実装 PR の test はこの golden 値を独自導出せず転記する（独立転記 oracle）
+- EAN-8 チェックディジットの重み配分（rally round 1 P1-1 起源、probe 済み）: GS1 公表例 `96385074` = 9·3+6·1+3·3+8·1+5·3+0·1+7·3 = 86 -> check 4 一致 / synthetic `49123456` = 4·3+9·1+1·3+2·1+3·3+4·1+5·3 = 54 -> check 6 一致。7 桁データ部は先頭桁 idx 0 が重み 3（EAN-13 の先頭重み 1 と偶奇逆）。実装 PR の test はこの golden 値を独自導出せず転記する（独立転記 oracle）。偶奇反転 mutation の弁別性（Codex round 2 P2-1 で検証、Coordinator 再計算一致）: EAN-8 の kill case = `49123456`（反転で check 2）、`96385074` は反転後も check 4 の survivor。EAN-13 の kill case = `4901234567887`（反転で check 5）、`4901234567894` は survivor
 
 ## Contract Coverage Ledger
 
@@ -206,7 +206,7 @@ Test Design Matrix: `docs/plans/test-matrices/2026-08-11-jan-field-normalization
 - targeted tests: docs-only のため本 PR の自動検査は doc-consistency / traceability 差分なし + Matrix M-J 系（契約文 literal の `rg -c` 存在・件数検査）
 - negative tests: Matrix M-J 系 mutation（契約文の削除・数値改変・D-ID 改番で rg count が期待から外れることを検証）
 - compatibility checks: catalog ⑮ D1〜D11 既存 literal の残存検査（AC3）
-- data safety checks: packet / Matrix / doc 追記に実店舗 JAN 値が含まれない（synthetic のみ）
+- data safety checks: packet / Matrix / doc 追記に実店舗 JAN 値が含まれない（公開標準例 + synthetic のみ、Data Safety 節の区別に従う）
 - main wiring/integration checks: 実装 PR 側（本 packet の Ledger が実装 PR の凍結義務）
 
 ## Boundary / Wire Contract
@@ -235,7 +235,7 @@ Contract ID: SPEC-JAN-D1〜D8
 - SPEC-JAN-D1: ProductForm の JAN 専用欄は、(a) composition 中でない onChange（キー入力・paste を含む全経路）と (b) onCompositionEnd の確定値の両方で、値全体が `[0-9０-９]+` に一致する場合のみ U+FF10〜U+FF19 -> ASCII 数字の文字写像を適用する。混在値は無変換、composition 中は不加工。NFKC・trim 変更・記号/かな変換・チェックディジット補正は行わない。util は `normalizeComposedDigits` / `isComposedDigitsOnly` の既存実装を import 流用し、複製・挙動変更を禁止する
 - SPEC-JAN-D2: `suggestPluTarget` は「trim -> D1 と同一写像の正規化」を適用した candidate に対して評価する（D3 の保存前 pipeline と同一 helper を共用。前後空白 + 全角 13 桁が「保存は通るのに提案 false」となる非対称を閉じる = Codex round 1 P2-3 是正）。判定は ASCII 数字 13 桁のみ true（JAN-8 は false 維持 = PLU 書出し 13 桁前提との整合）。BIZ `should_default_plu_target` の入力 domain は正規化後 wire 値であり trim を行わない（現実装どおり）。composition 中は D1 により正規化されないため評価は transient になり得るが、onCompositionEnd の正規化で収束する。この transient は許容し追加の抑制はしない（rally round 2 P3-C 明記）
 - SPEC-JAN-D3: create 保存時、janCode 非 null なら「trim -> D1 と同一写像の全角→半角正規化 -> 検証」の順で適用する。この trim -> 正規化 -> 検証は `product-form-request.ts`（frontend）が実行し、BIZ-01-D1（SPEC-JAN-D4）は受領済みの正規化後 wire 値を検証のみ行う（再正規化しない = rally round 3 P3-1 明確化）。frontend の桁数 + チェックディジット判定は新設の `src/features/products/lib/jan-code.ts`（named export）が所有し、`product-form-request.ts` と D2 の suggest 評価 pipeline が共用する（inline 実装禁止 = Codex round 1 P2-5 是正）。正規化後の値が「ASCII 数字 8 桁または 13 桁」かつ「モジュラス 10 チェックディジット整合」を必須とする。保存値は正規化後の値とする（入力時正規化 D1 と重ねて冪等。前後空白 + 全角数字の入力が D1 の全体一致条件を外れて全角のまま保存検証に到達する経路を閉じる = rally round 2 P2-B 是正）。桁数違反文言 = 「JANコードは13桁または8桁で入力してください」、チェックディジット不一致文言 = 「JANコードのチェックディジットが一致しません。入力値を確認してください」。既存の blank + code_prefix なし部門の規則・文言は不変
-- SPEC-JAN-D4: BIZ `validate_create_request` に同一契約の検証を追加し、違反は `ValidationFailed`（文言は SPEC-JAN-D3 の 2 文言と完全一致 literal = UI_TECH_STACK §6.4 の message 直接表示契約に整合、Codex round 1 P2-5 是正）。チェックディジット判定は **BIZ 所有の core validator を新設**して行う。D-023 の adapter/core 境界により、CASIO adapter 所有の `io/plu_formatter.rs` `is_valid_ean13_code`（CV17 出力検証専用）は共有せず不変のまま残す = adapter 詳細を core 契約へ昇格しない（Codex round 1 P2-1 是正で共有設計から転換）。EAN-8 は 7 桁データ部の先頭桁（idx 0）に重み 3 を割り当てる交互配分（idx 偶数 = 3 / 奇数 = 1）とし、EAN-13（idx 偶数 = 1 / 奇数 = 3）とは重み配分の偶奇が逆であることを契約に明記し、既存 adapter 関数のコピー実装を禁止する（rally round 1 P1-1 是正）。core validator（BIZ）/ adapter validator（io、不変）/ frontend validator（D3）は同一 GS1 標準の意図的独立実装とし、同一 golden case の独立転記 oracle を各側 test に置いて drift を機械検出する（D6 と同手法）
+- SPEC-JAN-D4: BIZ `validate_create_request` に同一契約の検証を追加し、違反は `ValidationFailed`（文言は SPEC-JAN-D3 の 2 文言と完全一致 literal = UI_TECH_STACK §6.4 の message 直接表示契約に整合、Codex round 1 P2-5 是正）。チェックディジット判定は **BIZ 所有の core validator を新設**して行う。D-023 の adapter/core 境界により、CASIO adapter 所有の `io/plu_formatter.rs` `is_valid_ean13_code`（CV17 出力検証専用）は共有せず不変のまま残す = adapter 詳細を core 契約へ昇格しない（Codex round 1 P2-1 是正で共有設計から転換）。EAN-8 は 7 桁データ部の先頭桁（idx 0）に重み 3 を割り当てる交互配分（idx 偶数 = 3 / 奇数 = 1）とし、EAN-13（idx 偶数 = 1 / 奇数 = 3）とは重み配分の偶奇が逆であることを契約に明記し、既存 adapter 関数のコピー実装を禁止する（rally round 1 P1-1 是正）。core validator（BIZ）/ frontend validator（D3）/ adapter validator（io、不変）は同一 GS1 標準の意図的独立実装とし、golden 独立転記 oracle は 2 profile で拘束する（Codex round 2 P2-1 是正 — adapter は EAN-13 専用で 8 桁を拒否するため「三側同一 golden」は成立しない）: (a) 三側共通 profile = EAN-13 golden（valid `4901234567887` / invalid `4901234567890`、adapter 既存 test fixture から独立転記。偶奇反転 mutation の kill case は `4901234567887`〈反転で check 5〉であり、`4901234567894` は反転後も check 4 の survivor のため kill case に使わない）、(b) core/frontend 二側 profile = EAN-8 golden（`96385074` / `49123456`。偶奇反転の kill case は `49123456`〈反転で check 2〉、`96385074` は反転後も check 4 の survivor）。adapter には EAN-8 golden を置かない（実装・test とも不変）
 - SPEC-JAN-D5: 新 validation の適用は手入力 create 経路のみ。edit（jan_code readOnly）・CSV/Z004 import 経路・既存 DB 行は対象外。DB CHECK/UNIQUE は追加しない（同一 JAN 複数商品のグループコード運用維持）。ISBN-10 は許容しない — 部門 17「本」は 13 桁 JAN（EAN-13/ISBN-13）で登録する（owner 裁定 2026-08-11、Codex round 1 P2-2）。既存 test fixture の置換規律は本 packet「fixture 置換対象表」節と実装 PR Matrix が所掌し、51 / 30-biz の正本には fixture waiver を書かない（rally round 2 P1-A + Codex round 1 P2-8 是正）
 - SPEC-JAN-D6: frontend `suggestPluTarget` と BIZ `should_default_plu_target` は「ASCII 数字 13 桁のみ true」の同一意味論を持つ意図的二重実装として契約化し、51 / 30-biz の相互参照で結ぶ。実装統合はしない。両側に独立転記 oracle の同一ケース表 drift-guard test を置く
 - SPEC-JAN-D7（= SPEC-SUGGEST-D12）: ProductAddSuggest は composition 中でない onChange について、値全体が `[0-9０-９]+` に一致する場合のみ正規化値で親 onChange を発火する（paste 経由を含む）。正規化値は親 onChange と suggest controller の `onInputChange` の**双方**へ同一値で渡す（片側 raw 値の渡し漏れで候補 fetch が旧全角値のまま走る実装を禁止 = Codex round 1 P2-4 是正）。半角のみの値は写像で同値のため既存挙動不変。D1〜D11 は不変とし、D11 の paste 除外文言は D12 参照へ更新する
@@ -249,7 +249,7 @@ Contract ID: SPEC-JAN-D1〜D8
 | SPEC-JAN-D2 | 同上 | Matrix M-J2 系 | JAN-8 false 維持の整合 | rg -c PASS |
 | SPEC-JAN-D3 | 51 §7.6 追記 + UI-01b-D17 | Matrix M-J3 系 | 文言・blank 規則不変 | rg -c PASS |
 | SPEC-JAN-D4 | 30-biz §4.2 追記 + BIZ-01-D1 | Matrix M-J4 系 + M-J7a | core validator 所有・adapter 非共有・EAN-8 重み配分 | rg -c PASS |
-| SPEC-JAN-D5 | 30-biz + master-tables 追記 | Matrix M-J5 系 | 凍結 test との無矛盾 | rg -c PASS |
+| SPEC-JAN-D5 | 30-biz + master-tables 追記 | Matrix M-J5 系（M-J5c 含む） | 凍結 test との無矛盾・ISBN 裁定同期 | rg -c PASS |
 | SPEC-JAN-D6 | 51 + 30-biz 相互参照 | Matrix M-J6 系 | oracle 独立性の設計 | rg -c PASS |
 | SPEC-JAN-D7 | catalog ⑮ D12 追加 | Matrix M-J8 系 | D1〜D11 不変 | rg -c PASS |
 | SPEC-JAN-D8 | UI_TECH_STACK §6.4 追記 | Matrix M-J10 系 | 参照の一方向性 | rg -c PASS |
@@ -290,4 +290,10 @@ Fill after implementation.
   - P2-7（load-bearing 節の anchor 欠落、M-J9 が D1〜D10 を検出しない）: accept、M-J1c / M-J3c 新設、M-J9 を allowed-diff 検査（catalog ⑮ の変更 hunk = D12 追加 + D11 paste 除外文置換のみ）へ改訂。
   - P2-8（fixture evidence 不正確 = import 側に有効値、IMP-* は product_code、期待 literal 同値置換の境界曖昧）: accept、「fixture 置換対象表」を packet に確定（create 13 occ 置換 / import 4 occ 完全凍結 / frontend 3 occ 置換 + DIFFERENT 凍結）、waiver 正本を packet / 実装 Matrix へ分離、Review Response の誤記録「適合 0 個見込み」を訂正。
   - P3（synthetic / 公開標準例の分類矛盾）: accept、Data Safety を区別表記へ是正。
+- Codex プラン全体レビュー round 2（owner relay、2026-08-11）: round 1 是正の主要転換（adapter/core 境界・D12 双方通知・trim→正規化順・escape hatch）は妥当と独立確認、golden 再計算一致、fixture 実測一致。新規 P1 = 0 / P2×4 / P3×1、全件 accept・同 round 内是正（Coordinator は adapter fixture `4901234567887`/`4901234567890` の実在、L1199 重複 JAN test の同一値 pair 意味論、frontend L89 の update test 帰属、30-biz `###` 見出し、mutation 数理〈96385074 反転 survivor / 49123456 反転 kill / 4901234567894 反転 survivor / 4901234567887 反転 kill〉を実読・再計算で裏取り）。
+  - P2-1（「三側同一 golden」が adapter の EAN-13 専用契約と両立せず、96385074/4901234567894 が偶奇反転 survivor）: accept、golden を 2 profile 契約へ改訂（EAN-13 三側共通 = 4901234567887/4901234567890、EAN-8 は core/frontend のみ、kill case 明記）+ 実装 PR に plu_formatter.rs の diff なし検査を追加。旧 Failure Mode の矛盾文も是正。
+  - P2-2（「相互重複不可」が重複検出 test を破壊、frontend L89 は update 経路で凍結側、置換は論理 fixture 単位であるべき）: accept、fixture 置換対象表を論理 fixture 単位 + L1204/L1209 同一値維持 + frontend L20/L36 のみ置換へ改訂。
+  - P2-3（節抽出コマンドが placeholder のまま、30-biz は `###` 見出しで共通 `^##` 不成立、M-J9 base SHA 未定）: accept、実ファイル・実見出しの実コマンドを preamble に固定、exact count 凍結規律と M-J9 の Plan Commit 実 SHA 置換義務（未置換 = 検査失敗）を明記。
+  - P2-4（ISBN 裁定・master-tables 同期が Matrix から脱落）: accept、M-J5c 新設 + Trace Matrix D5 行更新。
+  - P3-1（round 1 是正後の旧記述残存 = synthetic のみ表記 / D-ID 7 個 / 旧 Failure Mode）: accept、全箇所 sweep 是正。
 - Findings Freeze: not yet frozen

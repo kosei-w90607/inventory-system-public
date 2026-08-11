@@ -21,7 +21,7 @@ Risk: R3
 - 正規化の適用経路（非 composition onChange / compositionend / paste）が部分欠落する
 - suggestPluTarget の評価順（正規化後）が未定義になり、全角 13 桁 false 問題が残存する
 - JAN-8 の PLU 提案 false 維持が欠落し、8 桁商品が PLU 書出し対象へ紛れる
-- BIZ 側にチェックディジット判定の複製を許し、io 既存関数と drift する
+- checkdigit 三独立実装（BIZ / frontend / adapter）の golden 拘束が欠け、実装間 drift を検出できない（Codex round 1 P2-1 裁定で意図的独立実装へ転換済み）
 - EAN-8 validator が EAN-13 の重みパターンのコピー実装になり、偶奇逆転で実在 JAN-8 を誤拒否する（rally round 1 P1-1）
 - 二重実装契約（D6）の相互参照が片側にしか書かれず drift-guard test の設計根拠が失われる
 - catalog ⑮ D11 既存文言が D12 追加時に改変される
@@ -35,7 +35,12 @@ Risk: R3
 
 ## Test Matrix
 
-anchor 検査はすべて `rg -F -c -- '<literal>' <file>` で実行する（`-F` = fixed-string で正規表現解釈を禁止、single quote で backtick 等の shell 展開を禁止、`--` で dash 先頭対策 — Codex round 1 P2-6 是正。以下の各行の `rg -c "..."` 表記もこの実行形式に読み替える）。count は新設契約文について原則 exact 1（既存文の残存検査は >= 1 可）。節限定検査は `awk '/^## <開始見出し>/,/^## <次見出し>/' <file> | rg -F -c -- '<literal>'` の形式で開始・終了見出しを明記して実行する。anchor literal は定義文そのものに特定化する。uniqueness の対象 corpus は**変更後の source design docs（docs/function-design/ / docs/design-system/ / docs/db-design/ / docs/UI_TECH_STACK.md）に限定し、docs/plans/** と docs/archive/** は除外する**（Packet / Matrix 自身への hit は uniqueness 違反にしない）。各 anchor は対象 file・対象節ごとの exact count で固定し、amendment commit 時に検証してから凍結する（memory: matrix-anchor-uniqueness）。
+anchor 検査はすべて `rg -F -c -- '<literal>' <file>` で実行する（`-F` = fixed-string で正規表現解釈を禁止、single quote で backtick 等の shell 展開を禁止、`--` で dash 先頭対策 — Codex round 1 P2-6 是正。以下の各行の `rg -c "..."` 表記もこの実行形式に読み替える）。count は新設契約文について原則 exact 1（既存文の残存検査は >= 1 可）。節限定検査は実ファイル・実見出しで固定した以下のコマンドを使う（Codex round 2 P2-3 是正 — 51 は `##`、30-biz は `###` 見出しであり共通テンプレート `^##` では 30-biz 節を抽出できない）:
+- 51 §7.1 = `awk '/^## 7.1 /,/^## 7.2 /' docs/function-design/51-ui-product-form.md | rg -F -c -- '<literal>'`（§7.5 は `/^## 7.5 /,/^## 7.6 /`、§7.6 は `/^## 7.6 /,/^## 7.7 /`）
+- 30-biz §4.2 = `awk '/^### 4.2 /,/^### 4.3 /' docs/function-design/30-biz-product-service.md | rg -F -c -- '<literal>'`
+- master-tables products 節 = `awk '/^## 1\./,/^## 2\./' docs/db-design/master-tables.md | rg -F -c -- '<literal>'`（実見出し番号は amendment 時に確認して固定）
+
+期待 count は amendment commit 時に実測した exact count へ固定してから凍結する（それまでの `>= 1` は暫定値であり、凍結時に exact へ置換しないまま closure に入った場合は検査失敗として扱う）。anchor literal は定義文そのものに特定化する。uniqueness の対象 corpus は**変更後の source design docs（docs/function-design/ / docs/design-system/ / docs/db-design/ / docs/UI_TECH_STACK.md）に限定し、docs/plans/** と docs/archive/** は除外する**（Packet / Matrix 自身への hit は uniqueness 違反にしない）。各 anchor は対象 file・対象節ごとの exact count で固定し、amendment commit 時に検証してから凍結する（memory: matrix-anchor-uniqueness）。
 
 | Contract | Failure Mode | Test Type | Test Name | Would fail if... |
 |---|---|---|---|---|
@@ -52,15 +57,16 @@ anchor 検査はすべて `rg -F -c -- '<literal>' <file>` で実行する（`-F
 | SPEC-JAN-D4 | adapter 共有への逆行 | CLI | M-J4a: 30-biz 内 literal「BIZ 所有の core validator」exact 1 + literal「adapter 詳細を core 契約へ昇格しない」exact 1（Codex round 1 P2-1 是正で共有設計から独立実装へ転換） | core validation の adapter 依存が再導入され D-023 換装境界を破る |
 | SPEC-JAN-D5 | 適用境界欠落 | CLI | M-J5: 30-biz 内 literal「手入力 create 経路のみ」+ literal「CSV/Z004 import 経路と既存 DB 行は対象外」 | import 波及の設計解釈を許し既存凍結 test と矛盾する |
 | SPEC-JAN-D5 | DB 制約混入 | CLI | M-J5a: master-tables 内 literal「DB CHECK は追加しない」（products 設計意図節）+ 既存の UNIQUE 非付与理由文が literal 不変 | schema 変更の混入 / グループコード運用の破壊 |
+| SPEC-JAN-D5 | ISBN 裁定・列説明同期の脱落 | CLI | M-J5c: master-tables の products 節を節限定で検査 — jan_code 列説明の JAN-8/13 契約文 exact 1 + 部門 17 行の「13 桁 JAN（EAN-13/ISBN-13）」exact 1 + ISBN-10 非対応注記 exact 1（実 literal と count は amendment 時に固定 — Codex round 2 P2-4 是正） | owner 裁定と列説明・部門表の同期漏れでも Matrix が PASS してしまう |
 | SPEC-JAN-D5 | fixture 置換規律の欠落 | CLI | M-J5b: 本 packet の「fixture 置換対象表」節が存在し、境界 literal 2 本 — (a)「同値置換のみ許可」(b)「import 側 fixture は完全凍結」— を packet file への `rg -F -c` で確認（rally round 2 P1-A + Codex round 1 P2-8 是正。waiver 正本は packet / 実装 Matrix、51 / 30-biz には書かない） | 契約違反 fixture の扱いが未定義のまま実装へ進み既存 test 規律と正面衝突する |
 | UI-01b-D18 / BIZ-01-D2 | 相互参照の片側欠落 | CLI | M-J6: 51 内 `rg -c "BIZ-01-D2"` >= 1 かつ 30-biz 内 `rg -c "UI-01b-D18"` >= 1（相互方向を個別検査） | 片側参照だけの契約化で drift-guard 根拠が失われる |
 | UI-01b-D18 | 51 内の配置片寄り | CLI | M-J6b: 51 の §7.1 設計判断節と該当契約節を節単位に分けて各々 `rg -c "UI-01b-D18"` >= 1（rally round 1 P2-2 是正） | 設計判断 or 契約節追記の欠落 |
 | SPEC-JAN-D6 | 意味論定義の欠落 | CLI | M-J6a: 51 と 30-biz の両 doc に literal「ASCII 数字 13 桁のみ true」各 >= 1 + 51 内 literal「独立転記 oracle」>= 1 | 二重実装の同一意味論契約が曖昧化する |
-| BIZ-01-D1 | 三実装 golden 拘束の欠落 / 25-io 混入 | CLI + diff | M-J7: 30-biz 内 literal「同一 golden case の独立転記 oracle」exact 1 + `git diff --name-only` に `docs/function-design/25-io-plu-formatter.md` が含まれないこと（Codex round 1 P2-1 是正 — IO-04-D2 廃止に伴い対象 doc を 30-biz へ変更） | adapter 非共有裁定の逸脱 / golden 拘束の欠落 |
+| BIZ-01-D1 | 三実装 golden 拘束の欠落 / 25-io 混入 | CLI + diff | M-J7: 30-biz 内 literal「golden 独立転記 oracle は 2 profile で拘束する」exact 1 + `git diff --name-only` に `docs/function-design/25-io-plu-formatter.md` が含まれないこと（Codex round 1 P2-1 + round 2 P2-1 是正 — 2 profile 契約へ更新） | adapter 非共有裁定の逸脱 / golden 拘束の欠落 |
 | SPEC-JAN-D4 | EAN-8 重み配分の偶奇逆転 | CLI | M-J7a: 30-biz 内 2 literal 必須 — (a)「先頭桁（idx 0）に重み 3」(b)「重み配分の偶奇が逆」+ golden 値 literal「96385074」>= 1（rally round 1 P1-1 是正、対象 doc は Codex round 1 P2-1 裁定で 30-biz へ変更） | EAN-13 パターンのコピー実装で実在 JAN-8 が誤拒否される設計解釈を許す |
 | SPEC-SUGGEST-D12 | catalog ⑮ に追加なし | CLI | M-J8: catalog ⑮ 内で D12 契約本文と D11 の参照更新文を個別 anchor で検査 — `rg -c "SPEC-SUGGEST-D12"` >= 2 + literal「paste 経由を含む」>= 1（rally round 1 P2-2 是正） | 兼用 5 欄 paste known limitation が未解消のまま / D11 側参照更新の欠落 |
 | SPEC-SUGGEST-D12 | D11 との競合 | CLI | M-J8a: D12 本文内 literal「composition 中でない onChange」+ literal「半角のみの値は写像で同値のため既存挙動不変」 | composition 中への写像適用で D11 と競合 / 既存 5 画面 test 凍結と矛盾 |
-| catalog ⑮ D1〜D11 不変 | 凍結文の改変 | CLI + diff | M-J9: allowed-diff 検査 — `git diff <plan commit>..HEAD -- docs/design-system/02-component-catalog.md` の hunk が「D12 追加」と「D11 の paste 除外文 1 文の置換」のみであることを審査（D1〜D10 本文の changed hunk = 0。Codex round 1 P2-7 是正で全 D 網羅化）。併用で D11 既存 anchor 4 literal（「値全体が」写像条件文 / composition 中不加工文 / one-shot guard 文 / isLocked 尊重文。amendment 時に現行文から literal 転記して固定）の `rg -F -c` >= 1 残存 | D12 追加作業での D1〜D11 意味論改変 |
+| catalog ⑮ D1〜D11 不変 | 凍結文の改変 | CLI + diff | M-J9: allowed-diff 検査 — `git diff <plan commit>..HEAD -- docs/design-system/02-component-catalog.md`（`<plan commit>` は Plan Commit field 確定時に実 SHA へ置換する。未置換のまま closure に入った場合は検査失敗として扱う — Codex round 2 P2-3 是正）の hunk が「D12 追加」と「D11 の paste 除外文 1 文の置換」のみであることを審査（D1〜D10 本文の changed hunk = 0。Codex round 1 P2-7 是正で全 D 網羅化）。併用で D11 既存 anchor 4 literal（「値全体が」写像条件文 / composition 中不加工文 / one-shot guard 文 / isLocked 尊重文。amendment 時に現行文から literal 転記して固定）の `rg -F -c` >= 1 残存 | D12 追加作業での D1〜D11 意味論改変 |
 | SPEC-JAN-D8 | 参照追記なし | CLI | M-J10: UI_TECH_STACK §6.4 内 `rg -c "UI-01b-D17"` >= 1 | 例示文言の gap（正本参照なし）が残存 |
 | Plans.md 同期 | PK4 欠落 | CLI | M-J11: Plans.md「次の行動」節内に本 packet への link >= 1（`scripts/doc-consistency-check.sh` PK4 PASS で兼用） | packet-selection fail-closed の破壊 |
 | 全体 | docs-only 逸脱 | CLI | M-J12: PR diff に `src/` / `src-tauri/` の変更が含まれない（`git diff --name-only` で検査） | 実装の先行混入 |
@@ -70,7 +76,7 @@ anchor 検査はすべて `rg -F -c -- '<literal>' <file>` で実行する（`-F
 実装 PR 側 Matrix が最低限含むべき系列（本 design の凍結義務として引き継ぐ）:
 
 - S 系（frontend）: JAN 欄正規化（半角キー入力不変 / 全角 paste 写像 / 混在無変換 / composition 中不加工 / compositionend 写像）、suggestPluTarget の trim + 正規化後評価（全角 13 桁 -> true、前後空白 + 全角 13 桁 -> true = Codex round 1 P2-3 のケース表: null / ASCII13 / JAN-8 / 全角13 / 前後空白 ASCII13 / 前後空白全角13 / 英字混在 / 12・14 桁）、保存 validation（8/13 桁 + チェックディジット、synthetic 値の valid/invalid 両系、blank 規則不変）。frontend validator（`jan-code.ts`）単体に golden `96385074` / `49123456` の独立転記 + EAN-8/13 重み偶奇反転 mutation を必須化（Codex round 1 P2-5）
-- T 系（backend）: validate_create_request の JAN 検証（valid 8/13 通過・invalid 拒否・None 通過）、BIZ core validator 単体（EAN-8/13、GS1 モジュラス 10。golden = `96385074` / `49123456` の独立転記 + 偶奇反転 mutation）、import 経路の非波及（既存 test 凍結が guard）、adapter `is_valid_ean13_code` の不変（既存 PLU test 凍結が guard）
+- T 系（backend）: validate_create_request の JAN 検証（valid 8/13 通過・invalid 拒否・None 通過）、BIZ core validator 単体（EAN-8/13、GS1 モジュラス 10。golden = `96385074` / `49123456` の独立転記 + 偶奇反転 mutation）、import 経路の非波及（既存 test 凍結が guard）、adapter `is_valid_ean13_code` の不変（既存 PLU test 凍結 + 実装 PR diff に `src-tauri/src/io/plu_formatter.rs` が含まれないことの `git diff --name-only` 検査 — Codex round 2 P2-1）。golden は 2 profile（EAN-13 三側共通 = `4901234567887`/`4901234567890`、EAN-8 は core/frontend のみ、kill case = `49123456`/`4901234567887`）
 - fixture 事前 sweep（発注前 Coordinator 義務）: `create_product` / `buildCreateProductRequest` 経由で新契約違反の jan_code fixture を使う既存 test を rg で全数列挙し、synthetic 有効値への置換対象として実装 packet に記録する（値のみ置換、assert 構造不変 — rally round 2 P1-A）
 - ドリフト系: suggestPluTarget / should_default_plu_target の同一ケース表 drift-guard（独立転記 oracle、production 定数から導出しない）
 - W 系: ProductAddSuggest paste 正規化の配線（既存 5 画面 test 凍結不変 + D12 追加 assert は新規 test 内へ隔離）。親 onChange 通知値と suggest controller / search query の**双方**が正規化値であることを assert する（片側 raw 値 survivor の防止 = Codex round 1 P2-4）
