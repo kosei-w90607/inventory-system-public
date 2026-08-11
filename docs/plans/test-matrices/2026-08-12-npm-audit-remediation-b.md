@@ -68,7 +68,7 @@ For workflow-state changes, add explicit rows for: 本 change は workflow-state
 - duplicate/ambiguous input: brace-expansion は 2 系統（1.x / 5.x）が別 node_modules に存在 -> `npm ls brace-expansion` で両系統の解決を個別確認
 - unknown reference: audit が新規 advisory を報告した場合（実装日ずれで出現し得る）-> scope 追加せず packet Amendment で扱いを決める
 - dependency missing: `npm ci --ignore-scripts` fail -> lockfile 巻き戻し
-- docs gate 恒久 fail（markdownlint-cli2 0.23 系の rule 変化を docs 修正で吸収不能）: step 2 の package.json / lockfile 変更のみ revert -> step 1 縮小完了 + follow-up Amendment 化を owner 裁定へ（設定緩和での強行禁止）
+- docs gate 恒久 fail（markdownlint-cli2 0.23 系の rule 変化を docs 修正で吸収不能）: step 2 の package.json / lockfile 変更のみ revert -> step 1 縮小完了（縮小は本 packet の gated Amendment として記録し owner 裁定へ）。markdownlint-cli2 更新の再開は新規 Plan Packet として backlog 起票し、本 packet の Plans.md entry に Goal Invariant 未達を明記（設定緩和での強行禁止）
 - permission/write failure: registry 不達（sandbox）-> 実装環境を owner relay（Codex 側）に切替
 - dry-run side effect: audit / view / ls は read-only。update は branch 上でのみ実行
 
