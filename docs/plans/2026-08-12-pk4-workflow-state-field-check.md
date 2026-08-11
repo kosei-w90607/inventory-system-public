@@ -2,10 +2,10 @@
 
 ## Workflow State
 
-- Phase: plan-gate
+- Phase: implementing
 - Risk: R3
 - Execution Mode: fable-window
-- Plan Commit: pending
+- Plan Commit: 3160376
 - Amendments: none
 - Coordinator: Fable 5（main thread / owner relay）
 - Writer: Codex（本 branch の実装担当）
@@ -14,7 +14,7 @@
 - Reviewed Content HEAD: pending
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
-- Human Gate: owner plan approval; Ready/merge approval（Windows native L3 なし — operator 可視挙動の変更を含まない workflow gate change）
+- Human Gate: owner plan approval（消化済み 2026-08-12、介入 1/3）; Ready/merge approval（Windows native L3 なし — operator 可視挙動の変更を含まない workflow gate change）
 
 STATECAP 予算 3 本設計（state-only 遷移 commit）: ① `plan-gate -> plan-approved -> implementing`（発注直前に一括実体化）② `independent-review -> human-confirm` ③ `human-confirm -> ready-hosted-final`。その他の遷移は content commit 同乗。各 forward materialize 直後に `bash scripts/check-workflow-git.sh` を実行する。
 
@@ -250,4 +250,5 @@ Test Design Matrix: [2026-08-12-pk4-workflow-state-field-check.md](test-matrices
   - P2-A（Hosted CI Requirement の存在検査と enum 検査が独立 if だと欠落時に不正確な二重 ERROR）: accept、Phase / Execution Mode と同じ if/elif 排他分岐を W1 に明記。
 - Plan Review rally round 3（Sonnet 5 independent / fresh context、2026-08-12）: round 2 裁定 3 件を独立再検証で全件 VERIFY（行存在 regex は printf + grep 実測で正例 5 型 MATCH / 空値・不在 NOMATCH、さらに archive 全 packet への機械 spot check で誤 ERROR 0 を実証）。新規 P1×1 = Boundary / Wire Contract 節と Matrix Boundary Checks 節が round 1 以前の草稿記述（`extract_workflow_field` の ASCII 境界を新設 field にも適用するかの誤読を招く文）のまま残る sweep 漏れ。
 - rally 収束処理（round 天井 3 到達、Coordinator disposition 裁定）: round 3 P1 は既収束設計への文言追随のみで新規契約を含まないため、一括是正して closure とする。残存箇所は Coordinator が `rg -n 'extract_workflow_field|先頭 token' docs/plans/2026-08-12-pk4-workflow-state-field-check.md docs/plans/test-matrices/2026-08-12-pk4-workflow-state-field-check.md` で実測特定（packet Boundary / Wire Contract 節と Matrix Boundary Checks 節の各 1 箇所）し、text-parse 境界を既存系統 / 新設系統の 2 系統で明記、Matrix の例示を raw regex 前提へ差替えた。**Plan Gate 収束（P1/P2 = 0）、owner plan 承認待ちへ遷移。**
+- owner plan 承認（2026-08-12、介入 1/3）: rally 収束（P1/P2 = 0、3 round + disposition 是正 1 件）を受けた plan 承認と Codex 発注指示。遷移 `plan-gate -> plan-approved -> implementing` は state-only 遷移 commit（STATECAP ①）で実体化、Plan Commit = `3160376`（承認対象の packet 状態 = rally 収束記録込み）。
 - Final Review: pending independent Sonnet 5 fresh-context review。
