@@ -21,6 +21,7 @@ Risk: R3
 - suggestPluTarget の評価順（正規化後）が未定義になり、全角 13 桁 false 問題が残存する
 - JAN-8 の PLU 提案 false 維持が欠落し、8 桁商品が PLU 書出し対象へ紛れる
 - BIZ 側にチェックディジット判定の複製を許し、io 既存関数と drift する
+- `is_valid_ean8_code` が EAN-13 の重みパターンのコピー実装になり、偶奇逆転で実在 JAN-8 を誤拒否する（rally round 1 P1-1）
 - 二重実装契約（D6）の相互参照が片側にしか書かれず drift-guard test の設計根拠が失われる
 - catalog ⑮ D11 既存文言が D12 追加時に改変される
 - D12 が composition 中の値へも写像を許し、D11 の「composition 中不加工」と競合する
@@ -46,9 +47,11 @@ anchor 検査はすべて `rg -c "<literal>" <file>` の完全一致 count で�
 | SPEC-JAN-D5 | 適用境界欠落 | CLI | M-J5: 30-biz 内 literal「手入力 create 経路のみ」+ literal「CSV/Z004 import 経路と既存 DB 行は対象外」 | import 波及の設計解釈を許し既存凍結 test と矛盾する |
 | SPEC-JAN-D5 | DB 制約混入 | CLI | M-J5a: master-tables 内 literal「DB CHECK は追加しない」（products 設計意図節）+ 既存の UNIQUE 非付与理由文が literal 不変 | schema 変更の混入 / グループコード運用の破壊 |
 | UI-01b-D18 / BIZ-01-D2 | 相互参照の片側欠落 | CLI | M-J6: 51 内 `rg -c "BIZ-01-D2"` >= 1 かつ 30-biz 内 `rg -c "UI-01b-D18"` >= 1（相互方向を個別検査） | 片側参照だけの契約化で drift-guard 根拠が失われる |
+| UI-01b-D18 | 51 内の配置片寄り | CLI | M-J6b: 51 の §7.1 設計判断節と該当契約節を節単位に分けて各々 `rg -c "UI-01b-D18"` >= 1（rally round 1 P2-2 是正） | 設計判断 or 契約節追記の欠落 |
 | SPEC-JAN-D6 | 意味論定義の欠落 | CLI | M-J6a: 51 と 30-biz の両 doc に literal「ASCII 数字 13 桁のみ true」各 >= 1 + 51 内 literal「独立転記 oracle」>= 1 | 二重実装の同一意味論契約が曖昧化する |
-| IO-04-D2 | 25-io に契約なし | CLI | M-J7: 25-io 内 `rg -c "IO-04-D2"` >= 1 + literal「`is_valid_ean13_code` の挙動は不変」 | 新関数追加時の既存関数改変を許す |
-| SPEC-SUGGEST-D12 | catalog ⑮ に追加なし | CLI | M-J8: catalog ⑮ 節内 `rg -c "SPEC-SUGGEST-D12"` >= 1 + literal「paste 経由を含む」 | 兼用 5 欄 paste known limitation が未解消のまま |
+| IO-04-D2 | 25-io に契約なし | CLI | M-J7: 25-io 内 `rg -c "IO-04-D2"` >= 1 + literal「`is_valid_ean13_code` の実装挙動は不変」（既存 §12 narrative 記述の literal 不変も amendment 時 before/after `rg -c` で確認 — rally round 1 P3-1 是正） | 新関数追加時の既存関数・既存 narrative 改変を許す |
+| SPEC-JAN-D4 / IO-04-D2 | EAN-8 重み配分の偶奇逆転 | CLI | M-J7a: 25-io 内 2 literal 必須 — (a)「先頭桁（idx 0）に重み 3」(b)「重み配分の偶奇が逆」+ golden 値 literal「96385074」>= 1（rally round 1 P1-1 是正） | EAN-13 パターンのコピー実装で実在 JAN-8 が誤拒否される設計解釈を許す |
+| SPEC-SUGGEST-D12 | catalog ⑮ に追加なし | CLI | M-J8: catalog ⑮ 内で D12 契約本文と D11 の参照更新文を個別 anchor で検査 — `rg -c "SPEC-SUGGEST-D12"` >= 2 + literal「paste 経由を含む」>= 1（rally round 1 P2-2 是正） | 兼用 5 欄 paste known limitation が未解消のまま / D11 側参照更新の欠落 |
 | SPEC-SUGGEST-D12 | D11 との競合 | CLI | M-J8a: D12 本文内 literal「composition 中でない onChange」+ literal「半角のみの値は写像で同値のため既存挙動不変」 | composition 中への写像適用で D11 と競合 / 既存 5 画面 test 凍結と矛盾 |
 | catalog ⑮ D1〜D11 不変 | 凍結文の改変 | CLI | M-J9: D11 既存 anchor 4 literal（「値全体が」写像条件文 / composition 中不加工文 / one-shot guard 文 / isLocked 尊重文。amendment 時に現行文から literal 転記して固定）が全て `rg -c` >= 1 で残存。paste 除外文言のみ D12 参照へ更新されることを before/after diff で確認 | D12 追加作業での D11 意味論改変 |
 | SPEC-JAN-D8 | 参照追記なし | CLI | M-J10: UI_TECH_STACK §6.4 内 `rg -c "UI-01b-D17"` >= 1 | 例示文言の gap（正本参照なし）が残存 |

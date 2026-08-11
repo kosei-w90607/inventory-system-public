@@ -69,7 +69,7 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 
 - `docs/function-design/51-ui-product-form.md`: UI-01b-D16（JAN 欄正規化 + PLU 提案の正規化後評価）/ UI-01b-D17（保存時 JAN 形式 validation）/ UI-01b-D18（フロント/BIZ 判定重複の契約化）新設 + §7.5 / §7.6 追記 + 変更履歴
 - `docs/function-design/30-biz-product-service.md`: BIZ-01-D1（validate_create_request の JAN 形式検証 = defense in depth + 適用境界）/ BIZ-01-D2（should_default_plu_target 契約 + 51 相互参照）新設 + §4.2 追記
-- `docs/function-design/25-io-plu-formatter.md`: IO-04-D2（`is_valid_ean8_code` 新設 + biz への共有境界。既存 `is_valid_ean13_code` の挙動不変）新設
+- `docs/function-design/25-io-plu-formatter.md`: IO-04-D2（`is_valid_ean8_code` 新設 = 先頭桁重み 3 の交互配分〈EAN-13 と偶奇逆〉+ biz への共有境界。既存 §12 チェックディジット要件の narrative 記述と `is_valid_ean13_code` の実装挙動は不変 — 関数名の doc 言及は本 amendment が初出）新設
 - `docs/design-system/02-component-catalog.md`: ⑮ へ SPEC-SUGGEST-D12（paste 経由全角数字の正規化）追加。D11 の「paste 経由は対象外（既知の制限）」文言を D12 参照へ更新（D1〜D11 の契約意味論は不変）
 - `docs/UI_TECH_STACK.md`: §6.4 の例示文言「JANコードは13桁または8桁で入力してください」へ、51 UI-01b-D17 を正本とする実体 validation である旨の参照追記
 - `docs/db-design/master-tables.md`: products 設計意図節へ「jan_code の形式 validation は BIZ 保存時（手入力 create 経路）で行い、DB CHECK は追加しない（既存データ互換・グループコード運用維持）」を追記
@@ -81,7 +81,7 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 - `src/` / `src-tauri/` 配下の一切（実装 PR で実施）
 - 既存 test の変更・削除。特に以下は凍結（新契約が矛盾しないことを D5 の適用境界で保証する）:
   - `src-tauri/src/biz/product_service.rs` `test_commit_import_req104_derives_plu_target_like_backfill_and_keeps_on_overwrite`（非正規 JAN 値 `IMP-SHORT` 12 桁 / `IMP-ALPHA` 英字混在の import 保存を固定）
-  - `src-tauri/src/io/product_repo.rs` `test_find_by_jan_code_req103_*`（同一 jan_code 複数商品の許容を固定）
+  - `src-tauri/src/db/product_repo.rs` `test_find_by_jan_code_req103_*`（同一 jan_code 複数商品の許容を固定）
   - `src/features/products/` 配下の既存 ProductForm / product-form-request / ProductFormPage test（実装 PR では仕様反映の追記のみ、既存 assert の削除・skip 禁止）
   - PR #65 凍結の兼用 5 画面 test（D12 は半角入力に対し写像不変のため既存 assert 影響なし見込み。実証は実装 PR AC）
 - `search_products` / bindings 生成物 / ProductCreateRequest の wire shape 変更
@@ -89,7 +89,7 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 
 ## Acceptance Criteria
 
-- AC1: 新設 D-ID 7 個（UI-01b-D16 / UI-01b-D17 / UI-01b-D18 / BIZ-01-D1 / BIZ-01-D2 / IO-04-D2 / SPEC-SUGGEST-D12）が各対応 doc に存在し、`rg -c` で各 doc 内 2 箇所以上に出現する
+- AC1: 新設 D-ID 7 個（UI-01b-D16 / UI-01b-D17 / UI-01b-D18 / BIZ-01-D1 / BIZ-01-D2 / IO-04-D2 / SPEC-SUGGEST-D12）が各対応 doc に存在する。51 の 3 D-ID は §7.1 設計判断節 + 該当契約節の節単位 2 箇所以上、SPEC-SUGGEST-D12 は catalog ⑮ 内 2 箇所以上（契約本文 + D11 参照更新箇所）、narrative 流儀の 30-biz / 25-io の 3 D-ID は 1 箇所以上 + 契約 literal 検査で機械検証する（検査 = Matrix M-J1 / M-J3 / M-J4〜M-J8 の `rg -c` PASS。rally round 1 P2-2 是正）
 - AC2: SPEC-JAN-D1〜D8（下記 Spec Contract）の各契約文が対応正本 doc に 1 対 1 で存在する（検査 = Matrix M-J 系の `rg -c "<literal>"` が全て期待 count で PASS）
 - AC3: catalog ⑮ D11 の既存契約文（値全体一致時のみ写像 / composition 中不加工 / one-shot guard / isLocked 尊重）が改変されずに残存する（検査 = Matrix M-J9 の `rg -c "<D11 既存 literal>" docs/design-system/02-component-catalog.md` が全 anchor で >= 1 を維持）
 - AC4: `scripts/local-ci.sh full` PASS/CLEAN（docs-only、doc-consistency / traceability 差分なし）
@@ -175,7 +175,7 @@ Minimum design checks:
 
 - biz から io/plu_formatter の checkdigit 関数を呼べる（可視性・依存方向）: `rg -n "is_valid_ean13_code" src-tauri/src/biz/plu_export_service.rs` -> 既存呼出し実例あり（`pub(crate)` で biz→io は許容方向）。probe 済み
 - 正規化 util の流用可能性: `src/components/patterns/normalizeComposedDigits.ts` は DOM 非依存の純関数 named export -> import のみで流用可。probe 済み（実読）
-- JAN-8 チェックディジットのアルゴリズム（GS1 モジュラス 10 の桁重み）は実装 PR の test で synthetic 値により固定する（設計段階の外部 probe 不要 = 公知標準）
+- EAN-8 チェックディジットの重み配分（rally round 1 P1-1 起源、probe 済み）: GS1 公表例 `96385074` = 9·3+6·1+3·3+8·1+5·3+0·1+7·3 = 86 -> check 4 一致 / synthetic `49123456` = 4·3+9·1+1·3+2·1+3·3+4·1+5·3 = 54 -> check 6 一致。7 桁データ部は先頭桁 idx 0 が重み 3（EAN-13 の先頭重み 1 と偶奇逆）。実装 PR の test はこの golden 値を独自導出せず転記する（独立転記 oracle）
 
 ## Contract Coverage Ledger
 
@@ -226,7 +226,7 @@ Contract ID: SPEC-JAN-D1〜D8
 - SPEC-JAN-D1: ProductForm の JAN 専用欄は、(a) composition 中でない onChange（キー入力・paste を含む全経路）と (b) onCompositionEnd の確定値の両方で、値全体が `[0-9０-９]+` に一致する場合のみ U+FF10〜U+FF19 -> ASCII 数字の文字写像を適用する。混在値は無変換、composition 中は不加工。NFKC・trim 変更・記号/かな変換・チェックディジット補正は行わない。util は `normalizeComposedDigits` / `isComposedDigitsOnly` の既存実装を import 流用し、複製・挙動変更を禁止する
 - SPEC-JAN-D2: `suggestPluTarget` は正規化適用後の値で評価する。判定は ASCII 数字 13 桁のみ true（JAN-8 は false 維持 = PLU 書出し 13 桁前提との整合）
 - SPEC-JAN-D3: create 保存時、janCode 非 null なら trim 後の値が「ASCII 数字 8 桁または 13 桁」かつ「モジュラス 10 チェックディジット整合」を必須とする。桁数違反文言 = 「JANコードは13桁または8桁で入力してください」、チェックディジット不一致文言 = 「JANコードのチェックディジットが一致しません。入力値を確認してください」。既存の blank + code_prefix なし部門の規則・文言は不変
-- SPEC-JAN-D4: BIZ `validate_create_request` に同一契約の検証を追加し、違反は `ValidationFailed`。チェックディジット判定は io の `is_valid_ean13_code` + 新設 `is_valid_ean8_code` を共有し、BIZ 側複製を禁止する
+- SPEC-JAN-D4: BIZ `validate_create_request` に同一契約の検証を追加し、違反は `ValidationFailed`。チェックディジット判定は io の `is_valid_ean13_code` + 新設 `is_valid_ean8_code` を共有し、BIZ 側複製を禁止する。`is_valid_ean8_code` は 7 桁データ部の先頭桁（idx 0）に重み 3 を割り当てる交互配分（idx 偶数 = 3 / 奇数 = 1）とし、`is_valid_ean13_code`（idx 偶数 = 1 / 奇数 = 3）とは重み配分の偶奇が逆であることを契約に明記し、既存関数のコピー実装を禁止する（rally round 1 P1-1 是正）
 - SPEC-JAN-D5: 新 validation の適用は手入力 create 経路のみ。edit（jan_code readOnly）・CSV/Z004 import 経路・既存 DB 行は対象外。DB CHECK/UNIQUE は追加しない（同一 JAN 複数商品のグループコード運用維持）
 - SPEC-JAN-D6: frontend `suggestPluTarget` と BIZ `should_default_plu_target` は「ASCII 数字 13 桁のみ true」の同一意味論を持つ意図的二重実装として契約化し、51 / 30-biz の相互参照で結ぶ。実装統合はしない。両側に独立転記 oracle の同一ケース表 drift-guard test を置く
 - SPEC-JAN-D7（= SPEC-SUGGEST-D12）: ProductAddSuggest は composition 中でない onChange について、値全体が `[0-9０-９]+` に一致する場合のみ正規化値で親 onChange を発火する（paste 経由を含む）。半角のみの値は写像で同値のため既存挙動不変。D1〜D11 は不変とし、D11 の paste 除外文言は D12 参照へ更新する
@@ -257,4 +257,9 @@ Fill after implementation.
 
 ## Review Response
 
+- Plan Gate rally round 1（Sonnet 5 独立 subagent、2026-08-11）: P1×1 / P2×2 / P3×1、全件 accept・同 round 内是正。
+  - P1-1（EAN-8 チェックディジットの重み配分が契約文に未記載。EAN-13 の重みパターンをコピー実装すると偶奇が逆で、実在 JAN-8 の登録が誤拒否される = Goal 失敗定義直撃）: SPEC-JAN-D4 / Scope 25-io 行へ重み配分（先頭桁 idx 0 = 重み 3、EAN-13 と偶奇逆）とコピー実装禁止を明文化、Contract Probe へ golden oracle（GS1 公表例 `96385074` + synthetic `49123456`、Coordinator 独立再計算で検算済み）を記録、Matrix M-J7a 新設。
+  - P2-1（Non-scope の凍結 test パス誤り `io/product_repo.rs` -> `db/product_repo.rs`）: Coordinator が `fd` で db/ 実在・io/ 不在を実査のうえ是正。packet 内 sweep で同型残存なし。
+  - P2-2（AC1 の「全 D-ID 2 箇所以上」と Matrix 検査範囲の不一致）: AC1 を doc 流儀別（51 系 = 節単位 2 箇所 / narrative 系 = 1 箇所 + literal 検査）へ改訂、M-J6b 新設・M-J8 強化。
+  - P3-1（25-io の既存契約は §12 narrative で、関数名 `is_valid_ean13_code` の doc 言及は本 amendment が初出）: accept、IO-04-D2 文言を §12 実体に即して明確化。
 - Findings Freeze: not yet frozen
