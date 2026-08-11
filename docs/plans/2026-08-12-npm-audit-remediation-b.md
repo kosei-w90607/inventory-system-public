@@ -8,7 +8,7 @@ Use the field definitions, enums, transition evidence, packet-selection rule, an
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: a0fb1df
-- Amendments: 51a0424（Amendment 1: step 1 へ tsx 名指し更新を追加、owner 承認 介入 2/3）
+- Amendments: 51a0424（Amendment 1: step 1 へ tsx 名指し更新を追加、owner 承認 介入 2/3）/ 2c5ee75（Amendment 2: orphan 削除許容 + 共有 tree ownership 宣言、owner 追認は merge 承認に bundle）
 - Coordinator: Fable (Claude Fable 5, main thread)
 - Writer: Codex (GPT-5.6, owner relay 経由)
 - Plan Reviewer: 独立 Sonnet subagent（fresh context、Writer と別 vendor、D-062 (c)）
