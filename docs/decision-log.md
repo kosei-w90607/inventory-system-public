@@ -526,3 +526,12 @@ Use concise ADR-style entries.
 - Impact: change B の lockfile は npm 11.16.0 で生成し、同じ npm 11.16.0 の `npm ci --ignore-scripts` で再現 install 済みのため、現行 CI（npm 11 系）の lockfile 互換性には影響しない。採用確定時の `docs/DEV_SETUP_CHECKLIST.md` 追随と npm 12 導入手順は Coordinator 指示後の別作業とし、本 Proposed entry では変更しない。
 - Alternatives considered: npm 11.16.0 を local でも継続する案（D-030 の防御は維持できるが、D-029 の native deny-by-default 評価課題が残るため非推奨）; CI も同時に npm 12 へ固定する案（audit 是正に不要で change B の scope を越えるため見送り）。
 - Revisit: owner が PR merge 承認時に採否を裁定するとき、npm 12 採用後に既存 install / update / CI lockfile compatibility の反例が出たとき、または Node 24 同梱 npm の major が更新されるとき。
+
+## D-067
+
+- Decision: Dependabot が報告する cargo 側 2 advisory（rand `GHSA-cq8v-f236-94qc` low / glib `GHSA-wrw7-89jp-8q8g` medium）は repo 側での更新是正を行わず、`tolerable_risk` として alert を dismiss し、Tauri 更新時の再評価対象とする。
+- Status: accepted（owner 依頼「やっとくかその二種も」2026-08-12 に基づく評価・処置）
+- Why: 両件とも Tauri の依存 pin により repo 側から修正不能（upstream-blocked）。rand 0.7.3 は `tauri-utils 2.9.3 -> kuchikiki -> selectors 0.24.0` の build-dependencies 配下（phf の perfect-hash 生成、build 時のみ実行）で、advisory の修正は 0.8.6 以降のみ = 0.7 系に patched version が存在せず、親 crate が rand 0.8+ へ移行しない限り解消しない。glib 0.18.5 は `tauri 2.11.1 -> muda -> gtk 0.18` スタックの pin で、修正版 0.20.0 は semver-major かつ gtk-rs スタック全体の更新を要する。実効リスクは極小 — rand は build 時 codegen のみで advisory の前提（custom logger + `rand::rng()`）に該当せず、glib は Linux（WSL 開発環境）build のみで Windows 配布物に含まれず、該当 API（`VariantStrIter`）を repo コードは直接使用しない。
+- Impact: `src-tauri/Cargo.lock` は変更しない。Dependabot alert #9（glib）/ #10（rand）を dismiss（可逆、GitHub 上で再 open 可能）。npm 側の常設ガード・monitor 運用（D-030 / D-033）には影響しない。cargo 側の supply-chain 監視は Dependabot（新規 advisory で新 alert が起きる）に引き続き委ねる。
+- Alternatives considered: rand/glib の名指し `cargo update`（in-range に patched version が存在せず効果なし）; glib 0.20 への強制更新（gtk スタック非互換で build 破壊、却下）; alert を open のまま放置（push 毎の banner が実態と乖離した警告疲れを生み、実効リスクとの不釣り合いが常態化するため dismiss + 記録を選択）。
+- Revisit: Tauri を major / minor 更新するとき（tauri-utils の kuchikiki 依存と gtk-rs スタック版を確認し、解消可能なら dismiss を解除して更新する）、または cargo 側に high+ の新規 advisory が出たとき。
