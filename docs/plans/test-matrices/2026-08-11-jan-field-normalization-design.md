@@ -71,6 +71,25 @@ anchor 検査はすべて `rg -F -c -- '<literal>' <file>` で実行する（`-F
 | Plans.md 同期 | PK4 欠落 | CLI | M-J11: Plans.md「次の行動」節内に本 packet への link >= 1（`scripts/doc-consistency-check.sh` PK4 PASS で兼用） | packet-selection fail-closed の破壊 |
 | 全体 | docs-only 逸脱 | CLI | M-J12: PR diff に `src/` / `src-tauri/` の変更が含まれない（`git diff --name-only` で検査） | 実装の先行混入 |
 
+## Frozen anchor counts（2026-08-11 amendment commit 時の実測、以後この exact count で凍結）
+
+対象 file 略記: 51 = function-design/51-ui-product-form.md / 30 = function-design/30-biz-product-service.md / CAT = design-system/02-component-catalog.md / MT = db-design/master-tables.md / UT = UI_TECH_STACK.md / PKT = 本 packet。
+
+- M-J1: §7.1 内 UI-01b-D16 = 3（D16 行 + D17/D18 行の相互参照）/ §7.5 内 = 1
+- M-J1a: (a) = 1 / (b) = 1、M-J1b = 1、M-J1c: 混在値は無変換 = 1 / NFKC = 1
+- M-J2: 正規化適用後の値で評価 = 1 / JAN-8 は false 維持 = 1
+- M-J3: §7.1 内 UI-01b-D17 = 2 / §7.6 内 = 2
+- M-J3a: (a) = 2（D17 行 + §7.6）/ (b) = 2 / (c) = 1、M-J3b = 1、M-J3c: (a) = 1 / (b) = 1 / (c) = 1
+- M-J4: §4.2 内 BIZ-01-D1 = 2（step 1g + 設計判断）/ 定義文 literal = 1
+- M-J4a: (a) = 1 / (b) = 1、M-J5: (a) = 1 / (b) = 1、M-J5a: (a) = 1 / (b) = 1
+- M-J5c-1 = 1、M-J5c-2: (a) = 1 / (b) = 1、M-J5b: (a) = 1 / (b) = 1（PKT）
+- M-J6: 51 内 BIZ-01-D2 = 1 / 30 内 UI-01b-D18 = 1、M-J6a: 51 = 1 / 30 = 1 / 独立転記 oracle（51）= 1
+- M-J6b: §7.1 内 UI-01b-D18 = 2（D18 行 + D17 行参照）/ §7.5 内 = 1
+- M-J7 = 1、M-J7a: (a) = 1 / (b) = 1 / 96385074 = 1
+- M-J8: CAT 内 SPEC-SUGGEST-D12 = 2 / paste 経由を含む = 1、M-J8a: (a) = 1 / (b) = 1
+- M-J9: `git diff e1ee908..HEAD -- <CAT>` = 2 hunk（見出しの D1〜D12 更新〈D12 追加の一部と裁定〉+ D11 paste 文置換 & D12 追加）、D1〜D10 本文の変更 hunk = 0 で PASS
+- M-J10: UT 内 UI-01b-D17 = 1、M-J12: `git diff e1ee908..HEAD --name-only` の `src/` 一致 = 0
+
 ## 実装 PR への予約（本 design の Ledger 対応）
 
 実装 PR 側 Matrix が最低限含むべき系列（本 design の凍結義務として引き継ぐ）:

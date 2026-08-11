@@ -44,8 +44,13 @@ fn create_product(conn: &mut DbConnection, req: ProductCreateRequest) -> Result<
    d. tax_rate / stock_unit は wire 境界で `ProductTaxRate` / `ProductStockUnit` として型検査済み
    e. department_idの存在チェック → product_repo::find_department_by_id()。None → BizError::ValidationFailed("指定された部門が存在しません")
    f. supplier_idがSomeの場合 → 存在チェック。None → BizError::ValidationFailed("指定された取引先が存在しません")
+   g. jan_codeがSomeの場合 → BIZ-01-D1 の JAN 形式検証（ASCII 数字 8/13 桁 + チェックディジット。違反は ValidationFailed）
 
 **enum 契約化（D-061 / D-064、二層化）**: wire 経路（CMD 境界の request/response）は tax_rate/stock_unit を generated enum で型検査する。一方、file 由来の `ImportRow.tax_rate: String` / `stock_unit: Option<String>` は維持する。file 経路の値域 guard が実在するのは tax_rate のみ。stock_unit は missing / 空文字を preview で `None` のまま保持して INSERT 時に `"pcs"` へデフォルト化し、非空の不正値は commit の DB CHECK で拒否する。
+
+**設計判断（BIZ-01-D1、JAN 形式 validation、2026-08-11）**: step 1g として jan_code が Some の場合の形式検証を追加する。適用は手入力 create 経路のみ。CSV/Z004 import 経路と既存 DB 行は対象外（実店舗データ互換のため寛容性を意図的に維持し、preview_import / commit_import は検証を追加しない）。edit は jan_code 変更不可（product_repo 契約）のため対象外。検証対象は受領済みの正規化後 wire 値であり、trim と全角→半角正規化は 51 UI-01b-D17（frontend）が実行済み、BIZ は再正規化しない。検証内容 = ASCII 数字 8 桁または 13 桁、かつモジュラス 10 チェックディジット整合。違反は `ValidationFailed`（文言は 51 UI-01b-D17 の 2 文言と完全一致）。チェックディジット判定は BIZ 所有の core validator（新設 module）が行い、CASIO adapter（io/plu_formatter）の CV17 出力検証関数は共有しない — adapter 詳細を core 契約へ昇格しない（[ARCHITECTURE.md POS Adapter Boundary](../ARCHITECTURE.md) / D-023）。EAN-8 は 7 桁データ部の先頭桁（idx 0）に重み 3 を割り当てる交互配分（idx 偶数 = 3 / 奇数 = 1）で、EAN-13（idx 偶数 = 1 / 奇数 = 3）とは重み配分の偶奇が逆である（既存 adapter 関数のコピー実装禁止）。core validator（BIZ）/ frontend validator（51 の `jan-code.ts`）/ adapter validator（io、不変）は同一 GS1 標準の意図的独立実装とし、golden 独立転記 oracle は 2 profile で拘束する: EAN-13 は三側共通（valid `4901234567887` / invalid `4901234567890`、偶奇反転 mutation の kill case = `4901234567887`）、EAN-8（GS1 公表例 `96385074` / synthetic `49123456`、kill case = `49123456`）は core/frontend の二側のみ（adapter は EAN-13 専用のため置かない）。ISBN-10 は許容しない（本は 13 桁 JAN で登録 = owner 裁定 2026-08-11）。
+
+**設計判断（BIZ-01-D2、plu_target 初期提案判定の二重実装契約、2026-08-11）**: `should_default_plu_target`（一覧 inline 導出と CSV import の初期 plu_target 導出が使用）と frontend `suggestPluTarget`（51 UI-01b-D18）は「ASCII 数字 13 桁のみ true」の同一意味論を持つ意図的二重実装である。BIZ 側の入力 domain は正規化後 wire 値であり trim を行わない（現実装どおり）。実装統合（wire 越え SSOT 化）は行わず、両側に同一ケース表の独立転記 oracle drift-guard test を置いて意味論 drift を機械検出する。
 
 2. **トランザクション開始（rusqlite::Transaction RAII）**
    - `conn.transaction()` で開始。Drop 時に自動 ROLLBACK
