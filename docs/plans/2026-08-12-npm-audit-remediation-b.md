@@ -4,7 +4,7 @@
 
 Use the field definitions, enums, transition evidence, packet-selection rule, and fail-closed behavior from `docs/DEV_WORKFLOW.md` `Workflow State`. Keep exactly one `- Key: value` line per field.
 
-- Phase: independent-review
+- Phase: human-confirm
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: a0fb1df
@@ -13,7 +13,7 @@ Use the field definitions, enums, transition evidence, packet-selection rule, an
 - Writer: Codex (GPT-5.6, owner relay 経由)
 - Plan Reviewer: 独立 Sonnet subagent（fresh context、Writer と別 vendor、D-062 (c)）
 - Final Reviewer: 独立 Sonnet subagent（fresh context、Writer と別 vendor）
-- Reviewed Content HEAD: pending
+- Reviewed Content HEAD: 18e8f71
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
 - Human Gate: PR merge（npm CLI 12 採否は merge 承認と同一 session で bundle） / L3 なし
@@ -267,6 +267,8 @@ Plan Gate rally round 3（独立 Sonnet fresh context、2026-08-12、天井到�
 追加遷移 evidence（compression 記録、append-only）: implementing -> local-verified = Writer 実装 3 commit（step 1 / step 2 / step 3）+ 最終 HEAD の L1 full PASS（PR #71 body の evidence log 参照、末尾 RESULT=PASS / MERGE_EVIDENCE_VALID=true）。local-verified -> independent-review = 独立 Sonnet Final Reviewer による R3 Contract Audit 実施（下記 Final Review 記録）。
 
 Final Review（独立 Sonnet fresh context、2026-08-12）: P1 ×0 / P2 ×2 / P3 ×1 — 全件 accept。監査は Ledger 8 行照合・AC 全数実測（step 1 SHA checkout 独立再現、step 2 コマンド単独再現実験で js-yaml 残存を実証）・供給網監査（keyv 系 byte 一致、orphan 削除根拠、publish 日 8 件独立再測、45 エントリ網羅突合）・発注外コマンド監査（`npm update js-yaml` = D-030 名指し適合・副作用なし・未開示のみ問題）。是正: P2-1 = PR body 検分表 before 列を Coordinator が lockfile before/after 機械抽出（45 エントリ、reviewer 独立パースと一致）で差し替え。P2-2 = PR body に実行コマンド全量（`npm update js-yaml` 含む）を追記。P3-1 = Plans.md entry の stale label 是正。after 値・publish 日・網羅性・セキュリティ判定（攻撃窓混入なし）は全件不変。
+
+Final Review 是正確認（同 reviewer 継続 context、2026-08-12、read-only）: P2-1 / P2-2 / P3-1 全件 closed（検分表全行が reviewer 独立パースと一致、コマンド記録が実測機序と一致、Plans.md label 同期確認）。新規 finding なし。P1/P2 = 0 確定 — independent-review -> human-confirm の遷移根拠。Reviewed Content HEAD = `18e8f71`（監査対象の product content HEAD。以後の docs 追記 commit は product content を変更しない）。
 
 If R3 review-only sub-agent is skipped, record an explicit line beginning with `Review-only skipped because:` and the reason.
 - Findings Freeze: not yet frozen; post-freeze exceptions: none.
