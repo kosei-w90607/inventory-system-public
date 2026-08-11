@@ -10,6 +10,7 @@ import type {
   ProductUpdateRequest_Deserialize,
   ProductWithRelations,
 } from "@/lib/bindings";
+import { normalizeJanCodeCandidate, validateJanCode } from "./jan-code";
 
 export type { ProductStockUnit, ProductTaxRate };
 
@@ -86,7 +87,7 @@ export function buildCreateProductRequest(
   const selectedDepartment = departments.find(
     (department) => department.id === values.departmentId,
   );
-  const janCode = trimToNullable(values.janCode);
+  const janCode = trimToNullable(normalizeJanCodeCandidate(values.janCode));
 
   if (values.name.trim() === "") errors.name = "商品名を入力してください";
   if (values.departmentId === null || selectedDepartment === undefined) {
@@ -97,6 +98,10 @@ export function buildCreateProductRequest(
   if (initialStock === null) errors.initialStock = "初期在庫は0以上の整数で入力してください";
   if (janCode === null && selectedDepartment?.code_prefix === null) {
     errors.janCode = "JANコードを入力するか、独自コード発番対象の部門を選択してください";
+  }
+  if (janCode !== null) {
+    const janCodeError = validateJanCode(janCode);
+    if (janCodeError !== null) errors.janCode = janCodeError;
   }
 
   if (

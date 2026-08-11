@@ -1,5 +1,5 @@
 // UI-02-D14 / UI-04-D16 / UI-03-D21 / UI-05-D16 / UI-10-D12
-// SPEC-SUGGEST-D1〜D11: 商品追加欄 live 候補プレビューの契約テスト。
+// SPEC-SUGGEST-D1〜D12: 商品追加欄 live 候補プレビューの契約テスト。
 
 import { act, createEvent, fireEvent, render, screen, within } from "@testing-library/react";
 import type { ReactNode, RefObject } from "react";
@@ -121,7 +121,7 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-describe("ProductAddSuggest (SPEC-SUGGEST-D1〜D11)", () => {
+describe("ProductAddSuggest (SPEC-SUGGEST-D1〜D12)", () => {
   it("S1: 1文字入力の199ms後は未発火、200ms後にper_page 5で検索する", async () => {
     mockSearchProducts.mockResolvedValue(okProducts([]));
     render(<Harness />);
@@ -602,5 +602,23 @@ describe("ProductAddSuggest (SPEC-SUGGEST-D1〜D11)", () => {
     expect(normalizeComposedDigits("")).toBe("");
     expect(normalizeComposedDigits("１２－３")).toBe("１２－３");
     expect(normalizeComposedDigits("１２．３")).toBe("１２．３");
+  });
+
+  it("S28: 非composition全角数字を親とcontrollerへ同一正規化値で通知する", async () => {
+    mockSearchProducts.mockResolvedValue(okProducts([]));
+    const onInputChange = vi.fn();
+    render(<Harness onInputChange={onInputChange} />);
+
+    fireEvent.change(screen.getByRole("combobox"), {
+      target: { value: "４９０１２３４５６７８８７" },
+    });
+
+    expect(onInputChange).toHaveBeenCalledOnce();
+    expect(onInputChange).toHaveBeenCalledWith("4901234567887");
+    expect(screen.getByRole("combobox")).toHaveValue("4901234567887");
+
+    await advance(200);
+    expect(mockSearchProducts).toHaveBeenCalledOnce();
+    expect(mockSearchProducts.mock.calls[0]?.[0].keyword).toBe("4901234567887");
   });
 });

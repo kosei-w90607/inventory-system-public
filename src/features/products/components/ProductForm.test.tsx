@@ -1,7 +1,7 @@
 // src/features/products/components/ProductForm.test.tsx
 
 import React from "react";
-import { render, screen } from "@testing-library/react";
+import { createEvent, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
@@ -344,5 +344,137 @@ describe("ProductForm (UI-01b)", () => {
     await user.clear(screen.getByLabelText("JANコード"));
     await user.type(screen.getByLabelText("JANコード"), "4901234567894");
     expect(screen.getByTestId("plu-target")).toHaveTextContent("false");
+  });
+
+  it("REQ-101 UI-01b-D16 normalizes whole fullwidth digits outside composition", () => {
+    function StatefulProductForm() {
+      const [values, setValues] = React.useState<ProductFormValues>(createProductFormDefaults);
+      return (
+        <ProductForm
+          mode="create"
+          values={values}
+          departments={[makeMockDepartment()]}
+          suppliers={[makeMockSupplier()]}
+          errors={{}}
+          saveError={null}
+          supplierWarning={null}
+          isSaving={false}
+          posSyncTouched={false}
+          onValuesChange={setValues}
+          onPosSyncTouchedChange={vi.fn()}
+          onSubmit={vi.fn()}
+          onCancel={vi.fn()}
+        />
+      );
+    }
+
+    render(<StatefulProductForm />);
+    fireEvent.change(screen.getByLabelText("JANコード"), {
+      target: { value: "４９０１２３４５６７８８７" },
+    });
+
+    expect(screen.getByLabelText("JANコード")).toHaveValue("4901234567887");
+    expect(screen.getByLabelText("レジにバーコード登録する")).toBeChecked();
+  });
+
+  it("REQ-101 UI-01b-D16 preserves mixed and composing input", () => {
+    function StatefulProductForm() {
+      const [values, setValues] = React.useState<ProductFormValues>(createProductFormDefaults);
+      return (
+        <ProductForm
+          mode="create"
+          values={values}
+          departments={[makeMockDepartment()]}
+          suppliers={[makeMockSupplier()]}
+          errors={{}}
+          saveError={null}
+          supplierWarning={null}
+          isSaving={false}
+          posSyncTouched={false}
+          onValuesChange={setValues}
+          onPosSyncTouchedChange={vi.fn()}
+          onSubmit={vi.fn()}
+          onCancel={vi.fn()}
+        />
+      );
+    }
+
+    render(<StatefulProductForm />);
+    const input = screen.getByLabelText("JANコード");
+    fireEvent.change(input, { target: { value: "１２A３" } });
+    expect(input).toHaveValue("１２A３");
+
+    const composingChange = createEvent.change(input, {
+      target: { value: "４９０１２３４５６７８８７" },
+    });
+    Object.defineProperty(composingChange, "isComposing", { value: true });
+    fireEvent(input, composingChange);
+    expect(input).toHaveValue("４９０１２３４５６７８８７");
+  });
+
+  it("REQ-101 UI-01b-D16 normalizes once at compositionend", () => {
+    const onValuesChange = vi.fn();
+    render(
+      <ProductForm
+        mode="create"
+        values={createProductFormDefaults}
+        departments={[makeMockDepartment()]}
+        suppliers={[makeMockSupplier()]}
+        errors={{}}
+        saveError={null}
+        supplierWarning={null}
+        isSaving={false}
+        posSyncTouched={false}
+        onValuesChange={onValuesChange}
+        onPosSyncTouchedChange={vi.fn()}
+        onSubmit={vi.fn()}
+        onCancel={vi.fn()}
+      />,
+    );
+
+    fireEvent.compositionEnd(screen.getByLabelText("JANコード"), {
+      target: { value: "４９０１２３４５６７８８７" },
+    });
+
+    expect(onValuesChange).toHaveBeenCalledOnce();
+    const updater = onValuesChange.mock.calls[0]?.[0] as (
+      values: ProductFormValues,
+    ) => ProductFormValues;
+    expect(updater(createProductFormDefaults)).toMatchObject({
+      janCode: "4901234567887",
+      pluTarget: true,
+    });
+  });
+
+  it("REQ-402 suggests PLU target from normalized candidates and keeps JAN-8 false", () => {
+    function StatefulProductForm() {
+      const [values, setValues] = React.useState<ProductFormValues>(createProductFormDefaults);
+      return (
+        <ProductForm
+          mode="create"
+          values={values}
+          departments={[makeMockDepartment()]}
+          suppliers={[makeMockSupplier()]}
+          errors={{}}
+          saveError={null}
+          supplierWarning={null}
+          isSaving={false}
+          posSyncTouched={false}
+          onValuesChange={setValues}
+          onPosSyncTouchedChange={vi.fn()}
+          onSubmit={vi.fn()}
+          onCancel={vi.fn()}
+        />
+      );
+    }
+
+    render(<StatefulProductForm />);
+    const input = screen.getByLabelText("JANコード");
+
+    fireEvent.change(input, { target: { value: " ４９０１２３４５６７８８７ " } });
+    expect(screen.getByLabelText("レジにバーコード登録する")).toBeChecked();
+
+    fireEvent.change(input, { target: { value: "９６３８５０７４" } });
+    expect(screen.getByLabelText("レジにバーコード登録する")).not.toBeChecked();
   });
 });

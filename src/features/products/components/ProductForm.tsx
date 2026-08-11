@@ -16,7 +16,12 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { FormSection } from "@/components/patterns/FormSection";
+import {
+  isComposedDigitsOnly,
+  normalizeComposedDigits,
+} from "@/components/patterns/normalizeComposedDigits";
 import type { Department, Supplier } from "@/lib/bindings";
+import { suggestPluTarget } from "../lib/jan-code";
 import type { ProductFormValues, ProductTaxRate } from "../lib/product-form-request";
 import { DiscontinueConfirmDialog } from "./DiscontinueConfirmDialog";
 import { StockUnitField } from "./StockUnitField";
@@ -84,8 +89,6 @@ export function ProductForm({
     onValuesChange((prev) => ({ ...prev, [key]: value }));
   };
 
-  const suggestPluTarget = (janCode: string) => /^\d{13}$/.test(janCode.trim());
-
   const handleToggleClick = () => {
     if (isDiscontinued) {
       // 表示に戻すは直接実行（UI-01b-D13）
@@ -152,7 +155,25 @@ export function ProductForm({
               value={values.janCode}
               readOnly={mode === "edit"}
               onChange={(event) => {
-                const nextJanCode = event.target.value;
+                const inputValue = event.target.value;
+                const nextJanCode =
+                  !(event.nativeEvent as InputEvent).isComposing && isComposedDigitsOnly(inputValue)
+                    ? normalizeComposedDigits(inputValue)
+                    : inputValue;
+                onValuesChange((prev) => ({
+                  ...prev,
+                  janCode: nextJanCode,
+                  pluTarget:
+                    mode === "create" && !pluTargetTouched
+                      ? suggestPluTarget(nextJanCode)
+                      : prev.pluTarget,
+                }));
+              }}
+              onCompositionEnd={(event) => {
+                const inputValue = event.currentTarget.value;
+                const nextJanCode = isComposedDigitsOnly(inputValue)
+                  ? normalizeComposedDigits(inputValue)
+                  : inputValue;
                 onValuesChange((prev) => ({
                   ...prev,
                   janCode: nextJanCode,
