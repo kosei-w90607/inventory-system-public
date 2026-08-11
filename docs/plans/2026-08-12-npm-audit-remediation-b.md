@@ -4,7 +4,7 @@
 
 Use the field definitions, enums, transition evidence, packet-selection rule, and fail-closed behavior from `docs/DEV_WORKFLOW.md` `Workflow State`. Keep exactly one `- Key: value` line per field.
 
-- Phase: implementing
+- Phase: independent-review
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: a0fb1df
@@ -263,6 +263,10 @@ Plan Gate rally round 2（独立 Sonnet fresh context、2026-08-12）: P1 ×0 / 
 Plan Gate rally round 3（独立 Sonnet fresh context、2026-08-12、天井到達）: P1 ×0 / P2 ×1 / P3 ×0。round 2 是正 2 件の三点一貫性・Contract Probe 実測値（`npm audit --json` total 7 / Issue #45 OPEN / GHSA-g7cv-rxg3-hmpx active）の独立再実測一致・`bash scripts/doc-consistency-check.sh --target plan` 通過を確認。P2 ×1（撤退経路の Amendment 語が D-039 gated amendment と新規作業を混同）は D-065 disposition = 同型指摘の一括是正として即時反映: 縮小 = 本 packet の gated Amendment / markdownlint-cli2 再開 = 新規 Plan Packet 起票、に分離。rally は天井 3 round で終結し、次 round は開始しない。
 
 遷移 evidence（compression 記録、append-only）: plan-draft -> plan-gate = packet + matrix の内容 commit 完了（`5edb149` 起草、`962cd98` / `62c95fd` / `a0fb1df` rally 是正）と rally 天井 3 round の P1/P2 = 0 終結（本節 round 1〜3 記録）。plan-gate -> plan-approved = owner plan 承認（2026-08-12、介入 1/3、AskUserQuestion 応答「承認する」）。plan-approved -> implementing = 承認済み plan の Codex Writer 発注開始。Plan Commit = `a0fb1df`（承認対象の packet 内容 HEAD）。
+
+追加遷移 evidence（compression 記録、append-only）: implementing -> local-verified = Writer 実装 3 commit（step 1 / step 2 / step 3）+ 最終 HEAD の L1 full PASS（PR #71 body の evidence log 参照、末尾 RESULT=PASS / MERGE_EVIDENCE_VALID=true）。local-verified -> independent-review = 独立 Sonnet Final Reviewer による R3 Contract Audit 実施（下記 Final Review 記録）。
+
+Final Review（独立 Sonnet fresh context、2026-08-12）: P1 ×0 / P2 ×2 / P3 ×1 — 全件 accept。監査は Ledger 8 行照合・AC 全数実測（step 1 SHA checkout 独立再現、step 2 コマンド単独再現実験で js-yaml 残存を実証）・供給網監査（keyv 系 byte 一致、orphan 削除根拠、publish 日 8 件独立再測、45 エントリ網羅突合）・発注外コマンド監査（`npm update js-yaml` = D-030 名指し適合・副作用なし・未開示のみ問題）。是正: P2-1 = PR body 検分表 before 列を Coordinator が lockfile before/after 機械抽出（45 エントリ、reviewer 独立パースと一致）で差し替え。P2-2 = PR body に実行コマンド全量（`npm update js-yaml` 含む）を追記。P3-1 = Plans.md entry の stale label 是正。after 値・publish 日・網羅性・セキュリティ判定（攻撃窓混入なし）は全件不変。
 
 If R3 review-only sub-agent is skipped, record an explicit line beginning with `Review-only skipped because:` and the reason.
 - Findings Freeze: not yet frozen; post-freeze exceptions: none.
