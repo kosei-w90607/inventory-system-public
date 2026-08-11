@@ -52,12 +52,12 @@ anchor 検査はすべて `rg -F -c -- '<literal>' <file>` で実行する（`-F
 | UI-01b-D17 | 51 に保存契約なし | CLI | M-J3: 51 の設計判断節と §7.6 Validation 節を節単位に分けて各々 `rg -c "UI-01b-D17"` >= 1 | 保存 validation 契約の欠落 |
 | SPEC-JAN-D3 | チェックディジット縮退 / 文言 drift | CLI | M-J3a: 51 §7.6 内 3 literal 必須 — (a)「ASCII 数字 8 桁または 13 桁」(b)「モジュラス 10 チェックディジット整合」(c)「JANコードのチェックディジットが一致しません。入力値を確認してください」 | 桁数のみへの縮退 / 文言の無断変更 |
 | SPEC-JAN-D3 | blank 規則の意図しない改変 | CLI | M-J3b: 51 §7.6 内の既存 blank + code_prefix 規則文が amendment 前後で literal 不変（amendment 時に before/after `rg -c` で確認し count 固定） | 既存規則の書き換え混入 |
-| SPEC-JAN-D3 | 適用順・保存値・層責務の欠落 | CLI | M-J3c: 51 内 3 literal 必須 — (a)「trim -> D1 と同一写像の全角→半角正規化 -> 検証」(b)「保存値は正規化後の値とする」(c)「再正規化しない」（Codex round 1 P2-7 是正） | round 2/3 是正の load-bearing 節が正本化から漏れる |
+| SPEC-JAN-D3 | 適用順・保存値・層責務の欠落 | CLI | M-J3c: 51 内 3 literal 必須 — (a)「trim -> UI-01b-D16 と同一写像の全角→半角正規化 -> 検証」(b)「保存値は正規化後の値とする」(c)「再正規化しない」（Codex round 1 P2-7 是正。(a) は 51 が SPEC-JAN-D1 を UI-01b-D16 と表記するため実文言へ固定 — FR P2-1 是正） | round 2/3 是正の load-bearing 節が正本化から漏れる |
 | BIZ-01-D1 | 30-biz に契約なし | CLI | M-J4: 30-biz の §4.2 create_product 節内 `rg -F -c -- 'BIZ-01-D1'` >= 1 + 新契約定義文 literal「違反は `ValidationFailed`（文言は 51 UI-01b-D17 の 2 文言と完全一致）」exact 1（汎用語 `ValidationFailed` 単独は 30-biz 全体 14 hit で survivor 化するため不採用 — Codex round 1 P2-6 是正） | BIZ defense in depth / 文言一致契約の欠落 |
 | SPEC-JAN-D4 | adapter 共有への逆行 | CLI | M-J4a: 30-biz 内 literal「BIZ 所有の core validator」exact 1 + literal「adapter 詳細を core 契約へ昇格しない」exact 1（Codex round 1 P2-1 是正で共有設計から独立実装へ転換） | core validation の adapter 依存が再導入され D-023 換装境界を破る |
 | SPEC-JAN-D5 | 適用境界欠落 | CLI | M-J5: 30-biz 内 literal「手入力 create 経路のみ」+ literal「CSV/Z004 import 経路と既存 DB 行は対象外」 | import 波及の設計解釈を許し既存凍結 test と矛盾する |
 | SPEC-JAN-D5 | DB 制約混入 | CLI | M-J5a: master-tables 内 literal「DB CHECK は追加しない」（products 設計意図節）+ 既存の UNIQUE 非付与理由文が literal 不変 | schema 変更の混入 / グループコード運用の破壊 |
-| SPEC-JAN-D5 | ISBN 裁定・列説明同期の脱落 | CLI | M-J5c-1（products 節）: `awk '/^## 1\./,/^## 2\./' docs/db-design/master-tables.md | rg -F -c -- '<literal>'` で jan_code 列説明の JAN-8/13 契約文 exact 1。M-J5c-2（departments 節）: `awk '/^## 2\./,/^## 3\./' docs/db-design/master-tables.md | rg -F -c -- '<literal>'` で部門 17 行の「13 桁 JAN（EAN-13/ISBN-13）」exact 1 + ISBN-10 非対応注記 exact 1（部門 17 は `## 2. departments` 節 L99 配下にあり products 節抽出では必ず 0 件 — Codex round 3 P2 是正で二分割。実 literal と count は amendment 時に固定） | owner 裁定と列説明・部門表の同期漏れでも Matrix が PASS してしまう |
+| SPEC-JAN-D5 | ISBN 裁定・列説明同期の脱落 | CLI | M-J5c-1（products 節）: `awk '/^## 1\./,/^## 2\./' docs/db-design/master-tables.md | rg -F -c -- 'JAN-8 または JAN-13'` = exact 1。M-J5c-2（departments 節）: `awk '/^## 2\./,/^## 3\./' docs/db-design/master-tables.md | rg -F -c -- '13 桁 JAN（EAN-13/ISBN-13）'` = exact 1 + 同節 `rg -F -c -- 'ISBN-10 非対応'` = exact 1（部門 17 は `## 2. departments` 節 L99 配下にあり products 節抽出では必ず 0 件 — Codex round 3 P2 是正で二分割、literal は FR P2-1 是正で固定済み） | owner 裁定と列説明・部門表の同期漏れでも Matrix が PASS してしまう |
 | SPEC-JAN-D5 | fixture 置換規律の欠落 | CLI | M-J5b: 本 packet の「fixture 置換対象表」節が存在し、境界 literal 2 本 — (a)「同値置換のみ許可」(b)「import 側 fixture は完全凍結」— を packet file への `rg -F -c` で確認（rally round 2 P1-A + Codex round 1 P2-8 是正。waiver 正本は packet / 実装 Matrix、51 / 30-biz には書かない） | 契約違反 fixture の扱いが未定義のまま実装へ進み既存 test 規律と正面衝突する |
 | UI-01b-D18 / BIZ-01-D2 | 相互参照の片側欠落 | CLI | M-J6: 51 内 `rg -c "BIZ-01-D2"` >= 1 かつ 30-biz 内 `rg -c "UI-01b-D18"` >= 1（相互方向を個別検査） | 片側参照だけの契約化で drift-guard 根拠が失われる |
 | UI-01b-D18 | 51 内の配置片寄り | CLI | M-J6b: 51 の §7.1 設計判断節と該当契約節を節単位に分けて各々 `rg -c "UI-01b-D18"` >= 1（rally round 1 P2-2 是正） | 設計判断 or 契約節追記の欠落 |
@@ -66,7 +66,7 @@ anchor 検査はすべて `rg -F -c -- '<literal>' <file>` で実行する（`-F
 | SPEC-JAN-D4 | EAN-8 重み配分の偶奇逆転 | CLI | M-J7a: 30-biz 内 2 literal 必須 — (a)「先頭桁（idx 0）に重み 3」(b)「重み配分の偶奇が逆」+ golden 値 literal「96385074」>= 1（rally round 1 P1-1 是正、対象 doc は Codex round 1 P2-1 裁定で 30-biz へ変更） | EAN-13 パターンのコピー実装で実在 JAN-8 が誤拒否される設計解釈を許す |
 | SPEC-SUGGEST-D12 | catalog ⑮ に追加なし | CLI | M-J8: catalog ⑮ 内で D12 契約本文と D11 の参照更新文を個別 anchor で検査 — `rg -c "SPEC-SUGGEST-D12"` >= 2 + literal「paste 経由を含む」>= 1（rally round 1 P2-2 是正） | 兼用 5 欄 paste known limitation が未解消のまま / D11 側参照更新の欠落 |
 | SPEC-SUGGEST-D12 | D11 との競合 | CLI | M-J8a: D12 本文内 literal「composition 中でない onChange」+ literal「半角のみの値は写像で同値のため既存挙動不変」 | composition 中への写像適用で D11 と競合 / 既存 5 画面 test 凍結と矛盾 |
-| catalog ⑮ D1〜D11 不変 | 凍結文の改変 | CLI + diff | M-J9: allowed-diff 検査 — `git diff e1ee908..HEAD -- docs/design-system/02-component-catalog.md`（base = Plan Commit 実 SHA、2026-08-11 置換済み — Codex round 2 P2-3 是正）の hunk が「D12 追加」と「D11 の paste 除外文 1 文の置換」のみであることを審査（D1〜D10 本文の changed hunk = 0。Codex round 1 P2-7 是正で全 D 網羅化）。併用で D11 既存 anchor 4 literal（「値全体が」写像条件文 / composition 中不加工文 / one-shot guard 文 / isLocked 尊重文。amendment 時に現行文から literal 転記して固定）の `rg -F -c` >= 1 残存 | D12 追加作業での D1〜D11 意味論改変 |
+| catalog ⑮ D1〜D11 不変 | 凍結文の改変 | CLI + diff | M-J9: allowed-diff 検査 — `git diff e1ee908..HEAD -- docs/design-system/02-component-catalog.md`（base = Plan Commit 実 SHA、2026-08-11 置換済み — Codex round 2 P2-3 是正）の hunk が「D12 追加」と「D11 の paste 除外文 1 文の置換」のみであることを審査（D1〜D10 本文の changed hunk = 0。Codex round 1 P2-7 是正で全 D 網羅化）。併用で D11 既存 anchor 4 literal — (1)「入力値全体が `[0-9０-９]+` に一致する場合に限り」(2)「composition 中（isComposing true）は値を加工しない」(3)「one-shot guard」(4)「`isLocked()` が false の場合のみ」（FR P2-1 是正で実文言へ固定、各 exact 1）— の `rg -F -c` 残存 | D12 追加作業での D1〜D11 意味論改変 |
 | SPEC-JAN-D8 | 参照追記なし | CLI | M-J10: UI_TECH_STACK §6.4 内 `rg -c "UI-01b-D17"` >= 1 | 例示文言の gap（正本参照なし）が残存 |
 | Plans.md 同期 | PK4 欠落 | CLI | M-J11: Plans.md「次の行動」節内に本 packet への link >= 1（`scripts/doc-consistency-check.sh` PK4 PASS で兼用） | packet-selection fail-closed の破壊 |
 | 全体 | docs-only 逸脱 | CLI | M-J12: PR diff に `src/` / `src-tauri/` の変更が含まれない（`git diff --name-only` で検査） | 実装の先行混入 |
@@ -79,7 +79,8 @@ anchor 検査はすべて `rg -F -c -- '<literal>' <file>` で実行する（`-F
 - M-J1a: (a) = 1 / (b) = 1、M-J1b = 1、M-J1c: 混在値は無変換 = 1 / NFKC = 1
 - M-J2: 正規化適用後の値で評価 = 1 / JAN-8 は false 維持 = 1
 - M-J3: §7.1 内 UI-01b-D17 = 2 / §7.6 内 = 2
-- M-J3a: (a) = 2（D17 行 + §7.6）/ (b) = 2 / (c) = 1、M-J3b = 1、M-J3c: (a) = 1 / (b) = 1 / (c) = 1
+- M-J3a（§7.6 節スコープ = `awk '/^## 7.6 /,/^## 7.7 /'`）: (a) = 1 / (b) = 1 / (c) = 1（file 全体では (a)/(b) は §7.1 D17 行を加え各 2 — FR P2-1 是正で節スコープ値へ修正）、M-J3b = 1、M-J3c: (a) = 1 / (b) = 1 / (c) = 1
+- M-J9 D11 anchor（catalog、FR P2-1 是正で固定）: (1)〜(4) 各 = 1
 - M-J4: §4.2 内 BIZ-01-D1 = 2（step 1g + 設計判断）/ 定義文 literal = 1
 - M-J4a: (a) = 1 / (b) = 1、M-J5: (a) = 1 / (b) = 1、M-J5a: (a) = 1 / (b) = 1
 - M-J5c-1 = 1、M-J5c-2: (a) = 1 / (b) = 1、M-J5b: (a) = 1 / (b) = 1（PKT）
