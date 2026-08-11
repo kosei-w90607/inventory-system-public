@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: implementing
+- Phase: human-confirm
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: 3160376
@@ -11,7 +11,7 @@
 - Writer: Codex（本 branch の実装担当）
 - Plan Reviewer: Sonnet 5（independent / fresh context）
 - Final Reviewer: Sonnet 5（independent / fresh context）
-- Reviewed Content HEAD: pending
+- Reviewed Content HEAD: 0470d5c
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
 - Human Gate: owner plan approval（消化済み 2026-08-12、介入 1/3）; Ready/merge approval（Windows native L3 なし — operator 可視挙動の変更を含まない workflow gate change）
@@ -242,7 +242,7 @@ Test Design Matrix: [2026-08-12-pk4-workflow-state-field-check.md](test-matrices
 
 ## Review Response
 
-- Findings Freeze: not yet frozen; post-freeze exceptions: none.
+- Findings Freeze: frozen 2026-08-12（human-confirm 遷移時、P1/P2 = 0 確定後）; post-freeze exceptions: none.
 - Plan Review rally round 1（Sonnet 5 independent / fresh context、2026-08-12）: P1 3 / P2 1、全件 accept（Coordinator が checker 分岐・archive 実例・test file assert を実読裏取りで一致確認）。
   - P1-1（「検査済み 4 field」は誤り — Plan Commit は pending 判定のみ〈L1300〉、Risk は `[ -n ]` guard〈L1307〉で行欠落素通し。実態は行欠落検出 2 field / 素通し 11 field）: accept、Goal / W1 / Contract Probe / Ledger / SPEC-PK4-F1 / Matrix を 11 field 契約 + 13 field 全数 test 拘束へ是正。
   - P1-2（`extract_workflow_field` の ASCII 制約で日本語先頭の正当値〈archive 実例 `未定（…）`〉が行欠落と区別不能）: accept、行存在検査を生行マッチへ変更し、日本語先頭値の非 ERROR case を M-P3 へ追加。
@@ -256,4 +256,6 @@ Test Design Matrix: [2026-08-12-pk4-workflow-state-field-check.md](test-matrices
 - rally 収束処理（round 天井 3 到達、Coordinator disposition 裁定）: round 3 P1 は既収束設計への文言追随のみで新規契約を含まないため、一括是正して closure とする。残存箇所は Coordinator が `rg -n 'extract_workflow_field|先頭 token' docs/plans/2026-08-12-pk4-workflow-state-field-check.md docs/plans/test-matrices/2026-08-12-pk4-workflow-state-field-check.md` で実測特定（packet Boundary / Wire Contract 節と Matrix Boundary Checks 節の各 1 箇所）し、text-parse 境界を既存系統 / 新設系統の 2 系統で明記、Matrix の例示を raw regex 前提へ差替えた。**Plan Gate 収束（P1/P2 = 0）、owner plan 承認待ちへ遷移。**
 - owner plan 承認（2026-08-12、介入 1/3）: rally 収束（P1/P2 = 0、3 round + disposition 是正 1 件）を受けた plan 承認と Codex 発注指示。遷移 `plan-gate -> plan-approved -> implementing` は state-only 遷移 commit（STATECAP ①）で実体化、Plan Commit = `3160376`（承認対象の packet 状態 = rally 収束記録込み）。
 - Writer self-review（2026-08-12）: Scope / Non-scope / Contract Coverage Ledger を diff と test oracle に照合。新設 field 検査は raw regex、bash 配列 + quoted 展開、Hosted CI Requirement の存在/enum 排他分岐を満たし、archive skip と R2 閾値の既存位置は不変。blocking finding なし。
-- Final Review: pending independent Sonnet 5 fresh-context review。
+- Final Review（Sonnet 5 independent / fresh context、2026-08-12、reviewed content = 0470d5c）: Contract Coverage Ledger 8/8 適合、P1/P2/P3 = 0。W1 絶対条件（生行マッチ regex の空値 fixture 実測 / bash 配列 quoted 展開 / Hosted CI Requirement if/elif 排他 / archive skip・R2 閾値の分岐位置不変 / 既存検査無改変）を実装照合、実 repo full run（`bash scripts/doc-consistency-check.sh` 全チェック通過）+ 実 archive packet 3 件への `bash scripts/doc-consistency-check.sh --target plan <archive path>` 直接実行で誤検出 0 を実地確認、DEV_WORKFLOW 同期は記述同期のみで新規契約なし、oracle は inline literal で SSOT 汚染なし。reviewer 自身も隔離 scratch 環境で独自注入形の mutation 再実測を実施し X1〜X4 全件 RED/GREEN 一致。
+- Coordinator mutation 独立再実測（2026-08-12、注入形は Matrix 定義から独自設計・Writer / Final Reviewer 非参照）: X1〜X4 全 class kill、survivor 0。X1 は Coordinator に加え複数語 field `Human Gate` の除外形でも kill を確認（data-driven loop の全 field 感度）。X2 は自己比較恒真化、X3 は skip 行削除、X4 は閾値不能化の各独自形。復元後 baseline 再実行 PASS、tree clean 実証済み。
+- 遷移 implementing -> local-verified -> independent-review -> human-confirm を本 state-only commit（STATECAP ②）で一括実体化。evidence = Writer L1 full PASS（PR #69 body）+ Final Review P1/P2 = 0 + Coordinator mutation / frozen 境界独立再検証。
