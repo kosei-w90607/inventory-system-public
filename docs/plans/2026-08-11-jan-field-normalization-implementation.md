@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: implementing
+- Phase: human-confirm
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: 2439c03
@@ -12,7 +12,7 @@
 - Writer: Codex（本 branch の実装担当）
 - Plan Reviewer: Sonnet 5（independent / fresh context）
 - Final Reviewer: Sonnet 5（independent / fresh context）
-- Reviewed Content HEAD: pending
+- Reviewed Content HEAD: 834f5e9
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
 - Human Gate: owner plan approval（消化済み 2026-08-11、介入 1/3）; Windows native L3（IME ON/OFF・paste・HID scanner・保存拒否/許可・JAN-8/13 境界・文言視認性）; Ready/merge approval
@@ -430,7 +430,7 @@ Contract ID: SPEC-JAN-NORMALIZATION-IMPL
 
 ## Review Response
 
-- Findings Freeze: not yet frozen; post-freeze exceptions: none.
+- Findings Freeze: frozen 2026-08-11（human-confirm 遷移時、P1/P2 = 0 確定後）; post-freeze exceptions: none.
 - Plan Review rally round 1（Sonnet 5 independent / fresh context、2026-08-11）: P1 0 / P2 1 / P3 2。
   - P2-1（Draft Provenance に是正内訳の itemized 記録がない）: accept、Workflow State の Draft Provenance へ監査観点と是正 5 点を itemize。
   - P3-1（BIZ validator の新設 file path 未指定で Writer 裁量が残る）: accept、W5 へ `src-tauri/src/biz/jan_code.rs` + `biz/mod.rs` 登録を明記。
@@ -438,4 +438,6 @@ Contract ID: SPEC-JAN-NORMALIZATION-IMPL
 - Plan Review rally round 2（Sonnet 5 independent / fresh context、2026-08-11、reviewed HEAD 9dbde52）: round 1 裁定 3 件（P2-1 itemize / P3-1 `jan_code.rs` 命名の repo 慣行整合 / P3-2 refute + None 検証条件）を独立再検証で全件 VERIFY、新規指摘 0。fixture sweep 17+4 行・D-ID 6 個・step 1g の空き文字・W3/W4 の実装現況前提（`ProductForm.tsx` `id="jan-code"` 1 箇所 / `onCompositionEnd` 未配線 / `product-form-request.ts` trim のみ / ProductAddSuggest non-composition onChange 未正規化）も現 HEAD 実測と一致。**rally 収束（P1/P2 = 0、新規指摘 0）、owner plan 承認待ちへ遷移。**
 - owner plan 承認（2026-08-11、介入 1/3）: rally 収束（P1/P2 = 0、round 2 新規指摘 0）を受けた plan 承認。併せて owner 指示 = repo root の stale `Plans.md`（公開スナップショット初期化残骸、live 正本 = `docs/Plans.md`）の整理を本 change 完了後すぐ着手 → Plans.md backlog へ起票。遷移 `plan-gate -> plan-approved -> implementing` は state-only 遷移 commit（STATECAP ①）で実体化、Plan Commit = `2439c03`（承認対象の packet 状態 = rally 収束記録込み）。
 - Writer implementation handoff（Codex、2026-08-11）: W1〜W7、全 automated gate、mutation X1〜X11 の Red / revert、fixture / frozen sweep を完了し Draft PR へ引き渡す。Workflow State / `docs/Plans.md` の遷移は Coordinator 所有のため未変更。
-- Final Review: pending independent Sonnet 5 fresh-context review。
+- Final Review（Sonnet 5 independent / fresh context、2026-08-11、reviewed content = 834f5e9）: Contract Coverage Ledger 13/13 適合、P1/P2 = 0、P3×1（compositionend 二重発火は jsdom で exercise 不能 — Matrix Residual Test Gaps 開示済みのため追加対応不要と裁定、L3-2 を実機優先確認へ繰上げ）。frozen 境界 diff 0 + 実行 green、fixture 置換の表準拠、EAN-8/13 重み独立検算一致、エラー文言 frontend/BIZ 完全一致、層境界 drift なしを独立確認。
+- Coordinator mutation 独立再実測（2026-08-11、注入形は Matrix 定義から独自設計・Writer 注入形非参照）: X1〜X11 全 class kill を再現（X5/X6/X7 は等価でない変形でも red、X10 は通知順序形も red）。X11 主形（adapter が core を流用）は `pub(super)` 可視性により compile-time で構造遮断（E0603）— Matrix 想定の diff guard より強い防御を確認。注記 1 = X2 の helper 内部 guard 単独撤去形は call-site の同一 guard 重複（defense-in-depth）により素通し（両 guard 同時撤去で red）。helper `normalizeComposedDigits` は本 PR diff 外の PR #65 既存コードで直接 unit oracle を持たない — production 欠陥ではなく mutation adequacy 注記として記録。注記 2 = X7 の index shift は EAN-13 データ桁 12（偶数）で weight swap と代数的等価のため非等価変形が構成不能（EAN-8 データ桁 7 では非等価変形の red を確認済み）。
+- 遷移 implementing -> local-verified -> independent-review -> human-confirm を本 state-only commit（STATECAP ②）で一括実体化。evidence = Writer L1 full PASS（PR #68 body）+ Final Review P1/P2 = 0 + Coordinator の mutation / fixture / frozen 独立再検証。
