@@ -48,7 +48,7 @@ Windows 11 Home
 |---|---|---|
 | Rust | 1.83+ stable | Tauri バックエンド + scripts |
 | Node.js | 24.18.0（`.node-version` が正本） | フロントエンド（React 19 + Vite + TanStack） |
-| npm | Node 同梱 | 依存管理 + lefthook |
+| npm | 12.0.2（D-066 で採用。Node 24 同梱の 11 系から名指し更新） | 依存管理 + lefthook。`allowScripts` / `--allow-git` / `--allow-remote` 既定 off が D-030 の `.npmrc` ガードと併用される |
 | ripgrep (`rg`) | apt 経由 | docs / Rust test traceability などの静的チェック |
 | WebView2 Runtime | Windows 11 同梱 | Tauri Windows 描画 |
 | Tauri 2 Linux deps | apt 経由 | `libwebkit2gtk-4.1-dev` 等 |
@@ -207,6 +207,8 @@ mise exec -- npm --version
 ```
 
 > Node version の正本は repository root の `.node-version`。ローカル検証と `actions/setup-node@v6` は同じ exact version を読み、`package.json#engines.node`、`package.json#devEngines.runtime`、`@types/node` は同じ Node 24 major に揃える。`devEngines.runtime.onFail = "error"` により、Node 24 以外での通常の `npm install` / `npm ci` / `npm run` は fail-fast する。user-wide default の変更は必須ではなく、WSL2 では `mise exec -- <command>` で repository pin を明示して実行できる。
+>
+> npm は D-066 により local で 12 系を採用（`npm install -g npm@12.0.2 --prefix ~/.local/share/mise/installs/node/<version>` で mise の node ディレクトリへ導入。既定 prefix `~/.npm-global` は PATH で mise に隠されるため使わない）。**mise で node を再 install / 更新すると npm は同梱の 11 系に戻るため、npm 12 を再導入すること**。CI は Node 24 同梱の npm 11 系のまま（lockfile は npm 11 / 12 どちらでも `npm ci --ignore-scripts` 差分ゼロを 2026-08-12 に実測済み）。
 
 ### 4.3 Tauri 2 Linux 依存ライブラリ
 
