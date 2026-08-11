@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: human-confirm
+- Phase: ready-hosted-final
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: e1ee908
@@ -14,7 +14,7 @@
 - Reviewed Content HEAD: e2f4736
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required（R3 は原則 hosted final 1 run。docs-only の paths-ignore で auto run が作成されない場合は CI-TRIGGER-D1 に従い `workflow_dispatch` を 1 回実行し、PR HEAD = PR body L1 SHA = hosted headSha の三点一致を merge 条件とする）
-- Human Gate: owner plan 承認 / Ready 承認（docs-only のため L3 なし。実機の入力・保存実測は実装 PR 側 L3）
+- Human Gate: none（owner plan 承認 2026-08-11 / owner Ready 承認 + 後処理委任 2026-08-11〈介入 3/3〉で全消化。docs-only のため L3 なし、実機の入力・保存実測は実装 PR 側 L3）
 
 STATECAP 予算 3 本設計（state-only 遷移 commit）: ① `plan-gate -> plan-approved -> implementing`（発注直前に一括実体化）② `independent-review -> human-confirm` ③ `human-confirm -> ready-hosted-final`。その他の遷移は content commit 同乗。各 forward materialize 直後に `bash scripts/check-workflow-git.sh` を実行する。
 
