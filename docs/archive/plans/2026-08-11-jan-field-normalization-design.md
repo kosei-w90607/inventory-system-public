@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: ready-hosted-final
+- Phase: archive
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: e1ee908
@@ -262,7 +262,7 @@ Contract ID: SPEC-JAN-D1〜D8
 
 ## Implementation Results
 
-Fill after implementation.
+PR #67（squash merge、2026-08-11）で 5 doc への設計正本化を完了。Plan Gate = Sonnet rally 3 round + Codex cross-vendor 3 round（単調収束、全 findings accept）、Final Review = Codex 1 round + closure PASS。三点一致は PR body Verification 節が evidence owner。実績 = 介入 3/3・relay 5/5（recorded-reason 調整 2 回）・STATECAP forward 3/3（うち state-only 1 本、残 2 本は content 同乗）。実装は後続 PR（Codex 発注、本 packet の Ledger「実装 PR への予約」+ fixture 置換対象表が凍結義務）。
 
 ## Review Response
 
