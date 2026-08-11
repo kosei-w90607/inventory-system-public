@@ -2,10 +2,10 @@
 
 ## Workflow State
 
-- Phase: plan-gate
+- Phase: implementing
 - Risk: R3
 - Execution Mode: fable-window
-- Plan Commit: pending
+- Plan Commit: 2439c03
 - Amendments: none
 - Draft Provenance: 本 packet 初稿は誤配された引き継ぎを起点に Codex が起草（正式発注フロー外）。Coordinator が設計正本（archived design packet / matrix）と突き合わせて監査（Sonnet 5 independent 一次監査 12 観点 = Ledger 継承 / fixture 置換対象表 / golden 2 profile / 既存 test 凍結 / scope 整合 / 編成 D-062 / Coordinator 所有 field / D-062 数値主張 / fixture sweep / Plans.md 導線 / commit 体裁 / 幻覚検査、P1 = 0 + Coordinator による fixture sweep 独立再実行、2026-08-11）し、是正のうえ採用した。監査時是正の内訳 = (1) W5 へ golden 2 profile 配置契約を設計正本 SPEC-JAN-D4 から転記 (2) frontend sweep の実測コマンド + 出力を embed (3) Fixture Sweep 節へ Coordinator 独立再実行記録を追記 (4) 本 Provenance 記録の追加 (5) commit subject を repo 標準の `docs(plans):` へ修正
 - Coordinator: Fable 5（main thread / owner relay）
@@ -15,7 +15,9 @@
 - Reviewed Content HEAD: pending
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
-- Human Gate: owner plan approval; Windows native L3（IME ON/OFF・paste・HID scanner・保存拒否/許可・JAN-8/13 境界・文言視認性）; Ready/merge approval
+- Human Gate: owner plan approval（消化済み 2026-08-11、介入 1/3）; Windows native L3（IME ON/OFF・paste・HID scanner・保存拒否/許可・JAN-8/13 境界・文言視認性）; Ready/merge approval
+
+STATECAP 予算 3 本設計（state-only 遷移 commit）: ① `plan-gate -> plan-approved -> implementing`（本遷移）② `independent-review -> human-confirm` ③ `human-confirm -> ready-hosted-final`。その他の遷移は content commit 同乗。各 forward materialize 直後に `bash scripts/check-workflow-git.sh` を実行する。
 
 ## Owner Effort Budget
 
@@ -430,4 +432,5 @@ Contract ID: SPEC-JAN-NORMALIZATION-IMPL
   - P3-1（BIZ validator の新設 file path 未指定で Writer 裁量が残る）: accept、W5 へ `src-tauri/src/biz/jan_code.rs` + `biz/mod.rs` 登録を明記。
   - P3-2（Matrix に None 明示行がない・design archive「None通過」引用）: 前提を refute — 引用された文言は設計正本に存在せず（`rg -n 'None'` 0 hit）、Matrix Negative Paths / Boundary Checks に None 契約は既存。evidence 紐付け欠如のみ accept し、Negative Paths へ「`default_create_request()`（jan_code: None、product_service.rs L955 実読）を使う既存 create test 群の無改変 green 維持」を検証条件として追記。round 2 で独立再検証する。
 - Plan Review rally round 2（Sonnet 5 independent / fresh context、2026-08-11、reviewed HEAD 9dbde52）: round 1 裁定 3 件（P2-1 itemize / P3-1 `jan_code.rs` 命名の repo 慣行整合 / P3-2 refute + None 検証条件）を独立再検証で全件 VERIFY、新規指摘 0。fixture sweep 17+4 行・D-ID 6 個・step 1g の空き文字・W3/W4 の実装現況前提（`ProductForm.tsx` `id="jan-code"` 1 箇所 / `onCompositionEnd` 未配線 / `product-form-request.ts` trim のみ / ProductAddSuggest non-composition onChange 未正規化）も現 HEAD 実測と一致。**rally 収束（P1/P2 = 0、新規指摘 0）、owner plan 承認待ちへ遷移。**
+- owner plan 承認（2026-08-11、介入 1/3）: rally 収束（P1/P2 = 0、round 2 新規指摘 0）を受けた plan 承認。併せて owner 指示 = repo root の stale `Plans.md`（公開スナップショット初期化残骸、live 正本 = `docs/Plans.md`）の整理を本 change 完了後すぐ着手 → Plans.md backlog へ起票。遷移 `plan-gate -> plan-approved -> implementing` は state-only 遷移 commit（STATECAP ①）で実体化、Plan Commit = `2439c03`（承認対象の packet 状態 = rally 収束記録込み）。
 - Final Review: pending independent Sonnet 5 fresh-context review。
