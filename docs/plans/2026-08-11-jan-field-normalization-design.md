@@ -297,5 +297,7 @@ Fill after implementation.
   - P2-4（ISBN 裁定・master-tables 同期が Matrix から脱落）: accept、M-J5c 新設 + Trace Matrix D5 行更新。
   - P3-1（round 1 是正後の旧記述残存 = synthetic のみ表記 / D-ID 7 個 / 旧 Failure Mode）: accept、全箇所 sweep 是正。
 - Codex プラン全体レビュー round 3（owner relay、2026-08-11）: P1 = 0 / P2×1、accept・同 round 内是正。
-  - P2（M-J5c の products 節抽出範囲が部門 17 を含まず、2 anchor が必ず 0 件 = round 2 P2-4 の未閉塞）: Coordinator 実査で部門 17 が `## 2. departments` 節（L99 配下、部門行 L154）にあることを確認し accept。M-J5c を M-J5c-1（products 節 = jan_code 列説明）/ M-J5c-2（departments 節 = 部門 17 + ISBN-10 注記）へ二分割し、preamble の節抽出コマンドへ departments 節と実見出し行番号を追加。
+  - P2（M-J5c の products 節抽出範囲が部門 17 を含まず、2 anchor が必ず 0 件 = round 2 P2-4 の未閉塞）: Coordinator 実査で部門 17 が `## 2. departments` 節（L99 配下、部門行 L154）にあることを確認し accept。M-J5c を M-J5c-1（products 節 = jan_code 列説明）/ M-J5c-2（departments 節 = 部門 17 + ISBN-10 注記）へ二分割し、preamble の節抽出コマンドへ departments 節と実見出し行番号を追加。是正 commit = `1123de7`。
+- relay 予算の recorded-reason 調整（D-038、2026-08-11）: 3 -> 4。理由 = Codex round 3 verdict に機械的 P2×1 が同梱され、その閉塞確認に 1 往復が不可避。owner は調整提示後の closure 確認 relay 実行をもって承認。
+- **Plan Gate closure（2026-08-11）**: Codex 最終 verdict「Plan Gate closure 可（P1/P2=0）」（対象 = `1123de7`）。経路 = Sonnet 独立 rally 3 round（P1+P2: 3→2→1 単調収束）+ Codex cross-vendor 3 round（P2: 8→4→1 単調収束）、全 findings accept・是正済み。relay 実績 4/4（調整後）。
 - Findings Freeze: not yet frozen
