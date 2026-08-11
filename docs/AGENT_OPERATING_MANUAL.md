@@ -191,6 +191,30 @@ docs/Plans.md cleanup は DEV_WORKFLOW.md の Post-Merge Closeout に準拠す�
 - 生成した subagent は予約枠の消費として target change の DEV_WORKFLOW `Subagent Budget` へ算入する。予約数を超えず、depth 1 と one-writer rule を維持する
 - Fable slot が投入前に復帰した場合は投入しない。partial dispatch 後なら in-flight の read-only 結果だけを集約し、未 dispatch remainder は取り消す。Fable slot が復帰した後は新規 subagent を生成しない。同じ order の残りを §5.5 で再開せず Coordinator へ返す
 
+### 5.6 従来型 Writer 発注書の共通出力契約
+
+本節は、§5.4 の read-only Reviewer / Explorer 専用の低制約 profile ではなく、手順を含む従来型発注書で Writer に実装を発注する場合を対象とする。
+
+発注書には、state-only 遷移 commit が [DEV_WORKFLOW.md](DEV_WORKFLOW.md) `Workflow State` の canonical subject、すなわち forward 遷移では `docs(plans): state-only遷移 <from>-><to>[->…]`、backtrack では `docs(plans): state-backtrack <from>-><to>` に従うことを明記する。また、遷移は同節の契約を満たす正規の state-only commit で実体化し、`narrative 記述のみで遷移を主張しない`ことも出力契約に含める。
+
+遷移 commit の作成主体や Writer / Coordinator の分担は、本節で再配分しない。[DEV_WORKFLOW.md](DEV_WORKFLOW.md) の現行規範と per-change Plan Packet の定めに従う。
+
+### 5.7 変則 provenance packet の監査採用手順
+
+正式発注フロー外で起草された packet（引き継ぎ事故、誤配、自発起草に由来する artifact）は、再起草を既定にせず、Coordinator が次の 9 観点を監査して採用可否を判定する。
+
+1. 設計正本の凍結義務・予約事項の継承
+2. scope 整合
+3. 編成の D-062 適合
+4. Coordinator 所有 field の越権不在
+5. 数値主張の D-062 準拠（実測併記または `未実測` タグ）
+6. packet が依拠する基幹実測の Coordinator 独立再実行
+7. 導線・登録義務
+8. commit 体裁
+9. 事実主張の幻覚検査（引用 `file:line` の実在）
+
+採用条件は P1 相当 0 件かつ監査指摘の是正完了とする。採用時は、固定 13 field を増減せず、`Workflow State` 直下の append-only narrative に `Draft Provenance` を記録する。監査がこの条件を満たさない場合は再起草へ fallback する。
+
 ## 6. ハーネス間の既知の非対称（重要な注意）
 
 - `.codex/hooks.json` は gitignore 済みの未確認実験で非稼働。Claude側もD-059採用時点のtracked project hook inventoryは0本。両harnessともpre-push / local full / hosted CIの正本gateとreview-only packetを使う。

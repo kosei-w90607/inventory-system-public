@@ -147,6 +147,7 @@ For R3/R4, execute `docs/DEV_WORKFLOW.md` `Contract Audit (R3/R4)` from source d
 Findings first.
 Use P1/P2/P3.
 Include evidence with file:line, command, spec, or contract reference.
+Each finding must include a concrete proposed correction (`smallest safe fix`). The Coordinator will `受理せず差し戻す` any finding without one, in accordance with `docs/DEV_WORKFLOW.md` Review Rules.
 ```
 
 ## Sub-agent Prompt
@@ -185,6 +186,7 @@ Output:
 ## Findings
 - P1/P2/P3 order
 - `P2 - confidence: medium - path:line - issue / impact / smallest safe fix`
+- 各 finding に具体的修正案（`smallest safe fix`）を必ず添付する。修正案のない finding は Coordinator が `受理せず差し戻す`（`docs/DEV_WORKFLOW.md` Review Rules 準拠）。
 - If no P1/P2, say `No blocking findings.`
 
 ## Verification Performed
