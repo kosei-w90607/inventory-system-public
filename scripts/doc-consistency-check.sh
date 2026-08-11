@@ -1264,6 +1264,7 @@ check_plan_packet_numeric_evidence_warnings() {
 
 WORKFLOW_STATE_PHASES="kickoff spec-check design plan-draft plan-gate plan-approved implementing local-verified independent-review human-confirm ready-hosted-final merge archive"
 WORKFLOW_STATE_EXEC_MODES="fable-window dual-vendor-no-fable codex-only"
+WORKFLOW_STATE_HOSTED_CI_REQUIREMENTS="required not-required"
 WORKFLOW_STATE_PLAN_APPROVED_PHASES="plan-approved implementing local-verified independent-review human-confirm ready-hosted-final merge"
 
 check_plan_packet_workflow_state() {
@@ -1287,6 +1288,32 @@ check_plan_packet_workflow_state() {
             error "PK4: $file (R${level}) は必須セクション '## Workflow State' を欠いています"
             continue
         fi
+
+        local -a required_fields=(
+            "Risk"
+            "Plan Commit"
+            "Amendments"
+            "Coordinator"
+            "Writer"
+            "Plan Reviewer"
+            "Final Reviewer"
+            "Reviewed Content HEAD"
+            "Final Exact-HEAD Evidence"
+            "Hosted CI Requirement"
+            "Human Gate"
+        )
+        local field
+        for field in "${required_fields[@]}"; do
+            if ! printf '%s\n' "$ws_section" | grep -qE "^- ${field}:[[:space:]]*[^[:space:]]"; then
+                error "PK4: $file (R${level}) の Workflow State に '- ${field}:' 行がありません"
+            elif [ "$field" = "Hosted CI Requirement" ]; then
+                local hosted_ci_requirement_value
+                hosted_ci_requirement_value=$(extract_workflow_field "$ws_section" "$field")
+                if ! is_in_word_list "$hosted_ci_requirement_value" "$WORKFLOW_STATE_HOSTED_CI_REQUIREMENTS"; then
+                    error "PK4: $file (R${level}) の Hosted CI Requirement 値 '${hosted_ci_requirement_value}' が required/not-required に含まれません"
+                fi
+            fi
+        done
 
         local phase_value
         phase_value=$(extract_workflow_field "$ws_section" "Phase")

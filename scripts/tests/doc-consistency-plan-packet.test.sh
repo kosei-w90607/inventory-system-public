@@ -298,6 +298,16 @@ reset_packet_defaults() {
     PKT_WS_RISK="R3"
     PKT_EXEC_MODE="fable-window"
     PKT_PLAN_COMMIT="abc1234"
+    PKT_COORDINATOR="Fable 5（fixture coordinator）"
+    PKT_WRITER="Codex（fixture writer）"
+    PKT_PLAN_REVIEWER="Sonnet 5（fixture plan reviewer）"
+    PKT_FINAL_REVIEWER="Sonnet 5（fixture final reviewer）"
+    PKT_REVIEWED_CONTENT_HEAD="pending"
+    PKT_FINAL_EXACT_HEAD_EVIDENCE="PR body"
+    PKT_HOSTED_CI_REQUIREMENT="required"
+    PKT_HUMAN_GATE="Ready approval"
+    PKT_OMIT_FIELDS=""
+    PKT_WORKFLOW_STATE_EXTRA=""
     PKT_RISK_SECTION="R3"
     PKT_INCLUDE_OWNER_BUDGET=1
     PKT_INCLUDE_R3_SECTIONS=1
@@ -309,6 +319,19 @@ reset_packet_defaults() {
     PKT_REVIEW_RESPONSE_EXTRA=""
 }
 
+packet_field_is_omitted() {
+    local field="$1"
+    case " ${PKT_OMIT_FIELDS:-} " in
+        *" ${field} "*) return 0 ;;
+        *) return 1 ;;
+    esac
+}
+
+write_workflow_field() {
+    local field="$1" value="$2"
+    packet_field_is_omitted "$field" || echo "- ${field}: ${value}"
+}
+
 write_packet() {
     local path="$1"
     {
@@ -317,11 +340,22 @@ write_packet() {
         if [ "$PKT_INCLUDE_WS" = "1" ]; then
             echo "## Workflow State"
             echo ""
-            echo "- Phase: ${PKT_PHASE}"
-            echo "- Risk: ${PKT_WS_RISK}"
-            echo "- Execution Mode: ${PKT_EXEC_MODE}"
-            echo "- Plan Commit: ${PKT_PLAN_COMMIT}"
-            echo "- Amendments: none"
+            write_workflow_field "Phase" "$PKT_PHASE"
+            write_workflow_field "Risk" "$PKT_WS_RISK"
+            write_workflow_field "Execution Mode" "$PKT_EXEC_MODE"
+            write_workflow_field "Plan Commit" "$PKT_PLAN_COMMIT"
+            write_workflow_field "Amendments" "none"
+            write_workflow_field "Coordinator" "$PKT_COORDINATOR"
+            write_workflow_field "Writer" "$PKT_WRITER"
+            write_workflow_field "Plan Reviewer" "$PKT_PLAN_REVIEWER"
+            write_workflow_field "Final Reviewer" "$PKT_FINAL_REVIEWER"
+            write_workflow_field "Reviewed Content HEAD" "$PKT_REVIEWED_CONTENT_HEAD"
+            write_workflow_field "Final Exact-HEAD Evidence" "$PKT_FINAL_EXACT_HEAD_EVIDENCE"
+            write_workflow_field "Hosted CI Requirement" "$PKT_HOSTED_CI_REQUIREMENT"
+            write_workflow_field "Human Gate" "$PKT_HUMAN_GATE"
+            if [ -n "$PKT_WORKFLOW_STATE_EXTRA" ]; then
+                echo "$PKT_WORKFLOW_STATE_EXTRA"
+            fi
             echo ""
         fi
         if [ "$PKT_INCLUDE_OWNER_BUDGET" = "1" ]; then
@@ -868,5 +902,142 @@ if ! run_check "docs/plans/2026-01-20-pk6-no-section.md"; then
 fi
 assert_not_contains "$out" "PK6: docs/plans/2026-01-20-pk6-no-section.md"
 assert_contains "$out" "PK6: 数値主張の実測 evidence 欠落 OK"
+
+# --- 21. SPEC-PK4-F1 / M-P1: Workflow State 13 field の行欠落を全数検出 ---
+required_workflow_fields=(
+    "Phase"
+    "Risk"
+    "Execution Mode"
+    "Plan Commit"
+    "Amendments"
+    "Coordinator"
+    "Writer"
+    "Plan Reviewer"
+    "Final Reviewer"
+    "Reviewed Content HEAD"
+    "Final Exact-HEAD Evidence"
+    "Hosted CI Requirement"
+    "Human Gate"
+)
+for field in "${required_workflow_fields[@]}"; do
+    setup_repo_dirs
+    reset_packet_defaults
+    PKT_OMIT_FIELDS="$field"
+    write_packet "$repo/docs/plans/2026-01-21-required-field.md"
+    write_plans_md_linking "2026-01-21-required-field.md"
+    if run_check "docs/plans/2026-01-21-required-field.md"; then
+        fail "missing Workflow State field '$field' was not rejected"
+    fi
+    assert_contains "$out" "Workflow State に '- ${field}:' 行がありません"
+done
+
+# 空値行は存在扱いにせず、欠落と同じ ERROR にする。
+setup_repo_dirs
+reset_packet_defaults
+PKT_COORDINATOR=""
+write_packet "$repo/docs/plans/2026-01-21-empty-field.md"
+write_plans_md_linking "2026-01-21-empty-field.md"
+if run_check "docs/plans/2026-01-21-empty-field.md"; then
+    fail "empty Workflow State Coordinator field was not rejected"
+fi
+assert_contains "$out" "Workflow State に '- Coordinator:' 行がありません"
+
+# --- 22. SPEC-PK4-F2 / M-P2: Hosted CI Requirement enum 外は ERROR ---
+setup_repo_dirs
+reset_packet_defaults
+PKT_HOSTED_CI_REQUIREMENT="maybe"
+write_packet "$repo/docs/plans/2026-01-22-hosted-ci-enum.md"
+write_plans_md_linking "2026-01-22-hosted-ci-enum.md"
+if run_check "docs/plans/2026-01-22-hosted-ci-enum.md"; then
+    fail "Hosted CI Requirement outside required/not-required was not rejected"
+fi
+assert_contains "$out" "Hosted CI Requirement 値 'maybe' が required/not-required に含まれません"
+
+# --- 23. SPEC-PK4-F3 / M-P3: pending / none / 日本語先頭値は正当 ---
+setup_repo_dirs
+reset_packet_defaults
+PKT_PHASE="plan-gate"
+PKT_PLAN_COMMIT="pending"
+PKT_PLAN_REVIEWER="未定（plan-gate 時に選任）"
+PKT_HUMAN_GATE="none"
+write_packet "$repo/docs/plans/2026-01-23-valid-free-form.md"
+write_plans_md_linking "2026-01-23-valid-free-form.md"
+if ! run_check "docs/plans/2026-01-23-valid-free-form.md"; then
+    cat "$out" >&2
+    fail "pending/none/non-ASCII Workflow State values were rejected"
+fi
+assert_contains "$out" "PK4: Workflow State machine 整合 OK"
+
+# --- 24. SPEC-PK4-F4 / M-P4: 任意追加 field は禁止しない ---
+setup_repo_dirs
+reset_packet_defaults
+PKT_WORKFLOW_STATE_EXTRA="- Draft Provenance: synthetic fixture"
+write_packet "$repo/docs/plans/2026-01-24-extra-field.md"
+write_plans_md_linking "2026-01-24-extra-field.md"
+if ! run_check "docs/plans/2026-01-24-extra-field.md"; then
+    cat "$out" >&2
+    fail "optional Workflow State field was rejected"
+fi
+assert_contains "$out" "PK4: Workflow State machine 整合 OK"
+
+# --- 25. SPEC-PK4-F5 / M-P5: archive 明示 path は新設 field 検査を skip ---
+setup_repo_dirs
+reset_packet_defaults
+PKT_OMIT_FIELDS="Coordinator"
+mkdir -p "$repo/docs/archive/plans"
+write_plans_md_no_link
+write_packet "$repo/docs/archive/plans/2026-01-25-archived-field.md"
+if ! run_check "docs/archive/plans/2026-01-25-archived-field.md"; then
+    cat "$out" >&2
+    fail "archived packet unexpectedly triggered required Workflow State field check"
+fi
+assert_not_contains "$out" "Workflow State に '- Coordinator:' 行がありません"
+
+# --- 26. SPEC-PK4-F5 / M-P6: R2 は検査対象、R1 は閾値 skip ---
+setup_repo_dirs
+reset_packet_defaults
+PKT_PHASE="plan-draft"
+PKT_PLAN_COMMIT="pending"
+PKT_WS_RISK="R2"
+PKT_RISK_SECTION="R2"
+PKT_INCLUDE_R3_SECTIONS=0
+PKT_INCLUDE_CONTRACT_PROBE=0
+PKT_INCLUDE_FINDINGS_FREEZE=0
+PKT_OMIT_FIELDS="Writer"
+write_packet "$repo/docs/plans/2026-01-26-r2-field.md"
+write_plans_md_linking "2026-01-26-r2-field.md"
+if run_check "docs/plans/2026-01-26-r2-field.md"; then
+    fail "R2 packet missing a required Workflow State field was not rejected"
+fi
+assert_contains "$out" "Workflow State に '- Writer:' 行がありません"
+
+setup_repo_dirs
+reset_packet_defaults
+PKT_PHASE="plan-draft"
+PKT_PLAN_COMMIT="pending"
+PKT_WS_RISK="R1"
+PKT_RISK_SECTION="R1"
+PKT_INCLUDE_R3_SECTIONS=0
+PKT_INCLUDE_CONTRACT_PROBE=0
+PKT_INCLUDE_FINDINGS_FREEZE=0
+PKT_OMIT_FIELDS="Writer"
+write_packet "$repo/docs/plans/2026-01-26-r1-field.md"
+write_plans_md_linking "2026-01-26-r1-field.md"
+if ! run_check "docs/plans/2026-01-26-r1-field.md"; then
+    cat "$out" >&2
+    fail "R1 packet was incorrectly subjected to required Workflow State field check"
+fi
+assert_not_contains "$out" "Workflow State に '- Writer:' 行がありません"
+
+# --- 27. SPEC-PK4-F1..F5 / M-P7: 13 field default fixture は ERROR 0 ---
+setup_repo_dirs
+reset_packet_defaults
+write_packet "$repo/docs/plans/2026-01-27-complete-fields.md"
+write_plans_md_linking "2026-01-27-complete-fields.md"
+if ! run_check "docs/plans/2026-01-27-complete-fields.md"; then
+    cat "$out" >&2
+    fail "complete 13-field Workflow State fixture was rejected"
+fi
+assert_contains "$out" "PK4: Workflow State machine 整合 OK"
 
 echo "PASS: doc-consistency-plan-packet"
