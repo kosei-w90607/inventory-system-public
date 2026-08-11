@@ -517,3 +517,12 @@ Use concise ADR-style entries.
 - Alternatives considered: rally を「目安」とする soft 運用（owner 裁定で hard cap を選択したため不採用）; Writer 契約を §5.4 へ混載する案（同節は read-only slot 専用で Writer / state 遷移管理を対象外とするため不採用）; provenance 監査へ特定 change の実例語彙を転記する案（再利用性を失うため一般化した 9 観点を採用）。
 - Rollback: 本 commit revert のみ。
 - Revisit: rally cap 到達時 disposition、変則 provenance 監査、または file type 先行確認の次回 dogfood で、再起草漏れ・owner escalation の過不足・誤診断再発が観測されたとき。
+
+## D-066
+
+- Decision: npm CLI 12 を local の依存保守 toolchain として採用する。CI は現行の Node 24 同梱 npm 11 系を維持し、D-030 の `ignore-scripts=true` / `min-release-age=7` も変更しない。
+- Status: accepted（owner 裁定 2026-08-12、change B の PR #71 merge 承認 bundle にて採用を確定。導入と `docs/DEV_SETUP_CHECKLIST.md` 追随は merge 後の follow-up）
+- Why: npm 12.0.0 は `allowScripts` と `--allow-git` / `--allow-remote` を既定 off にし、D-029 で残していた install source の native deny-by-default 評価課題を解消する。採用候補の npm 12.0.2 は 2026-07-29 publish で `min-release-age=7` を満了している。
+- Impact: change B の lockfile は npm 11.16.0 で生成し、同じ npm 11.16.0 の `npm ci --ignore-scripts` で再現 install 済みのため、現行 CI（npm 11 系）の lockfile 互換性には影響しない。採用確定時の `docs/DEV_SETUP_CHECKLIST.md` 追随と npm 12 導入手順は Coordinator 指示後の別作業とし、本 Proposed entry では変更しない。
+- Alternatives considered: npm 11.16.0 を local でも継続する案（D-030 の防御は維持できるが、D-029 の native deny-by-default 評価課題が残るため非推奨）; CI も同時に npm 12 へ固定する案（audit 是正に不要で change B の scope を越えるため見送り）。
+- Revisit: owner が PR merge 承認時に採否を裁定するとき、npm 12 採用後に既存 install / update / CI lockfile compatibility の反例が出たとき、または Node 24 同梱 npm の major が更新されるとき。
