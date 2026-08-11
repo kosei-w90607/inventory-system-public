@@ -4,10 +4,10 @@
 
 Use the field definitions, enums, transition evidence, packet-selection rule, and fail-closed behavior from `docs/DEV_WORKFLOW.md` `Workflow State`. Keep exactly one `- Key: value` line per field.
 
-- Phase: plan-draft
+- Phase: implementing
 - Risk: R3
 - Execution Mode: fable-window
-- Plan Commit: pending
+- Plan Commit: a0fb1df
 - Amendments: none
 - Coordinator: Fable (Claude Fable 5, main thread)
 - Writer: Codex (GPT-5.6, owner relay 経由)
@@ -16,7 +16,7 @@ Use the field definitions, enums, transition evidence, packet-selection rule, an
 - Reviewed Content HEAD: pending
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
-- Human Gate: plan 承認 / PR merge（npm CLI 12 採否は merge 承認と同一 session で bundle） / L3 なし
+- Human Gate: PR merge（npm CLI 12 採否は merge 承認と同一 session で bundle） / L3 なし
 
 ## Owner Effort Budget
 
@@ -260,6 +260,8 @@ Plan Gate rally round 1（独立 Sonnet、2026-08-12）: P1 ×2 / P2 ×3 / P3 ×
 Plan Gate rally round 2（独立 Sonnet fresh context、2026-08-12）: P1 ×0 / P2 ×2 / P3 ×0 — 全件 accept。P2-1 は step 1 中間 evidence へ commit SHA アンカー追加（squash 前の独立再実行検証を可能化）、P2-2 は docs gate 恒久 fail 時の撤退経路（step 2 revert + 縮小完了 + follow-up Amendment 化）を Scope / Negative Paths に明記。round 2 は `npm audit --json`（total 7 一致）・package-lock.json 現況・`gh api /advisories/` 2 件・`gh issue view 45`（OPEN）・`scripts/npm-security-monitor.sh` 実装・`.npmrc` の 6 系統を reviewer が独立再実測し、packet 記述との一致を確認済み。是正後に `bash scripts/doc-consistency-check.sh --target plan` を再実行して通過を確認。
 
 Plan Gate rally round 3（独立 Sonnet fresh context、2026-08-12、天井到達）: P1 ×0 / P2 ×1 / P3 ×0。round 2 是正 2 件の三点一貫性・Contract Probe 実測値（`npm audit --json` total 7 / Issue #45 OPEN / GHSA-g7cv-rxg3-hmpx active）の独立再実測一致・`bash scripts/doc-consistency-check.sh --target plan` 通過を確認。P2 ×1（撤退経路の Amendment 語が D-039 gated amendment と新規作業を混同）は D-065 disposition = 同型指摘の一括是正として即時反映: 縮小 = 本 packet の gated Amendment / markdownlint-cli2 再開 = 新規 Plan Packet 起票、に分離。rally は天井 3 round で終結し、次 round は開始しない。
+
+遷移 evidence（compression 記録、append-only）: plan-draft -> plan-gate = packet + matrix の内容 commit 完了（`5edb149` 起草、`962cd98` / `62c95fd` / `a0fb1df` rally 是正）と rally 天井 3 round の P1/P2 = 0 終結（本節 round 1〜3 記録）。plan-gate -> plan-approved = owner plan 承認（2026-08-12、介入 1/3、AskUserQuestion 応答「承認する」）。plan-approved -> implementing = 承認済み plan の Codex Writer 発注開始。Plan Commit = `a0fb1df`（承認対象の packet 内容 HEAD）。
 
 If R3 review-only sub-agent is skipped, record an explicit line beginning with `Review-only skipped because:` and the reason.
 - Findings Freeze: not yet frozen; post-freeze exceptions: none.
