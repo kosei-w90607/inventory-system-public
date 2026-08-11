@@ -234,7 +234,11 @@ Test Design Matrix: [2026-08-12-pk4-workflow-state-field-check.md](test-matrices
 
 ## Implementation Results
 
-未着手。Plan Gate と owner plan 承認後に Codex Writer へ発注する。
+- Writer 実装: W1〜W4 完了。PK4 に新設 11 field の非空行検査と `Hosted CI Requirement` enum 検査を追加し、fixture builder を 13 field default + field 単位 omission へ拡張、M-P1〜M-P7 を追加、DEV_WORKFLOW の PK4 実装記述を同期した。
+- TDD: M-P1 の `Risk` 欠落 fixture が旧 checker で未検出となる RED を確認後、checker 実装で GREEN 化した。
+- Writer mutation 実測: X1〜X4 は各対応 oracle が RED になり、各注入を復元後に targeted test が GREEN へ戻った。詳細な失敗抜粋は PR body に記録する。
+- 検証: targeted test、`scripts/tests/` drift test 一式、docs full / active plan check は PASS。exact-HEAD L1 full は content commit 後に実行し、SHA と evidence は PR body のみへ記録する。
+- Data Safety: fixture は synthetic のみ。PK5、`###` 抽出打ち切り gap、GitHub workflow、product code、bindings は変更していない。
 
 ## Review Response
 
@@ -251,4 +255,5 @@ Test Design Matrix: [2026-08-12-pk4-workflow-state-field-check.md](test-matrices
 - Plan Review rally round 3（Sonnet 5 independent / fresh context、2026-08-12）: round 2 裁定 3 件を独立再検証で全件 VERIFY（行存在 regex は printf + grep 実測で正例 5 型 MATCH / 空値・不在 NOMATCH、さらに archive 全 packet への機械 spot check で誤 ERROR 0 を実証）。新規 P1×1 = Boundary / Wire Contract 節と Matrix Boundary Checks 節が round 1 以前の草稿記述（`extract_workflow_field` の ASCII 境界を新設 field にも適用するかの誤読を招く文）のまま残る sweep 漏れ。
 - rally 収束処理（round 天井 3 到達、Coordinator disposition 裁定）: round 3 P1 は既収束設計への文言追随のみで新規契約を含まないため、一括是正して closure とする。残存箇所は Coordinator が `rg -n 'extract_workflow_field|先頭 token' docs/plans/2026-08-12-pk4-workflow-state-field-check.md docs/plans/test-matrices/2026-08-12-pk4-workflow-state-field-check.md` で実測特定（packet Boundary / Wire Contract 節と Matrix Boundary Checks 節の各 1 箇所）し、text-parse 境界を既存系統 / 新設系統の 2 系統で明記、Matrix の例示を raw regex 前提へ差替えた。**Plan Gate 収束（P1/P2 = 0）、owner plan 承認待ちへ遷移。**
 - owner plan 承認（2026-08-12、介入 1/3）: rally 収束（P1/P2 = 0、3 round + disposition 是正 1 件）を受けた plan 承認と Codex 発注指示。遷移 `plan-gate -> plan-approved -> implementing` は state-only 遷移 commit（STATECAP ①）で実体化、Plan Commit = `3160376`（承認対象の packet 状態 = rally 収束記録込み）。
+- Writer self-review（2026-08-12）: Scope / Non-scope / Contract Coverage Ledger を diff と test oracle に照合。新設 field 検査は raw regex、bash 配列 + quoted 展開、Hosted CI Requirement の存在/enum 排他分岐を満たし、archive skip と R2 閾値の既存位置は不変。blocking finding なし。
 - Final Review: pending independent Sonnet 5 fresh-context review。
