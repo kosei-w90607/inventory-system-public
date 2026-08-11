@@ -4,7 +4,7 @@
 
 Use the field definitions, enums, transition evidence, packet-selection rule, and fail-closed behavior from `docs/DEV_WORKFLOW.md` `Workflow State`. Keep exactly one `- Key: value` line per field.
 
-- Phase: human-confirm
+- Phase: ready-hosted-final
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: a0fb1df
@@ -16,7 +16,7 @@ Use the field definitions, enums, transition evidence, packet-selection rule, an
 - Reviewed Content HEAD: 18e8f71
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
-- Human Gate: PR merge（npm CLI 12 採否は merge 承認と同一 session で bundle） / L3 なし
+- Human Gate: PR merge の owner 実操作（Ready 化 + merge click）のみ / L3 なし（Ready・merge・npm CLI 12 採用・Amendment 2 追認は 2026-08-12 介入 3/3 bundle で承認済み）
 
 ## Owner Effort Budget
 
