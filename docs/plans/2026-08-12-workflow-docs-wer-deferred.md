@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: implementing
+- Phase: human-confirm
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: 0b36e7a
@@ -11,7 +11,7 @@
 - Writer: Codex（本 branch の実装担当）
 - Plan Reviewer: Sonnet 5（independent / fresh context）
 - Final Reviewer: Sonnet 5（independent / fresh context、workflow gate change のため Double Audit）
-- Reviewed Content HEAD: pending
+- Reviewed Content HEAD: 0250c51
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
 - Human Gate: owner plan approval（消化済み 2026-08-12、介入 2/3。§5.6 縮小裁定の追認を含む）; Ready/merge approval（Windows native L3 なし — operator 可視挙動の変更を含まない workflow docs change）
@@ -219,7 +219,7 @@ Test Design Matrix: [2026-08-12-workflow-docs-wer-deferred.md](test-matrices/202
 
 ## Review Response
 
-- Findings Freeze: not yet frozen; post-freeze exceptions: none.
+- Findings Freeze: frozen 2026-08-12（human-confirm 遷移時、P1/P2 = 0 確定後）; post-freeze exceptions: none.
 - Plan Review rally round 1（Sonnet 5 independent / fresh context、2026-08-12）: P1 1 / P2 2 / P3 2、全件 accept（Coordinator が DEV_WORKFLOW L126・WER 原文 L89・self-closure 0 hit を実読裏取りで一致確認）。
   - P1（§5.6(b) の「state 遷移 Coordinator 所有」が DEV_WORKFLOW L126 の現行正本と矛盾し WER 支持範囲を超える規則発明）: accept、選択肢 b = §5.6 を canonical subject 遵守 + narrative 遷移主張禁止に縮小、L126 無改変。Design Sources に縮小記録、SPEC-WD-4 / Ledger / M-W5 / X3 同期。
   - P2-2（§5.7 ③の「self-closure 不在」が両 WER 無出典）: accept、削除して「編成の D-062 適合」へ戻す。
@@ -230,4 +230,8 @@ Test Design Matrix: [2026-08-12-workflow-docs-wer-deferred.md](test-matrices/202
 - round 2 P1 是正: accept、L52 を W3 / SPEC-WD-4 と同語の縮小後契約へ置換。再 sweep は広い pattern `rg -n 'Coordinator 所有'` で実施し、残存は §5.7 観点④（Coordinator 所有 field — 別語義）と履歴記録のみであることを確認。
 - Plan Review rally round 3（Sonnet 5 independent / fresh context、2026-08-12、reviewed HEAD 356834d）: round 2 是正を独立再検証で VERIFY（`rg -n 'Coordinator 所有'` の残存 6 hit は全件履歴文 or §5.7 観点④の別語義で能動的仕様 0）。最終 sweep = 全 file:line 引用実在・Ledger⇔Trace⇔Matrix 3 点整合・12→9 観点の畳み込み過不足なし・anchor 一意性（file 単位 scope で cross-hit リスクなし）・X1〜X3 red oracle 成立・STATECAP/ci.md 分類整合を実測確認、**新規指摘 0。rally 収束（P1/P2 = 0、3 round、天井内）、owner plan 承認待ちへ遷移。**
 - owner plan 承認（2026-08-12、介入 2/3）: rally 収束（P1/P2 = 0、天井 3 round 内）を受けた plan 承認と Codex 発注指示。§5.4 → §5.6 の置き場所訂正と §5.6 の範囲縮小（canonical subject + narrative 遷移主張禁止のみ）を明示提示のうえ追認。遷移 `plan-gate -> plan-approved -> implementing` は state-only 遷移 commit（STATECAP ①）で実体化、Plan Commit = `0b36e7a`。
-- Final Review: pending independent Sonnet 5 fresh-context Double Audit。
+- Writer implementation handoff（Codex、2026-08-12、content = 0250c51）: W1〜W4 完了、docs 5 file / 42 行純追加・削除 0。anchor 全実測（baseline 0 → 期待値）と M-W8 保全 token 同数維持、mutation X1〜X3 自己実測 red / 復元を報告。Workflow State / Plans.md の遷移は作成していない。
+- Final Review（Sonnet 5 independent / fresh context Double Audit、2026-08-12、reviewed content = 0250c51）: Contract Coverage Ledger 8/8 適合、Audit A（契約適合 — anchor 独立再実行全一致・append-only 検証 削除行 0・§5.6 への「Coordinator 所有」非混入）/ Audit B（規範整合 — 既存 §5 群・L126・D-065・新 PK4 検査との衝突なし、検査 script 4 本 green）とも適合、P1/P2 = 0、P3×1 = Sub-agent Prompt の英語 verbatim block 内に日本語 2 文が新設され言語一貫性を崩す（機能影響なし）。
+- P3 disposition（Coordinator 裁定）: 現状維持。該当 2 行の一方は M-W3 の凍結 anchor `受理せず差し戻す` そのもので、是正には gated Amendment + Matrix 改訂 + anchor 再測が必要となり可読性の便益に対し過大。将来 template を触る PR での英語化を備忘として本記録に残す（新規 backlog は作らない）。
+- Coordinator mutation 独立再実測（2026-08-12、注入形独自設計・Writer / Final Reviewer 非参照）: X1〜X3 全 red（X1 は 3 点整合の一角消失まで観測、X2 は 2→1、X3 は 1→0）+ 追加形 = M-W8 保全 token `candidate safety` 単独削除で baseline 比較 red を確認（append-only 契約の検査感度実証）。survivor 0、復元後 doc-consistency 全通過・tree clean 実証済み。
+- 遷移 implementing -> local-verified -> independent-review -> human-confirm を本 state-only commit（STATECAP ②）で一括実体化。evidence = Writer L1 full PASS（PR #70 body）+ Final Review Double Audit P1/P2 = 0 + Coordinator mutation / append-only 独立再検証。
