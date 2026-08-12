@@ -6,16 +6,16 @@ Use the field definitions, enums, transition evidence, packet-selection rule, an
 
 If a state-only commit materializes multiple phases, list the complete adjacent forward sequence and the pre-existing evidence for every intermediate transition in an append-only review/evidence record. Recording compression never permits a gate skip.
 
-- Phase: implementing
+- Phase: human-confirm
 - Risk: R2
 - Execution Mode: fable-window
 - Plan Commit: 19daa33
-- Amendments: none
+- Amendments: cfa0506
 - Coordinator: Fable (main thread)
 - Writer: Codex（発注書は Coordinator 起草、owner relay）
 - Plan Reviewer: Sonnet subagent（独立 context）
 - Final Reviewer: Sonnet subagent（独立 context）
-- Reviewed Content HEAD: cf70131
+- Reviewed Content HEAD: cfa0506
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
 - Human Gate: owner L3 = 台本 1 周（Windows native、operator 役、roadmap 項4 の受入実走）+ 台本可読性確認
@@ -259,3 +259,11 @@ If R3 review-only sub-agent is skipped, record an explicit line beginning with `
 - Step 1〜3 PASS（日報集計・在庫不変 / 入庫 +5 → 手動販売 -3 → 残 2 / 在庫少 filter 表示）。Step 4 で台本の fail-closed 規則どおり停止、baseline backup へ復元済み（復元後 DB の空状態を owner 確認、失敗時点は自動 backup に保存）。evidence 正本 = PR #74 comment（2026-08-13）。
 - **Blocker（gated Amendment 1 起源）**: 台本 Step 4「棚卸し入力」の期待値が差異 `-1` — 正本 35-biz §20.4 / 実装 `stocktake_service.rs:227` の契約は差異 = `stock_quantity - actual_count`（このケース 2-1 = **+1**、正 = システム在庫が多い）であり符号が逆。補正 movement は `actual_count - stock_quantity` = -1 で台本の「在庫変動履歴 `-1`」は正しい。画面差異と補正 movement の 2 値を区別しなかった台本の欠陥（Writer 起草時混同、Plan Review / Final Review とも未検出、owner L3 が捕捉した true positive）。
 - 追加 UX 観察（blocker と別、pre-existing 仕様）: 在庫 2・基準 3 の同一商品が「すべて」filter では状態「通常」、「在庫少」filter では「在庫少」と表示され operator には矛盾に見える。query source 依存の現行仕様。→ Plans.md backlog へ起票（本 Amendment commit 同乗）。
+
+### Final Review round 2（focused、対象 = Amendment `cfa0506`）: CLOSED（P1/P2 = 0）
+
+- L134 是正は 35-biz §20.4（`difference: system_stock - actual_count`）/ `stocktake_service.rs:227`（画面差異）/ `:409`（補正 movement = 逆符号）と完全一致を reviewer 実読で確認。注記の 2 値区別自体も実装裏付けあり。
+- 符号・方向系 sweep: 全 6 step の数値期待値を表示式・movement 生成式（receiving.rs / manual_sale.rs / stocktake-formatters.ts）まで遡り追跡、**同型の表示値・movement 値混同は他に無し**。step 5 の算術（+5-3-1=1）・step 6 の復元後履歴も整合。
+- packet の L3 FAIL / backtrack 記録は実況一致（PR #74 OPEN・diff 一致・doc-check / check-workflow-git pass）。
+- P3×1: 「gated Amendment 1」呼称と `Amendments: none` の不整合 → disposition = `Amendments:` へ `cfa0506` を追記して呼称を維持（本 commit。commit message は履歴書き換えなしの原則で不変）。
+- 遷移記録: implementing → local-verified（docs-only 是正、doc-check / workflow-git pass 実測）→ independent-review（round 2 従事）→ human-confirm（P1/P2 = 0 確定、Reviewed Content HEAD を `cfa0506` へ更新）。本遷移も content commit 同乗（STATECAP cap 内完走方式の継続）。次 = 再 L3（Step 1 から再走）。
