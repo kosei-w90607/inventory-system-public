@@ -4,7 +4,7 @@
 
 Use the field definitions, enums, transition evidence, packet-selection rule, and fail-closed behavior from `docs/DEV_WORKFLOW.md` `Workflow State`. Keep exactly one `- Key: value` line per field.
 
-- Phase: implementing
+- Phase: local-verified
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: cfceb91
@@ -214,13 +214,15 @@ Contract ID: SPEC-SFV
 
 ## Implementation Results
 
-Fill after implementation.
+- Writer implementation: completed — SPEC-SFV-D1〜D4 の起動失敗 dialog 配線、固定文言、debug 限定の実 `.run()` Err simulation hook、T1〜T5、MNT-03-D5〜D8 の設計同期を実装した。
+- Verification: Rust test / format / clippy / release check、doc consistency、traceability、clean content commit の L1 full が pass。mutation X1〜X4 は全件 kill 後に復元し、clean tree を確認した（implementing → local-verified の遷移根拠）。
+- PR: 未作成（Coordinator が Final Review 後に作成する契約）。
 
 Do not transcribe exact-HEAD SHA or test counts here (D-035/D-038 Evidence Ownership). Record a qualitative summary and the PR link only.
 
 ## Review Response
 
-Fill after review.
+- R3 review-only sub-agent: P1×0 / P2×2 / P3×2。P2（setup 実配線の mutation 感度不足、`.run()` handler の非 0 exit 配線不足）は test と injectable handler の補強で解消した。P3 のうち Plans の stale status / backlog は本 state-only 遷移で同期し、packet 内 Impact Review Manual の D4 / L3 要約不整合は契約変更を避けて Coordinator の gated amendment 判断へ残した。
 If R3 review-only sub-agent is skipped, record an explicit line beginning with `Review-only skipped because:` and the reason.
 - Findings Freeze: not yet frozen; post-freeze exceptions: none.
 
