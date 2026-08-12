@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, renderHook, waitFor } from "@testing-library/react";
+import { useBlocker } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { toast } from "sonner";
@@ -51,6 +52,8 @@ vi.mock("@/lib/bindings", async (importOriginal) => {
 const mockParse = vi.mocked(commands.parseAndValidateDailyReport);
 const mockCommit = vi.mocked(commands.commitDailyReportImport);
 const mockRollback = vi.mocked(commands.rollbackDailyReportImport);
+// eslint-disable-next-line @typescript-eslint/no-deprecated -- production の現行 hook 配線を spy する。
+const mockUseBlocker = vi.mocked(useBlocker);
 const mockToast = vi.mocked(toast);
 const mockOpen = vi.mocked(open);
 const mockReadFile = vi.mocked(readFile);
@@ -461,5 +464,57 @@ describe("useDailyReportImportFlow_req401", () => {
 
     expect(mockRollback).toHaveBeenCalledWith(501);
     expectExactInvalidations(invalidateSpy.mock.calls, d052InvalidationOracle.dailyReportImport());
+  });
+
+  it("REQ-401: commit 中だけ useBlocker と beforeunload を有効化する", async () => {
+    let resolveCommit!: (
+      value: Awaited<ReturnType<typeof commands.commitDailyReportImport>>,
+    ) => void;
+    mockCommit.mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolveCommit = resolve;
+      }),
+    );
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    });
+    const { result } = renderHook(() => useDailyReportImportFlow(), {
+      wrapper: makeWrapper(queryClient),
+    });
+
+    await act(async () => {
+      await result.current.selectFiles([
+        makeFile("Z001_260321.CSV"),
+        makeFile("Z002_260321.CSV"),
+        makeFile("Z005_260321.CSV"),
+      ]);
+    });
+    await waitFor(() => {
+      expect(result.current.state.status).toBe("preview");
+    });
+    act(() => {
+      result.current.confirmImport(false);
+    });
+    await waitFor(() => {
+      expect(result.current.state.status).toBe("importing");
+    });
+
+    const blockerOptions = mockUseBlocker.mock.calls[mockUseBlocker.mock.calls.length - 1]?.[0] as
+      | {
+          shouldBlockFn: () => boolean;
+          enableBeforeUnload: boolean | (() => boolean);
+        }
+      | undefined;
+    expect(blockerOptions?.shouldBlockFn()).toBe(true);
+    expect(
+      typeof blockerOptions?.enableBeforeUnload === "function"
+        ? blockerOptions.enableBeforeUnload()
+        : blockerOptions?.enableBeforeUnload,
+    ).toBe(true);
+
+    resolveCommit({ status: "ok", data: makeResult() });
+    await waitFor(() => {
+      expect(result.current.state.status).toBe("result");
+    });
   });
 });
