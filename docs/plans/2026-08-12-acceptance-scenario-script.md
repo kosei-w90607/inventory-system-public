@@ -6,7 +6,7 @@ Use the field definitions, enums, transition evidence, packet-selection rule, an
 
 If a state-only commit materializes multiple phases, list the complete adjacent forward sequence and the pre-existing evidence for every intermediate transition in an append-only review/evidence record. Recording compression never permits a gate skip.
 
-- Phase: human-confirm
+- Phase: ready-hosted-final
 - Risk: R2
 - Execution Mode: fable-window
 - Plan Commit: 19daa33
@@ -18,7 +18,7 @@ If a state-only commit materializes multiple phases, list the complete adjacent 
 - Reviewed Content HEAD: cfa0506
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
-- Human Gate: owner L3 = 台本 1 周（Windows native、operator 役、roadmap 項4 の受入実走）+ 台本可読性確認
+- Human Gate: none
 
 ## Owner Effort Budget
 
@@ -272,3 +272,11 @@ If R3 review-only sub-agent is skipped, record an explicit line beginning with `
 
 - Step 1〜3 PASS。Amendment 1 の計算是正（画面差異 +1 / 補正 movement -1）は実走 + DB で正しいと owner 確認。Step 4 で新規 finding により fail-closed 停止、baseline へ復元済み。evidence 正本 = PR #74 comment（2026-08-13 round 2）。
 - **新規 finding（本 change の Non-scope = アプリ実装変更のため別 change へ）**: 棚卸し確定結果画面の差異が生値表示（`StocktakePage.tsx` の `{item.difference}`）で正差異に `+` が付かず、UI-10-D10 / §73.6 の「符号付き数値・進行中一覧（`formatListDifference` = `+3`/`-2`/`0`）と表現統一」契約と drift。Coordinator が正本・formatter・両表示箇所の 4 点を実読裏取りし confirmed。disposition = 別 change `2026-08-13-stocktake-result-difference-sign`（R2）で是正し、merge 後に本 branch を main へ rebase して再 L3（Step 1 から）。Phase は human-confirm を維持（台本・fixture は本 round で正当性確認済み、Human Gate は外部是正待ち）。
+
+### owner L3 実走 3 回目（2026-08-13、HEAD `1dd60cd` = PR #75 是正 merge 取り込み後）: 総合 PASS — Human Gate 完了
+
+- **6 step を Windows native 1 セッションで完走**（介入 4/3、予算超過は owner 明示承認 — 過去 2 FAIL がいずれも実欠陥の true positive 捕捉だったため）。evidence 正本 = PR #74 comment（2026-08-13 round 3）: step 1 集計値一致 + 在庫不変 / step 2 入庫 +5 → 販売 -3 → 在庫 2 / step 3 在庫少 filter 表示 / step 4 **画面差異 +1・補正 movement -1（PR #75 是正を実機確認）**・不整合 0 / step 5 現在庫 1 = movement 合計 / step 6 backup → 一時入庫 → 復元で消失・履歴残存・ホーム通知確認。
+- 実走環境の復帰: 通常 DB へ復帰し SHA-256（DB/WAL/SHM）完全一致を owner 確認、L3 専用 DB は別名保存。
+- 追加観察（非 blocker、Plans.md backlog へ起票）: サイドバー label「整合性検証」と遷移先ページ見出し「在庫整合性チェック」の名称差（双方とも正本どおりの実装で操作可能、統一は表示幅含め後日検討の P3）。在庫状態の filter 依存 UX 差は既起票の backlog 項を再確認。
+- roadmap 項 4 の受入実走が成立、項 5（v1.0 gate = MSI 配布手順 docs 化 + 配布判定）の入口条件が成立。
+- 遷移記録: human-confirm → ready-hosted-final（L3 PASS + CI 全 green on `1dd60cd`。本遷移は L3 記録 content commit 同乗）。次 = owner merge 承認 → merge → archive closeout。
