@@ -137,7 +137,7 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 | Replacement path | `.expect()` → `unwrap_or_else` の置換 1 箇所。panic 依存の既存挙動（stderr 不可視）を dialog + exit へ置換 | Matrix T4 |
 | Data safety / evidence | DB / backup への書込み変更なし。失敗時に DB を触らない現行 fail-closed を維持 | — |
 | Reporting / accounting semantics | not applicable | — |
-| Manual verification | L3 = release 相当起動の正常確認 1 項目（退行検知）。dialog 経路は synthetic test + 既存 probe evidence で代替 | Human Gate |
+| Manual verification | L3 2 項目 = 正常起動確認（退行検知）+ SPEC-SFV-D4 hook による `.run()` 失敗 dialog の実機確認（AC8。round 1 P1-1 是正後の確定形 — 本行は是正時の sweep 漏れを Writer P3 指摘で追随、Coordinator 是正） | Human Gate / AC8 |
 | 環境・再現性 | Windows 固有 code は `#[cfg(windows)]` 既存構造を踏襲、新規環境依存なし | — |
 
 ## Design Readiness
