@@ -4,7 +4,7 @@
 
 Use the field definitions, enums, transition evidence, packet-selection rule, and fail-closed behavior from `docs/DEV_WORKFLOW.md` `Workflow State`. Keep exactly one `- Key: value` line per field.
 
-- Phase: human-confirm
+- Phase: ready-hosted-final
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: cfceb91
@@ -16,7 +16,7 @@ Use the field definitions, enums, transition evidence, packet-selection rule, an
 - Reviewed Content HEAD: f12bade
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
-- Human Gate: owner L3 2 項目 = (1) Windows native 起動の正常確認（退行検知）(2) `.run()` 失敗 handler の dialog 実機確認（SPEC-SFV-D4 の debug 限定 simulation hook で再現。Plan Review round 1 P1-1 是正 — Writer への実機確認委任は撤回、L3 実機確認は owner 専任〈AGENT_OPERATING_MANUAL §2〉）
+- Human Gate: none
 
 ## Owner Effort Budget
 
@@ -243,3 +243,9 @@ If R3 review-only sub-agent is skipped, record an explicit line beginning with `
 - 文言 Matrix 完全一致 / 既存 b6・b9・b10・b11 の 4 関数 0 差分 + 実行 green / anchor 一意性は実 newline 版の出現数検証で素通し設計でないことを確認（combined-anchor 類型の回避）/ mutation X2 の三者目独立注入で T4 red → 復元 clean / 旧前提 rg 0 hit / packet 記録と git 実況の完全一致。
 - 付記: FR 後に IDE の stale 診断（mutant 注入中の dead_code 残像）が観測されたが、Coordinator が現 tree で `cargo clippy -- -D warnings` exit 0 を実測し偽陽性と確定。
 - 遷移記録: local-verified → independent-review（FR 従事）→ human-confirm（P1/P2 = 0 確定、Reviewed Content HEAD = `f12bade`）。本遷移は content commit（本記録）同乗。次 = PR open → owner L3 2 項目（AC8 = Probe #2 close）→ Ready。
+
+### owner L3（2026-08-13、Windows native、HEAD `162bc28`）: 2 項目とも PASS — Human Gate 完了、AC8 close
+
+- 項目 1（通常起動の退行検知）: PASS（owner 確認「通常起動も問題なし」）。
+- 項目 2（`.run()` 失敗 dialog）: PASS — `INVENTORY_SIMULATE_RUN_FAILURE=1` + `npm run tauri dev` で「Inventory startup error」dialog を実機確認（T4 固定文言 + 末尾 raw detail `failed to initialize plugin 'startup-run-failure-simulation': …`、exit code 1。screenshot evidence = 会話記録 + PR body 参照）。**Contract Probe #2（MessageBoxW の post-event-loop `unwrap_or_else` 文脈での動作）を実機で close（AC8 成立）**。
+- 遷移記録: human-confirm → ready-hosted-final（L3 PASS。本遷移は L3 記録 content commit 同乗）。次 = hosted CI green 確認 → owner merge 承認（介入 3/3）→ merge → archive closeout。
