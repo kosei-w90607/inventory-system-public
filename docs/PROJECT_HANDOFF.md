@@ -125,6 +125,7 @@
 | screen_mockups.html | - | 全20画面モックアップHTML（ナビ付き、ブラウザで閲覧可） |
 | SCREEN_DESIGN.md | - | 画面設計ドキュメント（設計判断ログ・気付き・未決事項） |
 | DEMO_SCRIPT.md | - | 利用者向けデモ台本（5シナリオ＋確認ポイント） |
+| [ACCEPTANCE_SCENARIO.md](ACCEPTANCE_SCENARIO.md) | current | roadmap 項4の業務シナリオ受入テスト第1版（Windows native、6 step、操作手順 + 期待値） |
 | DB_DESIGN.md | - | テーブル定義書（既存18テーブル + REQ-401日報取込み `daily_report_*` tables、設計意図・困りそうなケース付き）＋B-1/B-2パース仕様 |
 | ARCHITECTURE.md | - | アーキテクチャ設計書（5層分割、POS adapter boundary、IO-07/BIZ-08/CMD-12 planned、実装順序） |
 | FUNCTION_DESIGN.md | - | 関数設計書（第1〜第4段階 + 第7/8段階 UI、REQ-401日報取込みDesign Phase追加） |

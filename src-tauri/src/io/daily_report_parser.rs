@@ -663,6 +663,47 @@ mod tests {
     }
 
     #[test]
+    fn test_parse_daily_report_req401_committed_fixture_bundle() {
+        // REQ-401 / IO-07: commit済みCP932 fixture bundleを実ファイルから受理する
+        let fixture_dir =
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../tests/fixtures/daily-report");
+        let files = ["Z001_260321.CSV", "Z002_260321.CSV", "Z005_260321.CSV"]
+            .into_iter()
+            .map(|filename| DailyReportSourceFile {
+                filename: filename.to_string(),
+                bytes: std::fs::read(fixture_dir.join(filename))
+                    .unwrap_or_else(|error| panic!("failed to read {filename}: {error}")),
+            })
+            .collect();
+
+        let result = parse_daily_report_bundle(files);
+
+        assert!(result.parse_errors.is_empty(), "{:?}", result.parse_errors);
+        assert_eq!(result.report_date.as_deref(), Some("2026-03-21"));
+        let gross_sales = result
+            .summary_lines
+            .iter()
+            .find(|line| line.line_key == "gross_sales")
+            .expect("gross_sales must exist");
+        assert_eq!(gross_sales.amount, Some(12000));
+        assert_eq!(gross_sales.quantity, Some(8));
+        let cash = result
+            .payment_lines
+            .iter()
+            .find(|line| line.payment_key == "cash")
+            .expect("cash must exist");
+        assert_eq!(cash.amount, Some(11000));
+        assert_eq!(cash.count, Some(7));
+        let other_goods = result
+            .department_lines
+            .iter()
+            .find(|line| line.raw_department_name == "その他小物")
+            .expect("その他小物 must exist");
+        assert_eq!(other_goods.amount, 3000);
+        assert_eq!(other_goods.quantity, Some(4));
+    }
+
+    #[test]
     fn test_parse_daily_report_req401_missing_source() {
         // REQ-401 / IO-07: Z001/Z002/Z005の欠損はparse error
         let result = parse_daily_report_bundle(vec![z001("2026-03-21"), z002("2026-03-21")]);
