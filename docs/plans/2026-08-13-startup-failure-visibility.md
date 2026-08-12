@@ -4,10 +4,10 @@
 
 Use the field definitions, enums, transition evidence, packet-selection rule, and fail-closed behavior from `docs/DEV_WORKFLOW.md` `Workflow State`. Keep exactly one `- Key: value` line per field.
 
-- Phase: plan-draft
+- Phase: plan-gate
 - Risk: R3
 - Execution Mode: fable-window
-- Plan Commit: pending
+- Plan Commit: cfceb91
 - Amendments: none
 - Coordinator: Fable (main thread)
 - Writer: Codex（発注書は Coordinator 起草、owner relay。worktree isolation、Coordinator は発注提示前に本体 tree を branch から外す）
@@ -223,3 +223,9 @@ Do not transcribe exact-HEAD SHA or test counts here (D-035/D-038 Evidence Owner
 Fill after review.
 If R3 review-only sub-agent is skipped, record an explicit line beginning with `Review-only skipped because:` and the reason.
 - Findings Freeze: not yet frozen; post-freeze exceptions: none.
+
+### Plan Review（独立 Sonnet、rally 天井 3、単調収束 P1+P2: 4→1→0）
+
+- round 1（対象 `4e1f13f`）: NOT CLOSED — P1×1（Contract Probe #2 の Writer 委任が Human Gate 定義〈owner 専任〉+ Windows CI runner 不在と矛盾）/ P2×3（「担当者」vs 既存「管理者」語彙 / raw error detail `\n{details}` の欠落 — ログ皆無経路では dialog 内 detail が唯一の診断手がかり / 再起動対象の無記録な相違）/ P3×2（70-mnt サンプル陳腐化 = backlog 起票 / operator_message Option 維持理由の明記）。packet の事実主張 3 点（経路全数・helper 非依存性・silent drop）は reviewer 実読で全件一致。全 findings 修正案添付。Coordinator が CI 構成・manual・既存文言の 3 点を実読裏取りのうえ全件 accept、是正 `7e2fcb1`（SPEC-SFV-D4 新設 + AC8 + 文言統一）。
+- round 2（対象 `7e2fcb1`）: disposition 5 件 OK + 新規 P2×1（D4 hook が実 `.run()` Err 経路を通す明文要求の欠如 — handler 直呼びの低忠実度実装が AC8 を素通りし得る）。新設事実主張（windows_subsystem = console 有無のみ）は reviewer が main.rs:2 実読で正当性確認。是正 `cfceb91`。
+- round 3（対象 `cfceb91`）: **CLOSED（P1/P2 = 0）** — 実経路担保の明文化と AC8 の Final Review gate 接続を確認。
