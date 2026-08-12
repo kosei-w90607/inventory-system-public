@@ -92,7 +92,7 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 - Function / command / DTO: `docs/function-design/22-mnt-migration.md` §12.4「lib.rs 起動契約（MNT-03-D4）」（本 change で改訂）
 - DB: 変更なし
 - Screen / UI: 画面変更なし（pre-window dialog のみ）
-- Decision log / ADR: [設計 packet 2026-07-17](../archive/plans/2026-07-17-backup-migration-failure-contract-design.md) / [実装 PR1 packet 2026-07-18](../archive/plans/2026-07-18-backup-migration-failure-contract-impl-pr1.md)（Contract Probe #1 = MessageBoxW 方式の実機確定）
+- Decision log / ADR: [設計 packet 2026-07-17](2026-07-17-backup-migration-failure-contract-design.md) / [実装 PR1 packet 2026-07-18](2026-07-18-backup-migration-failure-contract-impl-pr1.md)（Contract Probe #1 = MessageBoxW 方式の実機確定）
 
 ## Required Design Artifacts
 
@@ -151,7 +151,7 @@ Minimum design checks: Layer ownership = MNT/起動層のみ / backend function 
 
 ## Contract Probe
 
-- MessageBoxW の pre-window（setup 段階）表示可否: **既存 evidence 流用** — PR1 Contract Probe #1（[archived packet](../archive/plans/2026-07-18-backup-migration-failure-contract-impl-pr1.md)）で Windows 実機確定済み。本 change は同一 helper の適用範囲拡張のため再 probe 不要（適用時点がより早くなる `app_data_dir` 失敗経路も app handle 非依存性〈lib.rs:149-178 実読〉により同条件）。
+- MessageBoxW の pre-window（setup 段階）表示可否: **既存 evidence 流用** — PR1 Contract Probe #1（[archived packet](2026-07-18-backup-migration-failure-contract-impl-pr1.md)）で Windows 実機確定済み。本 change は同一 helper の適用範囲拡張のため再 probe 不要（適用時点がより早くなる `app_data_dir` 失敗経路も app handle 非依存性〈lib.rs:149-178 実読〉により同条件）。
 - `.run()` Err 時の process 状態（unwrap_or_else 内で MessageBoxW worker thread + join が動作するか）: 未検証の外部前提。**probe = owner L3 項目 2**（SPEC-SFV-D4 の debug 限定 simulation hook、AC8 で closure を拘束）。Writer への実機確認委任は行わない — CI は全 job ubuntu-latest で Windows runner 不在（`.github/workflows/ci.yml` 実査）、L3 実機確認は owner 専任（AGENT_OPERATING_MANUAL §2 Human Gate 定義）。Plan Review round 1 P1-1 是正。
 
 ## Contract Coverage Ledger

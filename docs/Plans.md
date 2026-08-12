@@ -179,6 +179,13 @@
    4. ~~**業務シナリオ受入テスト**: CSV 取込み → 在庫反映 → 在庫少検知 → 棚卸し → 整合性検証 → バックアップ/復元 の一気通貫をシナリオ台本化し、Windows native で owner が operator 役で 1 周。自動 E2E はここで穴が出た箇所のみ最小 smoke を後付け評価~~（**完了: PR #74 squash merge `8a6aa49` + L3 round 3 総合 PASS、2026-08-13**。台本 = [ACCEPTANCE_SCENARIO.md](ACCEPTANCE_SCENARIO.md)〈第1版 = 手動入出庫経路、D-069〉。実走で捕捉した実欠陥 2 件は Amendment 1 + PR #75 で是正済み。smoke E2E 後付け評価は「穴」該当なしのため見送り、Z004 経路は台本第2版で拡張）
    5. **v1.0 gate**: Windows MSI 配布手順 docs 化 + 配布判定（4 の受入テスト pass が入口条件 — **2026-08-13 成立**）
 
+   **v1.0 前プログラム（owner 方針 2026-08-13「v1.0 前にやるべきものは全部やり切る」の実行区分。A〜D の系統で追跡）**:
+   - **A. agent 主導（並行着手可）**: ~~A1 起動時 setup 失敗の operator 可視化~~（**完了: PR #77 `aad9e97`、2026-08-13**）/ A2 MSI 配布手順 docs 化（項 5 前半、次の着手対象）
+   - **B. owner 裁定（ヒアリング入力待ち）**: B1 Z004 初日運用の再裁定（D-069 Revisit、項 5 gate 構成を決める）/ B2 単位系 issue #73 / B3 補助識別情報 issue #66（B2/B3 は「v1.0 前に実装まで反映しやり切る」方針確定済み）
+   - **C. owner 実施（店舗・実機）**: C1 店舗訪問 = [issue #76 ヒアリングシート](https://github.com/kosei-w90607/inventory-system-public/issues/76)（B1〜B3 の判断材料 + 実 Z004 採取。**critical path**）/ C2 日報 Excel 印刷・バインダー代替の受入判定 / C3 MSI 配布判定（項 5 後半、最終）
+   - **D. 設計・実装 R3（B/C の結果待ち）**: 日報取込み運用設計（保持期間・命名・再取込み + 店舗マニュアル化、ACCEPTANCE_SCENARIO が種）/ Z004 R3 一式 + PLU slot 永続割当 + bulk onboarding（B1 = yes の場合）/ UI-09a/b 設計（C2 の結果次第）/ #66・#73 の design + 実装
+   - 順序: A2 は即着手可。B/D は C1 店舗訪問が入口。C3 が v1.0 のゴール板。
+
    UI 部品・UX 系（~~FilePicker 共通化~~（順9 PR #26 で消化）/ 復元成功表示強調）と ツールチェーン系（audit 消化 / ~~Node 24 toolchain alignment（PR #46）~~ / command drift detection）は独立 track として隙間で消化。PLU スロット永続割当 / bulk onboarding / Z004 layout A+B取込み・既存在庫pipeline再検証は、段階的PLU移行を成立させるgo-live準備候補として別R3へ昇格する。UI-09a/b は下記の紙代替受入を先に行う。
 2. slice 2 follow-up 群（軽量、単独 PR 可）: `Amendments:` SHA 抽出の strict 化 / `check_plan_commit_ancestry` の section-scoped 抽出 / `check_signature_cross_reference` の pipefail 潜在バグ / no-active-plan check の導入（WARN から）。旧hook統合導入案はD-059で不採用となり、tracked project hook inventory 0本へ置換した。詳細は [archive/plans/2026-07-12-mechanical-workflow-slice2.md](archive/plans/2026-07-12-mechanical-workflow-slice2.md) Review Response と decision-log D-039 / D-059。
 
