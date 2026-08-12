@@ -320,7 +320,7 @@ spike branch: `spike/invoke-specta`。
 
 **Vitest（単体・統合）**:
 - **対象**: カスタムHook、Zod スキーマ、フォームバリデーション、複雑な派生ステート
-- **不対象**: 純表示コンポーネント（shadcn/ui のラップのみ）、Storybookで視覚確認すれば十分
+- **不対象**: 純表示コンポーネント（shadcn/ui のラップのみ）、Windows native L3 で視覚確認すれば十分（Storybook は D-068 で不採用）
 - **Setup 実装済 (Phase 1 7-7a、PR #64 squash merge `2b30f43`、2026-05-17)**: vitest 4.1.5 + happy-dom + path alias + setupFiles 構成で TDD 基盤起動。option A 純関数 only 75 ケース (count-stock-status / extractFilename / formatErrorRow / reducer 6 state × 9 action transition + focused payload carry) で開始。Mini Shai-Hulud worm 警戒下の限定 install 適用 (memory [[feedback-npm-install-blocked-mini-shai-hulud-2026-05]] 限定例外条項)、setup pattern 集約は memory [[feedback-vitest-react19-setup-pattern]] 参照。後続 7-7b で `@axe-core/react` + hooks/components test 拡張予定
 
 **React Testing Library + @testing-library/user-event**: ユーザー操作起点のテスト。`getByRole` / `getByLabelText` 優先で A11y も同時検証。**Setup 実装済**: @testing-library/react 16.3.2 + user-event 14.6.1 + jest-dom 6.9.1 を Phase 1 7-7a で導入、7-7b hooks/components test で本格利用。
@@ -740,6 +740,8 @@ Vite の読み込み順序は `.env` → `.env.{mode}` → `.env.{mode}.local` �
 - **見送る場合**: プロジェクトが1人運用で、コンポーネントの共有先がないため過剰になる可能性
 - **判定タイミング**: Phase 1 の UI-12 共通レイアウト完成後。コンポーネント数が10個を超えたら採用
 
+**決定（2026-08-12、D-068）**: **不採用**。形式基準（コンポーネント 10 超）は満たすが、1人運用 + agent 駆動開発でカタログの閲覧者が不在（見送り条件が現実化）、品質保証は RTL + mutation + Windows native L3 で成立済み、D-030 常設ガード下の大型 devDep 追加は便益に見合わない。詳細は decision-log D-068。
+
 ### 7.2 Phase 2 完了時判定 / 保留事項
 
 #### E2E テスト範囲
@@ -759,7 +761,7 @@ Vite の読み込み順序は `.env` → `.env.{mode}` → `.env.{mode}.local` �
 
 #### 視覚回帰テスト
 
-- **Chromatic**: Storybook 採用時のみ検討、ただし月額コスト
+- **Chromatic**: Storybook 採用時のみ検討、ただし月額コスト（Storybook は D-068 で不採用のため対象外）
 - **Playwright スクショ**: E2E 採用時に追加コスト小で導入可
 - **見送り**: Phase 2 デモで「見た目が毎回同じ」が重視されなければ不要
 
@@ -767,7 +769,7 @@ Vite の読み込み順序は `.env` → `.env.{mode}` → `.env.{mode}.local` �
 
 **評価タイミング**:
 1. global text-size / display-scale option の実装プラン作成時: typography / density / status 表示の横断変更に対して lightweight screenshot diff が必要か確認する（2026-06-07 follow-up では新規 screenshot-diff gate は追加せず、targeted RTL + Windows native L3 で確認する）
-2. Storybook 採用判断時: Chromatic の費用対効果を確認する
+2. ~~Storybook 採用判断時: Chromatic の費用対効果を確認する~~（Storybook 不採用確定 = D-068 により評価不要）
 3. smoke E2E 採用判断時: Playwright screenshot を同時に入れるか確認する
 
 **臨時再検討トリガ**: 視認性・表示崩れ・状態色の regressions が複数 PR で続いた場合は、上記タイミングを待たずに visual regression を再評価する。

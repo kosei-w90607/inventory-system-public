@@ -535,3 +535,12 @@ Use concise ADR-style entries.
 - Impact: `src-tauri/Cargo.lock` は変更しない。Dependabot alert #9（glib）/ #10（rand）を dismiss（可逆、GitHub 上で再 open 可能）。npm 側の常設ガード・monitor 運用（D-030 / D-033）には影響しない。cargo 側の supply-chain 監視は Dependabot（新規 advisory で新 alert が起きる）に引き続き委ねる。
 - Alternatives considered: rand/glib の名指し `cargo update`（in-range に patched version が存在せず効果なし）; glib 0.20 への強制更新（gtk スタック非互換で build 破壊、却下）; alert を open のまま放置（push 毎の banner が実態と乖離した警告疲れを生み、実効リスクとの不釣り合いが常態化するため dismiss + 記録を選択）。
 - Revisit: Tauri を major / minor 更新するとき（tauri-utils の kuchikiki 依存と gtk-rs スタック版を確認し、解消可能なら dismiss を解除して更新する）、または cargo 側に high+ の新規 advisory が出たとき。
+
+## D-068
+
+- Decision: Storybook（Phase 1 follow-up 7-6、backlog「単独判断」項目）は導入しない。7-6 を不採用でクローズし、UI_TECH_STACK §7.1 の導入判断と DEV_SETUP_CHECKLIST §12.3 の 7-6 を確定する。
+- Status: accepted（owner 裁定 2026-08-12）
+- Why: 形式基準「UI-12 完成後、コンポーネント 10 超で採用」は満たしている（`src/components` 配下 41 component、test 除く）が、基準策定時（Phase 1 初期）の前提が変わった。(1) §7.1 見送り条件「1人運用でコンポーネントの共有先がない」が現実であり、agent 駆動開発 + owner の Windows native L3 確認体制ではカタログの人間閲覧者が不在。(2) 品質保証は RTL + mutation 実注入 + L3 の三段で成立済みで、視覚確認は L3 が担う。(3) D-030 常設ガード下で Storybook は数百 package 級の大型 devDep 追加となり、lockfile レビュー面積と供給網攻撃面の増加が便益に見合わない。(4) 主要な発展先である視覚回帰（Chromatic）は月額コストで見送り済みのため、採用しても使い道が閉じている。
+- Impact: npm 依存追加なし、コード変更なし。docs のみ（UI_TECH_STACK §5.2/§7.1/§7.2、DEV_SETUP_CHECKLIST §12.3、52 §52.4 保留表、PROJECT_HANDOFF G-6、Plans.md backlog）。
+- Alternatives considered: 条件付き据置（再評価トリガー = 人間の協業者の増加 / デザインシステム外部共有の必要発生。トリガー成立の見込みが現状皆無で backlog の恒久残置になるため不採用）; 形式基準どおり採用（stories 41 component 分の初期整備 + 設計変更ごとの追随保守を agent トークンで払い続ける割に閲覧者がいないため不採用）。
+- Revisit: 人間の協業者（デザイナー / 第二開発者）が加わるとき、またはコンポーネントカタログの外部共有が必要になったとき。

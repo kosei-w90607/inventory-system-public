@@ -238,7 +238,7 @@ UI-12 内で唯一「処理 + エラーハンドリング + 書式規約」を�
 | 各画面コンポーネントの実装 | UI-12 は枠のみ提供 | UI-00〜13 各タスク |
 | ダークモード切替 UI | 現状判断で見送り | 将来判断 |
 | 表示サイズの DB 永続化 / 設定画面統合 | UI-11a/b/c の既存契約外。本 PR は frontend-only の表示設定に留める | Phase 4 UI-11 系で再判断 |
-| Storybook 配線 | 別タスク 7-6 | UI-12 完成後にトリガー判定 |
+| Storybook 配線 | 不採用で確定（D-068、2026-08-12） | 導入せずクローズ。判断記録は UI_TECH_STACK §7.1 / decision-log D-068 |
 | Error Boundary 戦略 | UI_TECH_STACK §6.10 で規約化済み（2026-08-03、7-8a 消化） | §6.10 が正本。実装は route 基盤（`main.tsx` defaultErrorComponent + `__root.tsx` errorComponent） |
 | エラー表示 / ローディング表示の規約化 | UI_TECH_STACK.md で別途規約化 | 7-8b 横断UI標準化 |
 | screen_mockups.html の色分け箇所修正 | モックアップアーカイブ扱い | 触らない |

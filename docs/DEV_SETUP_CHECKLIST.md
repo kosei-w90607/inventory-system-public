@@ -451,7 +451,7 @@ ARCHITECTURE.md の 5 層分割（UI / CMD / BIZ / IO / MNT）に従い、`src-t
 
 ### 12.3 Phase 1 follow-up
 
-- [ ] 7-6 Storybook 導入判断 — UI-12 完成後のトリガー条件（コンポーネント 10 超）で再評価
+- [x] 7-6 Storybook 導入判断 — **不採用で確定（D-068、2026-08-12）**。コンポーネント 41 個でトリガー条件（10 超）は満たすが、1人運用で閲覧者不在 + RTL / mutation / L3 の品質三段が成立済み + D-030 下の大型 devDep 追加が便益に見合わないため導入しない
 - [x] 7-7a Vitest 初期化 — PR #64 (`2b30f43`) で `vitest` / `@testing-library/react` / `user-event` / CI integration 完了
 - [ ] 7-7b `@axe-core/react` or hooks accessibility coverage 組込み
 - [x] 7-8a P1 Error Boundary 戦略文書化・実装 — UI_TECH_STACK §6.10。router 既定 fallback + root 全画面 fallback の 2 層と共通回復 UI を UI 安全網 batch で適用

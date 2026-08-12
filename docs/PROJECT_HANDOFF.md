@@ -55,7 +55,7 @@
 - **整合性補正の意味論正本確定 + コード追随（監査是正 順 3、design + 実装完結）**: **完了**（design = PR #19 squash merge `384fcc8` / 実装 follow-up = PR #20 squash merge `739b117`、いずれも 2026-07-22）。D-051 正本化に加え、`fix_integrity` の同一 TX 必須ログ（失敗時 rollback）、UI-13-D9 文言同期、UI-11c-D14 operator-readable 表示、§21.7 の 3 oracle テストを実装。packet は `docs/archive/plans/2026-07-21-integrity-fix-semantics-design.md` / `2026-07-22-integrity-fix-semantics-impl.md` へ archive 済み。
 - **mutation→consumer query 契約の SSOT 化（監査是正 順 4）**: **完了**（PR #21 squash merge `fa21954`、2026-07-23）。全 16 mutation / 18 success handler の invalidation を `invalidation-contract.ts`（D-052 SSOT）へ統一し、監査 P5 系 findings の欠落全件を解消。導出原則と除外表 E1〜E6 は UI_TECH_STACK §2.5 + decision-log D-052 が正本。テストは契約表からの独立転記 oracle と完全一致比較（production 非 import を静的 gate で機械強制）。packet は `docs/archive/plans/2026-07-22-mutation-consumer-query-contract.md` へ archive 済み。次 = 順 5 以降の scope 精査 or roadmap 1-4 移行判断（詳細は Plans.md「次の行動」0）。
 - **バックエンド**: 18テーブル DB / 5層分割（UI/CMD/BIZ/IO/MNT）/ Tauri Commands / 業務ロジック / バックアップ / 操作ログ / 診断ログ全て実装完了。テスト 561 本通過、clippy 警告ゼロ、fmt 準拠
-- **フロントエンド基盤**: React 19 + TypeScript + Tauri 2 + TanStack Router + TanStack Query + Tailwind CSS 4 + shadcn/ui + lefthook + ESLint 9 + tauri-specta 採用、UI-12 共通レイアウト + invoke ラッパ完成。Phase 1 残 follow-up: 7-6 Storybook / 7-7b axe or hooks coverage / 7-8a Error Boundary / 7-8b 横断UI / 7-8c unsaved changes
+- **フロントエンド基盤**: React 19 + TypeScript + Tauri 2 + TanStack Router + TanStack Query + Tailwind CSS 4 + shadcn/ui + lefthook + ESLint 9 + tauri-specta 採用、UI-12 共通レイアウト + invoke ラッパ完成。Phase 1 残 follow-up: 7-7b axe or hooks coverage / 7-8b 横断UI（7-6 Storybook は不採用で確定 = D-068 2026-08-12、7-8a Error Boundary / 7-8c unsaved changes は PR #60 で完了 2026-08-04）
 - **直近 PR**: Public #55（店舗調査証跡と導入時運用契約の同期、merge `53d0d35`）
 - **現在の参照先**: このファイルには Phase 2 初期の詳細が残っている。最新の進行状態、次アクション、ブロッカーは [Plans.md](../Plans.md) を優先する。
 - **直近完了**: public 化 Phase A/Bと学びのPublic同期に続き、Public PR #2でCI `synchronize` trigger修正を完了した。Draft更新のevent生成とrunner skip、Ready exact-HEAD hosted finalを実動作確認済み。main競合復旧でSTATECAPが目的化した点は[WER](archive/plans/2026-07-14-ci-synchronize-trigger-workflow-effectiveness-review.md)へ記録し、generic補正契約は別R3へ送る。public-writer cloneを通常開発用、旧private cloneをhistory-view専用とする分離は継続する。
@@ -98,7 +98,7 @@
 
 **優先度G: UI 基盤 Phase 1（残 follow-up あり）**
 - [x] G-1〜G-5. Tailwind CSS 4 / shadcn/ui / Preflight 4/4 (7-2.5) / TanStack Router / tauri-specta / TanStack Query / UI-12 / invoke ラッパ / seed / env（PR #50 / #52）
-- [ ] G-6. Phase 1 残 follow-up: 7-6 Storybook / 7-7b axe or hooks coverage / 7-8a Error Boundary / 7-8b 横断UI / 7-8c unsaved changes（Phase 2 completion gate ではない）。`plugin-dialog` foundation は UI-08 前提として PR #106 で導入済み。
+- [ ] G-6. Phase 1 残 follow-up: 7-7b axe or hooks coverage / 7-8b 横断UI（Phase 2 completion gate ではない。7-6 Storybook は不採用で確定 = D-068 2026-08-12、7-8a Error Boundary / 7-8c unsaved changes は PR #60 で完了 2026-08-04）。`plugin-dialog` foundation は UI-08 前提として PR #106 で導入済み。
 
 **優先度H: Phase 2 毎日使う5画面（完了 / `v0.8.0-ui-daily` tag 済み）**
 - [x] H-1. UI-00 ホーム画面（PR #56、`e6da3d8`）
