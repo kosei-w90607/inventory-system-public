@@ -4,7 +4,7 @@
 
 Use the field definitions, enums, transition evidence, packet-selection rule, and fail-closed behavior from `docs/DEV_WORKFLOW.md` `Workflow State`. Keep exactly one `- Key: value` line per field.
 
-- Phase: local-verified
+- Phase: human-confirm
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: cfceb91
@@ -13,7 +13,7 @@ Use the field definitions, enums, transition evidence, packet-selection rule, an
 - Writer: Codex（発注書は Coordinator 起草、owner relay。worktree isolation、Coordinator は発注提示前に本体 tree を branch から外す）
 - Plan Reviewer: Sonnet subagent（独立 context、rally 天井 3）
 - Final Reviewer: Sonnet subagent（独立 context）
-- Reviewed Content HEAD: pending
+- Reviewed Content HEAD: f12bade
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
 - Human Gate: owner L3 2 項目 = (1) Windows native 起動の正常確認（退行検知）(2) `.run()` 失敗 handler の dialog 実機確認（SPEC-SFV-D4 の debug 限定 simulation hook で再現。Plan Review round 1 P1-1 是正 — Writer への実機確認委任は撤回、L3 実機確認は owner 専任〈AGENT_OPERATING_MANUAL §2〉）
@@ -231,3 +231,15 @@ If R3 review-only sub-agent is skipped, record an explicit line beginning with `
 - round 1（対象 `4e1f13f`）: NOT CLOSED — P1×1（Contract Probe #2 の Writer 委任が Human Gate 定義〈owner 専任〉+ Windows CI runner 不在と矛盾）/ P2×3（「担当者」vs 既存「管理者」語彙 / raw error detail `\n{details}` の欠落 — ログ皆無経路では dialog 内 detail が唯一の診断手がかり / 再起動対象の無記録な相違）/ P3×2（70-mnt サンプル陳腐化 = backlog 起票 / operator_message Option 維持理由の明記）。packet の事実主張 3 点（経路全数・helper 非依存性・silent drop）は reviewer 実読で全件一致。全 findings 修正案添付。Coordinator が CI 構成・manual・既存文言の 3 点を実読裏取りのうえ全件 accept、是正 `7e2fcb1`（SPEC-SFV-D4 新設 + AC8 + 文言統一）。
 - round 2（対象 `7e2fcb1`）: disposition 5 件 OK + 新規 P2×1（D4 hook が実 `.run()` Err 経路を通す明文要求の欠如 — handler 直呼びの低忠実度実装が AC8 を素通りし得る）。新設事実主張（windows_subsystem = console 有無のみ）は reviewer が main.rs:2 実読で正当性確認。是正 `cfceb91`。
 - round 3（対象 `cfceb91`）: **CLOSED（P1/P2 = 0）** — 実経路担保の明文化と AC8 の Final Review gate 接続を確認。
+
+### Writer 実装後の付随裁定
+
+- Writer P3（Impact Lenses Manual 行の L3 記述が round 1 是正の sweep 漏れで stale）: accept、Coordinator 是正 `f12bade`。Writer が packet 契約を勝手に直さず Coordinator 裁定へ残した正規手順。
+- Coordinator mutation 独立再実測（AC7）: X1〜X4 を Matrix から記録非参照で独自導出・注入し、対応 T 行のみ red（X1→T1 / X2→T4 / X3→T1 / X4→T3）を実測、全復元後 clean 5/5 green。
+
+### Final Review（独立 Sonnet、R3 Contract Audit、対象 = Reviewed Content HEAD `f12bade`）: CLOSED（P1/P2/P3 = 0）
+
+- Ledger 6 行を実 code / 実 doc で全数照合 — SPEC-SFV-D1 の 4 配線実読 / D2 の文言検分 / D3 の Option 維持 + defensive else / **D4 の cfg(debug_assertions) 封じ込め（`cargo check --release` で除外を実測 corroborate）と実 `.run()` Err 経路方式（plugin `.setup()` Err 返却、handler 直呼びでない）の精読確認** / MNT-03-D4 不退行 / §12.4 1:1 対応。
+- 文言 Matrix 完全一致 / 既存 b6・b9・b10・b11 の 4 関数 0 差分 + 実行 green / anchor 一意性は実 newline 版の出現数検証で素通し設計でないことを確認（combined-anchor 類型の回避）/ mutation X2 の三者目独立注入で T4 red → 復元 clean / 旧前提 rg 0 hit / packet 記録と git 実況の完全一致。
+- 付記: FR 後に IDE の stale 診断（mutant 注入中の dead_code 残像）が観測されたが、Coordinator が現 tree で `cargo clippy -- -D warnings` exit 0 を実測し偽陽性と確定。
+- 遷移記録: local-verified → independent-review（FR 従事）→ human-confirm（P1/P2 = 0 確定、Reviewed Content HEAD = `f12bade`）。本遷移は content commit（本記録）同乗。次 = PR open → owner L3 2 項目（AC8 = Probe #2 close）→ Ready。
