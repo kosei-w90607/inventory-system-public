@@ -53,10 +53,56 @@ impl StartupDatabaseError {
             Self::LegacyMigration(details) => Some(format!(
                 "旧データは無事です。アプリを再起動すると移行を再試行します。\n繰り返し失敗する場合は管理者へ連絡してください。\n{details}"
             )),
-            // 既存 init_database 失敗経路の可視化は本 PR の scope 外。
-            Self::DatabaseInit(_) => None,
+            Self::DatabaseInit(details) => Some(format!(
+                "データベースの準備に失敗したため、起動を中止しました。アプリを再起動してもう一度お試しください。繰り返し失敗する場合は診断ログ（アプリのデータフォルダ内）を添えて管理者へ連絡してください。\n{details}"
+            )),
         }
     }
+}
+
+#[derive(Clone, Copy)]
+enum StartupFailureKind {
+    AppDataDir,
+    CreateAppDataDir,
+    Run,
+}
+
+impl StartupFailureKind {
+    fn fixed_message(self) -> &'static str {
+        match self {
+            Self::AppDataDir => "アプリのデータ保存場所を確認できなかったため、起動を中止しました。パソコンを再起動してもう一度お試しください。繰り返し失敗する場合は管理者へ連絡してください。",
+            Self::CreateAppDataDir => "アプリのデータ保存場所を作成できなかったため、起動を中止しました。ディスクの空き容量を確認し、パソコンを再起動してもう一度お試しください。繰り返し失敗する場合は管理者へ連絡してください。",
+            Self::Run => "アプリを起動できませんでした。アプリを再起動してもう一度お試しください。繰り返し失敗する場合は管理者へ連絡してください。",
+        }
+    }
+}
+
+fn startup_failure_message(kind: StartupFailureKind, details: &impl std::fmt::Display) -> String {
+    format!("{}\n{details}", kind.fixed_message())
+}
+
+fn run_startup_step<T, E, O, S>(
+    kind: StartupFailureKind,
+    operation: O,
+    show_fatal: S,
+) -> Result<T, E>
+where
+    E: std::fmt::Display,
+    O: FnOnce() -> Result<T, E>,
+    S: FnOnce(&str),
+{
+    operation().inspect_err(|error| {
+        show_fatal(&startup_failure_message(kind, error));
+    })
+}
+
+fn handle_run_failure<R>(
+    error: impl std::fmt::Display,
+    show_fatal: impl FnOnce(&str),
+    exit: impl FnOnce(i32) -> R,
+) {
+    show_fatal(&startup_failure_message(StartupFailureKind::Run, &error));
+    exit(1);
 }
 
 fn prepare_database(app_data: &std::path::Path) -> Result<db::DbConnection, StartupDatabaseError> {
@@ -406,6 +452,132 @@ mod bindings_generation_tests {
     }
 
     #[test]
+    fn test_startup_spec_sfv_t1_app_data_dir_failure_is_operator_visible() {
+        // SPEC-SFV-D1/D2 / Matrix T1: oracle は production 定数を共有せず独立転記する。
+        let shown = std::cell::RefCell::new(Vec::new());
+        let result: Result<std::path::PathBuf, std::io::Error> = super::run_startup_step(
+            super::StartupFailureKind::AppDataDir,
+            || Err(std::io::Error::other("synthetic app-data detail")),
+            |message| shown.borrow_mut().push(message.to_string()),
+        );
+
+        assert!(result.is_err());
+        let messages = shown.borrow();
+        assert_eq!(messages.len(), 1);
+        let expected_fixed = "アプリのデータ保存場所を確認できなかったため、起動を中止しました。パソコンを再起動してもう一度お試しください。繰り返し失敗する場合は管理者へ連絡してください。";
+        assert_eq!(
+            messages[0].strip_suffix("\nsynthetic app-data detail"),
+            Some(expected_fixed)
+        );
+        assert!(messages[0].contains("synthetic app-data detail"));
+        assert!(!messages[0].contains("診断ログ"));
+
+        let source = include_str!("lib.rs");
+        assert!(source.contains(
+            "let app_data = run_startup_step(\n                StartupFailureKind::AppDataDir,\n                || app.path().app_data_dir(),\n                show_pre_window_fatal,\n            )?;"
+        ));
+    }
+
+    #[test]
+    fn test_startup_spec_sfv_t2_create_app_data_dir_failure_is_operator_visible() {
+        // SPEC-SFV-D1/D2 / Matrix T2: T1 と異なる固定文言を独立転記で固定する。
+        let shown = std::cell::RefCell::new(Vec::new());
+        let result: Result<(), std::io::Error> = super::run_startup_step(
+            super::StartupFailureKind::CreateAppDataDir,
+            || Err(std::io::Error::other("synthetic create-dir detail")),
+            |message| shown.borrow_mut().push(message.to_string()),
+        );
+
+        assert!(result.is_err());
+        let messages = shown.borrow();
+        assert_eq!(messages.len(), 1);
+        let expected_fixed = "アプリのデータ保存場所を作成できなかったため、起動を中止しました。ディスクの空き容量を確認し、パソコンを再起動してもう一度お試しください。繰り返し失敗する場合は管理者へ連絡してください。";
+        let t1_fixed = "アプリのデータ保存場所を確認できなかったため、起動を中止しました。パソコンを再起動してもう一度お試しください。繰り返し失敗する場合は管理者へ連絡してください。";
+        assert_eq!(
+            messages[0].strip_suffix("\nsynthetic create-dir detail"),
+            Some(expected_fixed)
+        );
+        assert!(messages[0].contains("synthetic create-dir detail"));
+        assert!(!messages[0].contains("診断ログ"));
+        assert_ne!(expected_fixed, t1_fixed);
+
+        let source = include_str!("lib.rs");
+        assert!(source.contains(
+            "run_startup_step(\n                StartupFailureKind::CreateAppDataDir,\n                || std::fs::create_dir_all(&app_data),\n                show_pre_window_fatal,\n            )?;"
+        ));
+    }
+
+    #[test]
+    fn test_startup_spec_sfv_t3_database_init_failure_has_operator_message() {
+        // SPEC-SFV-D3 / Matrix T3: Option signature を維持し、固定部を独立転記する。
+        let message =
+            super::StartupDatabaseError::DatabaseInit("synthetic database detail".to_string())
+                .operator_message()
+                .expect("DatabaseInit must be operator-visible");
+        let expected_fixed = "データベースの準備に失敗したため、起動を中止しました。アプリを再起動してもう一度お試しください。繰り返し失敗する場合は診断ログ（アプリのデータフォルダ内）を添えて管理者へ連絡してください。";
+        assert_eq!(
+            message.strip_suffix("\nsynthetic database detail"),
+            Some(expected_fixed)
+        );
+        assert!(message.contains("synthetic database detail"));
+        assert!(message.contains("診断ログ（アプリのデータフォルダ内）"));
+
+        let source = include_str!("lib.rs");
+        let branch_start = source
+            .rfind("let conn = match prepare_database(&app_data)")
+            .expect("production DatabaseInit branch must exist");
+        let branch_end = source[branch_start..]
+            .find("// 5. 操作ログ自動削除")
+            .expect("production DatabaseInit branch must end before step 5")
+            + branch_start;
+        let branch = &source[branch_start..branch_end];
+        assert!(branch.contains("if let Some(message) = error.operator_message()"));
+        assert!(branch.contains("show_pre_window_fatal(&message);"));
+    }
+
+    #[test]
+    fn test_startup_spec_sfv_t4_run_failure_calls_fatal_reporter() {
+        // SPEC-SFV-D1 / Matrix T4: process exit を起こさず reporter 配線と文言を検証する。
+        let shown = std::cell::RefCell::new(Vec::new());
+        let exit_codes = std::cell::RefCell::new(Vec::new());
+        super::handle_run_failure(
+            "synthetic run detail",
+            |message| shown.borrow_mut().push(message.to_string()),
+            |code| exit_codes.borrow_mut().push(code),
+        );
+
+        let messages = shown.borrow();
+        assert_eq!(messages.len(), 1);
+        let expected_fixed = "アプリを起動できませんでした。アプリを再起動してもう一度お試しください。繰り返し失敗する場合は管理者へ連絡してください。";
+        assert_eq!(
+            messages[0].strip_suffix("\nsynthetic run detail"),
+            Some(expected_fixed)
+        );
+        assert!(messages[0].contains("synthetic run detail"));
+        assert_eq!(*exit_codes.borrow(), vec![1]);
+
+        let source = include_str!("lib.rs");
+        assert!(source.contains(
+            ".run(tauri::generate_context!())\n        .unwrap_or_else(|error| {\n            handle_run_failure(error, show_pre_window_fatal, std::process::exit);\n        });"
+        ));
+        assert!(!source.contains(".expect(\"error while running tauri application\")"));
+    }
+
+    #[test]
+    fn test_startup_spec_sfv_t5_success_does_not_call_fatal_reporter() {
+        // SPEC-SFV-D1 / Matrix T5: 正常起動側では fatal 文言生成・表示を呼ばない。
+        let fatal_called = std::cell::Cell::new(false);
+        let result: Result<&str, std::io::Error> = super::run_startup_step(
+            super::StartupFailureKind::AppDataDir,
+            || Ok("ready"),
+            |_| fatal_called.set(true),
+        );
+
+        assert_eq!(result.unwrap(), "ready");
+        assert!(!fatal_called.get());
+    }
+
+    #[test]
     fn test_startup_req901_d2_resolve_error_warns_and_skips_auto_backup() {
         // REQ-901 / MNT-01-D2 / Matrix C5
         let app_data = tempfile::tempdir().unwrap();
@@ -674,7 +846,23 @@ pub fn run() {
     #[cfg(debug_assertions)]
     export_specta_bindings();
 
-    tauri::Builder::default()
+    let builder = tauri::Builder::default();
+    #[cfg(debug_assertions)]
+    let builder = builder.plugin(
+        tauri::plugin::Builder::<tauri::Wry>::new("startup-run-failure-simulation")
+            .setup(|_, _| {
+                if matches!(
+                    std::env::var("INVENTORY_SIMULATE_RUN_FAILURE").as_deref(),
+                    Ok("1")
+                ) {
+                    return Err("debug startup run failure simulation".into());
+                }
+                Ok(())
+            })
+            .build(),
+    );
+
+    builder
         // mutation を行う setup より先に single-instance guard を確立する。
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
             if let Some(window) = app.get_webview_window("main") {
@@ -689,8 +877,16 @@ pub fn run() {
             // app_data_dir: tauri.conf.json の identifier から自動解決
             // Linux: ~/.local/share/com.kosei.inventory/
             // Windows: C:\Users\{user}\AppData\Roaming\com.kosei.inventory\
-            let app_data = app.path().app_data_dir()?;
-            std::fs::create_dir_all(&app_data)?;
+            let app_data = run_startup_step(
+                StartupFailureKind::AppDataDir,
+                || app.path().app_data_dir(),
+                show_pre_window_fatal,
+            )?;
+            run_startup_step(
+                StartupFailureKind::CreateAppDataDir,
+                || std::fs::create_dir_all(&app_data),
+                show_pre_window_fatal,
+            )?;
 
             // 1. 診断ログ初期化（setup 内の最初。失敗してもアプリ起動は続行）
             let log_config = DiagnosticLogConfig {
@@ -714,6 +910,8 @@ pub fn run() {
                     if let Some(message) = error.operator_message() {
                         show_pre_window_fatal(&message);
                     } else {
+                        // Defensive fallback: keep fail-closed visibility if a future variant omits
+                        // its operator message while the Option-returning contract is retained.
                         tracing::error!(%error, "database initialization failed");
                     }
                     return Err(error.to_string().into());
@@ -811,5 +1009,7 @@ pub fn run() {
             cmd::settings_cmd::save_receipt_image,
         ])
         .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .unwrap_or_else(|error| {
+            handle_run_failure(error, show_pre_window_fatal, std::process::exit);
+        });
 }

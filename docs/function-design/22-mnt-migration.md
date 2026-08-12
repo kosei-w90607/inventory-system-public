@@ -216,9 +216,30 @@ fn migrate_legacy_db(
 - 決定: lib.rs setup hook は `migrate_legacy_db` の `Err` で起動を中止する（fail-closed）。中止時は operator へ可視のエラーダイアログで「旧データは無事であること・アプリ再起動で再試行されること・繰り返し失敗する場合の連絡誘導」を表示し、**表示完了（または表示不能の確定）後にのみ**終了する。詳細は診断ログに記録する
 - **表示機構の制約（PR #14 Codex P2-2）**: `tauri_plugin_dialog` の `blocking_show` は公式 API doc が「main thread context で使用してはならない」と明記しており（vendored source lib.rs:355-356 で確認済み）、setup hook（main thread）での同期表示を機構として指定しない。**実装 PR1 確定形**: Windows は専用 worker thread で Win32 `MessageBoxW` を表示し、setup thread が `join` で表示完了を待ってから `Err` を返す。Contract Probe の native pre-window 表示で可視性を確認済み。thread panic / API 表示不能時も診断ログを残して fail-closed 起動中止を維持する（`blocking_show` worker は main-thread dispatch との相互待ち、callback は pre-window 可視化不能のため不採用）
 - Why: 現行の「`tracing::error!` + 続行」は、直後の `init_database` が新パスに**空 DB を新規作成**するため、以後の起動は「新 DB 既存」で移行を永久 skip し、旧データが空 DB に隠蔽される（operator にはデータ全損に見え、空 DB への誤入力も進行する）。可視の起動失敗（データ無傷 + 再試行可能）の方が安全側
-- 前提事実: 既存の setup 失敗経路（`app_data_dir` 取得失敗・`init_database` 失敗等の `?` / `.expect`）は release build（`windows_subsystem = "windows"`）では console が無く**無言クラッシュ**になる。本契約は新設する移行失敗経路のみ dialog 可視化を要求し、既存経路の可視化は scope 外（Plans.md backlog「起動時 setup 失敗の operator 可視化」）
 - Rejected alternatives: 現行の「警告して続行」（上記の隠蔽経路そのもの）/ 移行 skip して旧パスの DB をそのまま使う（パス二重管理が恒久化し、app_data 移行の目的に反する）
-- 見直し契機: 既存 setup 失敗経路の可視化 backlog を実装するとき（共通の起動失敗 dialog helper へ統合する）
+
+MNT-03-D4 の fail-closed + `show_pre_window_fatal`（Windows は `MessageBoxW` worker thread + `join`、非 Windows は既存の `eprintln!` fallback）を、release build で operator から見えなかった起動失敗へ次のとおり拡張する。
+
+| 22 側 decision ID | Plan Packet | 契約 |
+|---|---|---|
+| MNT-03-D5 | SPEC-SFV-D1 | `app_data_dir` 取得・保存場所作成・`DatabaseInit`・Tauri `.run()` の各失敗は、固有の operator 文言と raw detail を dialog 表示してから Err 伝搬または非 0 終了する。`.run().expect(...)` は使用しない |
+| MNT-03-D6 | SPEC-SFV-D2 | 診断ログ初期化前の `app_data_dir` 取得 / 保存場所作成失敗は dialog のみを許容し、ログ初期化の再試行を行わない。当該文言に診断ログ誘導を含めない |
+| MNT-03-D7 | SPEC-SFV-D3 | `StartupDatabaseError::DatabaseInit` は具体的な operator 文言を `Some` で返す。`operator_message()` の `Option<String>` signature と将来 variant 用の defensive fallback は維持する |
+| MNT-03-D8 | SPEC-SFV-D4 | `.run()` Err 後の dialog 経路を Windows L3 で確認できる debug 限定 hook を設ける。`INVENTORY_SIMULATE_RUN_FAILURE=1` は plugin setup を失敗させて実際の `.run()` Result を Err にし、handler の直接呼出しで代替しない。hook は `#[cfg(debug_assertions)]` により release から排除する |
+
+operator 文言の固定部は次のとおりで、いずれも末尾に改行と raw error detail（`\n{details}`）を付ける。
+
+| 失敗区分 | 固定部 |
+|---|---|
+| `app_data_dir` | アプリのデータ保存場所を確認できなかったため、起動を中止しました。パソコンを再起動してもう一度お試しください。繰り返し失敗する場合は管理者へ連絡してください。 |
+| 保存場所作成 | アプリのデータ保存場所を作成できなかったため、起動を中止しました。ディスクの空き容量を確認し、パソコンを再起動してもう一度お試しください。繰り返し失敗する場合は管理者へ連絡してください。 |
+| `DatabaseInit` | データベースの準備に失敗したため、起動を中止しました。アプリを再起動してもう一度お試しください。繰り返し失敗する場合は診断ログ（アプリのデータフォルダ内）を添えて管理者へ連絡してください。 |
+| `.run()` | アプリを起動できませんでした。アプリを再起動してもう一度お試しください。繰り返し失敗する場合は管理者へ連絡してください。 |
+
+- 正常起動では fatal 文言生成・dialog 表示を呼ばない。既存 RestoreReconcile / LegacyMigration の MNT-03-D4 文言と順序は変更しない
+- Why: `windows_subsystem = "windows"` の release build では console がなく、dialog のない setup / `.run()` 失敗は operator に原因と対処を伝えられない。既存の app handle 非依存 helper へ合流させ、起動続行や自動回復を追加せず可視性だけを補う
+- Rejected alternatives: `tauri_plugin_dialog` の同期表示（上記 main-thread 制約）/ 診断ログ初期化前のログ再試行（filesystem 失敗を再帰させる）/ `.run()` の panic 維持（release で不可視）/ L3 hook から handler を直接呼ぶ低忠実度 simulation（実 `.run()` Err 後の process 状態を検証できない）
+- 見直し契機: 非 Windows の配布対象化、起動失敗の自動回復・リトライ、または pre-window dialog 機構自体を置換するとき
 
 ### 12.5 テスト方針（実装 PR1 の完了条件、P8b-3）
 
