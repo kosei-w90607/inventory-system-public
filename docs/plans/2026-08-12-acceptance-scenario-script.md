@@ -267,3 +267,8 @@ If R3 review-only sub-agent is skipped, record an explicit line beginning with `
 - packet の L3 FAIL / backtrack 記録は実況一致（PR #74 OPEN・diff 一致・doc-check / check-workflow-git pass）。
 - P3×1: 「gated Amendment 1」呼称と `Amendments: none` の不整合 → disposition = `Amendments:` へ `cfa0506` を追記して呼称を維持（本 commit。commit message は履歴書き換えなしの原則で不変）。
 - 遷移記録: implementing → local-verified（docs-only 是正、doc-check / workflow-git pass 実測）→ independent-review（round 2 従事）→ human-confirm（P1/P2 = 0 確定、Reviewed Content HEAD を `cfa0506` へ更新）。本遷移も content commit 同乗（STATECAP cap 内完走方式の継続）。次 = 再 L3（Step 1 から再走）。
+
+### owner L3 実走 2 回目（2026-08-13、HEAD `a881bbe`）: FAIL — 外部 pre-existing UI drift の捕捉（台本は正）
+
+- Step 1〜3 PASS。Amendment 1 の計算是正（画面差異 +1 / 補正 movement -1）は実走 + DB で正しいと owner 確認。Step 4 で新規 finding により fail-closed 停止、baseline へ復元済み。evidence 正本 = PR #74 comment（2026-08-13 round 2）。
+- **新規 finding（本 change の Non-scope = アプリ実装変更のため別 change へ）**: 棚卸し確定結果画面の差異が生値表示（`StocktakePage.tsx` の `{item.difference}`）で正差異に `+` が付かず、UI-10-D10 / §73.6 の「符号付き数値・進行中一覧（`formatListDifference` = `+3`/`-2`/`0`）と表現統一」契約と drift。Coordinator が正本・formatter・両表示箇所の 4 点を実読裏取りし confirmed。disposition = 別 change `2026-08-13-stocktake-result-difference-sign`（R2）で是正し、merge 後に本 branch を main へ rebase して再 L3（Step 1 から）。Phase は human-confirm を維持（台本・fixture は本 round で正当性確認済み、Human Gate は外部是正待ち）。
