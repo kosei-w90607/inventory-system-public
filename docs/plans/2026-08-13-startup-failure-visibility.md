@@ -78,10 +78,10 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 - AC1: `app_data_dir` / `create_dir_all` 失敗経路で `show_pre_window_fatal` が呼ばれることが test で固定される（文言区分含む。観測 = 呼出し記録 or 文言生成関数の unit test、Matrix T1/T2）。
 - AC2: `DatabaseInit` の `operator_message()` が具体文言を返す（Matrix T3、`rg "scope外" src-tauri/src/lib.rs` が 0 hit）。
 - AC3: `.run()` 失敗 handler が dialog 表示 + 非 0 exit する構造であることが test 可能な形（handler 関数の抽出等）で固定される（Matrix T4）。
-- AC4: 既存起動系 test（b6/b9/b10/b11）が無改変で green（Matrix T5）。
+- AC4: 既存起動系 test（`test_startup_req901_b6_fail_closed_reconcile_is_operator_visible_before_init` ほか b9/b10/b11 の 4 関数）が無改変のまま `cargo test` で pass する（Matrix T5、無改変は `git diff` の当該関数 0 差分で検分）。
 - AC5: `22-mnt-migration.md` §12.4 が拡張後の契約を記述し、`./scripts/doc-consistency-check.sh` + design_compliance 系 test 全通過（Matrix T6）。
 - AC6: `cargo check --release` pass（L3 前提の Writer 完了条件）+ L1 full pass。
-- AC7: mutation（Matrix X 行）全 red の Writer 実測 + Coordinator 独立再実測。
+- AC7: mutation X1〜X4 を各注入した `cargo test` が対応 T 行の test fail（exit code 非 0）になることを Writer 実測 + Coordinator 独立再実測で確認し、復元後の `git status` clean を記録する。
 
 ## Design Sources
 
@@ -90,7 +90,7 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 - Function / command / DTO: `docs/function-design/22-mnt-migration.md` §12.4「lib.rs 起動契約（MNT-03-D4）」（本 change で改訂）
 - DB: 変更なし
 - Screen / UI: 画面変更なし（pre-window dialog のみ）
-- Decision log / ADR: [設計 packet 2026-07-17](archive/plans/2026-07-17-backup-migration-failure-contract-design.md) / [実装 PR1 packet 2026-07-18](archive/plans/2026-07-18-backup-migration-failure-contract-impl-pr1.md)（Contract Probe #1 = MessageBoxW 方式の実機確定）
+- Decision log / ADR: [設計 packet 2026-07-17](../archive/plans/2026-07-17-backup-migration-failure-contract-design.md) / [実装 PR1 packet 2026-07-18](../archive/plans/2026-07-18-backup-migration-failure-contract-impl-pr1.md)（Contract Probe #1 = MessageBoxW 方式の実機確定）
 
 ## Required Design Artifacts
 
@@ -149,7 +149,7 @@ Minimum design checks: Layer ownership = MNT/起動層のみ / backend function 
 
 ## Contract Probe
 
-- MessageBoxW の pre-window（setup 段階）表示可否: **既存 evidence 流用** — PR1 Contract Probe #1（[archived packet](archive/plans/2026-07-18-backup-migration-failure-contract-impl-pr1.md)）で Windows 実機確定済み。本 change は同一 helper の適用範囲拡張のため再 probe 不要（適用時点がより早くなる `app_data_dir` 失敗経路も app handle 非依存性〈lib.rs:149-178 実読〉により同条件）。
+- MessageBoxW の pre-window（setup 段階）表示可否: **既存 evidence 流用** — PR1 Contract Probe #1（[archived packet](../archive/plans/2026-07-18-backup-migration-failure-contract-impl-pr1.md)）で Windows 実機確定済み。本 change は同一 helper の適用範囲拡張のため再 probe 不要（適用時点がより早くなる `app_data_dir` 失敗経路も app handle 非依存性〈lib.rs:149-178 実読〉により同条件）。
 - `.run()` Err 時の process 状態（unwrap_or_else 内で MessageBoxW worker thread + join が動作するか）: 未検証の外部前提。**Writer が実装時に synthetic 失敗（テスト用 feature flag or 一時 code）で Windows 実機 or CI 上の挙動を確認し、packet へ 1 行記録する**（不可能なら fail-closed 停止で報告）。
 
 ## Contract Coverage Ledger
