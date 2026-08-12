@@ -6,10 +6,10 @@ Use the field definitions, enums, transition evidence, packet-selection rule, an
 
 If a state-only commit materializes multiple phases, list the complete adjacent forward sequence and the pre-existing evidence for every intermediate transition in an append-only review/evidence record. Recording compression never permits a gate skip.
 
-- Phase: plan-draft
+- Phase: plan-gate
 - Risk: R2
 - Execution Mode: fable-window
-- Plan Commit: pending
+- Plan Commit: 19daa33
 - Amendments: none
 - Coordinator: Fable (main thread)
 - Writer: Codex（発注書は Coordinator 起草、owner relay）
@@ -238,3 +238,8 @@ Do not transcribe exact-HEAD SHA or test counts here (D-035/D-038 Evidence Owner
 Fill after review.
 If R3 review-only sub-agent is skipped, record an explicit line beginning with `Review-only skipped because:` and the reason.
 - Findings Freeze: not yet frozen; post-freeze exceptions: none.
+
+### Plan Review（独立 Sonnet、rally 天井 3）
+
+- round 1（対象 `d563820`）: NOT CLOSED — P1×1（fixture の CP932/SHIFT_JIS 再エンコード義務の明記漏れ = UTF-8 直書き出しだと parser strict decode で reject、`daily_report_parser.rs` の decode 実装と test helper `encode_cp932` を引用）/ P2×1（backup「命名分離」が実在しないカスタム命名機能を示唆、実装は自動タイムスタンプ命名のみ）/ P3×1（step 2 数列の固定値化推奨）。packet が依拠する事実主張 (a) 日報取込みの在庫不変 (b) pos_stock_sync の Z004 限定 (c) 整合性検証の movement 突合 (d) アプリ登録の初期在庫 movement 生成は、reviewer 独立実読で全件一致。全 findings に修正案添付（fix-proposal 義務充足）。Coordinator が引用 3 点を実読裏取りのうえ全件 accept、是正 commit `19daa33`（P2 は「命名」の packet 全文 rg sweep 済み、残存 1 件は Non-scope の別文脈で正当）。
+- round 2（対象 `19daa33`、focused verification）: **CLOSED（P1/P2 = 0）** — 3 disposition とも実装済み挙動への引用一致を確認、新規 findings なし。P1+P2 単調収束 2→0。
