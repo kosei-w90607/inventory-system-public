@@ -4,7 +4,7 @@
 
 Use the field definitions, enums, transition evidence, packet-selection rule, and fail-closed behavior from `docs/DEV_WORKFLOW.md` `Workflow State`. Keep exactly one `- Key: value` line per field.
 
-- Phase: local-verified
+- Phase: human-confirm
 - Risk: R2
 - Execution Mode: fable-window
 - Plan Commit: 7a555b9
@@ -13,7 +13,7 @@ Use the field definitions, enums, transition evidence, packet-selection rule, an
 - Writer: Fable (main thread、1 行 + test の軽微是正。PR #64/#67 の Coordinator/Writer 兼務先例)
 - Plan Reviewer: skip（R2 rounds 0-1 の 0 適用。理由は Review Response 参照）
 - Final Reviewer: Sonnet subagent（独立 context）
-- Reviewed Content HEAD: pending
+- Reviewed Content HEAD: fb4fd1b
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
 - Human Gate: none（表示是正の実機確認は受入台本 change の再 L3 Step 4 が兼ねる — PR #74 参照）
@@ -64,7 +64,7 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 ## Non-scope
 
 - 進行中一覧・カウント入力欄の表示（既に契約準拠）。
-- 0 差異の結果画面表示（`adjusted_items` は差異非 0 の商品のみで、結果画面に 0 は出ない — 35-biz §20.4 手順 5g）。
+- 0 差異の結果画面表示（`adjusted_items` は差異非 0 の商品のみで、結果画面に 0 は出ない — 35-biz §20.5 手順 5g）。
 - 受入台本 change（別 packet）の変更。
 
 ## Acceptance Criteria
@@ -106,7 +106,7 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 
 - Source docs can answer what is being built and why: yes — UI-10-D10 が表現契約を規定済み、本 change は追随のみ。
 - Plan-only durable decisions: なし。
-- Assumptions and constraints: `adjusted_items` は差異非 0 のみ（35-biz §20.4 5g）のため null/0 分岐は結果画面で不要、`formatListDifference` の null 分岐は到達しない（型は number）。
+- Assumptions and constraints: `adjusted_items` は差異非 0 のみ（35-biz §20.5 5g）のため null/0 分岐は結果画面で不要、`formatListDifference` の null 分岐は到達しない（型は number）。
 - Deferred design gaps: なし。
 - Test Design Matrix: R2 optional、AC の mutation 感度確認で代替。
 - Absolute guarantee / escape hatch self-check: 挙動追加なし、該当なし。
@@ -172,4 +172,11 @@ R2 につき N/A。
 ## Review Response
 
 - Plan Review skip 理由（R2 rounds 0-1 の 0 適用）: 是正方向は owner L3 実機観察（PR #74 comment round 2）+ Coordinator の正本・実装 4 点実読の二重独立確認で確定済みで、設計裁量が実質ゼロ（既存 formatter の適用のみ）。独立検証は Final Review（Sonnet）で実施する。
-- Findings Freeze: not yet frozen; post-freeze exceptions: none.
+- Findings Freeze: frozen after Final Review; post-freeze exceptions: none.
+
+### Final Review（独立 Sonnet、対象 = Reviewed Content HEAD `fb4fd1b`）: CLOSED（P1 = 0）
+
+- 6 項目とも自前実測で確認 — 契約整合（73:213 実読、進行中一覧 :760 と結果画面 :910 が同一 formatter 共有）/ 変更閉じ込め（既存 T1〜T20 の削除行なし）/ T21 実効性（27/27 green、null 分岐到達不能を bindings 型 + 35-biz §20.5 5g で裏取り）/ **mutation 独立再実測**（生値 mutant で T21 のみ red、復元 clean 確認）/ packet 適合 / traceability drift 0。
+- P2×1: Plans.md エントリの phase 表記が plan-draft のまま → 本 commit で human-confirm へ追随（accept）。
+- P3×1: packet の節番号誤引用（§20.4 → 正 = §20.5 手順 5g、2 箇所 sweep）→ 本 commit で是正（accept。Coordinator も節構成 rg で独立確認）。
+- 遷移記録: local-verified → independent-review（FR 従事）→ human-confirm（P1 = 0、P2/P3 は本 commit で解消。Reviewed Content HEAD = `fb4fd1b`、post-audit 差分は docs 表記のみ）。本遷移は content commit 同乗。次 = PR open → owner merge 承認（介入 1/1）。
