@@ -6,7 +6,7 @@ Use the field definitions, enums, transition evidence, packet-selection rule, an
 
 If a state-only commit materializes multiple phases, list the complete adjacent forward sequence and the pre-existing evidence for every intermediate transition in an append-only review/evidence record. Recording compression never permits a gate skip.
 
-- Phase: human-confirm
+- Phase: implementing
 - Risk: R2
 - Execution Mode: fable-window
 - Plan Commit: 19daa33
@@ -253,3 +253,9 @@ If R3 review-only sub-agent is skipped, record an explicit line beginning with `
 - findings = P3×1 のみ（step 4 整合性表示の期待値が一文の部分引用を独立文言のように表記）→ Coordinator accept、本 commit で是正（「文末の部分引用」注記化）。post-audit 差分は当該 1 行のみ。
 - Writer 完了条件 backstop: `cargo check --release` pass を Coordinator が実測（L3 Human Gate 前提、DEV_WORKFLOW 規則）。
 - 遷移記録: local-verified → independent-review（FR 従事）→ human-confirm（P1/P2 = 0 確定）。STATECAP state-only 予算（3 本）消化済みのため、本遷移は content commit（P3 是正）同乗で実体化（PR #58 先例の cap 内完走方式）。
+
+### owner L3 実走 1 回目（2026-08-13、Windows native、HEAD `0e49697`）: FAIL（Step 4 で停止）
+
+- Step 1〜3 PASS（日報集計・在庫不変 / 入庫 +5 → 手動販売 -3 → 残 2 / 在庫少 filter 表示）。Step 4 で台本の fail-closed 規則どおり停止、baseline backup へ復元済み（復元後 DB の空状態を owner 確認、失敗時点は自動 backup に保存）。evidence 正本 = PR #74 comment（2026-08-13）。
+- **Blocker（gated Amendment 1 起源）**: 台本 Step 4「棚卸し入力」の期待値が差異 `-1` — 正本 35-biz §20.4 / 実装 `stocktake_service.rs:227` の契約は差異 = `stock_quantity - actual_count`（このケース 2-1 = **+1**、正 = システム在庫が多い）であり符号が逆。補正 movement は `actual_count - stock_quantity` = -1 で台本の「在庫変動履歴 `-1`」は正しい。画面差異と補正 movement の 2 値を区別しなかった台本の欠陥（Writer 起草時混同、Plan Review / Final Review とも未検出、owner L3 が捕捉した true positive）。
+- 追加 UX 観察（blocker と別、pre-existing 仕様）: 在庫 2・基準 3 の同一商品が「すべて」filter では状態「通常」、「在庫少」filter では「在庫少」と表示され operator には矛盾に見える。query source 依存の現行仕様。→ Plans.md backlog へ起票（本 Amendment commit 同乗）。
