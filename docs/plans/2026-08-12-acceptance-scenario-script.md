@@ -75,13 +75,13 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。AC や�
 - `docs/ACCEPTANCE_SCENARIO.md` 新設 — 2 層構成: 第1層 = 操作手順（将来の店舗マニュアルの種、owner 裁定 2026-08-12）、第2層 = 受入確認観点（合格基準、期待値つき）。
 - 6 step 構成は Codex 諮問（2026-08-12）の最小 step 列素案を基礎とする:
   1. 日報取込み: 同一日付の Z001/Z002/Z005 bundle を取込み、集計・支払・部門値を確認し、**対象商品の在庫が変わらないこと**も確認観点に含める。
-  2. 在庫反映: アプリから登録した専用 pcs 商品へ入庫 → 手動販売出庫し、販売記録・入出庫 movement・最終在庫が期待値どおり閾値以下（pcs 既定 3「以下」）になることを確認。
+  2. 在庫反映: アプリから登録した専用 pcs 商品へ入庫 → 手動販売出庫し、販売記録・入出庫 movement・最終在庫が期待値どおり閾値以下（pcs 既定 3「以下」）になることを確認。既定数列は **開始在庫 0 → 入庫 5 → 手動販売 3 → 残 2（閾値 3 以下）** を台本の固定値とする（Plan Review round 1 P3 採用）。
   3. 在庫少検知: `/stock?status=low_stock`（D-047 deep-link）に対象商品が表示され、数量・閾値条件が一致することを確認。
   4. 棚卸し: 対象商品を実数差異ありでカウント確定し、在庫と stocktake movement の補正を確認。
   5. 整合性検証: 明示実行し mismatch_count=0、在庫と movement 合計の一致を確認。
   6. バックアップ/復元: step 5 時点を backup → 識別可能な一時入庫 1 件 → restore で step 5 状態へ戻ることを確認。
-- 事前準備節: 専用受入 DB（非本番）の用意、**開始前 baseline backup（切り戻し用）と step 6 の機能受入 backup の命名分離**、台本用商品はアプリから登録する（初期在庫 movement が生成される経路。SQL 直 INSERT の seed は偽不整合を作るため禁止と明記）、失敗時は baseline へ復元して step 1 から再実行。
-- `tests/fixtures/daily-report/` 新設: Z001/Z002/Z005 の匿名化 synthetic bundle（同一日付、`daily_report_parser.rs` テスト内リテラルからの抽出・整形）+ README（生成根拠・実データでないことの明記）。
+- 事前準備節: 専用受入 DB（非本番）の用意、**baseline backup（切り戻し用、開始前に 1 回）と機能受入 backup（step 6 直前に 1 回）の作成タイミング分離** — backup ファイル名は `{prefix}{YYYYMMDD_HHMMSS}` の自動生成でカスタム命名機能は存在しない（`mnt/backup.rs`、68 UI-11b-D7/D8）ため、台本は各作成直後に一覧の作成日時を記録欄へメモさせて 2 つを対応付ける（Plan Review round 1 P2 是正）。台本用商品はアプリから登録する（初期在庫 movement が生成される経路。SQL 直 INSERT の seed は偽不整合を作るため禁止と明記）、失敗時は baseline へ復元して step 1 から再実行。
+- `tests/fixtures/daily-report/` 新設: Z001/Z002/Z005 の匿名化 synthetic bundle（同一日付、`daily_report_parser.rs` テスト内リテラルからの抽出・整形）+ README（生成根拠・実データでないことの明記）。**fixture 3 file は UTF-8 テキストのまま書き出してはならない**: parser は CP932 strict decode（29-io §29.3 step 3、`daily_report_parser.rs` の decode 失敗 = parse error）のため、テスト内リテラル（UTF-8）を `encoding_rs::SHIFT_JIS.encode`（test helper `encode_cp932` と同ロジック）でバイト列化した結果を `.CSV` として書き出す（Plan Review round 1 P1 是正）。
 - fixture 受理の regression 保証: fixture 3 file を読み parse 成功を assert する Rust test 1 本（io 層）。REQ token を含むため `cargo run --bin generate_traceability` で 90-traceability.md を再生成し同 PR に含める。
 - decision-log D-069 新設: 台本第1版の経路確定（案1 = 手動入出庫中心）と、Z004 前提条件（v1.0 初日から Z004 実運用するなら Z004 R3 + 台本第2版 PASS を MSI 配布判定 gate に含める判断を項5 で行う）の記録。
 - `docs/Plans.md` roadmap 項4 の状態更新、`docs/PROJECT_HANDOFF.md` の手順書参照先の追記（新 doc への link）。
@@ -97,8 +97,8 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。AC や�
 ## Acceptance Criteria
 
 - `docs/ACCEPTANCE_SCENARIO.md` が存在し、6 step それぞれに「操作手順（第1層）」と「確認観点 + 期待値（第2層）」が分離記述されている。
-- 事前準備節に専用受入 DB / baseline backup と受入 backup の命名分離 / アプリ登録経路の商品準備（SQL 直 INSERT 禁止の明記）/ 失敗時切り戻し手順が含まれる。
-- `tests/fixtures/daily-report/` に同一日付の Z001/Z002/Z005 の 3 file + README が存在し、台本 step 1 から相対 path で参照されている。
+- 事前準備節に専用受入 DB / baseline backup と受入 backup の作成タイミング分離 + 作成日時メモによる対応付け（カスタム命名機能は存在しない前提の記述）/ アプリ登録経路の商品準備（SQL 直 INSERT 禁止の明記）/ 失敗時切り戻し手順が含まれる。
+- `tests/fixtures/daily-report/` に同一日付の Z001/Z002/Z005 の 3 file + README が存在し、台本 step 1 から相対 path で参照されている。3 file は CP932 エンコード済みバイト列である（README に生成方法を明記）。
 - fixture 受理 test（io 層）が green で、90-traceability.md が再生成済み（CI generated drift gate pass）。
 - 対象商品・閾値・開始在庫・販売数が台本内で固定値として記述され、step 2 終了時に在庫少判定（pcs 既定 3 以下）へ到達する数列になっている。
 - decision-log D-069 が記録され、Plans.md 項4 が本 change を参照する。
@@ -208,10 +208,10 @@ not applicable — wire / DTO / API / config / DB schema に変更なし。fixtu
 ## Review Focus
 
 - 台本各 step の操作手順・確認観点が正本 function-design の実装済み挙動と一致しているか（創作された手順・文言がないか）。
-- fixture bundle が 29-io の受理 shape に適合し、README が synthetic であることを明記しているか。実店舗値の混入がないか。
+- fixture bundle が 29-io の受理 shape に適合し（**CP932 エンコード済みであること**を含む）、README が synthetic であることを明記しているか。実店舗値の混入がないか。
 - 事前準備節が偽不整合を作らない構成か（アプリ登録経路、SQL 直 INSERT 禁止）。
-- baseline backup と受入 backup の命名分離が曖昧さなく書かれているか。
-- step 2 の数列（開始在庫・入庫・販売数）が閾値以下へ確実に到達するか。
+- baseline backup と受入 backup の作成タイミング分離 + 作成日時メモの対応付けが、実装済み挙動（自動タイムスタンプ命名・命名機能なし）に即して曖昧さなく書かれているか。
+- step 2 の固定数列（開始 0 → 入庫 5 → 販売 3 → 残 2）が閾値 3 以下判定へ確実に到達するか。
 
 ## Spec Contract
 
