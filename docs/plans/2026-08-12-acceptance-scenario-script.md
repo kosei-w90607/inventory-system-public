@@ -1,0 +1,240 @@
+# Plan Packet — 業務シナリオ受入テスト台本化（roadmap 項4 第1版）
+
+## Workflow State
+
+Use the field definitions, enums, transition evidence, packet-selection rule, and fail-closed behavior from `docs/DEV_WORKFLOW.md` `Workflow State`. Keep exactly one `- Key: value` line per field.
+
+If a state-only commit materializes multiple phases, list the complete adjacent forward sequence and the pre-existing evidence for every intermediate transition in an append-only review/evidence record. Recording compression never permits a gate skip.
+
+- Phase: plan-draft
+- Risk: R2
+- Execution Mode: fable-window
+- Plan Commit: pending
+- Amendments: none
+- Coordinator: Fable (main thread)
+- Writer: Codex（発注書は Coordinator 起草、owner relay）
+- Plan Reviewer: Sonnet subagent（独立 context）
+- Final Reviewer: Sonnet subagent（独立 context）
+- Reviewed Content HEAD: pending
+- Final Exact-HEAD Evidence: PR body
+- Hosted CI Requirement: required
+- Human Gate: owner L3 = 台本 1 周（Windows native、operator 役、roadmap 項4 の受入実走）+ 台本可読性確認
+
+## Owner Effort Budget
+
+- 介入回数上限: 3
+- 実働時間上限: 90分（うち台本 1 周の実走 60 分想定）
+- relay 往復上限: 3
+- Plan Review round 天井: 3（既定 3）
+
+既定値と超過時の Coordinator 責務は `docs/DEV_WORKFLOW.md` `Owner Effort Budget` 参照。
+承認依頼フォーマット: `この change での介入 N 回目 / 予算 M 回` + `承認すると利用者から見て何が完了するか1文`。
+
+## Consultation Relay
+
+§5.5を使わないchangeは両方`none`のままにする。
+
+- Review Order Artifact: none
+- Review Order Ref: none
+
+（経路確定の Codex 諮問は packet 起草前に owner relay の対話形式で完了済み。成果は本 packet の Design Intent Trace / decision-log D-069 に転記した。）
+
+## Risk
+
+Risk: R2
+
+Reason:
+docs 新設（受入台本）+ synthetic fixture ファイル追加 + fixture 受理を保証する parser test 1 本のみで、runtime 契約・DTO・route・DB を変更しない。operator workflow の正本 docs は参照するだけで改変しない。fixture parser test の追加は既存テスト意味論を変えない追加のみ。
+
+## Goal
+
+Goal Invariant:
+
+### 最小完了条件
+
+- owner が Windows native で `docs/ACCEPTANCE_SCENARIO.md` の記述だけに従い、6 step（日報取込み→在庫反映→在庫少検知→棚卸し→整合性検証→バックアップ/復元）を 1 周でき、各 step が PASS/FAIL 判定可能な確認観点を持つ。
+- Z001/Z002/Z005 の匿名化 synthetic bundle（同一日付 3 file）が repo に存在し、アプリのファイル選択から取込み成功する。
+
+### 失敗定義
+
+- 台本どおり操作しても step が再現できない、または確認観点が判定不能。
+- fixture bundle が取込み reject される。
+- 台本自身が指示する準備手順（商品登録・seed）が step 5 整合性検証で偽不整合を発生させる。
+
+### 非目的
+
+- Z004 経路（pos_stock_sync 自動在庫連動）の受入 — layout A/B 再検証 R3 完了後の台本第2版で扱う（D-069）。
+- 自動 E2E 化（roadmap 項4 の定義どおり、穴が出た箇所のみ後付け評価）。
+- 店舗マニュアル完成版の作成（台本第1層はその種に留める）。
+- アプリ実装・seed_demo の変更。
+
+Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。AC や証跡作業が Goal Invariant を前進させない場合は、Goal を置き換えず簡略化・defer・削除する。
+
+## Scope
+
+- `docs/ACCEPTANCE_SCENARIO.md` 新設 — 2 層構成: 第1層 = 操作手順（将来の店舗マニュアルの種、owner 裁定 2026-08-12）、第2層 = 受入確認観点（合格基準、期待値つき）。
+- 6 step 構成は Codex 諮問（2026-08-12）の最小 step 列素案を基礎とする:
+  1. 日報取込み: 同一日付の Z001/Z002/Z005 bundle を取込み、集計・支払・部門値を確認し、**対象商品の在庫が変わらないこと**も確認観点に含める。
+  2. 在庫反映: アプリから登録した専用 pcs 商品へ入庫 → 手動販売出庫し、販売記録・入出庫 movement・最終在庫が期待値どおり閾値以下（pcs 既定 3「以下」）になることを確認。
+  3. 在庫少検知: `/stock?status=low_stock`（D-047 deep-link）に対象商品が表示され、数量・閾値条件が一致することを確認。
+  4. 棚卸し: 対象商品を実数差異ありでカウント確定し、在庫と stocktake movement の補正を確認。
+  5. 整合性検証: 明示実行し mismatch_count=0、在庫と movement 合計の一致を確認。
+  6. バックアップ/復元: step 5 時点を backup → 識別可能な一時入庫 1 件 → restore で step 5 状態へ戻ることを確認。
+- 事前準備節: 専用受入 DB（非本番）の用意、**開始前 baseline backup（切り戻し用）と step 6 の機能受入 backup の命名分離**、台本用商品はアプリから登録する（初期在庫 movement が生成される経路。SQL 直 INSERT の seed は偽不整合を作るため禁止と明記）、失敗時は baseline へ復元して step 1 から再実行。
+- `tests/fixtures/daily-report/` 新設: Z001/Z002/Z005 の匿名化 synthetic bundle（同一日付、`daily_report_parser.rs` テスト内リテラルからの抽出・整形）+ README（生成根拠・実データでないことの明記）。
+- fixture 受理の regression 保証: fixture 3 file を読み parse 成功を assert する Rust test 1 本（io 層）。REQ token を含むため `cargo run --bin generate_traceability` で 90-traceability.md を再生成し同 PR に含める。
+- decision-log D-069 新設: 台本第1版の経路確定（案1 = 手動入出庫中心）と、Z004 前提条件（v1.0 初日から Z004 実運用するなら Z004 R3 + 台本第2版 PASS を MSI 配布判定 gate に含める判断を項5 で行う）の記録。
+- `docs/Plans.md` roadmap 項4 の状態更新、`docs/PROJECT_HANDOFF.md` の手順書参照先の追記（新 doc への link）。
+
+## Non-scope
+
+- Z004 取込み step の台本化（第2版、Z004 layout A/B R3 完了後）。
+- 店舗マニュアルの完成版・印刷様式。
+- smoke E2E / 自動化（項4 実走で穴が出た箇所の後付け評価は別判断）。
+- アプリコード・seed_demo・既存 fixture（tests/fixtures/z004/）の変更。
+- 日報取込み運用設計 R3（保持期間・命名・同日複数精算等、Plans.md 既存 backlog）。
+
+## Acceptance Criteria
+
+- `docs/ACCEPTANCE_SCENARIO.md` が存在し、6 step それぞれに「操作手順（第1層）」と「確認観点 + 期待値（第2層）」が分離記述されている。
+- 事前準備節に専用受入 DB / baseline backup と受入 backup の命名分離 / アプリ登録経路の商品準備（SQL 直 INSERT 禁止の明記）/ 失敗時切り戻し手順が含まれる。
+- `tests/fixtures/daily-report/` に同一日付の Z001/Z002/Z005 の 3 file + README が存在し、台本 step 1 から相対 path で参照されている。
+- fixture 受理 test（io 層）が green で、90-traceability.md が再生成済み（CI generated drift gate pass）。
+- 対象商品・閾値・開始在庫・販売数が台本内で固定値として記述され、step 2 終了時に在庫少判定（pcs 既定 3 以下）へ到達する数列になっている。
+- decision-log D-069 が記録され、Plans.md 項4 が本 change を参照する。
+- `./scripts/doc-consistency-check.sh` 全チェック通過。
+
+## Design Sources
+
+- Requirements / spec: `docs/Plans.md` 中期 roadmap 項4・項5（owner 裁定 2026-07-16）
+- Architecture: `docs/ARCHITECTURE.md`（層責務の参照のみ）
+- Function / command / DTO: `function-design/55-ui-csv-import.md`（UI-07、DAILY-SOURCE-D1 = UI-07-D12）/ `29-io-daily-report-parser.md` / `37-biz-daily-report-import-service.md` / `45-cmd-daily-report-import.md` / `58-ui-stock-inquiry.md`（UI-06a/b、D-047 deep-link）/ `69-ui-threshold-settings.md` / `73-ui-stocktake.md` + `35-biz-stocktake-service.md` / `75-ui-integrity-check.md` / `68-ui-backup-restore.md` / `52-ui-shared-layout.md` §52.6
+- DB: `docs/DB_DESIGN.md`（stock_unit / sale_records 正本定義）
+- Screen / UI: 上記 UI 系 function-design と `docs/SCREEN_DESIGN.md`
+- Decision log / ADR: D-047（在庫少 deep-link）、D-069（本 change で新設）、`archive/plans/2026-08-01-field-evidence-operations-sync.md`（日報標準手順の owner 決定）、`docs/DEV_SETUP_CHECKLIST.md` §4.6（Windows native L3 同期手順）
+
+## Required Design Artifacts
+
+Use `docs/DEV_WORKFLOW.md` Design artifact selection to decide what must exist before implementation.
+
+| Area touched by upcoming work | Required source doc / artifact | Status: existing sufficient / updated in this PR / intentionally deferred |
+|---|---|---|
+| Backend function / command / repository / validation / error | 各 step の正本 function-design（Design Sources 参照） | existing sufficient（参照のみ、改変なし） |
+| Command / DTO / generated binding / wire shape | 該当なし（wire 変更なし） | existing sufficient |
+| DB / transaction / audit / rollback / migration | DB_DESIGN.md（参照のみ） | existing sufficient |
+| Screen / UI / route state / Japanese wording | 55/58/69/73/75/68 + 52 §52.6 | existing sufficient（台本は実装済み画面の記述のみ） |
+| CSV / TSV / report / import / export format | 29-io-daily-report-parser.md（fixture の shape 根拠） | existing sufficient |
+| Durable decision / ADR | decision-log D-069（経路確定 + Z004 gate 前提条件） | updated in this PR |
+
+## Registration / Generation Obligations
+
+| 新規追加物 | 登録・生成義務 |
+|---|---|
+| REQ coverage 追加（fixture 受理 test） | `cargo run --bin generate_traceability` で `90-traceability.md` 再生成（AUTO-GENERATED、手動編集は禁止のまま） |
+| source / workflow doc 新設（`docs/ACCEPTANCE_SCENARIO.md`） | `docs/Plans.md` 項4 と `docs/PROJECT_HANDOFF.md` から link し、参照導線を確保する |
+
+Tauri command / route / operator 画面 / function-design doc の新設はなし = 該当なし。
+
+## Design Intent Trace
+
+| Spec / requirement ID | Source design doc section | Decision ID | Why / rejected alternatives | Implementation target | Test target |
+|---|---|---|---|---|---|
+| roadmap 項4 | Plans.md 中期 roadmap | D-069 | 在庫反映は手動入出庫経路（案1）。案2（Z004 fixture 同乗）は layout A/B 未検証の順序ねじれ、案3（defer）は一気通貫の喪失で却下。Codex 諮問 2026-08-12 で実コード裏取り（commit.rs pos_stock_sync 分岐 / daily_report tests の在庫不変 assert）、Coordinator 三点一致確認済み | docs/ACCEPTANCE_SCENARIO.md | owner L3 1 周 |
+| UI-07-D12 | 55-ui-csv-import.md | DAILY-SOURCE-D1 | 台本 step 1 は標準手順（EcrDatas 選択）を fixture bundle で模す | 台本 step 1 + fixture README | fixture 受理 test |
+| D-047 | 58-ui-stock-inquiry.md | — | 在庫少検知は独立画面でなく status deep-link として記述 | 台本 step 3 | owner L3 |
+
+## Design Intent Audit
+
+- Source docs can answer what is being built and why without chat history or archived Plan Packets: yes — 各 step の正本 function-design が実装済み挙動を規定しており、台本はその operator 視点の再叙述。経路判断は D-069 へ昇格する。
+- Plan-only durable decisions found and promoted to source docs / decision-log: D-069（案1 経路 + Z004 gate 前提条件）。
+- Assumptions and constraints: 日報取込み（Z001/2/5）は在庫を動かさない（`daily_report_import_service/tests.rs` の在庫不変 assert で機械保証）。在庫連動は Z004 の `pos_stock_sync` 分岐のみ（`csv_import_service/commit.rs`）。整合性検証は stock_quantity と movement 合計の突合のため、movement を作らない SQL 直 INSERT seed は偽不整合を作る。手動販売・入庫に取消 CMD はない。
+- Deferred design gaps, risk, and follow-up target: Z004 経路受入は第2版（Z004 layout A/B R3 後）。台本 PASS ≠ Z004 受入を D-069 に明記し、項5 で gate 判断。
+- Test Design Matrix can cite design decision IDs or source doc sections: R2 のため Matrix optional、fixture 受理 test は 29-io の shape 契約を cite。
+- Absolute guarantee / escape hatch self-check completed: 本 change は挙動変更なしのため新規 guarantee なし。fixture は synthetic のみ（Data Safety 参照）。
+
+## Impact Review Lenses
+
+| Lens | Applicability / finding | Follow-up artifact |
+|---|---|---|
+| Adapter / core boundary | not applicable — 実装変更なし | — |
+| Fact check / design decision split | 「日報取込み→在庫反映」が直結しない事実を Codex 諮問 + Coordinator 実読の三点一致で確認し、design 判断（案1）と分離して D-069 化 | decision-log D-069 |
+| Lifecycle / retry | 前段失敗時の切り戻し = baseline backup 復元 + step 1 再実行を台本に規定（手動販売・入庫の取消 CMD 不在のため） | 台本 事前準備節 |
+| Operator workflow | 台本第1層が operator 手順書の初実体（repo 内に手順書不在の gap を初めて埋める） | docs/ACCEPTANCE_SCENARIO.md |
+| Replacement path | not applicable — 既存物の置換なし | — |
+| Data safety / evidence | 実 POS CSV は使用せず synthetic bundle のみ。受入は専用 DB で本番 DB に触れない | 台本 事前準備節 + fixture README |
+| Reporting / accounting semantics | step 1 の集計値確認は fixture 内容から導出した固定期待値で判定 | 台本 step 1 期待値表 |
+| Manual verification | Human Gate = owner L3 1 周（項4 実走そのもの） | 本 packet Human Gate |
+| 環境・再現性 | Windows native + 専用受入 DB + 決定的 fixture で再現可能。新規環境依存の追加なし | — |
+
+## Design Readiness
+
+State whether the design is ready for implementation.
+
+- Existing design docs are sufficient because: 6 step 全ての正本 function-design が実装完了状態を規定済みで、本 change は新規挙動を設計しない。
+- Source docs updated in this PR: decision-log（D-069）、Plans.md 項4、PROJECT_HANDOFF link。
+- Design gaps intentionally deferred: Z004 経路（第2版）、店舗マニュアル完成版、連続実走で穴が出た場合の smoke E2E 評価。
+- Durable decisions discovered in this plan and promoted to source docs: D-069。
+
+Minimum design checks for business-app work:
+
+- Layer ownership (`UI -> CMD -> BIZ -> IO/MNT`): 変更なし（参照のみ）。
+- Backend function design: 変更なし。
+- Command / DTO / data contract: 変更なし。
+- Persistence / transaction / audit impact: 変更なし。台本は専用受入 DB 前提。
+- Operator workflow / Japanese UI wording: 台本は画面の実文言に一致させる（Writer は実画面 or 正本 docs の文言を転記、創作しない）。
+- Error, empty, retry, and recovery behavior: 失敗時切り戻し（baseline 復元）を台本に規定。
+- Testability and traceability IDs: fixture 受理 test は REQ-401 系 token を含め traceability 再生成で拘束。
+
+## Contract Probe
+
+R2 につき必須ではない。外部前提（日報取込みの在庫不変 / pos_stock_sync の Z004 限定）は Codex 諮問と Coordinator 実読の三点一致で裏取り済みのため N/A。
+
+## Contract Coverage Ledger
+
+R2 につき N/A（R3/R4 required）。台本の確認観点と正本契約の対応は Design Intent Trace と Review Focus で担保する。
+
+## Test Plan
+
+- targeted tests: fixture 受理 test（`tests/fixtures/daily-report/` の 3 file を読み parse 成功 + 代表集計値 assert、io 層）。`./scripts/doc-consistency-check.sh`。
+- negative tests: なし（fixture の誤 shape 検証は既存 parser エラー系 test が保有済み、追加しない）。
+- compatibility checks: 90-traceability.md 再生成の CI drift gate pass。
+- data safety checks: fixture 3 file と README に実店舗値が含まれないこと（Review Focus で独立確認）。
+- main wiring/integration checks: なし（実装変更なし）。owner L3 1 周が end-to-end 実証。
+
+## Boundary / Wire Contract
+
+not applicable — wire / DTO / API / config / DB schema に変更なし。fixture は既存 parser の受理 shape に従う入力データのみ。
+
+## Review Focus
+
+- 台本各 step の操作手順・確認観点が正本 function-design の実装済み挙動と一致しているか（創作された手順・文言がないか）。
+- fixture bundle が 29-io の受理 shape に適合し、README が synthetic であることを明記しているか。実店舗値の混入がないか。
+- 事前準備節が偽不整合を作らない構成か（アプリ登録経路、SQL 直 INSERT 禁止）。
+- baseline backup と受入 backup の命名分離が曖昧さなく書かれているか。
+- step 2 の数列（開始在庫・入庫・販売数）が閾値以下へ確実に到達するか。
+
+## Spec Contract
+
+R2 につき N/A（R3/R4 required）。
+
+## Trace Matrix
+
+R2 につき N/A（R3/R4 required）。
+
+## Data Safety
+
+- 実 POS / 店舗 CSV・実売上値・実商品名は commit しない（fixture は synthetic のみ、README に生成根拠を明記）。
+- 受入実走は専用受入 DB で行い、本番 DB / 実 backup file は台本から参照しない。
+- `docs/research/real-csv/`（git 管理外、owner local）は台本から参照しない。
+
+## Implementation Results
+
+Fill after implementation.
+
+Do not transcribe exact-HEAD SHA or test counts here (D-035/D-038 Evidence Ownership). Record a qualitative summary and the PR link only.
+
+## Review Response
+
+Fill after review.
+If R3 review-only sub-agent is skipped, record an explicit line beginning with `Review-only skipped because:` and the reason.
+- Findings Freeze: not yet frozen; post-freeze exceptions: none.
