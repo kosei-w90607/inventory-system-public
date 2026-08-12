@@ -16,7 +16,7 @@ Use the field definitions, enums, transition evidence, packet-selection rule, an
 - Reviewed Content HEAD: pending
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
-- Human Gate: owner L3 = Windows native release 相当起動の正常確認 1 項目（dialog 経路自体は synthetic 失敗 test + PR1 Contract Probe 既存 evidence で代替 — Design Intent Audit 参照）
+- Human Gate: owner L3 2 項目 = (1) Windows native 起動の正常確認（退行検知）(2) `.run()` 失敗 handler の dialog 実機確認（SPEC-SFV-D4 の debug 限定 simulation hook で再現。Plan Review round 1 P1-1 是正 — Writer への実機確認委任は撤回、L3 実機確認は owner 専任〈AGENT_OPERATING_MANUAL §2〉）
 
 ## Owner Effort Budget
 
@@ -62,7 +62,8 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 - **SPEC-SFV-D1（合流点の単一化）**: `.run(...).expect(...)`（`lib.rs:814`）を `unwrap_or_else` へ置換し、`show_pre_window_fatal`（既存 helper、`lib.rs:149-178`、app handle 非依存）で dialog 表示後に非 0 exit する。setup closure 内の 3 箇所（`app_data_dir?` / `create_dir_all?` / `DatabaseInit`）は Err 伝搬前に同 helper を呼ぶ（既存 RestoreReconcile / LegacyMigration の呼び出し形と同型）。
 - **SPEC-SFV-D2（ログ未初期化経路の扱い）**: `app_data_dir` / `create_dir_all` 失敗は診断ログ初期化前のため「dialog のみ・ログなし」を許容する（ログ初期化の先送り再試行は行わない — 失敗原因が filesystem 由来のとき再帰的に失敗し複雑化するため）。dialog 文言はこの 2 経路に限り診断ログ誘導を含めない。
 - **SPEC-SFV-D3（DatabaseInit の operator 文言）**: `StartupDatabaseError::DatabaseInit` の `operator_message()` を `None` から具体文言へ変更（利用者向け日本語、既存 2 variant の文言 style に整合）。`lib.rs:56-57` の「本PRのscope外」コメントを削除し、`22-mnt-migration.md` §12.4 の前提事実記述（219 行の「既存3経路は無言クラッシュ」）を本 change 完了形へ改訂。
-- **文言契約**: 各経路の dialog 文言は「何が起きたか（平易）+ 対処（再起動 / 空き容量・保存先確認 / 解決しない場合の相談誘導）+（ログ初期化後の経路のみ）診断ログの所在」。文言は Test Design Matrix の T 行で固定する。
+- **SPEC-SFV-D4（L3 用 simulation hook）**: `.run()` 失敗 handler の実機確認用に、`#[cfg(debug_assertions)]` 限定の起動失敗 simulation（環境変数 trigger、名称は Writer 採番）を追加する。release バイナリには一切含まれない（escape hatch を debug build に封じ込め、`cargo check --release` と Final Review の cfg 検分で担保）。owner L3 項目 2 は `npm run tauri dev`（debug）+ 本 hook で dialog 表示を確認する — MessageBoxW が post-event-loop の `unwrap_or_else` 文脈で動作するかという未検証前提の機構は debug/release で不変のため、debug での確認で足りる（windows_subsystem は console 有無のみの差）。
+- **文言契約**: 各経路の dialog 文言は「何が起きたか（平易）+ 対処 + 繰り返し失敗時の管理者連絡誘導 + 末尾に raw error detail（`\n{details}`、既存 2 variant と同型 — Plan Review round 1 P2-2 是正。ログ未初期化経路では dialog 内 detail が唯一の診断手がかり）+（ログ初期化後の経路のみ）診断ログの所在」。確定文言は Test Design Matrix の T 行で固定する。エスカレーション語彙は既存 style の「管理者へ連絡してください」に統一（P2-1 是正）。
 - 設計正本改訂: `22-mnt-migration.md` §12.4 へ SPEC-SFV-D1〜D3 を MNT-03-D4 の拡張として追記（新 D-ID は 22 側の連番規約に従い Writer が採番、packet の SPEC-SFV-* と対応表を残す）。
 - tests: [Test Design Matrix](test-matrices/2026-08-13-startup-failure-visibility.md) 参照。既存 b6/b9/b10/b11 起動系 test は無改変維持（DatabaseInit の `operator_message() == None` を assert する既存 test が実在する場合のみ、契約更新として期待値変更を許可 — 削除・無効化は不可）。
 
@@ -82,6 +83,7 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 - AC5: `22-mnt-migration.md` §12.4 が拡張後の契約を記述し、`./scripts/doc-consistency-check.sh` + design_compliance 系 test 全通過（Matrix T6）。
 - AC6: `cargo check --release` pass（L3 前提の Writer 完了条件）+ L1 full pass。
 - AC7: mutation X1〜X4 を各注入した `cargo test` が対応 T 行の test fail（exit code 非 0）になることを Writer 実測 + Coordinator 独立再実測で確認し、復元後の `git status` clean を記録する。
+- AC8: owner L3 項目 2（SPEC-SFV-D4 hook による `.run()` 失敗 dialog の実機確認）の PASS が PR body に記録される — これをもって Contract Probe 第 2 項を close する（L3 FAIL / hook 不成立の場合は fail-closed で design 再検討）。
 
 ## Design Sources
 
@@ -122,7 +124,7 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 - Assumptions and constraints: `show_pre_window_fatal` は app handle 非依存で setup closure 内どこからでも呼べる（Coordinator 調査 2026-08-13、lib.rs:149-178 実読）。MessageBoxW の pre-window 実機挙動は PR1 Contract Probe #1 で確定済み（再 probe 不要）。診断ログ初期化前の 2 経路は tracing が silent drop になる（lib.rs:692-703 実読）。
 - Deferred design gaps: 非 Windows の dialog 化（開発環境のみ、eprintln 維持）。restore 遅延成功の起動通知（別 backlog）。
 - Test Design Matrix cites design decision IDs: yes（SPEC-SFV-D1〜D3）。
-- Absolute guarantee / escape hatch self-check: fail-closed 挙動（起動中止）は不変 — 可視化を足すのみで、いかなる失敗も起動続行へ変えない（escape hatch 新設なし）。
+- Absolute guarantee / escape hatch self-check: fail-closed 挙動（起動中止）は不変 — 可視化を足すのみで、いかなる失敗も起動続行へ変えない。唯一の新設 escape hatch は SPEC-SFV-D4 の simulation hook で、`#[cfg(debug_assertions)]` により release バイナリから構造的に排除される（Final Review が cfg 検分、互換性 = release 挙動に影響なし）。
 
 ## Impact Review Lenses
 
@@ -150,7 +152,7 @@ Minimum design checks: Layer ownership = MNT/起動層のみ / backend function 
 ## Contract Probe
 
 - MessageBoxW の pre-window（setup 段階）表示可否: **既存 evidence 流用** — PR1 Contract Probe #1（[archived packet](../archive/plans/2026-07-18-backup-migration-failure-contract-impl-pr1.md)）で Windows 実機確定済み。本 change は同一 helper の適用範囲拡張のため再 probe 不要（適用時点がより早くなる `app_data_dir` 失敗経路も app handle 非依存性〈lib.rs:149-178 実読〉により同条件）。
-- `.run()` Err 時の process 状態（unwrap_or_else 内で MessageBoxW worker thread + join が動作するか）: 未検証の外部前提。**Writer が実装時に synthetic 失敗（テスト用 feature flag or 一時 code）で Windows 実機 or CI 上の挙動を確認し、packet へ 1 行記録する**（不可能なら fail-closed 停止で報告）。
+- `.run()` Err 時の process 状態（unwrap_or_else 内で MessageBoxW worker thread + join が動作するか）: 未検証の外部前提。**probe = owner L3 項目 2**（SPEC-SFV-D4 の debug 限定 simulation hook、AC8 で closure を拘束）。Writer への実機確認委任は行わない — CI は全 job ubuntu-latest で Windows runner 不在（`.github/workflows/ci.yml` 実査）、L3 実機確認は owner 専任（AGENT_OPERATING_MANUAL §2 Human Gate 定義）。Plan Review round 1 P1-1 是正。
 
 ## Contract Coverage Ledger
 
@@ -159,6 +161,7 @@ Minimum design checks: Layer ownership = MNT/起動層のみ / backend function 
 | SPEC-SFV-D1（3 経路 + `.run()` の dialog 化） | lib.rs 起動 sequence | T1/T2/T4 | L3 は正常起動退行のみ |
 | SPEC-SFV-D2（ログ未初期化経路 = dialog のみ） | lib.rs setup closure 前半 | T1/T2（文言差分） | non-scope（ログ再試行なし） |
 | SPEC-SFV-D3（DatabaseInit operator_message 具体化） | lib.rs StartupDatabaseError | T3 | — |
+| SPEC-SFV-D4（debug 限定 simulation hook） | lib.rs `.run()` handler 手前 | cfg 構造の code review（Final Review 検分） | L3 項目 2（AC8） |
 | MNT-03-D4 既存契約の不退行 | lib.rs:715 既存呼出し | T5（b6 ほか無改変 green） | — |
 | §12.4 doc 整合 | 22-mnt-migration.md | T6（doc check + design compliance） | — |
 
@@ -190,7 +193,8 @@ Contract ID: SPEC-SFV
 
 - SPEC-SFV-D1: release build の setup 失敗 3 経路 + `.run()` 失敗は、`show_pre_window_fatal`（MessageBoxW worker thread + join）による dialog 表示後に非 0 exit する。無言クラッシュ経路を残さない。
 - SPEC-SFV-D2: 診断ログ初期化前の失敗（`app_data_dir` / `create_dir_all`）は dialog のみとし、ログ初期化の先送り再試行を行わない。当該文言は診断ログ誘導を含まない。
-- SPEC-SFV-D3: `StartupDatabaseError::DatabaseInit` は具体的な operator 向け日本語文言を返す。「scope外」注記は code / doc の両方から除去する。
+- SPEC-SFV-D3: `StartupDatabaseError::DatabaseInit` は具体的な operator 向け日本語文言を返す。「scope外」注記は code / doc の両方から除去する。`operator_message()` の `Option<String>` signature は維持する（全 variant が Some になった後も、既存 test（b6 の `.unwrap()` 呼出し等）の無改変維持〈T5〉を優先する意図的判断。`lib.rs:716-718` の else 分岐は defensive fallback として残し、その旨のコメントを付す — Plan Review round 1 P3-2 disposition）。
+- SPEC-SFV-D4: `.run()` 失敗経路の L3 実機確認用 simulation hook を `#[cfg(debug_assertions)]` 限定で追加する。release バイナリに含まれないことを構造（cfg）で保証し、escape hatch を debug build に封じ込める。
 
 ## Trace Matrix
 
@@ -198,7 +202,8 @@ Contract ID: SPEC-SFV
 |---|---|---|---|---|
 | SPEC-SFV-D1 | helper 適用 + `.expect()` 置換 | T1/T2/T4/X1/X2 | 全数カバー / fail-closed 維持 | PR diff + Matrix 実測 |
 | SPEC-SFV-D2 | 文言分岐 | T1/T2/X3 | 診断ログ誘導の混入なし | 同上 |
-| SPEC-SFV-D3 | operator_message 具体化 | T3/X4 | 文言 style 整合 | 同上 |
+| SPEC-SFV-D3 | operator_message 具体化 | T3/X4 | 文言 style 整合 / Option 維持理由 | 同上 |
+| SPEC-SFV-D4 | debug 限定 hook | L3 項目 2（AC8） | release 非混入（cfg 検分） | PR body L3 記録 |
 | MNT-03-D4 不退行 | 既存呼出し維持 | T5 | b6 ほか無改変 | 同上 |
 
 ## Data Safety
