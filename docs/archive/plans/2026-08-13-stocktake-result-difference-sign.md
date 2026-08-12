@@ -4,7 +4,7 @@
 
 Use the field definitions, enums, transition evidence, packet-selection rule, and fail-closed behavior from `docs/DEV_WORKFLOW.md` `Workflow State`. Keep exactly one `- Key: value` line per field.
 
-- Phase: human-confirm
+- Phase: archive
 - Risk: R2
 - Execution Mode: fable-window
 - Plan Commit: 7a555b9
