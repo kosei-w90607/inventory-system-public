@@ -6,7 +6,7 @@ Use the field definitions, enums, transition evidence, packet-selection rule, an
 
 If a state-only commit materializes multiple phases, list the complete adjacent forward sequence and the pre-existing evidence for every intermediate transition in an append-only review/evidence record. Recording compression never permits a gate skip.
 
-- Phase: implementing
+- Phase: local-verified
 - Risk: R2
 - Execution Mode: fable-window
 - Plan Commit: 19daa33
@@ -230,7 +230,7 @@ R2 につき N/A（R3/R4 required）。
 ## Implementation Results
 
 - Writer implementation: completed — 2 層・6 step の `docs/ACCEPTANCE_SCENARIO.md`、CP932 synthetic daily-report bundle、実ファイル受理 test、D-069、Plans / PROJECT_HANDOFF 登録、traceability 再生成を実装した。
-- Verification before content freeze: fixture targeted test、全 Rust test、format check、doc consistency check は pass。L1 full は clean content commit に対して実行し、state 遷移時に記録する。
+- Verification: fixture targeted test、全 Rust test、format check、doc consistency check、L1 full は clean content commit に対して pass。generated artifact drift と終了時 clean tree も確認した（implementing → local-verified の遷移根拠）。
 - PR: 未作成（Coordinator が Final Review 後に作成する契約）。
 
 Do not transcribe exact-HEAD SHA or test counts here (D-035/D-038 Evidence Ownership). Record a qualitative summary and the PR link only.
