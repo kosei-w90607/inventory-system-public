@@ -544,3 +544,12 @@ Use concise ADR-style entries.
 - Impact: npm 依存追加なし、コード変更なし。docs のみ（UI_TECH_STACK §5.2/§7.1/§7.2、DEV_SETUP_CHECKLIST §12.3、52 §52.4 保留表、PROJECT_HANDOFF G-6、Plans.md backlog）。
 - Alternatives considered: 条件付き据置（再評価トリガー = 人間の協業者の増加 / デザインシステム外部共有の必要発生。トリガー成立の見込みが現状皆無で backlog の恒久残置になるため不採用）; 形式基準どおり採用（stories 41 component 分の初期整備 + 設計変更ごとの追随保守を agent トークンで払い続ける割に閲覧者がいないため不採用）。
 - Revisit: 人間の協業者（デザイナー / 第二開発者）が加わるとき、またはコンポーネントカタログの外部共有が必要になったとき。
+
+## D-069
+
+- Decision: 業務シナリオ受入テスト台本（第1版）の在庫反映経路は手動入出庫（入庫 + 手動販売出庫）とし、Z004 取込みの pos_stock_sync 自動在庫連動は台本 scope 外とする。台本第1版の PASS は Z004 経路の受入を意味しない。v1.0 初日から Z004 実運用を要する場合は、Z004 layout A/B 再検証 R3 と台本第2版 PASS を roadmap 項5（MSI 配布判定）の gate に含めるかを項5 で裁定する。
+- Status: accepted（owner 仮選択 2026-08-12 → Codex 諮問の実コード裏取り → owner plan 承認 2026-08-12。packet = docs/plans/2026-08-12-acceptance-scenario-script.md）
+- Why: 標準経路（Z001/Z002/Z005）の日報 commit は集計保存のみで在庫を動かさない（daily_report_import_service/tests.rs の在庫不変 assert）。pos_stock_sync による自動在庫連動は Z004 経路のみ（csv_import_service/commit.rs）。Z004 は layout A/B 再検証 R3 が未完で、既存 fixture は実 layout の代用にならないため、先に台本へ含めると旧合成 shape の成功を受入済みと誤認する順序のねじれを生む。
+- Impact: 台本第1版は現行実装の標準運用と一致する。第2版で step 2 へ Z004 経路を追加する際、後段 4 step（在庫少検知・棚卸し・整合性検証・バックアップ/復元）は再利用できる。
+- Alternatives considered: Z004 fixture 同乗（layout A/B 未検証の順序ねじれで却下）; 在庫反映 defer（一気通貫の喪失で却下）。
+- Revisit: Z004 layout A/B 再検証 R3 完了時（台本第2版の起案）、または項5 配布判定時。
