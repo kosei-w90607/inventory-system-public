@@ -6,7 +6,7 @@ Use the field definitions, enums, transition evidence, packet-selection rule, an
 
 If a state-only commit materializes multiple phases, list the complete adjacent forward sequence and the pre-existing evidence for every intermediate transition in an append-only review/evidence record. Recording compression never permits a gate skip.
 
-- Phase: local-verified
+- Phase: human-confirm
 - Risk: R2
 - Execution Mode: fable-window
 - Plan Commit: 19daa33
@@ -15,7 +15,7 @@ If a state-only commit materializes multiple phases, list the complete adjacent 
 - Writer: Codex（発注書は Coordinator 起草、owner relay）
 - Plan Reviewer: Sonnet subagent（独立 context）
 - Final Reviewer: Sonnet subagent（独立 context）
-- Reviewed Content HEAD: pending
+- Reviewed Content HEAD: cf70131
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
 - Human Gate: owner L3 = 台本 1 周（Windows native、operator 役、roadmap 項4 の受入実走）+ 台本可読性確認
@@ -246,3 +246,10 @@ If R3 review-only sub-agent is skipped, record an explicit line beginning with `
 - round 1（対象 `d563820`）: NOT CLOSED — P1×1（fixture の CP932/SHIFT_JIS 再エンコード義務の明記漏れ = UTF-8 直書き出しだと parser strict decode で reject、`daily_report_parser.rs` の decode 実装と test helper `encode_cp932` を引用）/ P2×1（backup「命名分離」が実在しないカスタム命名機能を示唆、実装は自動タイムスタンプ命名のみ）/ P3×1（step 2 数列の固定値化推奨）。packet が依拠する事実主張 (a) 日報取込みの在庫不変 (b) pos_stock_sync の Z004 限定 (c) 整合性検証の movement 突合 (d) アプリ登録の初期在庫 movement 生成は、reviewer 独立実読で全件一致。全 findings に修正案添付（fix-proposal 義務充足）。Coordinator が引用 3 点を実読裏取りのうえ全件 accept、是正 commit `19daa33`（P2 は「命名」の packet 全文 rg sweep 済み、残存 1 件は Non-scope の別文脈で正当）。
 - round 2（対象 `19daa33`、focused verification）: **CLOSED（P1/P2 = 0）** — 3 disposition とも実装済み挙動への引用一致を確認、新規 findings なし。P1+P2 単調収束 2→0。
 - owner plan 承認: 2026-08-12（介入 1/3。plan-gate→plan-approved の遷移根拠）。implementing 遷移は Codex Writer 発注の前提として Coordinator が完了（発注 preconditions）。
+
+### Final Review（独立 Sonnet、対象 = Reviewed Content HEAD `cf70131`）
+
+- 判定 **CLOSED（P1/P2 = 0）**、AC1〜AC7 全充足を reviewer 自前証拠で確認 — 台本全 step の UI 文言を実装 component と突合（全 MATCH、D-047 deep-link / backup 自動命名を実コード確認）/ fixture 3 file は UTF-8 decode 失敗 + Shift_JIS 可読を機械確認、既存 test リテラルとバイト単位一致、実店舗値 scan 0 hit / 受理 test は実ファイル `std::fs::read` 読取り + assert 代表値（12000/8・11000/7・3000/4）の fixture 実内容由来を目視突合、`cargo test --lib io::daily_report_parser` 10 passed / D-069 verbatim 一致 / 90-traceability は REQ-401 行のみの差分 / doc-consistency 全通過 / Data Safety 適合。
+- findings = P3×1 のみ（step 4 整合性表示の期待値が一文の部分引用を独立文言のように表記）→ Coordinator accept、本 commit で是正（「文末の部分引用」注記化）。post-audit 差分は当該 1 行のみ。
+- Writer 完了条件 backstop: `cargo check --release` pass を Coordinator が実測（L3 Human Gate 前提、DEV_WORKFLOW 規則）。
+- 遷移記録: local-verified → independent-review（FR 従事）→ human-confirm（P1/P2 = 0 確定）。STATECAP state-only 予算（3 本）消化済みのため、本遷移は content commit（P3 是正）同乗で実体化（PR #58 先例の cap 内完走方式）。
