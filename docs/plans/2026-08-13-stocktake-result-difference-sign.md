@@ -4,10 +4,10 @@
 
 Use the field definitions, enums, transition evidence, packet-selection rule, and fail-closed behavior from `docs/DEV_WORKFLOW.md` `Workflow State`. Keep exactly one `- Key: value` line per field.
 
-- Phase: plan-draft
+- Phase: local-verified
 - Risk: R2
 - Execution Mode: fable-window
-- Plan Commit: pending
+- Plan Commit: 7a555b9
 - Amendments: none
 - Coordinator: Fable (main thread)
 - Writer: Fable (main thread、1 行 + test の軽微是正。PR #64/#67 の Coordinator/Writer 兼務先例)
@@ -164,7 +164,10 @@ R2 につき N/A。
 
 ## Implementation Results
 
-Fill after implementation.
+- `StocktakePage.tsx` 確定結果テーブルの差異 cell へ `formatListDifference` を適用（import 済み関数の適用 1 箇所、prettier 整形で 2 行化）。T21 新設（正 `+2` / 負 `-3` の表示固定 + 生値 `2` の不在 assert、既存 26 test 無改変）。
+- 検証: 対象 file vitest 27/27 green / eslint / prettier / tsc clean / `generate_traceability --check` ERROR 0（REQ token 数不変のため再生成不要と実測確認）/ doc-consistency 全通過。
+- mutation 感度: 生値表示へ戻した mutant で T21 のみ red（他 26 green）を Coordinator 実測、復元済み。
+- 遷移記録（recording compression、gate skip なし）: plan-draft → plan-gate（packet commit `7a555b9`）→ plan-approved（owner が PR #74 comment round 2 で本是正を明示提案 + 「着手できるやつはやってしまおう」の標準承認。設計裁量ゼロの drift 是正）→ implementing → local-verified（上記検証 pass）。PR link は Review 後に記載。
 
 ## Review Response
 

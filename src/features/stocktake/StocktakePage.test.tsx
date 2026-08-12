@@ -1,6 +1,6 @@
 // src/features/stocktake/StocktakePage.test.tsx
 //
-// REQ-205 / UI-10 Test Design Matrix T1〜T16（UI-10-D10）+ T17（UI-10-D11）+ T18〜T20（契約監査）
+// REQ-205 / UI-10 Test Design Matrix T1〜T16（UI-10-D10）+ T17（UI-10-D11）+ T18〜T20（契約監査）+ T21（UI-10-D10 差異符号、受入台本 L3 起源）
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
@@ -467,6 +467,46 @@ describe("StocktakePage (UI-10)", () => {
     expect(screen.getByText("赤い糸")).toBeInTheDocument();
     expect(screen.getByText("前回の棚卸し（2026-09-30 18:00:00）")).toBeInTheDocument();
     expect(screen.getByText("仕入原価総額 ¥2,000")).toBeInTheDocument();
+  });
+
+  it("T21 result shows signed difference via formatListDifference (+N / -N, UI-10-D10)", async () => {
+    const user = userEvent.setup();
+    mockGetActive.mockResolvedValue(ok(activeStocktake()));
+    mockComplete.mockResolvedValueOnce(
+      ok({
+        total_cost: 2500,
+        adjusted_items: [
+          {
+            product_code: "P-001",
+            product_name: "赤い糸",
+            system_stock: 10,
+            actual_count: 8,
+            difference: 2,
+            stock_after: 8,
+          },
+          {
+            product_code: "P-002",
+            product_name: "青い糸",
+            system_stock: 5,
+            actual_count: 8,
+            difference: -3,
+            stock_after: 8,
+          },
+        ],
+        total_items: 2,
+        integrity_result: { mismatches: [], mismatch_count: 0, checked_count: 2 },
+      }),
+    );
+    await renderPage();
+
+    await user.click(await screen.findByRole("button", { name: "棚卸しを確定する" }));
+    await user.click(screen.getByRole("button", { name: "確定する" }));
+
+    expect(await screen.findByRole("heading", { name: "棚卸し結果" })).toBeInTheDocument();
+    // 正差異は「+2」、負差異は「-3」の符号付きプレーンテキスト（進行中一覧と表現統一）
+    expect(screen.getByText("+2")).toBeInTheDocument();
+    expect(screen.getByText("-3")).toBeInTheDocument();
+    expect(screen.queryByText(/^2$/)).not.toBeInTheDocument();
   });
 
   it("T19 result page keeps pre-complete last-stocktake snapshot after lastCompleted invalidation (Codex contract audit P2)", async () => {

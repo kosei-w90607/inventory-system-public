@@ -906,7 +906,9 @@ export function StocktakeResultPage({ result, lastStocktake }: StocktakeResultPa
                   <TableCell>{item.product_name}</TableCell>
                   <TableCell className="text-right">{item.system_stock}</TableCell>
                   <TableCell className="text-right">{item.actual_count}</TableCell>
-                  <TableCell className="text-right">{item.difference}</TableCell>
+                  <TableCell className="text-right">
+                    {formatListDifference(item.difference)}
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
