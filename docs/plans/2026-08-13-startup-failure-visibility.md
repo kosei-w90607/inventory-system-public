@@ -83,7 +83,7 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 - AC5: `22-mnt-migration.md` §12.4 が拡張後の契約を記述し、`./scripts/doc-consistency-check.sh` + design_compliance 系 test 全通過（Matrix T6）。
 - AC6: `cargo check --release` pass（L3 前提の Writer 完了条件）+ L1 full pass。
 - AC7: mutation X1〜X4 を各注入した `cargo test` が対応 T 行の test fail（exit code 非 0）になることを Writer 実測 + Coordinator 独立再実測で確認し、復元後の `git status` clean を記録する。
-- AC8: owner L3 項目 2（SPEC-SFV-D4 hook による `.run()` 失敗 dialog の実機確認）の PASS が PR body に記録される — これをもって Contract Probe 第 2 項を close する（L3 FAIL / hook 不成立の場合は fail-closed で design 再検討）。
+- AC8: owner L3 項目 2（SPEC-SFV-D4 hook による `.run()` 失敗 dialog の実機確認）の PASS が PR body に記録される — これをもって Contract Probe 第 2 項を close する（L3 FAIL / hook 不成立の場合は fail-closed で design 再検討）。hook が実 `.run()` Err 経路を通す方式であること（handler 直接呼出しでないこと）は Final Review の code 検分対象。
 
 ## Design Sources
 
@@ -194,7 +194,7 @@ Contract ID: SPEC-SFV
 - SPEC-SFV-D1: release build の setup 失敗 3 経路 + `.run()` 失敗は、`show_pre_window_fatal`（MessageBoxW worker thread + join）による dialog 表示後に非 0 exit する。無言クラッシュ経路を残さない。
 - SPEC-SFV-D2: 診断ログ初期化前の失敗（`app_data_dir` / `create_dir_all`）は dialog のみとし、ログ初期化の先送り再試行を行わない。当該文言は診断ログ誘導を含まない。
 - SPEC-SFV-D3: `StartupDatabaseError::DatabaseInit` は具体的な operator 向け日本語文言を返す。「scope外」注記は code / doc の両方から除去する。`operator_message()` の `Option<String>` signature は維持する（全 variant が Some になった後も、既存 test（b6 の `.unwrap()` 呼出し等）の無改変維持〈T5〉を優先する意図的判断。`lib.rs:716-718` の else 分岐は defensive fallback として残し、その旨のコメントを付す — Plan Review round 1 P3-2 disposition）。
-- SPEC-SFV-D4: `.run()` 失敗経路の L3 実機確認用 simulation hook を `#[cfg(debug_assertions)]` 限定で追加する。release バイナリに含まれないことを構造（cfg）で保証し、escape hatch を debug build に封じ込める。
+- SPEC-SFV-D4: `.run()` 失敗経路の L3 実機確認用 simulation hook を `#[cfg(debug_assertions)]` 限定で追加する。release バイナリに含まれないことを構造（cfg）で保証し、escape hatch を debug build に封じ込める。**hook は `.run()` の Result を実際に Err にする方式（plugin init 失敗の誘発等）とし、fatal handler 関数の直接呼出しによる代替は不可** — Probe #2 の検証対象は「`.run()` 失敗 → unwrap_or_else → MessageBoxW worker spawn → join」の実経路である（Plan Review round 2 P2 是正）。
 
 ## Trace Matrix
 
