@@ -6,7 +6,7 @@
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: ba0732e
-- Amendments: none
+- Amendments: 4de6be86bfdc77a1be782acfd01a2f1a6c09f247
 - Coordinator: Fable
 - Writer: Codex
 - Plan Reviewer: Sonnet
@@ -510,6 +510,7 @@ source design amendment を実施した。
 - design-system adjacency: `docs/design-system/01-decision-rules.md`, `docs/design-system/02-component-catalog.md`
 - quality adjacency: `docs/quality/review-checklist.md`
 - mechanical sweep: active sales-import contractの旧固有tokenはhitなし。「上書き」の残存hitはMechanical Impact Inventoryの明示除外（商品master、棚卸し、backup restore、PLU/CV17、Excel、CSS/config、historical record）と後続implementation対象だけである。archiveは変更していない。
+- gated amendment: SPEC-SDI-D3 の移行途中を静的契約testの docs側新契約 / code側現契約の分離pinで追跡し、後続implementation I-W4のcode renameと同時に単一pinへ再統一する。
 
 ## Review Response
 
