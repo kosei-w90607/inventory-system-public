@@ -62,8 +62,8 @@ struct GrandTotal {
 
 ```
 struct OfficialDailyReportSummary {
-    daily_report_import_id: i64,
     report_date: String,
+    source_import_count: i64,
     gross_amount: Option<i64>,
     net_amount: Option<i64>,
     payment_lines: Vec<OfficialDailyPaymentLine>,
@@ -160,16 +160,20 @@ fn get_daily_sales(conn: &DbConnection, date: &str) -> Result<DailySalesReport, 
    - date が YYYY-MM-DD 形式でない → BizError::ValidationFailed("日付の形式が不正です（YYYY-MM-DD）")
    - chrono で暦妥当性チェック（2月30日等）→ BizError::ValidationFailed("存在しない日付です")
 
-2. **商品別売上取得**
+2. **商品別売上取得と同日active import加算**
    - sales_repo::get_daily_sales_records(conn, date) → Vec<DailySaleItem>
-   - SQL: SELECT sr.product_code, p.name, d.name as department_name, d.id as department_id, sr.quantity, sr.amount, sr.source FROM sale_records sr INNER JOIN products p ON sr.product_code = p.product_code INNER JOIN departments d ON p.department_id = d.id WHERE sr.sale_date = ? AND sr.is_voided = 0 ORDER BY d.id ASC, p.product_code ASC
+   - SQLは `sale_date=? AND is_voided=0` の全行を対象にし、`product_code + source` でquantity / amountを合計する。Z004の同日複数import由来行をすべて含める
+   - `source='auto'` と `source='manual'` は別groupとし、同一商品でも統合しない。表示名・部門はproduct_codeから決定し、結果を部門ID、商品コード、sourceの決定順で返す
    - 0件でも正常（データなしの日）
 
 3. **公式日報集計取得（REQ-401 redesign target）**
-   - sales_repo::get_latest_completed_daily_report(conn, date) → Option<OfficialDailyReportSummary>
-   - `daily_report_imports.status='completed'` の最新1件を対象に、payment_lines / department_lines を取得する
+   - sales_repo::get_completed_daily_report_aggregate(conn, date) → Option<OfficialDailyReportSummary>
+   - `report_date=date AND status='completed'` の親を全件対象とし、`source_import_count` に親件数を返す。単一parent IDはwireへ返さない
+   - 親gross/netは合計する。ただし対象親のいずれかがNULLなら集約値もNULLとし、不完全値を確定値に見せない
+   - paymentは `payment_key` で、departmentは `department_id`、未対応行は `normalized_department_name` fallback `raw_department_name` で集約する。amountは合計し、optional quantity/countは対象行のいずれかがNULLなら集約値もNULLとする
+   - labelとsortはgroup内の最小 `sort_order`、同値なら最小row IDの行を決定的な代表とする
    - 日報未取込みでも正常。`official_daily_report=None` とし、UIは「日報未取込み」と表示できる
-   - SALES2-D5: `department_lines` に `department_id IS NULL` 行が n 件ある場合、`warnings` に「部門マスタと対応していない部門が n 件あります（部門名のまま表示しています）」を1件だけ追加する。NULL 行がなければ空配列。preview 時の詳細 warning は永続列を持たないため復元しない
+   - SALES2-D5: 集約後の `department_id IS NULL` groupが n 件ある場合、`warnings` に「部門マスタと対応していない部門が n 件あります（部門名のまま表示しています）」を1件だけ追加する。importごとに警告を重複させない。NULL groupがなければ空配列
 
 4. **部門小計の計算**
    - items を department_id でグルーピング
@@ -187,6 +191,7 @@ fn get_daily_sales(conn: &DbConnection, date: &str) -> Result<DailySalesReport, 
 - `items` / `department_subtotals` / `grand_total` はZ004または手動販売出庫に基づく商品別売上を表す。
 - Z001/Z002/Z005は商品別明細を持たないため、`items` を水増ししない。
 - UIは、日報集計と商品別明細の差を「日報集計」「商品別（PLU/Z004・手動販売）」のように日本語で分けて表示する。
+- 公式日報seriesと商品別seriesは別の正本であり、互いを加算して一つの売上値にしない。
 
 **エラーハンドリング**:
 - 日付形式不正 → BizError::ValidationFailed(メッセージ)
@@ -262,8 +267,10 @@ fn get_monthly_sales(
 6. **公式日報部門集計（REQ-401 redesign target）**
    - sales_repo::get_monthly_official_department_totals(conn, date_from, date_to) → Option<Vec<OfficialMonthlyDepartmentTotal>>
    - `daily_report_department_lines` を `daily_report_imports.status='completed'` かつ `report_date BETWEEN date_from AND date_to` で集計する
+   - 同一日の複数completed親もすべて加算する。日次の追加取込みが月次合計へ加算されることを回帰契約とする
    - mode に関係なく `official_department_totals` として返す
-   - 日報取込みが1件もない月は `None`。一部日だけ日報がある月は取得済み日だけの合計とし、UIで「日報取込み済み日数」を表示する設計を後続UI PRで具体化する
+   - 日報取込みが1件もない月は `None`。一部日だけ日報がある月は取得済み日だけの合計とする。将来coverage countを返す場合はparent件数ではなく `COUNT(DISTINCT report_date)` を使う
+   - 公式日報部門集計と商品別集計は別seriesとして返し、両者を加算しない
 
 7. **結果返却**
    - MonthlySalesReport { month, mode, items, prev_month_comparison, official_department_totals }
@@ -375,3 +382,9 @@ fn export_sales_csv(
 |---------|-----------------|
 | INV-1: quantity符号規約 | sale_records.quantity を売上帳票視点でそのまま返す（+販売/-返品）。符号変換しない |
 | INV-4: is_voided の使用範囲 | WHERE is_voided = 0 で voided レコードを除外。voided を操作する処理は持たない |
+
+### 更新履歴
+
+| 日付 | PR | 内容 |
+|---|---|---|
+| 2026-08-16 | PR #79 | SPEC-SDI-D6: 商品別 `product_code + source` 集約、全completed日報親のNULL安全な日次集約、`source_import_count`、月次additive regressionを正本化。 |

@@ -58,7 +58,7 @@ CMD層は薄いラッパーのため、各コマンドの仕様は「どのBIZ�
 | コマンド名 | 入力 | 呼び出すBIZ | 出力 |
 |-----------|------|-----------|------|
 | parse_and_validate_csv | FileBytes, filename | BIZ-03 Stage1+2 | ParseValidateResult（preview_data, preview_token） |
-| commit_csv_import | CommitRequest（preview_token, overwrite_confirmed） | BIZ-03 Stage4 | ImportResult（csv_import_id, status, total_items, skipped_count） |
+| commit_csv_import | CommitRequest（preview_token, additional_import_confirmed） | BIZ-03 Stage4 | ImportResult（csv_import_id, status, total_items, skipped_count） |
 | rollback_csv_import | csv_import_id | BIZ-03 ロールバック | RollbackResult（success, voided_sale_count, stock_corrections） |
 | list_csv_imports | ListQuery（page, per_page） | BIZ-03経由 | PaginatedResult\<CsvImport\> |
 
@@ -67,7 +67,7 @@ CMD層は薄いラッパーのため、各コマンドの仕様は「どのBIZ�
 | コマンド名 | 入力 | 呼び出すBIZ | 出力 |
 |-----------|------|-----------|------|
 | parse_and_validate_daily_report | DailyReportSourceFile[]（filename, file_bytes） | BIZ-08 Stage1+2 | DailyReportPreviewResponse（preview_data, preview_token） |
-| commit_daily_report_import | CommitDailyReportRequest（preview_token, overwrite_confirmed） | BIZ-08 Stage4 | DailyReportImportResult（daily_report_import_id, status, report_date, warning_count） |
+| commit_daily_report_import | CommitDailyReportRequest（preview_token, additional_import_confirmed） | BIZ-08 Stage4 | DailyReportImportResult（daily_report_import_id, status, report_date, warning_count） |
 | rollback_daily_report_import | daily_report_import_id | BIZ-08 ロールバック | DailyReportRollbackResult（success, status） |
 | list_daily_report_imports | ListQuery（page, per_page, date_from?, date_to?） | BIZ-08経由 | PaginatedResult\<DailyReportImport\> |
 
@@ -120,3 +120,9 @@ CMD層は薄いラッパーのため、各コマンドの仕様は「どのBIZ�
 | save_receipt_image | SaveImageRequest | BIZ-02（拡張子validation所有、BIZがIO-06 image_managerを呼ぶ） | Result（relative_path） |
 
 CMD-11 の層経路は D-060 で正本化した（`ARCHITECTURE.md`「レイヤー間の呼び出し原則」参照）: 設定・操作ログ系は BIZ-09（`biz::system_service`）経由の標準経路、backup/restore 系は DB 接続所有権の交換を要する保守 orchestration として CMD → MNT-01 の正規経路（復旧規則の正本は function-design 71 §71.7）、領収書画像は base64 decode（CMD の wire 型変換）+ BIZ-02 の拡張子 validation。CMD から IO 層への直接呼び出しは禁止で、`src-tauri/tests/architecture_test.rs` の layer 依存 test が機械検査する（旧 allowlist の settings_cmd 例外 2 entry は削除済み）。検査対象は `use crate::db` / `use crate::io` の直接 import 行であり、re-export 経由の間接依存は対象外（検出強化は backlog）。
+
+### 更新履歴
+
+| 日付 | PR | 内容 |
+|---|---|---|
+| 2026-08-16 | PR #79 | SPEC-SDI-D3: 両取込みcommandの確認flagを `additional_import_confirmed` に統一。 |

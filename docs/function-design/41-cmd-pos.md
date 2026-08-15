@@ -129,6 +129,8 @@ struct ParseAndValidateResponse {
 }
 ```
 
+`PreviewData.duplicate_check` のwire形状は `status: DuplicateStatus` と `same_date_imports: Vec<SameDateCsvImportSummary>` で固定する。summaryは `id / filename / total_items / total_amount / imported_at` を持ち、順序は `imported_at DESC, id DESC`。単一parentだけを示すfieldは公開しない。
+
 **処理ステップ**（17.3のロック区間最小化パターンに従う）:
 1. file_bytes.len() > 20 * 1024 * 1024 → CmdError { kind: "validation", message: "ファイルサイズが上限(20MB)を超えています", field: None } を即返却
 2. state.db.lock() でDB接続を取得
@@ -178,7 +180,7 @@ struct ParseAndValidateResponse {
     },
     "duplicate_check": {
       "status": "NoDuplicate",
-      "existing_import_id": null
+      "same_date_imports": []
     },
     "preview_created_at": "2026-03-21T19:30:00"
   },
@@ -198,14 +200,14 @@ struct ParseAndValidateResponse {
 fn commit_csv_import(
     state: State<AppState>,
     preview_token: String,
-    overwrite_confirmed: bool,
+    additional_import_confirmed: bool,
 ) -> Result<ImportResult, CmdError>
 ```
 
 **入力型**:
 ```
 preview_token: String       // parse_and_validate_csvが返したトークン
-overwrite_confirmed: bool   // 同日データの上書き確認済みフラグ
+additional_import_confirmed: bool // 同日別hashを既存分へ追加する確認済みフラグ
 ```
 
 **出力型**:
@@ -226,16 +228,16 @@ struct ImportResult {
 3. キャッシュミス（不存在/追い出し/再起動） → CmdError { kind: "import_error", message: "プレビューが見つかりません。再度ファイルを選択してください" }
    - 有効期限切れ（created_at.elapsed() > 30分） → cache.remove → CmdError { kind: "import_error", message: "プレビューの有効期限が切れました（30分）。再度ファイルを選択してください" }
 4. state.db.lock() でDB接続を取得
-5. CommitRequest { overwrite_confirmed, cached_data } を構築（preview_tokenの検証・cache対応確認はCMD層で完了し、BIZ requestへ重複保持しない。BIZ-03-D1）
+5. CommitRequest { additional_import_confirmed, cached_data } を構築（preview_tokenの検証・cache対応確認はCMD層で完了し、BIZ requestへ重複保持しない。BIZ-03-D1）
 6. biz::csv_import_service::commit_csv_import(&mut conn, req) を呼ぶ（BIZ実行中はcache lockなし）
 7. Ok → state.preview_cache.lock() → キャッシュからtoken削除 → ImportResult を返す
-8. Err(BizError) → CmdError に変換して返す（キャッシュは保持、再試行可能）
+8. Err(BizError) → CmdError に変換して返す。通常の失敗はキャッシュを保持して再試行可能にする。BIZが `同日の取込み状況が変わりました。再度プレビューしてください` を返した場合だけtokenを削除し、同じpreviewでの再試行を禁止する
 
 **入力例**:
 ```json
 {
   "preview_token": "550e8400-e29b-41d4-a716-446655440000",
-  "overwrite_confirmed": false
+  "additional_import_confirmed": false
 }
 ```
 
@@ -653,3 +655,11 @@ CMD-07/CMD-08が**やらないこと**を明示する。
 ```
 
 現行実装（`lib.rs`）では command 登録は 2 箇所に分離している: `export_specta_bindings()` 内の `collect_commands![...]`（bindings 生成用）と `.invoke_handler(tauri::generate_handler![...])`（実行時 dispatch 用）。新規 command は**両方**へ登録する。collect_commands のみでは bindings diff が clean のまま IPC 実呼出しが「command not found」になる（CSV取込み詳細 Design Phase、Plan Review round 1 P2 起源）。
+
+SPEC-SDI-D3 の実装commitでは `DuplicateStatus`、`DuplicateCheck`、`SameDateCsvImportSummary`、`commit_csv_import` 引数へ `#[specta::specta]` / `specta::Type` を維持し、`src/lib/bindings.ts` をgeneratorで再生成する。生成物の手編集は禁止し、wire名は Rust `additional_import_confirmed` / TypeScript `additionalImportConfirmed` とする。
+
+### 更新履歴
+
+| 日付 | PR | 内容 |
+|---|---|---|
+| 2026-08-16 | PR #79 | SPEC-SDI-D3/D4: same-date summary DTO、`additional_import_confirmed`、snapshot mismatch時のtoken破棄、bindings再生成義務を正本化。 |

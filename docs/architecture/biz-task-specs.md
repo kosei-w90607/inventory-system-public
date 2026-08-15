@@ -220,13 +220,14 @@
    - status IN ('completed','completed_partial') → ブロック
    - status = 'rolled_back' → 許可
 2. settlement_dateで既存チェック
-   - 同じ日の取込みが存在 → 上書き確認フラグ付与
+   - 同じ日の別hash取込みが存在 → active import全件summaryと追加確認フラグを付与
 3. PreviewDataを構築してフロントエンドに返す
 4. **ここでフロントエンドからの利用者操作を待つ**
 
 **Stage 4: Commit**
-1. 上書き確認で「上書き」が選択された場合 → 既存csv_importをロールバック（後述のrollback処理を呼び出し）
-2. トランザクション内で実行
+1. preview statusと `additional_import_confirmed` の組合せを検証する
+2. トランザクション内で同一file_hashを再検査し、続けて同日active import ID snapshotを再取得する。不一致は「同日の取込み状況が変わりました。再度プレビューしてください」で副作用なく止める
+3. 既存importを変更せず、トランザクション内で新規分だけ実行
    - csv_importsにINSERT → import_idを取得
    - matched_rowsの各行について:
      - sale_recordsにINSERT（source='auto', csv_import_id=import_id, source_line_no=line_no）
@@ -237,7 +238,7 @@
    - error_rowsがある場合 → csv_import_errorsにINSERT
    - csv_imports.status / total_items / total_amount / skipped_countを確定
    - operation_logsに記録（operation_type='csv_import'）
-3. COMMIT
+4. COMMIT
 
 **ロールバック処理:**
 1. csv_import_idで対象を特定
@@ -247,6 +248,7 @@
    - is_voided=1にした各inventory_movementsについてproducts.stock_quantityを逆方向に補正
    - csv_imports.statusを'rolled_back'に更新
    - operation_logsに記録（operation_type='csv_rollback'）
+3. 同一settlement_dateの他のactive importは変更しない
 
 **【制御構造】**
 - Stage 3→4の間に利用者の操作待ちがある。Preview結果はサーバ側キャッシュに保持し、フロントエンドはpreview_tokenのみを保持してcommit時に送り返す（有効期限30分）
@@ -297,21 +299,22 @@
 4. Z005の部門名を departments.name に照合する
    - 一致 → department_id を付与
    - 不一致 → warning とし、department_id=NULL で続行可能
-5. bundle_hash と report_date で重複・上書き判定を作る
+5. bundle_hashでactive同一bundleを判定し、report_dateで同日別bundleの追加確認snapshotを作る
 
 **Stage 3: Preview**
 1. 対象日、3ファイル、総売上/純売上、支払集計、部門別集計、部門未対応warningを返す
 2. 同一bundleのcompleted取込みはブロックする
-3. 同一report_dateの別bundleがある場合は上書き確認を要求する
+3. 同一report_dateの別bundleがある場合は、active import全件summaryを示して追加確認を要求する
 4. preview_token を返し、CMD層cacheに30分保持する
 
 **Stage 4: Commit**
-1. 上書き確認済みなら同一report_dateの既存completed日報取込みを `rolled_back` にする
-2. トランザクション内で実行
+1. preview statusと `additional_import_confirmed` の組合せを検証する
+2. トランザクション内で同一bundle_hashを再検査し、続けて同日active import ID snapshotを再取得する。不一致は「同日の取込み状況が変わりました。再度プレビューしてください」で副作用なく止める
+3. 既存parentを変更せず、トランザクション内で新規分だけ実行
    - daily_report_importsにINSERT
    - summary/payment/department linesをINSERT
-3. COMMIT
-4. operation_logsに `daily_report_import` を記録する
+4. COMMIT
+5. operation_logsに `daily_report_import` を記録する
    - ログ記録失敗は日報取込み自体を巻き戻さず、診断ログまたは後続確認対象として扱う
 
 **ロールバック処理:**
@@ -321,11 +324,25 @@
 4. operation_logsに `daily_report_rollback` を記録する
    - ログ記録失敗はrollback済み状態を戻さず、診断ログまたは後続確認対象として扱う
 5. sale_records、inventory_movements、products.stock_quantity は変更しない
+6. 同一report_dateの他のcompleted parentは変更しない
 
 **【制御構造】**
 - BIZ-03と同じく Parse→Validate→Preview→Commit を採用するが、書込先とrollback意味は別物
 - 日報取込みは日報集計の正本であり、商品別ランキングや在庫引落しの根拠にはならない
 - 部門未対応は取込み失敗ではなくwarning。後続の部門マッピング改善やREQ-403照合で扱う
+
+**集計契約**:
+- 商品別日次は同日の `is_voided=0` 全行を `product_code + source` で加算し、manual/autoを混ぜない
+- 公式日報日次は同日の全completed parentを加算する。親・明細のoptional値はいずれかNULLなら集約結果もNULLとし、単一parent IDではなく `source_import_count` を返す
+- 月次は同日複数parentを加算し、将来のcoverage日数は `COUNT(DISTINCT report_date)` とする。公式日報seriesと商品別seriesは互いに加算しない
+
+---
+
+### BIZ-03 / BIZ-08 更新履歴
+
+| 日付 | PR | 内容 |
+|---|---|---|
+| 2026-08-16 | PR #79 | SPEC-SDI-D1〜D8: Z004/日報の追加取込み、TX内snapshot再検証、per-import rollback、additive readを正本化。 |
 
 ---
 

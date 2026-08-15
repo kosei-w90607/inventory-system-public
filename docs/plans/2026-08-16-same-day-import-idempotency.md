@@ -501,7 +501,14 @@ Contract ID: SPEC-SDI-2026-08-16
 
 ## Implementation Results
 
-未着手。本発注は plan-draft まで。
+source design amendment を実施した。
+
+- durable decision: `docs/decision-log.md`（D-071 accepted）
+- architecture / DB: `docs/architecture/biz-task-specs.md`, `docs/architecture/cmd-task-specs.md`, `docs/architecture/ui-task-specs.md`, `docs/db-design/pos-tables.md`
+- function design: `docs/function-design/10-common-rules.md`, `24-io-csv-import-repo.md`, `32-biz-csv-import-service.md`, `34-biz-sales-service.md`, `37-biz-daily-report-import-service.md`, `41-cmd-pos.md`, `45-cmd-daily-report-import.md`, `51-ui-product-form.md`, `55-ui-csv-import.md`, `56-ui-daily-sales.md`, `57-ui-monthly-sales.md`
+- design-system adjacency: `docs/design-system/01-decision-rules.md`, `docs/design-system/02-component-catalog.md`
+- quality adjacency: `docs/quality/review-checklist.md`
+- mechanical sweep: active sales-import contractの旧固有tokenはhitなし。「上書き」の残存hitはMechanical Impact Inventoryの明示除外（商品master、棚卸し、backup restore、PLU/CV17、Excel、CSS/config、historical record）と後続implementation対象だけである。archiveは変更していない。
 
 ## Review Response
 

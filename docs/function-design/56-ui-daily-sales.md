@@ -42,8 +42,11 @@ UI-00 ホーム同型の「簡潔版 = useState + useQuery + 純関数」を採�
 - `DailySalesPage` は `SummaryCardsBar` の下に「レジ日報（公式）」セクションを表示する。
 - `official_daily_report === null` の場合は「この日付のレジ日報は未取込みです。」の軽量 note を表示し、画面全体 error や大きな EmptyState にはしない。
 - `official_daily_report` がある場合は、総売上 / 純売上、支払集計、部門別集計を表示する。支払行の `amount` は nullable のため「未取得」を許容し、部門行の `amount` は必須金額として表示する。
+- `official_daily_report.source_import_count` が1以上なら、公式セクションに `N回の取込みを合算` と表示する。複数parentのgross/netまたは明細optional値がNULL安全側へ伝播した場合も「未取得」を維持し、0として見せない。
 - `official_daily_report.warnings` が非空の場合は、公式日報セクション内に warning トーンの注記（アイコン + テキスト）を表示する。上部 Alert 帯は取得失敗やデータ安全系状態に限定し、部門未対応 warning とは混ぜない。
 - official があり `items.length === 0` の場合、商品別明細セクションは「商品別明細は未取込み」と表示する。「売上なし」と誤読される文言は使わない。
+
+`UI-09a-D15`: 同日の複数active importは日報サマリ、商品別明細ともBIZ-05の加算済み結果を表示する。UIで最新1回へ絞らず、公式日報seriesと商品別seriesを互いに足さない。rollback後のrefetchでは残存active importのaggregateへ直ちに収束する。
 
 **ファイル構成（18 file = lib 7 + hooks 2 + components 6 + page 1 + types 1 + route 1）**:
 
@@ -538,3 +541,4 @@ export function makeMockItem(overrides: Partial<DailySaleItem> = {}): DailySaleI
 | 2026-06-07 | display-scale follow-up | H-6 feedback 対応として `ProductTable` の商品コードセルを `font-mono text-sm font-medium` に更新し、`ProductTable.test.tsx` で `text-xs` 回帰を防止 |
 | 2026-06-08 | selection-tone follow-up | TabsHeader の二択切替 visual を `SegmentedControl` primitive に寄せ、monthly ModeTabs と同じ shared segmented control 仕様を参照する形に更新 |
 | 2026-07-29 | 監査是正 順21a plan-first | UI-TABLE-D1として日次5 sortable列のheader implementation ownerを`src/components/sales/SortableHeader.tsx`へ正本化。列集合・sort callback・ARIA・表示は不変 |
+| 2026-08-16 | PR #79 | SPEC-SDI-D6: `source_import_count` の「N回の取込みを合算」表示、NULL安全表示、同日複数active importの加算済み表示契約を正本化。 |

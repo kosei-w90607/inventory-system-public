@@ -192,7 +192,7 @@ UI層の仕様は画面設計書（SCREEN_DESIGN.md）とモックアップ（sc
 **【CMD呼び出し】**
 - 日報ファイル選択後 → CMD-12 parse_and_validate_daily_report
 - 日報「取り込む」ボタン → CMD-12 commit_daily_report_import
-- 日報上書き確認時 → 利用者確認ダイアログ後にcommit（overwrite_confirmed=true）
+- 日報同日別bundleの追加確認時 → 両タブ共通の確認ダイアログ後にcommit（additional_import_confirmed=true）
 - 日報完了取消し → CMD-12 rollback_daily_report_import
 - Z004商品別CSV選択後 → CMD-07 parse_and_validate_csv（既存トラック）
 - Z004商品別CSV「取り込む」ボタン → CMD-07 commit_csv_import（既存トラック）
@@ -202,7 +202,7 @@ UI層の仕様は画面設計書（SCREEN_DESIGN.md）とモックアップ（sc
 1. 既定タブ「日報取込み」で Z001/Z002/Z005 の3ファイルを選択する
 2. プレビュー表示（対象日、読み込む3ファイル、総売上/純売上、支払集計、部門別集計、警告）
 3. 部門未対応warningは取り込めるが、商品別・在庫引落しには使われないことを表示する
-4. 重複チェック結果（同一bundle取込み済み→ブロック、同日別bundle→上書き確認）
+4. 重複チェック結果（同一bundle取込み済み→ブロック、同日別bundle→既存全件summaryを示す追加確認）
 5. 「取り込む」で確定 → 実行中はボタンdisabled → 結果サマリ
 6. PLU登録後の商品別売上・`pos_stock_sync`在庫増減は「商品別CSV取込み（Z004）」トラックを使う。店舗採取layout Aの選択はIO-02対応後に可能になる
 
@@ -211,6 +211,7 @@ UI層の仕様は画面設計書（SCREEN_DESIGN.md）とモックアップ（sc
 - importing 中の他画面遷移: `useBlocker` で常時 block（確認ダイアログなし）+ 画面上に状態バナー「取込み完了まで他画面に移れません」表示。完了/エラー/idle で unblock
 - 状態管理: useReducer + discriminated union（Zustand 不採用、Phase 2 8-2 確定）。IPC channel 不採用（indeterminate spinner + 状態文言、commit 単一 TX のため partial progress は誤認源）
 - 日報取込みは sale_records / inventory_movements を作らない。Z004商品別CSV取込みだけが商品別売上を作り、`pos_stock_sync=true`の商品にinventory_movementsを作る（店舗採取layout AはIO-02未対応）
+- 取消確認は対象import IDを保持し、「この取込みだけを取り消します。同じ日の他の取込みは残ります。」と示す。成功後は同日の残存aggregateと履歴を再取得する
 
 **【設計判断の出典】**
 - 状態管理・IPC channel 不採用判定、6 variant 詳細化、useBlocker 常時 block 設計: [docs/archive/plans/2026-05-13-phase-2-ui-07.md](../archive/plans/2026-05-13-phase-2-ui-07.md) §2 確定済の前提
@@ -373,3 +374,9 @@ REQ-403 / SP-403 の POS 部門別売上照合は別の deferred 要求であり
 - チェック実行は重い処理のため、UIは running 状態で他操作を受け付けない（画面内オーバーレイ）
 - 差異一覧はページング（100件ごと）
 - 補正は個別行選択可能（全差異を一括補正させない。1件ずつ確認させる）
+
+### 更新履歴
+
+| 日付 | PR | 内容 |
+|---|---|---|
+| 2026-08-16 | PR #79 | SPEC-SDI-D5/D7: 両売上取込みタブの追加確認とper-import取消契約を正本化。 |

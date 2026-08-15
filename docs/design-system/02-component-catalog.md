@@ -469,9 +469,9 @@ toast.error(`出力に失敗しました: ${message}`, { id: `export-${reportTyp
 
 ## ⑧ Dialog / 確認
 
-**使いどころ**: 破壊的・不可逆な操作の直前に明示確認を挟む（例: 廃番化、上書き取込み）。復帰・再表示など可逆な操作には確認を挟まず直接実行する。
+**使いどころ**: 破壊的・不可逆な操作、または誤実行が会計・在庫の重複計上を生む高影響操作の直前に明示確認を挟む（例: 廃番化、売上の同日別ファイル追加）。復帰・再表示など影響の小さい可逆操作には確認を挟まず直接実行する。
 
-**canonical**: `src/features/products/components/DiscontinueConfirmDialog.tsx`（廃番化の確認）。先例: `src/features/csv-import/components/OverwriteConfirmDialog.tsx`
+**canonical**: `src/features/products/components/DiscontinueConfirmDialog.tsx`（廃番化の確認）。売上の同日追加確認は [55-ui-csv-import.md UI-07-D13](../function-design/55-ui-csv-import.md) を契約正本とし、後続実装で両タブ共通componentへ移行する。
 
 **構造**:
 
@@ -864,3 +864,11 @@ toast.error(`出力に失敗しました: ${message}`, { id: `export-${reportTyp
 - 表示サイズ / webview zoom は全画面横断の別設計とする。Tauri capability、永続化、月次/日次など密画面の L3 を含めて扱う（DSR-13）
 - 2026-06-07 H-6 feedback: daily 5 画面通し確認で、商品コードは小さいが他の視認性問題はないと確認。商品コード readability は Phase 2 blocker にせず、将来の全体文字サイズ / 表示スケール option と合わせて調整する
 - 2026-06-07 follow-up: 商品コードは UI-06a / UI-09a の table cell で最小級 `text-xs` から通常 table text に上げる。全体表示は Sidebar footer の 3 段階 WebView zoom（`standard=1`, `large=1.15`, `extra_large=1.3`）で扱い、保存先は `localStorage`（`inventory.displayScale.v1`）とする。UI-11a/b/c の設定画面契約へ DB-backed に移すかは Phase 4 側で別途判断する
+
+---
+
+## 更新履歴
+
+| 日付 | PR | 内容 |
+|---|---|---|
+| 2026-08-16 | PR #79 | SPEC-SDI-D5: パターン⑧を売上同日追加の高影響確認へ追随し、実装前の契約正本をUI-07へ接続。 |

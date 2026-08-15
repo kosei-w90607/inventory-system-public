@@ -68,12 +68,20 @@ struct DailyReportWarning {
 enum DailyReportDuplicateStatus {
     NoDuplicate,
     AlreadyImported,
-    OverwriteRequired,
+    AdditionalImportConfirmationRequired,
 }
 
 struct DailyReportDuplicateCheck {
     status: DailyReportDuplicateStatus,
-    existing_import_id: Option<i64>,
+    same_date_imports: Vec<SameDateDailyReportImportSummary>,
+}
+
+struct SameDateDailyReportImportSummary {
+    id: i64,
+    source_filenames: Vec<String>,
+    gross_amount: Option<i64>,
+    net_amount: Option<i64>,
+    imported_at: String,
 }
 
 struct DailyReportImportResult {
@@ -98,6 +106,7 @@ struct DailyReportInputFile {
 struct CachedDailyReportPreview {
     created_at: Instant,
     preview_data: DailyReportPreviewData,
+    active_same_date_import_ids: Vec<i64>,
     summary_lines: Vec<CachedDailyReportSummaryLine>,
     payment_lines: Vec<DailyReportPaymentLinePreview>,
     department_lines: Vec<DailyReportDepartmentLinePreview>,
@@ -172,10 +181,12 @@ fn parse_and_validate_daily_report(
 7. Z005部門名を `departments.name` と照合する。
    - 一致した行は `department_id` を付与する。
    - 一致しない行はwarningにし、`source_file=Z005`、`department_id=None` のままpreview可能にする。IO line側へ重複したsource fieldは要求しない（IO-07-D1）。
-8. 重複判定を行う。
+8. 冪等性と同日追加判定を行う。
    - `bundle_hash` が同じ `completed` importあり → AlreadyImported。
-   - `report_date` が同じ別 `completed` importあり → OverwriteRequired。
+   - `report_date` が同じ別 `completed` importあり → AdditionalImportConfirmationRequired。
    - それ以外 → NoDuplicate。
+   - 同日active importは `imported_at DESC, id DESC` で全件取得し、`same_date_imports` に写像する。`source_files_json` はBIZで安全に解析して `source_filenames` を取り出し、欠損・破損時はfilenameを捏造せずparse failureとして安全側に止める。hashはwireへ返さない。
+   - 同じ順序の全IDを `CachedDailyReportPreview.active_same_date_import_ids` に保持する。
 9. `DailyReportParseValidateResult` を返す。
    - `preview_data` はUI表示用のwire DTO。
    - `cached_preview` はcommit用に、summary/payment/department明細の正規化済みsnapshotを保持する。
@@ -190,30 +201,33 @@ fn parse_and_validate_daily_report(
 fn commit_daily_report_import(
     conn: &mut DbConnection,
     cached_preview: CachedDailyReportPreview,
-    overwrite_confirmed: bool,
+    additional_import_confirmed: bool,
 ) -> Result<DailyReportImportResult, BizError>
 ```
 
 **処理ステップ**:
 
 1. previewの有効期限を確認する。30分超は `BizError::ImportError`。
-2. duplicate_checkを再検証する。
+2. cached duplicate status と確認flagの組合せを検証する。
    - AlreadyImported → `BizError::IdempotencyConflict`。
-   - OverwriteRequired かつ overwrite_confirmed=false → `BizError::ValidationFailed`。
+   - NoDuplicate は `additional_import_confirmed=false`、AdditionalImportConfirmationRequired は `true` のみ許可し、不一致は `BizError::ValidationFailed`。
 3. トランザクション開始。
-4. OverwriteRequiredの場合、同一report_dateの既存 `completed` importを `rolled_back` に更新し、`rolled_back_at` を記録する。
-5. `daily_report_imports` にINSERTする。
-6. `daily_report_summary_lines` にZ001由来行をINSERTする。
-7. `daily_report_payment_lines` にZ002由来行をINSERTする。
-8. `daily_report_department_lines` にZ005由来行をINSERTする。
-9. COMMIT。
-10. `operation_logs` に `daily_report_import` を記録する。
-11. operation log 記録に失敗した場合は取込み自体をROLLBACKせず、診断ログまたは後続確認対象として扱う。
-12. `DailyReportImportResult` を返す。
+4. TX内で `bundle_hash` のactive一致を最初に再検査する。一致があれば `BizError::IdempotencyConflict` として副作用なしで止める。
+5. TX内で同一report_dateのactive import IDを `imported_at DESC, id DESC` で再取得し、cached snapshotと完全一致することを確認する。不一致なら副作用なしで止め、`BizError::ImportError("同日の取込み状況が変わりました。再度プレビューしてください")` を返す。
+6. 既存importを変更せず、`daily_report_imports` にINSERTする。
+7. `daily_report_summary_lines` にZ001由来行をINSERTする。
+8. `daily_report_payment_lines` にZ002由来行をINSERTする。
+9. `daily_report_department_lines` にZ005由来行をINSERTする。
+10. COMMIT。
+11. `operation_logs` に `daily_report_import` を記録する。
+12. operation log 記録に失敗した場合は取込み自体をROLLBACKせず、診断ログまたは後続確認対象として扱う。
+13. `DailyReportImportResult` を返す。
+
+commitはinsert-onlyであり、既存の同日parentや配下明細を無効化しない。通常のcommit失敗は同じpreview tokenで再試行できるが、active snapshot不一致は新しいpreviewとtokenを必須とする。
 
 ### 37.5 rollback_daily_report_import
 
-**関数要求**: 日報取込みを論理取消する。
+**関数要求**: 指定した日報取込みIDだけを論理取消する。同一report_dateの他のcompleted importは残す。
 
 **シグネチャ**:
 
@@ -235,7 +249,7 @@ fn rollback_daily_report_import(
 7. `operation_logs` に `daily_report_rollback` を記録する。
 8. operation log 記録に失敗した場合はrollback済み状態を戻さず、診断ログまたは後続確認対象として扱う。
 
-**重要**: rollbackしても `sale_records`、`inventory_movements`、`products.stock_quantity` は変更しない。日報取込みは在庫変動を作らないため、補正対象が存在しない。
+**重要**: 更新条件は指定IDだけとし、同日の他importは変更しない。rollbackしても `sale_records`、`inventory_movements`、`products.stock_quantity` は変更しない。日報取込みは在庫変動を作らないため、補正対象が存在しない。operation logには対象IDを必ず記録する。
 
 ### 37.6 list_daily_report_imports
 
@@ -255,6 +269,8 @@ fn list_daily_report_imports(
 - date_from / date_to（任意）
 - status（任意。既定は全状態）
 
+履歴はimport単位の行を維持し、日付単位にcollapseしない。順序は `report_date DESC, imported_at DESC, id DESC` とする。
+
 **入力ガード**:
 - page < 1 → `BizError::ValidationFailed`
 - per_page < 1 → `BizError::ValidationFailed`
@@ -268,7 +284,8 @@ fn list_daily_report_imports(
 | CP932 decode失敗 | ImportError | PCツールから出力した元ファイルを確認する |
 | report_date不一致 | ImportError | 同じ営業日の3ファイルを選ぶ |
 | 同一bundle取込み済み | IdempotencyConflict | 取込み済みのため二重取込みしない |
-| 同日別bundleあり | ValidationFailed | 上書き確認が必要 |
+| 同日別bundleで追加確認なし / 不要なのに確認あり | ValidationFailed | previewの状態に従って追加確認をやり直す |
+| 同日active snapshot変更 | ImportError | 同日の取込み状況が変わったため再度previewする |
 | 部門未対応 | warning | 取込み可能。部門マスタ対応は後続で確認 |
 
 ### 37.8 非目的
@@ -279,3 +296,9 @@ fn list_daily_report_imports(
 - Excel帳票のparse。
 - ECR+や他レジ形式の直接取込み。
 - `Z006`（グループ）、`Z009`（時間帯別）、`Z011`（担当者）の保存・集計。個人店の初期運用では使わない前提とし、必要性が確認された場合は後続設計で追加する。
+
+### 更新履歴
+
+| 日付 | PR | 内容 |
+|---|---|---|
+| 2026-08-16 | PR #79 | SPEC-SDI-D1〜D8: AlreadyImportedを維持しつつ同日別bundleを追加取込みとし、全件summary、TX内snapshot再検証、insert-only commit、per-import rollbackを正本化。 |
