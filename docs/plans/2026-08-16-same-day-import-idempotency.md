@@ -83,7 +83,7 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 ## Non-scope
 
 - `docs/function-design/32-biz-csv-import-service.md`、`37-biz-daily-report-import-service.md`、`55-ui-csv-import.md` その他 source docs の本文 amendment。
-- `src-tauri/**`、`src/**`、`src/lib/bindings.ts` の変更。
+- `src-tauri/**`、`src/**`、`src/lib/bindings.ts` の変更。例外: `src-tauri/tests/import_internal_contract_test.rs` の期待値を docs 側 / code 側で分離 pin する test-only 変更のみ本 design-first PR で行う（SPEC-SDI-D3 遷移状態の機械追跡。gated amendment 2026-08-16）。
 - schema migration、既存データ変換、物理 DELETE、同日一括 rollback。
 - archive packet / matrix の歴史的記録の書換え。
 - 実店舗 CSV、hash、金額、DB、backup、receipt の commit。
@@ -356,7 +356,8 @@ rg -l -i "OverwriteRequired|overwrite_confirmed|overwriteConfirmed|OverwriteConf
 | architecture | `docs/architecture/biz-task-specs.md:223,228,300,305,309`; `cmd-task-specs.md:61,70`; `ui-task-specs.md:195,205` | next amendment で addition/rollback 2-operation contract へ |
 | DB/function docs | `docs/db-design/pos-tables.md:50-51,127-129,231,234-240,339`; `24:220,492`; `32:64,71,99,105,182,261-270,313,512,520`; `37:71,177,193,202,204,264`; `41:201,208,229,238`; `45:81`; `55:21,23,48,67,83,109,125,142,158,161,172,189,196,239,244,343` | next amendment target |
 | design-system adjacency | `docs/design-system/01-decision-rules.md:55,65,143`; `02-component-catalog.md:472,474`; `docs/function-design/51-ui-product-form.md:28` | stale sales-import exemplar/path を addition confirm または discontinue canonical へ追随 |
-| Rust production | `csv_import_service/{mod.rs:99-109,145;parse.rs:180;commit.rs:35-117}`; `daily_report_import_service/{mod.rs:100-107;parse.rs:131;commit.rs:17-71}`; CMD files; `src-tauri/tests/import_internal_contract_test.rs:108` |後続 implementation target |
+| Rust production | `csv_import_service/{mod.rs:99-109,145;parse.rs:180;commit.rs:35-117}`; `daily_report_import_service/{mod.rs:100-107;parse.rs:131;commit.rs:17-71}`; CMD files | 後続 implementation target |
+| SPEC-SDI-D3 遷移 pin | `src-tauri/tests/import_internal_contract_test.rs:108` | docs 側 pin は本 PR で新契約へ、code 側 pin は実装 PRで再統一（I-W4） |
 | Rust tests | `csv_import_service/tests/{parse_tests.rs:353,commit_tests.rs:39-366,rollback_tests.rs:29}`; `daily_report_import_service/tests.rs:218-410` | overwrite oracle を additive/per-import oracle へ置換 |
 | frontend production/tests | `src/features/csv-import/**` と `src/features/daily-report-import/**` の `overwriteConfirmed` / `OverwriteRequired` / dialog hits; `src/lib/bindings.ts:144,164,451,454,649-658` |後続 implementation + bindings regeneration target |
 | borrowed-reference comments | `src/features/products/components/DiscontinueConfirmDialog.tsx:6` / catalog / 51-ui | deleted/renamed dialog path を active canonical へ追随 |
