@@ -31,10 +31,15 @@ const initialStates: Record<CsvImportState["status"], CsvImportState> = {
     status: "importing",
     preview: mockPreview,
     previewToken: "tok-init",
-    overwriteConfirmed: false,
+    additionalImportConfirmed: false,
     filename: "test.csv",
   },
-  result: { status: "result", result: mockResult, settlementDate: "2026-05-17" },
+  result: {
+    status: "result",
+    result: mockResult,
+    settlementDate: "2026-05-17",
+    filename: "test.csv",
+  },
   error: {
     status: "error",
     error: mockError,
@@ -53,7 +58,7 @@ const actions: Record<CsvImportAction["type"], CsvImportAction> = {
   select_file: { type: "select_file", filename: "new.csv" },
   parse_succeeded: { type: "parse_succeeded", preview: mockPreview, previewToken: "tok-new" },
   parse_failed: { type: "parse_failed", error: mockError },
-  confirm_import: { type: "confirm_import", overwriteConfirmed: true },
+  confirm_import: { type: "confirm_import", additionalImportConfirmed: true },
   import_succeeded: { type: "import_succeeded", result: mockResult, settlementDate: "2026-05-17" },
   import_failed: { type: "import_failed", error: mockError, recoverTo: "preview" },
   dismiss_error: { type: "dismiss_error" },
@@ -167,7 +172,7 @@ describe("csvImportReducer dismiss_error idle fallback (recoverTo='idle')", () =
 
 /// payload carry を verify する focused tests (Codex Round 1 P2-1 反映、PR #64)。
 /// 上表 transitionTable は `next.status` のみ検証するため、preview / previewToken / filename /
-/// overwriteConfirmed / previousState 等の payload が壊れても green になる回帰盲点を補強。
+/// additionalImportConfirmed / previousState 等の payload が壊れても green になる回帰盲点を補強。
 /// UI-07 PR #62 Round 1 で実際に被弾した「importing variant の preview snapshot carry」
 /// 「import_failed の previousState 再構築」「dismiss_error の preview 復帰 payload」を直接検証。
 describe("csvImportReducer focused payload carry (Round 1 回帰点)", () => {
@@ -190,20 +195,20 @@ describe("csvImportReducer focused payload carry (Round 1 回帰点)", () => {
     }
   });
 
-  it("confirm_import: preview snapshot + previewToken + filename + overwriteConfirmed を importing に carry する", () => {
+  it("confirm_import: preview snapshot + previewToken + filename + additionalImportConfirmed を importing に carry する", () => {
     const state: CsvImportState = {
       status: "preview",
       preview: mockPreview,
       previewToken: "tok-init",
       filename: "test.csv",
     };
-    const action: CsvImportAction = { type: "confirm_import", overwriteConfirmed: true };
+    const action: CsvImportAction = { type: "confirm_import", additionalImportConfirmed: true };
     const next = csvImportReducer(state, action);
     expect(next).toEqual({
       status: "importing",
       preview: mockPreview,
       previewToken: "tok-init",
-      overwriteConfirmed: true,
+      additionalImportConfirmed: true,
       filename: "test.csv",
     });
     if (next.status === "importing") {
@@ -216,7 +221,7 @@ describe("csvImportReducer focused payload carry (Round 1 回帰点)", () => {
       status: "importing",
       preview: mockPreview,
       previewToken: "tok-init",
-      overwriteConfirmed: true,
+      additionalImportConfirmed: true,
       filename: "test.csv",
     };
     const action: CsvImportAction = {

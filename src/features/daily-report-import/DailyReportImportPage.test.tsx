@@ -55,7 +55,28 @@ function makePreview(
         line_no: 12,
       },
     ],
-    duplicate_check: { status, existing_import_id: status === "OverwriteRequired" ? 100 : null },
+    duplicate_check: {
+      status,
+      same_date_imports:
+        status === "AdditionalImportConfirmationRequired"
+          ? [
+              {
+                id: 100,
+                source_filenames: ["Z001_old.CSV", "Z002_old.CSV", "Z005_old.CSV"],
+                gross_amount: 9000,
+                net_amount: 8000,
+                imported_at: "2026-03-21T09:00:00",
+              },
+              {
+                id: 99,
+                source_filenames: ["Z001_older.CSV", "Z002_older.CSV", "Z005_older.CSV"],
+                gross_amount: null,
+                net_amount: 7000,
+                imported_at: "2026-03-21T08:00:00",
+              },
+            ]
+          : [],
+    },
     preview_created_at: "2026-03-21T10:00:00",
   };
 }
@@ -71,7 +92,7 @@ function makeResult(): DailyReportImportResult {
   };
 }
 
-function setFlow(state: DailyReportImportState) {
+function setFlow(state: DailyReportImportState, isImporting = false) {
   mockUseFlow.mockReturnValue({
     state: { ...state, lastSelectionError: null },
     selectFiles,
@@ -81,7 +102,7 @@ function setFlow(state: DailyReportImportState) {
     dismissError,
     reset,
     isParsing: false,
-    isImporting: false,
+    isImporting,
     isRollingBack: false,
   });
 }
@@ -114,11 +135,12 @@ describe("DailyReportImportPage_req401", () => {
     expect(screen.getByText("未対応部門は部門マスタにありません")).toBeInTheDocument();
   });
 
-  it("REQ-401: overwrite preview requires explicit confirmation before import", async () => {
+  it("REQ-401 / I-U3..I-U6 / SPEC-SDI-D5: additional preview opens exact shared confirmation", async () => {
+    // REQ-401 / I-U3 / I-U4 / I-U5 / I-U6 / SPEC-SDI-D5: adjacent exact UI、全bundle、cancel、true一回送信を固定する。
     const user = userEvent.setup();
     setFlow({
       status: "preview",
-      preview: makePreview("OverwriteRequired"),
+      preview: makePreview("AdditionalImportConfirmationRequired"),
       previewToken: "preview-token-req401",
       filenames: ["Z001_260321.CSV", "Z002_260321.CSV", "Z005_260321.CSV"],
     });
@@ -126,12 +148,30 @@ describe("DailyReportImportPage_req401", () => {
     renderWithRouter(<DailyReportImportPage />);
 
     const importButton = await screen.findByRole("button", { name: "取り込む" });
-    expect(importButton).toBeDisabled();
-
-    await user.click(screen.getByLabelText("同じ対象日の既存日報を取り消して上書きします"));
-    expect(importButton).toBeEnabled();
-
     await user.click(importButton);
+    expect(screen.getByText("同じ日のデータを追加で取り込みますか？")).toBeInTheDocument();
+    expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "この操作は既存の取込みを置き換えません。対象日の売上に今回分を追加します。復旧用に書き出した同内容のファイルを選んでいないか確認してください。",
+      ),
+    ).toBeInTheDocument();
+    const dialog = screen.getByRole("alertdialog");
+    expect(dialog).toHaveTextContent("既存分（2回）");
+    expect(dialog).toHaveTextContent("ID 100");
+    expect(dialog).toHaveTextContent("Z001_old.CSV / Z002_old.CSV / Z005_old.CSV");
+    expect(dialog).toHaveTextContent("総売上 ¥9,000 / 純売上 ¥8,000");
+    expect(dialog).toHaveTextContent("2026-03-21T09:00:00");
+    expect(dialog).toHaveTextContent("ID 99");
+    expect(dialog).toHaveTextContent("Z001_older.CSV / Z002_older.CSV / Z005_older.CSV");
+    expect(dialog).toHaveTextContent("総売上 未取得 / 純売上 ¥7,000");
+    expect(dialog).toHaveTextContent("今回分");
+    expect(dialog).toHaveTextContent("Z001_260321.CSV / Z002_260321.CSV / Z005_260321.CSV");
+    expect(dialog).toHaveTextContent("総売上 ¥12,000 / 純売上 ¥11,000");
+    await user.click(screen.getByRole("button", { name: "キャンセル" }));
+    expect(confirmImport).not.toHaveBeenCalled();
+    await user.click(importButton);
+    await user.click(screen.getByRole("button", { name: "追加で取り込む" }));
     expect(confirmImport).toHaveBeenCalledWith(true);
   });
 
@@ -154,29 +194,56 @@ describe("DailyReportImportPage_req401", () => {
     await user.click(screen.getByRole("button", { name: "ファイルを選び直す" }));
     expect(chooseFiles).toHaveBeenCalledTimes(1);
     expect(selectFiles).not.toHaveBeenCalled();
+    expect(confirmImport).not.toHaveBeenCalled();
     expect(screen.queryByLabelText("Z001 Z002 Z005 ファイルを選び直す")).not.toBeInTheDocument();
   });
 
-  it("REQ-401: overwrite required preview shows a page-level warning alert", async () => {
+  it("REQ-401 / I-U6 / SPEC-SDI-D5: importing disables daily additional confirmation", async () => {
+    // REQ-401 / I-U6 / SPEC-SDI-D5: importing中はdialog/commandを開始できない。
+    const user = userEvent.setup();
+    setFlow(
+      {
+        status: "preview",
+        preview: makePreview("AdditionalImportConfirmationRequired"),
+        previewToken: "preview-token-req401",
+        filenames: ["Z001_260321.CSV", "Z002_260321.CSV", "Z005_260321.CSV"],
+      },
+      true,
+    );
+    renderWithRouter(<DailyReportImportPage />);
+
+    const importButton = await screen.findByRole("button", { name: "取り込む" });
+    expect(importButton).toBeDisabled();
+    await user.click(importButton);
+    expect(confirmImport).not.toHaveBeenCalled();
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+  });
+
+  it("REQ-401 / I-U3 / SPEC-SDI-D5: additional required preview shows exact alert", async () => {
+    // REQ-401 / I-U3 / SPEC-SDI-D5: 日報tabもshared Alert文言と非色依存statusを使う。
     setFlow({
       status: "preview",
-      preview: makePreview("OverwriteRequired"),
+      preview: makePreview("AdditionalImportConfirmationRequired"),
       previewToken: "preview-token-req401",
       filenames: ["Z001_260321.CSV", "Z002_260321.CSV", "Z005_260321.CSV"],
     });
 
     renderWithRouter(<DailyReportImportPage />);
 
-    expect(await screen.findByText("同じ対象日の日報があります")).toBeInTheDocument();
-    expect(screen.getByText("取り込むには上書き確認にチェックしてください。")).toBeInTheDocument();
+    expect(await screen.findByText("同じ日の取込みがあります")).toBeInTheDocument();
+    expect(
+      screen.getByText("既存分を残したまま今回分を追加します。内容を確認してください。"),
+    ).toBeInTheDocument();
   });
 
-  it("REQ-401: result rollback cancel does not call rollback and states stock is unchanged", async () => {
+  it("REQ-401 / I-U7 / SPEC-SDI-D7: result rollback identifies the selected import", async () => {
+    // REQ-401 / I-U7 / SPEC-SDI-D7: exact ID/date/files/amountとsibling残存を明示する。
     const user = userEvent.setup();
     setFlow({
       status: "result",
       result: makeResult(),
       reportDate: "2026-03-21",
+      filenames: ["Z001_260321.CSV", "Z002_260321.CSV", "Z005_260321.CSV"],
     });
 
     renderWithRouter(<DailyReportImportPage />);
@@ -192,9 +259,12 @@ describe("DailyReportImportPage_req401", () => {
     await user.click(screen.getByRole("button", { name: "取り消す" }));
     expect(screen.getByRole("alertdialog")).toBeInTheDocument();
     expect(screen.getByText("日報取込みを取り消しますか？")).toBeInTheDocument();
-    expect(
-      screen.getByText("ID 501 の日報取込みを取り消します。取消しても在庫数は変わりません。"),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("alertdialog")).toHaveTextContent(
+      "この取込みだけを取り消します。同じ日の他の取込みは残ります。",
+    );
+    expect(screen.getByRole("alertdialog")).toHaveTextContent("ID 501");
+    expect(screen.getByRole("alertdialog")).toHaveTextContent("Z001_260321.CSV");
+    expect(screen.getByRole("alertdialog")).toHaveTextContent("総売上 ¥12,000");
 
     await user.click(screen.getByRole("button", { name: "キャンセル" }));
     expect(rollback).not.toHaveBeenCalled();
@@ -209,6 +279,7 @@ describe("DailyReportImportPage_req401", () => {
       status: "result",
       result: makeResult(),
       reportDate: "2026-03-21",
+      filenames: ["Z001_260321.CSV", "Z002_260321.CSV", "Z005_260321.CSV"],
     });
 
     renderWithRouter(<DailyReportImportPage />);
@@ -229,6 +300,7 @@ describe("DailyReportImportPage_req401", () => {
       status: "result",
       result: makeResult(),
       reportDate: "2026-03-21",
+      filenames: ["Z001_260321.CSV", "Z002_260321.CSV", "Z005_260321.CSV"],
     });
 
     const { router } = renderWithRouter(<DailyReportImportPage />);

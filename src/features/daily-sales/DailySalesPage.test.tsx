@@ -53,14 +53,30 @@ beforeEach(() => {
 });
 
 describe("DailySalesPage REQ-501 official daily report", () => {
-  it("test_daily_sales_page_official_without_items_req501", async () => {
+  it("test_daily_sales_page_req501_shows_source_import_count_without_cross_series_sum", async () => {
+    // REQ-501 / I-R5 / SPEC-SDI-D6: count、NULL、official/product分離を表示する。
     mockGetDailySales.mockResolvedValue({
       status: "ok",
       data: buildReport({
+        items: [
+          {
+            product_code: "P001",
+            name: "商品別だけの売上",
+            department_name: "その他小物",
+            department_id: 1,
+            quantity: 2,
+            amount: 3000,
+            source: "auto",
+          },
+        ],
+        department_subtotals: [
+          { department_id: 1, department_name: "その他小物", quantity: 2, amount: 3000 },
+        ],
+        grand_total: { quantity: 2, amount: 3000 },
         official_daily_report: {
-          daily_report_import_id: 501,
+          source_import_count: 2,
           report_date: "2026-03-21",
-          gross_amount: 12000,
+          gross_amount: null,
           net_amount: 11000,
           payment_lines: [{ payment_key: "cash", label: "現金", amount: 11000, count: 7 }],
           department_lines: [
@@ -81,12 +97,15 @@ describe("DailySalesPage REQ-501 official daily report", () => {
     renderPage();
 
     expect(await screen.findByRole("heading", { name: "レジ日報（公式）" })).toBeInTheDocument();
+    expect(screen.getByText("2回の取込みを合算")).toBeInTheDocument();
     expect(await screen.findByText("総売上")).toBeInTheDocument();
+    expect(screen.getByText("未取得")).toBeInTheDocument();
     expect(screen.getAllByText("¥11,000").length).toBeGreaterThan(0);
     expect(screen.getByText("支払集計")).toBeInTheDocument();
     expect(screen.getByText("部門別集計")).toBeInTheDocument();
-    expect(screen.getByText("商品別明細は未取込み")).toBeInTheDocument();
-    expect(screen.queryByText("売上なし")).not.toBeInTheDocument();
+    expect(screen.getByText("商品別だけの売上")).toBeInTheDocument();
+    expect(screen.getAllByText("¥3,000").length).toBeGreaterThan(0);
+    expect(screen.queryByText("¥14,000")).not.toBeInTheDocument();
   });
 
   it("test_daily_sales_page_no_official_note_req501", async () => {
@@ -101,7 +120,7 @@ describe("DailySalesPage REQ-501 official daily report", () => {
       status: "ok",
       data: buildReport({
         official_daily_report: {
-          daily_report_import_id: 501,
+          source_import_count: 1,
           report_date: "2026-03-21",
           gross_amount: 12000,
           net_amount: 11000,

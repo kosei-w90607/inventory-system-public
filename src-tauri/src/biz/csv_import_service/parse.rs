@@ -2,7 +2,7 @@
 
 use crate::biz::csv_import_service::{
     CsvParseAndValidateRequest, DuplicateCheck, DuplicateStatus, ErrorRow, ErrorSummary, FileInfo,
-    MatchedRow, MatchedSummary, ParseValidateResult, PreviewData,
+    MatchedRow, MatchedSummary, ParseValidateResult, PreviewData, SameDateCsvImportSummary,
 };
 use crate::biz::BizError;
 use crate::constants;
@@ -170,15 +170,25 @@ pub fn parse_and_validate(
     // 5b. settlement_date 同日チェック
     let existing_imports =
         sales_repo::find_imports_by_settlement_date(conn, &parse_result.settlement_date)?;
-    let duplicate_check = if existing_imports.is_empty() {
+    let same_date_imports: Vec<_> = existing_imports
+        .iter()
+        .map(|item| SameDateCsvImportSummary {
+            id: item.id,
+            filename: item.filename.clone(),
+            total_items: item.total_items,
+            total_amount: item.total_amount,
+            imported_at: item.imported_at.clone(),
+        })
+        .collect();
+    let duplicate_check = if same_date_imports.is_empty() {
         DuplicateCheck {
             status: DuplicateStatus::NoDuplicate,
-            existing_import_id: None,
+            same_date_imports,
         }
     } else {
         DuplicateCheck {
-            status: DuplicateStatus::OverwriteRequired,
-            existing_import_id: Some(existing_imports[0].id),
+            status: DuplicateStatus::AdditionalImportConfirmationRequired,
+            same_date_imports,
         }
     };
 

@@ -24,11 +24,18 @@ import type { ImportResult } from "@/lib/bindings";
 export interface ResultStepProps {
   result: ImportResult;
   settlementDate: string;
+  filename: string;
   onRollback: () => void;
   isRollingBack: boolean;
 }
 
-export function ResultStep({ result, settlementDate, onRollback, isRollingBack }: ResultStepProps) {
+export function ResultStep({
+  result,
+  settlementDate,
+  filename,
+  onRollback,
+  isRollingBack,
+}: ResultStepProps) {
   const navigate = useNavigate();
   const isPartial = result.status === "completed_partial";
 
@@ -82,8 +89,10 @@ export function ResultStep({ result, settlementDate, onRollback, isRollingBack }
             <AlertDialogHeader>
               <AlertDialogTitle>取込みを取り消しますか？</AlertDialogTitle>
               <AlertDialogDescription>
-                ID {result.csv_import_id} の取込み ({result.total_items.toLocaleString()} 件、¥
-                {result.total_amount.toLocaleString()}) を取り消します。在庫数も元に戻ります。
+                この取込みだけを取り消します。同じ日の他の取込みは残ります。ID{" "}
+                {result.csv_import_id} / {settlementDate} / {filename} /{" "}
+                {result.total_items.toLocaleString()} 件 / ¥{result.total_amount.toLocaleString()}
+                。この取込みによる在庫数も元に戻ります。
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>

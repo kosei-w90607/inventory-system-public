@@ -341,7 +341,9 @@ Contract ID: SPEC-SDI-IMPLEMENTATION-2026-08-16
 
 ## Implementation Results
 
-plan-draft。実装未着手。
+- packet scope の BIZ / IO / CMD / generated wire / frontend / reporting / per-import rollback を実装し、Oracle Replacement Ledger を additive / snapshot / per-import / aggregate oracle へ置換した。
+- `AdditionalImportConfirmationRequired`、ordered `same_date_imports`、`additional_import_confirmed`、`source_import_count` を producer/consumer/bindings 同時切替し、split pin を単一 pin へ再統一した。
+- active-code 旧語彙 sweep、mutation-style adequacy 自己検証、individual gates と L1 full の volatile evidence は PR body に記録する。
 
 ## Review Response
 

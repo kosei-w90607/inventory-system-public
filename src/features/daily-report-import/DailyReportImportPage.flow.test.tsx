@@ -72,7 +72,7 @@ function makePreview(): DailyReportPreviewData {
       },
     ],
     warnings: [],
-    duplicate_check: { status: "NoDuplicate", existing_import_id: null },
+    duplicate_check: { status: "NoDuplicate", same_date_imports: [] },
     preview_created_at: "2026-03-21T10:00:00",
   };
 }

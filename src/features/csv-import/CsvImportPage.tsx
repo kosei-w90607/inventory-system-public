@@ -122,6 +122,7 @@ function renderBody(flow: ReturnType<typeof useCsvImportFlow>) {
         <ResultStep
           result={state.result}
           settlementDate={state.settlementDate}
+          filename={state.filename}
           onRollback={() => {
             rollback(state.result.csv_import_id);
           }}

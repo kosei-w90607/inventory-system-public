@@ -340,7 +340,7 @@ mod tests {
         let response = sales_service::get_daily_sales(&conn, "2026-03-21").unwrap();
 
         let official = response.official_daily_report.unwrap();
-        assert_eq!(official.daily_report_import_id, import_id);
+        assert_eq!(official.source_import_count, 1);
         assert_eq!(official.payment_lines[0].label, "現金");
     }
 

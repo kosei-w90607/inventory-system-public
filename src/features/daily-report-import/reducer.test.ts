@@ -19,14 +19,14 @@ describe("dailyReportImportReducer REQ-401", () => {
 
     const next = dailyReportImportReducer(state, {
       type: "confirm_import",
-      overwriteConfirmed: true,
+      additionalImportConfirmed: true,
     });
 
     expect(next).toEqual({
       status: "importing",
       preview,
       previewToken: "token",
-      overwriteConfirmed: true,
+      additionalImportConfirmed: true,
       filenames: ["Z001.csv", "Z002.csv", "Z005.csv"],
     });
   });
@@ -36,7 +36,7 @@ describe("dailyReportImportReducer REQ-401", () => {
       status: "importing",
       preview,
       previewToken: "token",
-      overwriteConfirmed: false,
+      additionalImportConfirmed: false,
       filenames: ["Z001.csv", "Z002.csv", "Z005.csv"],
     };
 
@@ -59,6 +59,7 @@ describe("dailyReportImportReducer REQ-401", () => {
       status: "result",
       result,
       reportDate: "2026-03-21",
+      filenames: ["Z001.CSV", "Z002.CSV", "Z005.CSV"],
     };
     expect(dailyReportImportReducer(state, { type: "rollback_succeeded" })).toEqual({
       status: "idle",
@@ -70,7 +71,7 @@ describe("dailyReportImportReducer REQ-401", () => {
     expect(
       dailyReportImportReducer(idle, {
         type: "confirm_import",
-        overwriteConfirmed: false,
+        additionalImportConfirmed: false,
       }),
     ).toBe(idle);
 

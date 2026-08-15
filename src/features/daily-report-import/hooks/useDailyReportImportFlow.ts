@@ -101,11 +101,18 @@ export function useDailyReportImportFlow() {
   });
 
   const commitMutation = useMutation({
-    mutationFn: (args: { previewToken: string; overwriteConfirmed: boolean; reportDate: string }) =>
-      unwrapResult(commands.commitDailyReportImport(args.previewToken, args.overwriteConfirmed), {
-        source: "commands",
-        cmd: "commit_daily_report_import",
-      }),
+    mutationFn: (args: {
+      previewToken: string;
+      additionalImportConfirmed: boolean;
+      reportDate: string;
+    }) =>
+      unwrapResult(
+        commands.commitDailyReportImport(args.previewToken, args.additionalImportConfirmed),
+        {
+          source: "commands",
+          cmd: "commit_daily_report_import",
+        },
+      ),
     retry: 0,
     onSuccess: async (result, vars) => {
       dispatch({ type: "import_succeeded", result, reportDate: vars.reportDate });
@@ -208,12 +215,12 @@ export function useDailyReportImportFlow() {
   }, [selectClientFiles]);
 
   const confirmImport = useCallback(
-    (overwriteConfirmed: boolean) => {
+    (additionalImportConfirmed: boolean) => {
       if (state.status !== "preview") return;
-      dispatch({ type: "confirm_import", overwriteConfirmed });
+      dispatch({ type: "confirm_import", additionalImportConfirmed });
       commitMutation.mutate({
         previewToken: state.previewToken,
-        overwriteConfirmed,
+        additionalImportConfirmed,
         reportDate: state.preview.file_info.report_date,
       });
     },

@@ -1,5 +1,5 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { act, renderHook, waitFor } from "@testing-library/react";
+import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query";
+import { act, render, renderHook, screen, waitFor } from "@testing-library/react";
 import { useBlocker } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -11,6 +11,7 @@ import type {
   DailyReportRollbackResult,
 } from "@/lib/bindings";
 import { d052InvalidationOracle, expectExactInvalidations } from "@/test/invalidation-oracle";
+import { queryKeys } from "@/lib/query-keys";
 import { open } from "@tauri-apps/plugin-dialog";
 import { readFile } from "@tauri-apps/plugin-fs";
 import {
@@ -85,7 +86,7 @@ function makePreview(): DailyReportPreviewData {
       },
     ],
     warnings: [],
-    duplicate_check: { status: "NoDuplicate", existing_import_id: null },
+    duplicate_check: { status: "NoDuplicate", same_date_imports: [] },
     preview_created_at: "2026-03-21T10:00:00",
   };
 }
@@ -398,6 +399,7 @@ describe("useDailyReportImportFlow_req401", () => {
   });
 
   it("REQ-401: commit invalidates daily report and sales caches without invalidating Z004 csv import lists", async () => {
+    // REQ-401 / I-U8 / SPEC-SDI-D7 / D-052: commit後のdaily/monthly/list invalidation exact oracle。
     const queryClient = new QueryClient({
       defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
     });
@@ -428,7 +430,55 @@ describe("useDailyReportImportFlow_req401", () => {
     expectExactInvalidations(invalidateSpy.mock.calls, d052InvalidationOracle.dailyReportImport());
   });
 
+  it("test_daily_report_command_req401_additional_confirmation_reaches_biz", async () => {
+    // REQ-401 / I-W4 / I-U6 / SPEC-SDI-D3,D5: 日報UI trueをgenerated commandへ一回だけ渡す。
+    const additional = makePreview();
+    additional.duplicate_check = {
+      status: "AdditionalImportConfirmationRequired",
+      same_date_imports: [
+        {
+          id: 500,
+          source_filenames: ["Z001_old.CSV", "Z002_old.CSV", "Z005_old.CSV"],
+          gross_amount: 9000,
+          net_amount: 8000,
+          imported_at: "2026-03-21T09:00:00",
+        },
+      ],
+    };
+    mockParse.mockResolvedValueOnce({
+      status: "ok",
+      data: { preview_data: additional, preview_token: "additional-preview-token" },
+    });
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    });
+    const { result } = renderHook(() => useDailyReportImportFlow(), {
+      wrapper: makeWrapper(queryClient),
+    });
+    await act(async () => {
+      await result.current.selectFiles([
+        makeFile("Z001_260321.CSV"),
+        makeFile("Z002_260321.CSV"),
+        makeFile("Z005_260321.CSV"),
+      ]);
+    });
+    await waitFor(() => {
+      expect(result.current.state.status).toBe("preview");
+    });
+
+    act(() => {
+      result.current.confirmImport(true);
+    });
+
+    await waitFor(() => {
+      expect(result.current.state.status).toBe("result");
+    });
+    expect(mockCommit).toHaveBeenCalledTimes(1);
+    expect(mockCommit).toHaveBeenCalledWith("additional-preview-token", true);
+  });
+
   it("REQ-401: rollback invalidates the same daily report and sales caches", async () => {
+    // REQ-401 / I-U8 / SPEC-SDI-D7 / D-052: rollback後も同じexact invalidationでremaining aggregateをrefetchする。
     const queryClient = new QueryClient({
       defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
     });
@@ -464,6 +514,81 @@ describe("useDailyReportImportFlow_req401", () => {
 
     expect(mockRollback).toHaveBeenCalledWith(501);
     expectExactInvalidations(invalidateSpy.mock.calls, d052InvalidationOracle.dailyReportImport());
+  });
+
+  it("test_daily_report_rollback_req401_failure_retries_same_id_and_refetches_remaining_aggregate", async () => {
+    // REQ-401 / I-U8 / I-R6 / SPEC-SDI-D7 / D-052: failure保持→同一ID retry→残存aggregate再表示。
+    mockRollback.mockResolvedValueOnce({
+      status: "error",
+      error: {
+        kind: "internal",
+        message: "合成 rollback failure",
+        field: null,
+        error_id: null,
+      },
+    });
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    });
+    const reportQuery = vi
+      .fn()
+      .mockResolvedValueOnce(900)
+      .mockResolvedValueOnce(900)
+      .mockResolvedValue(500);
+    const harness: { flow: ReturnType<typeof useDailyReportImportFlow> | null } = { flow: null };
+    function Harness() {
+      harness.flow = useDailyReportImportFlow();
+      const report = useQuery({
+        queryKey: queryKeys.dailySales("2026-03-21"),
+        queryFn: reportQuery,
+      });
+      return <output aria-label="日報公式売上合計">{report.data ?? "loading"}</output>;
+    }
+    render(
+      <QueryClientProvider client={queryClient}>
+        <Harness />
+      </QueryClientProvider>,
+    );
+    expect(await screen.findByText("900")).toBeInTheDocument();
+    await act(async () => {
+      await harness.flow?.selectFiles([
+        makeFile("Z001_260321.CSV"),
+        makeFile("Z002_260321.CSV"),
+        makeFile("Z005_260321.CSV"),
+      ]);
+    });
+    await waitFor(() => {
+      expect(harness.flow?.state.status).toBe("preview");
+    });
+    act(() => {
+      harness.flow?.confirmImport(false);
+    });
+    await waitFor(() => {
+      expect(harness.flow?.state.status).toBe("result");
+    });
+    expect(await screen.findByText("900")).toBeInTheDocument();
+
+    act(() => {
+      harness.flow?.rollback(501);
+    });
+    await waitFor(() => {
+      expect(mockToast.error).toHaveBeenCalledWith(
+        "取り消しに失敗しました。もう一度お試しください",
+      );
+    });
+    expect(harness.flow?.state.status).toBe("result");
+    expect(screen.getByText("900")).toBeInTheDocument();
+
+    act(() => {
+      harness.flow?.rollback(501);
+    });
+    await waitFor(() => {
+      expect(harness.flow?.state.status).toBe("idle");
+    });
+    expect(await screen.findByText("500")).toBeInTheDocument();
+    expect(reportQuery).toHaveBeenCalledTimes(3);
+    expect(mockRollback).toHaveBeenNthCalledWith(1, 501);
+    expect(mockRollback).toHaveBeenNthCalledWith(2, 501);
   });
 
   it("REQ-401: commit 中だけ useBlocker と beforeunload を有効化する", async () => {

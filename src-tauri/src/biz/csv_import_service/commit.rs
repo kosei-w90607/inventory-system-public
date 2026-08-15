@@ -29,23 +29,17 @@ pub fn commit_csv_import(
     let file_hash = &cached.preview_data.file_info.file_hash;
     let settlement_date = &cached.preview_data.file_info.settlement_date;
     let filename = &cached.preview_data.file_info.filename;
-    let existing_import_id = cached.preview_data.duplicate_check.existing_import_id;
-
-    // 2. 上書き確認処理
-    if cached.preview_data.duplicate_check.status == DuplicateStatus::OverwriteRequired
-        && !req.overwrite_confirmed
-    {
-        return Err(BizError::ImportError(
-            "同日のデータが取込み済みです。上書きする場合は overwrite_confirmed を指定してください"
-                .to_string(),
-        ));
-    }
-    // Preview が NoDuplicate なのに overwrite_confirmed=true → 不正リクエスト
-    if cached.preview_data.duplicate_check.status == DuplicateStatus::NoDuplicate
-        && req.overwrite_confirmed
-    {
+    let confirmation_matches = matches!(
+        (
+            &cached.preview_data.duplicate_check.status,
+            req.additional_import_confirmed
+        ),
+        (DuplicateStatus::NoDuplicate, false)
+            | (DuplicateStatus::AdditionalImportConfirmationRequired, true)
+    );
+    if !confirmation_matches {
         return Err(BizError::ValidationFailed(
-            "上書き対象がありません（プレビュー結果と不整合）".to_string(),
+            "追加確認の指定がプレビュー結果と一致しません".to_string(),
         ));
     }
 
@@ -57,8 +51,7 @@ pub fn commit_csv_import(
         file_hash,
         settlement_date,
         filename,
-        existing_import_id,
-        req.overwrite_confirmed,
+        &cached.active_same_date_import_ids,
     );
 
     // TX失敗時: csv_import_failed ログを記録（設計書§15.4）
@@ -77,7 +70,6 @@ pub fn commit_csv_import(
 }
 
 /// TX処理本体（ステップ3〜10）
-#[allow(clippy::too_many_arguments)]
 fn execute_commit(
     conn: &mut DbConnection,
     matched_rows: &[crate::biz::csv_import_service::MatchedRow],
@@ -85,42 +77,28 @@ fn execute_commit(
     file_hash: &str,
     settlement_date: &str,
     filename: &str,
-    existing_import_id: Option<i64>,
-    overwrite_confirmed: bool,
+    active_same_date_import_ids: &[i64],
 ) -> Result<ImportResult, BizError> {
     // 3. TX開始
     let tx = conn
         .transaction()
         .map_err(|e| BizError::DatabaseError(DbError::from(e)))?;
 
-    // 3a. 上書き時の旧データ無効化（TX内）
-    if overwrite_confirmed {
-        if let Some(old_id) = existing_import_id {
-            sales_repo::void_sale_records_by_import(&tx, old_id)?;
-            let voided_movements =
-                sales_repo::void_movements_by_reference(&tx, "csv_import", old_id)?;
-            apply_void_stock_corrections(&tx, &voided_movements)?;
-            sales_repo::update_csv_import_status(&tx, old_id, "rolled_back")?;
-        }
-    }
-
-    // 4. file_hash TOCTOU再チェック（TX内）
+    // 4. file_hash TOCTOU再チェック（TX内、snapshot より先に実行）
     if sales_repo::find_blocking_import_by_file_hash(&tx, file_hash)?.is_some() {
         return Err(BizError::ImportError(
             "このファイルは既に取込み済みです".to_string(),
         ));
     }
 
-    // 4a. settlement_date TOCTOU再チェック（TX内、常時実行）
-    // overwrite_confirmed=true の場合、ステップ3a で旧データを rolled_back 済みのため
-    // find_imports_by_settlement_date は空を返す（rolled_back は除外される）
+    // 4a. settlement_date active snapshot TOCTOU再チェック（TX内、常時実行）
     let same_date_imports = sales_repo::find_imports_by_settlement_date(&tx, settlement_date)?;
-    if !same_date_imports.is_empty() {
+    let current_ids: Vec<_> = same_date_imports.iter().map(|item| item.id).collect();
+    if current_ids != active_same_date_import_ids {
         return Err(BizError::ImportError(
-            "同日のデータが取込み済みです。再度プレビューしてください".to_string(),
+            "同日の取込み状況が変わりました。再度プレビューしてください".to_string(),
         ));
     }
-
     // 5. csv_imports 仮INSERT
     let import_id = sales_repo::insert_csv_import(
         &tx,
@@ -242,7 +220,7 @@ fn execute_commit(
     })
 }
 
-/// voided_movements に基づく在庫補正（commit上書き + rollback で共用）
+/// voided_movements に基づく在庫補正（rollback 専用）
 ///
 /// voided_movements を product_code でグループ化し、
 /// correction = -SUM(quantity) で在庫を補正する。

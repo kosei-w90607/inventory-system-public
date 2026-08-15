@@ -175,6 +175,9 @@ function OfficialDailyReportSection({ report }: { report: OfficialDailyReportSum
         </p>
       ) : (
         <div className="space-y-4 rounded-md border p-4">
+          <p className="text-sm font-medium">
+            {report.source_import_count.toLocaleString("ja-JP")}回の取込みを合算
+          </p>
           {report.warnings.length > 0 && (
             <Alert className="border-warning bg-warning-soft text-warning-strong">
               <AlertCircle className="size-4" aria-hidden="true" />

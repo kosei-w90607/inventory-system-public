@@ -3,7 +3,7 @@ use crate::biz::daily_report_import_service::{
     DailyReportDepartmentLinePreview, DailyReportDuplicateCheck, DailyReportDuplicateStatus,
     DailyReportFileInfo, DailyReportInputFile, DailyReportParseValidateResult,
     DailyReportPaymentLinePreview, DailyReportPreviewData, DailyReportSourceFileInfo,
-    DailyReportTotals, DailyReportWarning,
+    DailyReportTotals, DailyReportWarning, SameDateDailyReportImportSummary,
 };
 use crate::biz::BizError;
 use crate::constants;
@@ -112,26 +112,30 @@ pub fn parse_and_validate_daily_report(
         })
         .collect();
 
-    let duplicate_check = if let Some(existing) =
-        sales_repo::find_blocking_daily_report_by_bundle_hash(conn, &bundle_hash)?
-    {
-        DailyReportDuplicateCheck {
-            status: DailyReportDuplicateStatus::AlreadyImported,
-            existing_import_id: Some(existing.id),
-        }
+    let blocking = sales_repo::find_blocking_daily_report_by_bundle_hash(conn, &bundle_hash)?;
+    let same_date = sales_repo::find_daily_report_imports_by_report_date(conn, &report_date)?;
+    let same_date_imports = same_date
+        .iter()
+        .map(|item| {
+            Ok(SameDateDailyReportImportSummary {
+                id: item.id,
+                source_filenames: source_filenames(&item.source_files_json)?,
+                gross_amount: item.gross_amount,
+                net_amount: item.net_amount,
+                imported_at: item.imported_at.clone(),
+            })
+        })
+        .collect::<Result<Vec<_>, BizError>>()?;
+    let status = if blocking.is_some() {
+        DailyReportDuplicateStatus::AlreadyImported
+    } else if same_date_imports.is_empty() {
+        DailyReportDuplicateStatus::NoDuplicate
     } else {
-        let same_date = sales_repo::find_daily_report_imports_by_report_date(conn, &report_date)?;
-        if same_date.is_empty() {
-            DailyReportDuplicateCheck {
-                status: DailyReportDuplicateStatus::NoDuplicate,
-                existing_import_id: None,
-            }
-        } else {
-            DailyReportDuplicateCheck {
-                status: DailyReportDuplicateStatus::OverwriteRequired,
-                existing_import_id: Some(same_date[0].id),
-            }
-        }
+        DailyReportDuplicateStatus::AdditionalImportConfirmationRequired
+    };
+    let duplicate_check = DailyReportDuplicateCheck {
+        status,
+        same_date_imports,
     };
 
     let source_files: Vec<DailyReportSourceFileInfo> = parse_result
@@ -190,12 +194,34 @@ pub fn parse_and_validate_daily_report(
         summary_lines,
         payment_lines: payment_summary,
         department_lines: department_summary,
+        active_same_date_import_ids: preview_data
+            .duplicate_check
+            .same_date_imports
+            .iter()
+            .map(|item| item.id)
+            .collect(),
     };
 
     Ok(DailyReportParseValidateResult {
         preview_data,
         cached_preview,
     })
+}
+
+fn source_filenames(source_files_json: &str) -> Result<Vec<String>, BizError> {
+    let files: Vec<serde_json::Value> = serde_json::from_str(source_files_json)
+        .map_err(|_| BizError::ImportError("既存日報のファイル情報を読み取れません".to_string()))?;
+    files
+        .into_iter()
+        .map(|file| {
+            file.get("filename")
+                .and_then(serde_json::Value::as_str)
+                .map(str::to_string)
+                .ok_or_else(|| {
+                    BizError::ImportError("既存日報のファイル情報を読み取れません".to_string())
+                })
+        })
+        .collect()
 }
 
 fn build_bundle_hash(sources: &[daily_report_parser::ParsedDailyReportSourceFile]) -> String {

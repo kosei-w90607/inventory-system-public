@@ -46,7 +46,7 @@ export interface UseCsvImportFlowResult {
   /// ファイル選択 / drag&drop からの取込み開始。20MB 超過時は Sonner トーストで reject。
   selectFile: (file: PickedFile) => void;
   /// プレビュー確認後の commit 実行。state.status === "preview" 前提。
-  confirmImport: (overwriteConfirmed: boolean) => void;
+  confirmImport: (additionalImportConfirmed: boolean) => void;
   /// 完了後の rollback 実行。state.status === "result" 前提。
   rollback: (csvImportId: number) => void;
   /// error variant からの復帰 (recoverTo に従い idle or preview に遷移)。
@@ -93,11 +93,11 @@ export function useCsvImportFlow(): UseCsvImportFlowResult {
   const commitImport = useMutation({
     mutationFn: (args: {
       previewToken: string;
-      overwriteConfirmed: boolean;
+      additionalImportConfirmed: boolean;
       // settlementDate は preview から拾って onSuccess の invalidation に渡す (§55.3)
       settlementDate: string;
     }) =>
-      unwrapResult(commands.commitCsvImport(args.previewToken, args.overwriteConfirmed), {
+      unwrapResult(commands.commitCsvImport(args.previewToken, args.additionalImportConfirmed), {
         source: "commands",
         cmd: "commit_csv_import",
       }),
@@ -148,14 +148,14 @@ export function useCsvImportFlow(): UseCsvImportFlowResult {
   );
 
   const confirmImport = useCallback(
-    (overwriteConfirmed: boolean) => {
+    (additionalImportConfirmed: boolean) => {
       // §55.2 設計: confirm_import は preview state からのみ valid
       if (state.status !== "preview") return;
       const settlementDate = state.preview.file_info.settlement_date;
-      dispatch({ type: "confirm_import", overwriteConfirmed });
+      dispatch({ type: "confirm_import", additionalImportConfirmed });
       commitImport.mutate({
         previewToken: state.previewToken,
-        overwriteConfirmed,
+        additionalImportConfirmed,
         settlementDate,
       });
     },
