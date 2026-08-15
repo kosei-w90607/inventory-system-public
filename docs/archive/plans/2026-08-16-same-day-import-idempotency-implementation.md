@@ -110,7 +110,7 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 - DB: `docs/DB_DESIGN.md` transaction / POS boundary、`docs/db-design/pos-tables.md` §11 / §12b〜12e / B-1 / B-2
 - Screen / UI: `docs/SCREEN_DESIGN.md` 売上データ取込み / 日次 / 月次、`docs/function-design/55-ui-csv-import.md` §55.1〜55.8、`56-ui-daily-sales.md`、`57-ui-monthly-sales.md`、`docs/design-system/01-decision-rules.md`、`02-component-catalog.md`
 - Decision log / ADR: `docs/decision-log.md` D-023 / D-025 / D-052 / D-070 / D-071
-- Implementation inheritance: archived [design-first packet](../archive/plans/2026-08-16-same-day-import-idempotency.md) と [Matrix](../archive/plans/test-matrices/2026-08-16-same-day-import-idempotency.md) の I-B1〜I-G1 / Ledger
+- Implementation inheritance: archived [design-first packet](2026-08-16-same-day-import-idempotency.md) と [Matrix](test-matrices/2026-08-16-same-day-import-idempotency.md) の I-B1〜I-G1 / Ledger
 
 ## Required Design Artifacts
 
