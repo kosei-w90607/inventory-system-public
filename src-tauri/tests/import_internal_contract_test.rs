@@ -249,6 +249,32 @@ fn test_sales_design_req502_future_coverage_counts_distinct_report_dates() {
     }
 }
 
+fn sweep_dir_for_tokens(dir: &Path, tokens: &[String], hits: &mut Vec<String>) {
+    // 外部 binary（rg 等）へ依存すると hosted runner に存在せず環境依存 fail する
+    // （2026-08-16 hosted CI 実発生）ため、file walk + literal 検索を test 内蔵で行う。
+    let entries =
+        fs::read_dir(dir).unwrap_or_else(|error| panic!("read_dir failed for {dir:?}: {error}"));
+    for entry in entries {
+        let path = entry
+            .unwrap_or_else(|error| panic!("dir entry failed under {dir:?}: {error}"))
+            .path();
+        if path.is_dir() {
+            sweep_dir_for_tokens(&path, tokens, hits);
+            continue;
+        }
+        let bytes =
+            fs::read(&path).unwrap_or_else(|error| panic!("read failed for {path:?}: {error}"));
+        let text = String::from_utf8_lossy(&bytes);
+        for (index, line) in text.lines().enumerate() {
+            for token in tokens {
+                if line.contains(token.as_str()) {
+                    hits.push(format!("{}:{}:{}", path.display(), index + 1, line.trim()));
+                }
+            }
+        }
+    }
+}
+
 #[test]
 fn test_active_sales_import_vocabulary_sweep_i_g1() {
     // REQ-401 / I-G1 / SPEC-SDI-D8: active Rust/TS/generated surfaceに旧取込み契約を残さない。
@@ -261,17 +287,14 @@ fn test_active_sales_import_vocabulary_sweep_i_g1() {
         ["requires", "Overwrite"].concat(),
         ["existing", "_import_id"].concat(),
         ["get_latest", "_completed_daily_report"].concat(),
-    ]
-    .join("|");
-    let output = std::process::Command::new("rg")
-        .args(["-n", &removed, "src-tauri/src", "src-tauri/tests", "src"])
-        .current_dir(repo_root)
-        .output()
-        .expect("rg must be available for the repository contract sweep");
-    assert_eq!(
-        output.status.code(),
-        Some(1),
+    ];
+    let mut hits = Vec::new();
+    for target in ["src-tauri/src", "src-tauri/tests", "src"] {
+        sweep_dir_for_tokens(&repo_root.join(target), &removed, &mut hits);
+    }
+    assert!(
+        hits.is_empty(),
         "active stale vocabulary:\n{}",
-        String::from_utf8_lossy(&output.stdout)
+        hits.join("\n")
     );
 }

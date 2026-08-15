@@ -66,7 +66,7 @@ Risk: R3
 | I-R6 / D6/D7 | rolled_back寄与残存 | Rust + hook/RTL | `test_daily_sales_req501_after_selected_rollback_returns_remaining_import_only` |status/is_voided filter削除、cache refetch省略 |official/product各fixtureでrollback後aggregate=siblingのみ、UI refetch表示もremaining値 |
 | I-R7 / D6 | monthly same-date片方欠落 | Rust repo regression | `test_get_monthly_official_department_totals_req502_includes_two_same_date_parents` |DISTINCT date parent、latest-parent subqueryを導入 |同一report_dateのdistinct valuesが両方SUM、rolled_back thirdは除外 |
 | I-R8 / D6 | future coverageをparent count化 | Static contract | `test_sales_design_req502_future_coverage_counts_distinct_report_dates` |source anchorを`COUNT(*)`へ変更 |24 §14.22 / 34 §19.4の`COUNT(DISTINCT report_date)` exact pin。runtime DTO追加はしない |
-| I-G1 / D8 | old sales-import vocabulary残存/広域誤置換 | CLI regression | `test_active_sales_import_vocabulary_sweep_i_g1` |active対象へold tokenを1つ再導入 |指定rgがactive Rust/TS/tests/generatedで0。archive/unrelated product-stocktake-restoreはdiffなし |
+| I-G1 / D8 | old sales-import vocabulary残存/広域誤置換 | CLI regression | `test_active_sales_import_vocabulary_sweep_i_g1` |active対象へold tokenを1つ再導入 |test 内蔵の token sweep（外部 binary 非依存の file walk + literal 検索。hosted runner に rg が無く fail した 2026-08-16 の教訓で tool 非依存化）が active Rust/TS/tests/generated で 0。archive/unrelated product-stocktake-restoreはdiffなし |
 
 ## Oracle Replacement Map
 
