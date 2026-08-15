@@ -366,12 +366,13 @@ rg -l -i "OverwriteRequired|overwrite_confirmed|overwriteConfirmed|OverwriteConf
 
 | Hit group | 除外理由 |
 |---|---|
-| product master bulk import: `ARCHITECTURE.md:118`, `SCREEN_DESIGN.md:317-325`, `architecture/biz-task-specs.md:75-76`, `ui-task-specs.md:135,144`, `src/features/products/import/**`, `product_service.rs` | 重複 product row の operator-selected UPDATE。same-day sales import と別 contract |
-| stocktake: `SCREEN_DESIGN.md:39,178`, `73-ui-stocktake.md`, `src/features/stocktake/StocktakePage.tsx:614` | counted quantity の再入力 |
+| product master bulk import: `ARCHITECTURE.md:118`, `SCREEN_DESIGN.md:317-325`, `architecture/biz-task-specs.md:75-76`, `ui-task-specs.md:135,144`, `30-biz-product-service.md:319,352`, `60-ui-product-import.md`（file 内全 hit 同カテゴリ）, `src/features/products/import/**`, `product_service.rs` | 重複 product row の operator-selected UPDATE。same-day sales import と別 contract |
+| stocktake: `SCREEN_DESIGN.md:39,178`, `73-ui-stocktake.md`（file 内全 hit 同カテゴリ）, `src/features/stocktake/StocktakePage.tsx:614` | counted quantity の再入力 |
 | backup restore: `ui-task-specs.md:320` と backup docs/code | DB restore の destructive replacement。必須確認を維持 |
-| PLU/CV17: `architecture/biz-task-specs.md:378`, `67-ui-plu-export.md:47` | memory slot overwrite risk。D-070 runway の別 change |
+| PLU/CV17: `architecture/biz-task-specs.md:395`（amendment 後の行番号、旧 :378）, `25-io-plu-formatter.md:5`, `67-ui-plu-export.md:47` | memory slot overwrite risk。D-070 runway の別 change |
 | Excel: `pos-tables.md:218`, `Plans.md:204`, `56-ui-daily-sales.md` の現行 Excel 上書き | 外部現行運用 fact。sales import semantics ではない |
-| CSS/config/comment: `SCREEN_DESIGN.md:475`, status chip/TanStack retry、decision-log tooling override | programming/config の override。operator contract ではない |
+| CSS/config/comment: `SCREEN_DESIGN.md:475`, `52-ui-shared-layout.md:215-216`, status chip/TanStack retry、decision-log tooling override | programming/config の override。operator contract ではない |
+| stock_quantity 直接更新 / integrity-fix / traceability: `21-io-inventory-repo.md:391`, `architecture/biz-task-specs.md:535`, `65-inventory-record-traceability.md:37` | 在庫値・既存明細の上書き semantics（BIZ-02 共通在庫変動の実装記述 / integrity-fix の自動上書き禁止 / 既存明細上書きを禁じる traceability 根拠）。same-day sales import の置換とは無関係（Final Review round 1 P2-1 起源の cite 補完） |
 | `docs/Plans.md:100` の completed record | 旧実装が同一TX上書きだった歴史的記録。current contract source ではない |
 | `docs/archive/plans/**` | immutable historical evidence。`rg -l` の hit file listを sweep 済みだが書き換えない |
 
