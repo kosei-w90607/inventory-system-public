@@ -2,10 +2,10 @@
 
 ## Workflow State
 
-- Phase: plan-draft
+- Phase: implementing
 - Risk: R3
 - Execution Mode: fable-window
-- Plan Commit: pending
+- Plan Commit: b6c3a40
 - Amendments: none
 - Coordinator: Fable
 - Writer: Codex
@@ -346,3 +346,10 @@ plan-draft。実装未着手。
 ## Review Response
 
 - Findings Freeze: not yet frozen; post-freeze exceptions: none
+
+### Plan Gate（2026-08-16）
+
+- Plan Review round 1（独立 Sonnet）: P1 = 0 / P2 × 1（Human Gate の L3 裁定陳腐化）/ P3 × 1（AC の traceability gate 欠落）→ 両 accept、`fc55ba7` で是正。再検証で新規 P3 × 1（裁定見出しの Phase 先取り表記）→ accept、`a4be4b4` で是正し round 1 CLOSED（P1/P2 = 0）。引用実在性は Oracle Replacement Ledger 全行 + Mechanical Inventory 全 path で幻覚 0、source-doc 突合 drift 0、archived Matrix 継承 31/31 完全一致、wire 切替の replaced-together 列挙漏れ 0 を reviewer が独立実測。
+- Coordinator 裁定: Windows native L3 = not required（Human Gate Proposal に確定記録済み）。発注書の「33 行」は Coordinator の誤記で実数 31 行（reviewer 実測が是正、packet 側は当初から正）。
+- owner plan approval: 2026-08-16（介入 1/3）。
+- 遷移: plan-draft -> plan-gate -> plan-approved -> implementing を本 state-only commit で materialize。評価証跡 = packet/Matrix committed（`b6c3a40`）、Plan Review P1/P2 = 0、Plan Commit `b6c3a40` が全実装 commit に先行。
