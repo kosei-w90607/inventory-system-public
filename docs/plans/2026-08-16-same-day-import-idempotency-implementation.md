@@ -2,16 +2,16 @@
 
 ## Workflow State
 
-- Phase: implementing
+- Phase: ready-hosted-final
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: b6c3a40
-- Amendments: 7fc7aa1
+- Amendments: 7fc7aa1, 980a211
 - Coordinator: Fable
 - Writer: Codex
 - Plan Reviewer: Sonnet
 - Final Reviewer: Sonnet
-- Reviewed Content HEAD: 7fc7aa1
+- Reviewed Content HEAD: 980a211
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
 - Human Gate: owner plan approval / 追加確認 Dialog と「N回の取込みを合算」表示の human visual confirmation（merge 前必須） / Ready / merge。Windows native L3 = not required（Coordinator 裁定 2026-08-16、Human Gate Proposal 参照）
@@ -344,6 +344,8 @@ Contract ID: SPEC-SDI-IMPLEMENTATION-2026-08-16
 - packet scope の BIZ / IO / CMD / generated wire / frontend / reporting / per-import rollback を実装し、Oracle Replacement Ledger を additive / snapshot / per-import / aggregate oracle へ置換した。
 - `AdditionalImportConfirmationRequired`、ordered `same_date_imports`、`additional_import_confirmed`、`source_import_count` を producer/consumer/bindings 同時切替し、split pin を単一 pin へ再統一した。
 - active-code 旧語彙 sweep、mutation-style adequacy 自己検証、individual gates と L1 full の volatile evidence は PR body に記録する。
+- （2026-08-16 是正追記）hosted CI 初回 Ready で I-G1 sweep test の外部 `rg` 依存が hosted runner 不在により fail（true positive）。正規 state-backtrack 後、`980a211` で pure Rust file walk へ是正（走査対象・token 集合・行単位報告は同一、感度は旧 token 実注入 red → 復元 green で確認）+ Matrix I-G1 文言追随（gated amendment）。Final Reviewer 再検証 P1/P2 = 0、L1 full RESULT=PASS。新規 P3（pure walk の gitignore 非尊重による将来偽陽性リスク、安全側のみ）は closeout の follow-up へ。human visual confirmation は test-only 是正のため PASS のまま有効。
+- 再前進遷移: implementing -> local-verified -> independent-review -> human-confirm -> ready-hosted-final を本 content commit に同乗して materialize（STATECAP 3/3 消費済みのため PR #58 先例の正規手段）。評価証跡 = `980a211` の L1 full PASS（evidence は PR body）/ Final Reviewer 再検証 P1/P2 = 0 / human visual confirmation PASS 維持 / owner re-Ready 承認 2026-08-16（介入予算 3 超過 1 回目、CI 赤対応の継続として明示記録）。Reviewed Content HEAD = `980a211`、Amendments へ `980a211` を append。
 
 ## Review Response
 
