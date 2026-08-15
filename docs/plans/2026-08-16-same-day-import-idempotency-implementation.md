@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: human-confirm
+- Phase: ready-hosted-final
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: b6c3a40
@@ -363,3 +363,10 @@ Contract ID: SPEC-SDI-IMPLEMENTATION-2026-08-16
 - Coordinator mutation 独立再実測（隔離 worktree、Writer と別主体）: Matrix の Adequacy Questions から注入形を独立導出し **20 mutant 全 kill、survivor 0**（同日置換復活 / TX 順序入替 / snapshot 弱体化 / 先頭 1 件打切り / rollback 日付拡大 / 符号反転 / LIMIT 1 復活 / NULL→0 / 代表 max 化 / GROUP BY source 脱落 / source_import_count 定数化 / D-052 key 除去 / 旧語彙再導入 / split pin 片側 rename、ほか。archive 除外の負検査も期待どおり green）。
 - Writer 自己検証記録の是正 2 点（実カバレッジは健在、記録の瑕疵のみ）: ①unmatched warning mutant の kill test 誤記（正 = sales_service 側 `test_get_daily_sales_warnings_unmatched_department_req501`。誤記載の repo 層 test は warnings field を持たず検出不能）②日報側 rollback 日付拡大 mutant（I-B8）の記録漏れ（実 test `test_daily_report_req401_rollback_keeps_same_date_sibling` が kill することを独立確認）。正しい対応は PR body へ反映。
 - 遷移: implementing -> local-verified -> independent-review -> human-confirm を本 state-only commit で materialize。評価証跡 = content candidate `7fc7aa1` の L1 full RESULT=PASS（evidence 位置は PR body）、Final Reviewer engaged + P1/P2 = 0、Reviewed Content HEAD = `7fc7aa1`。残 Human Gate = human visual confirmation（両タブ追加確認 Alert/Dialog / 長一覧 scroll / rollback dialog / 日次合算表示の目視）→ owner Ready → merge。
+
+### Ready（2026-08-16）
+
+- human visual confirmation: PASS（owner 実施 2026-08-16、実測記録は PR body。介入 2/3）。
+- 目視起源の P3 follow-up 候補 3 点（日報完了画面の action 間隔 / 両 tab rollback summary のラベル付き構造化・改行 / 追加確認 summary の構造化・折返し回避）は Coordinator 裁定で backlog 起票（本 PR 非同乗、closeout で `Plans.md` backlog へ）。
+- owner Ready authorization: 2026-08-16（介入 3/3、予算内完走）。
+- 遷移: human-confirm -> ready-hosted-final を本 state-only commit で materialize（Draft のまま）。本 commit 後の exact HEAD で L1 full を実行し、evidence は PR body に記録する（D-038）。
