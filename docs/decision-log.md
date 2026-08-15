@@ -552,4 +552,13 @@ Use concise ADR-style entries.
 - Why: 標準経路（Z001/Z002/Z005）の日報 commit は集計保存のみで在庫を動かさない（daily_report_import_service/tests.rs の在庫不変 assert）。pos_stock_sync による自動在庫連動は Z004 経路のみ（csv_import_service/commit.rs）。Z004 は layout A/B 再検証 R3 が未完で、既存 fixture は実 layout の代用にならないため、先に台本へ含めると旧合成 shape の成功を受入済みと誤認する順序のねじれを生む。
 - Impact: 台本第1版は現行実装の標準運用と一致する。第2版で step 2 へ Z004 経路を追加する際、後段 4 step（在庫少検知・棚卸し・整合性検証・バックアップ/復元）は再利用できる。
 - Alternatives considered: Z004 fixture 同乗（layout A/B 未検証の順序ねじれで却下）; 在庫反映 defer（一気通貫の喪失で却下）。
-- Revisit: Z004 layout A/B 再検証 R3 完了時（台本第2版の起案）、または項5 配布判定時。
+- Revisit: Z004 layout A/B 再検証 R3 完了時（台本第2版の起案）、または項5 配布判定時。→ **2026-08-16 D-070 で消化**。
+
+## D-070
+
+- Decision: Z004 自動在庫連動（layout A 取込み）を v1.0 gate に含める。v1.0 は Z004 経路を含む状態で配布判定し、初日から商品別売上の自動在庫連動を有効にする。必要な R3 一式 = ①同日複数精算の冪等取込み再設計（現行の同日「置換」意味論を「連番別ファイル = 独立入力」へ）②z004_parser layout A 対応 ③PLU slot 永続割当（2026-07-03 packet D-6 の恒久設計）④bulk onboarding ⑤受入台本第2版（step 2 の Z004 経路拡張 + synthetic layout A fixture）。
+- Status: accepted（owner 裁定 2026-08-16。D-069 の Revisit 条件「項5 配布判定時」を店舗訪問完了により前倒しで消化）
+- Why: 2026-08-15 店舗訪問で判断材料が確定した — 実機 Z-CSV-06/07 PASS（返品負数・複数数量が raw で正常）、Z-LAYOUT 差分なし（layout A 安定）、同日複数精算は連番別ファイルで保全（冪等要件の明文化）、form 回答 R-F-01 で初日から商品別売上を見たい商品群が広く指定された。owner は Z004 を主要機能と位置付け、未完成のまま v1.0 を配布しない方針を採った。実装規模調査（issue #76 帰着コメント参照）の見積り = R3 4〜5 本・数週間規模を認識した上で、配布前倒しより機能完成を優先する。
+- Impact: v1.0 前プログラム D 系統に Z004 runway 一式が確定投入される。C3（MSI 配布判定）の入口条件に Z004 R3 完了 + 受入台本第2版 PASS が加わる。
+- Alternatives considered: gate 外 + 配布直後 fast-follow（配布は数週間早まるが、主要機能欠落のまま v1.0 を名乗ることを owner が否認）; 項5 まで裁定保留（着手が最も遅れるため否認）。
+- Revisit: Z004 R3 群の実装中に規模見積りが大幅超過し配布時期と衝突した場合（wave 運用の実測で判断）。
