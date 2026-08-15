@@ -245,7 +245,7 @@ rg --files src-tauri/src/biz/csv_import_service src-tauri/src/biz/daily_report_i
 | SPEC-SDI-D1 / D-071 identity | both parse/commit + active same-date repo queries | I-B1〜I-B5 / I-W2〜I-W3 | real raw再採取は完了済み。synthetic automated |
 | SPEC-SDI-D2 correction | both rollback services / logs / UI result | I-B6〜I-B9 / I-U7〜I-U8 | physical delete / date-wide rollback non-scope |
 | SPEC-SDI-D3 wire | Rust DTOs/CMD/bindings/TS consumers/split pin | I-W1〜I-W4 | automated generated-contract review |
-| SPEC-SDI-D4 snapshot lifecycle | cached previews、TX recheck、CMD token lifecycle | I-B2 / I-B5 / I-W5 | manual concurrency injectionをL3へ置かない |
+| SPEC-SDI-D4 snapshot lifecycle | cached previews、TX recheck、CMD token lifecycle（confirmation/status 検証の分岐構造は pipeline で異なる: CSV = 2-branch `matches!`、daily = AlreadyImported を含む 3-way match。挙動は等価でいずれも zero-write — Final Review round 1 P2-1 起源の注記） | I-B2 / I-B5 / I-W5 | manual concurrency injectionをL3へ置かない |
 | SPEC-SDI-D5 operator confirmation | shared dialog + both tab alerts/pages/hooks | I-U1〜I-U6 | human visual confirmation必須。Windows native L3 = not required（Coordinator 裁定済み） |
 | SPEC-SDI-D6 accounting read | sales_repo/BIZ DTO/DailySales/monthly queries | I-R1〜I-R8 | synthetic values only。series cross-add non-scope |
 | SPEC-SDI-D7 per-import list/rollback UI | rollback dialogs/hooks/list order/invalidation | I-B6〜I-B9 / I-U7〜I-U8 / I-R6 | new history route non-scope |
