@@ -562,3 +562,12 @@ Use concise ADR-style entries.
 - Impact: v1.0 前プログラム D 系統に Z004 runway 一式が確定投入される。C3（MSI 配布判定）の入口条件に Z004 R3 完了 + 受入台本第2版 PASS が加わる。
 - Alternatives considered: gate 外 + 配布直後 fast-follow（配布は数週間早まるが、主要機能欠落のまま v1.0 を名乗ることを owner が否認）; 項5 まで裁定保留（着手が最も遅れるため否認）。
 - Revisit: Z004 R3 群の実装中に規模見積りが大幅超過し配布時期と衝突した場合（wave 運用の実測で判断）。
+
+## D-071
+
+- Decision: business date は file import の uniqueness key ではない。content hash 単位の active identity、per-import rollback、active imports の additive read を app-core contract とする。upstream が delta file から cumulative snapshot へ変わる場合は adapter 契約を再設計する。
+- Status: accepted（owner 裁定 2026-08-16。Plan Packet [同日複数精算の冪等取込み再設計](plans/2026-08-16-same-day-import-idempotency.md) の Plan Gate 承認により採用）
+- Why: 実機では同日複数精算が連番付きの独立ファイルとして保全され、各ファイルは精算単位の delta を表す。同一営業日の別 hash を互いに置き換えると先行精算分を失い、日売上と在庫を過小計上するため、日付ではなく active content hash を冪等性の境界にする必要がある。
+- Impact: Z004 と日報の両 pipeline は、同一 hash の active import をブロックし、同日別 hash を利用者確認後に追加保存する。訂正は対象 import ID の論理取消と再取込みを別操作にし、日次・月次の読出しは同日の全 active import を加算する。営業日は表示・集計の group key であり uniqueness key ではない。
+- Alternatives considered: 営業日単位で既存 import を無効化して最新ファイルだけを残す案（精算単位 delta の先行分を失うため却下）; byte 違いの意味的重複を自動判定する案（復旧用書出し等の同内容性を汎用に証明できず、誤ブロックを避けるため追加確認を採用）; 同日別 hash を無確認で追加する案（byte 違い同内容の二重計上を operator が検知する機会を失うため却下）。
+- Revisit: upstream が精算単位 delta から cumulative snapshot へ変わる証跡を観測したとき、adapter 契約を再設計する。

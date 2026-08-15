@@ -217,7 +217,7 @@ fn find_blocking_import_by_file_hash(conn: &DbConnection, file_hash: &str) -> Re
 
 ### 14.7 find_imports_by_settlement_date
 
-**関数要求**: settlement_date で有効な csv_imports を検索する。同日の上書き確認用
+**関数要求**: settlement_date で有効な csv_imports を全件検索する。同日追加確認の snapshot と commit 時の再検証に使用する。
 
 **シグネチャ**:
 ```
@@ -225,8 +225,10 @@ fn find_imports_by_settlement_date(conn: &DbConnection, date: &str) -> Result<Ve
 ```
 
 **処理ステップ**:
-1. SQL実行: `SELECT * FROM csv_imports WHERE settlement_date = ? AND status IN ('completed','completed_partial') ORDER BY id DESC`
+1. SQL実行: `SELECT * FROM csv_imports WHERE settlement_date = ? AND status IN ('completed','completed_partial') ORDER BY imported_at DESC, id DESC`
 2. 結果を Vec\<CsvImport\> で返す（0件なら空 Vec）
+
+`settlement_date` は group key であり uniqueness key ではない。呼出側は全件を追加確認表示と active ID snapshot に使い、先頭1件へ縮退してはならない。
 
 **エラーハンドリング**:
 - SQL実行失敗 → DbError::QueryFailed(詳細)
@@ -376,7 +378,7 @@ fn list_csv_imports(conn: &DbConnection, page: u32, per_page: u32) -> Result<Pag
 **処理ステップ**:
 1. 入力ガードチェック
 2. COUNT(*) で total_count を取得
-3. ORDER BY imported_at DESC, id DESC
+3. ORDER BY settlement_date DESC, imported_at DESC, id DESC。同日複数importを行単位で返し、日付単位にcollapseしない
 4. LIMIT per_page OFFSET (page - 1) * per_page で取得
 5. PaginatedResult { items, total_count, page, per_page } を返す
 
@@ -489,7 +491,7 @@ fn find_blocking_daily_report_by_bundle_hash(conn: &DbConnection, bundle_hash: &
 
 ### 14.18 find_daily_report_imports_by_report_date
 
-**関数要求**: 同一report_dateのcompleted日報取込みを検索する。上書き確認に使用する。
+**関数要求**: 同一report_dateのcompleted日報取込みを全件検索する。追加確認の snapshot と commit 時の再検証に使用する。
 
 **シグネチャ**:
 ```
@@ -497,7 +499,9 @@ fn find_daily_report_imports_by_report_date(conn: &DbConnection, report_date: &s
 ```
 
 **SQL方針**:
-`SELECT * FROM daily_report_imports WHERE report_date = ? AND status = 'completed' ORDER BY id DESC`
+`SELECT * FROM daily_report_imports WHERE report_date = ? AND status = 'completed' ORDER BY imported_at DESC, id DESC`
+
+`report_date` は group key であり uniqueness key ではない。呼出側は `source_files_json` を安全に解析して表示用 filename 一覧を作り、全 active ID の順序付き snapshot を保持する。
 
 ---
 
@@ -514,7 +518,7 @@ fn rollback_daily_report_import(conn: &DbConnection, id: i64, rolled_back_at: &s
 1. `UPDATE daily_report_imports SET status='rolled_back', rolled_back_at=? WHERE id=? AND status='completed'`
 2. affected_rows == 1 なら true、0なら false。
 
-**注意**: summary/payment/department lines は物理削除しない。親statusで有効/無効を判断する。
+**注意**: summary/payment/department lines は物理削除しない。親statusで有効/無効を判断する。取消対象は指定 ID の親だけであり、同一 `report_date` の他の completed 親は変更しない。すでに rolled_back の ID はBIZ層で冪等成功として扱う。
 
 ---
 
@@ -540,20 +544,28 @@ fn list_daily_report_imports(
 
 ---
 
-### 14.21 get_latest_completed_daily_report
+### 14.21 get_completed_daily_report_aggregate
 
-**関数要求**: 指定日の最新completed日報取込みと配下の支払/部門別行を取得し、BIZ-05の日次レポート用構造へ渡す。
+**関数要求**: 指定日の全 completed 日報取込みと配下の支払/部門別行を取得・集約し、BIZ-05の日次レポート用構造へ渡す。
 
 **シグネチャ**:
 ```
-fn get_latest_completed_daily_report(conn: &DbConnection, report_date: &str) -> Result<Option<OfficialDailyReportSummary>, DbError>
+fn get_completed_daily_report_aggregate(conn: &DbConnection, report_date: &str) -> Result<Option<OfficialDailyReportSummary>, DbError>
+```
+
+**実装遷移義務**: 現行codeの公開symbolは次の本amendment前の登録名である。後続implementation commitで本節の `get_completed_daily_report_aggregate` へrenameし、BIZ caller / tests / design-compliance registrationを同じcommitで追随する。旧symbol名は移行対象のcode inventoryを示すだけで、最新1parentを選ぶ契約として存続しない。
+
+```rust
+fn get_latest_completed_daily_report(/* 現行codeの移行元。新規caller追加禁止 */)
 ```
 
 **処理ステップ**:
-1. `daily_report_imports` から `report_date=? AND status='completed'` の最新1件を取得する。
-2. 親がなければ Ok(None) を返す。
-3. `daily_report_payment_lines` と `daily_report_department_lines` を `sort_order ASC, id ASC` で取得する。
-4. `OfficialDailyReportSummary` にマッピングして返す。
+1. `daily_report_imports` から `report_date=? AND status='completed'` の親を全件取得する。親がなければ `Ok(None)` を返す。
+2. `source_import_count` は対象親件数とする。親 `gross_amount` / `net_amount` はそれぞれ合計するが、いずれかの親で対象値が NULL なら集約値も NULL とする。
+3. `daily_report_payment_lines` は `payment_key` で集約する。amount / count は対象行のいずれかが NULL なら集約値も NULL とする。
+4. `daily_report_department_lines` は `department_id` がある行をその ID で、未対応行を `normalized_department_name`、それもなければ `raw_department_name` で集約する。amount は合計し、quantity / count は対象行のいずれかが NULL なら集約値も NULL とする。
+5. label と sort は、各 group の最小 `sort_order`、同値なら最小 row ID の行を決定的な代表とする。未対応警告は集約後の group 数から1件だけ構築し、import ごとに重複させない。
+6. `OfficialDailyReportSummary` にマッピングして返す。単一親 ID は返さない。
 
 ---
 
@@ -575,6 +587,7 @@ fn get_monthly_official_department_totals(
 2. `daily_report_department_lines` を department_id / label 単位で集計する。
 3. 対象日報が0件なら Ok(None)。
 4. 対象日報がある場合は Ok(Some(rows))。行が0件なら空Vecを返す。
+5. 同一日複数親もすべて加算対象とする。将来、取込み済み営業日数を返す場合は親件数ではなく `COUNT(DISTINCT report_date)` を使う。
 
 ---
 
@@ -596,3 +609,10 @@ fn get_monthly_official_department_totals(
 - **INV-6**: file_hash 自然冪等性 — find_blocking_import_by_file_hash が `status IN ('completed','completed_partial')` で判定。UNIQUE 制約なし（ロールバック後の再取込みで同一 hash が2行になるため）。単一接続前提で check-then-insert の競合なし
 - **INV-7**: csv_import 参照の movements は sale_auto 限定 — void_movements_by_reference が movement_type 条件なしで安全に void できる根拠
 - **D-025**: 日報取込みは sale_records / inventory_movements へ擬似展開しない — daily_report_imports のrollbackは親status更新のみで完結する
+- **D-071 / SPEC-SDI-D1〜D8**: business date は group key であり uniqueness key ではない。active content hash 単位の identity、指定 ID 単位の rollback、同日の全 active imports の additive read を維持する
+
+### 更新履歴
+
+| 日付 | PR | 内容 |
+|---|---|---|
+| 2026-08-16 | PR #79 | SPEC-SDI-D1〜D8: 同日別 hash の active import 全件取得、commit snapshot 再検証、per-import rollback、日報の日次・月次 additive read 契約を正本化。 |

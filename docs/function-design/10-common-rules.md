@@ -43,7 +43,8 @@
 - file_hash（SHA-256、生バイト列＝デコード前のrawバイトから算出、hex小文字64文字）が自然な重複検知キー
 - 重複判定: `file_hash一致 + status IN ('completed','completed_partial')` → ブロック
 - ロールバック後（status='rolled_back'）の再取込みは許可
-- settlement_date一致 + 別file_hash → 上書き確認（旧レコードをロールバック後に再取込み）
+- settlement_date一致 + 別file_hash → 既存active import全件を示す追加確認後、新規分をinsert-onlyで取込む
+- settlement_dateはgroup keyでありuniqueness keyではない。訂正は対象import IDのrollbackと再取込みを明示した2操作で行う
 - スコープ: 単一店舗（1DB）
 - 改行コード差異（CRLF/LF）は別hashとなるが、これは仕様として許容。同一内容でも改行コードが違えば別ファイル扱い
 - file_hashにUNIQUE制約なし（DB_DESIGN.md確定済み: ロールバック後に同一hashが2行できるため）。競合防止はcommit TX内でのcheck-then-insertで対応
@@ -88,3 +89,11 @@ struct PaginatedResult<T> {
 ```
 
 Pagination upper-bound policy is intentionally module-specific. D-031 introduced the real shared `PAGINATION_MAX_PER_PAGE = 200` constant for IO-layer clamps: `search_products`, stocktake item lists, and system log lists clamp to 200 and return the clamped value in `PaginatedResult.per_page`. Inventory movement / record BIZ lists keep the existing `MAX_PER_PAGE = 100` reject contract, and sales import history lists also keep their existing 100 reject behavior.
+
+---
+
+### 更新履歴
+
+| 日付 | PR | 内容 |
+|---|---|---|
+| 2026-08-16 | PR #79 | D-071 / SPEC-SDI-D1〜D4: CSV取込みの自然冪等性を同日別hashの追加取込みとper-import訂正へ改訂。 |

@@ -47,9 +47,9 @@ Z004ファイルの取込み履歴。重複取込み防止、ロールバック�
 - 重複チェックSQL: `WHERE file_hash = ? AND status IN ('completed','completed_partial')`
 
 **ケース2: 同じ精算日の別ファイル（精算前後に2回CSV出力した等）**
-- settlement_dateが同じ ＋ 別のfile_hash ＋ 既存がcompleted/completed_partial → 警告（「この日のデータは取込み済みです。上書きしますか？」）
-- 上書き選択時: 旧レコードをロールバック（status='rolled_back'、関連sale_records/inventory_movementsをis_voided=1）→ 新規取込み
-- キャンセル選択時: 何もしない
+- settlement_dateが同じ ＋ 別のfile_hash ＋ 既存がcompleted/completed_partial → 既存分を残す追加取込みとして確認する
+- 確認時は同日のactive importを全件表示し、承認後は新規分だけINSERTする
+- byte違いで同内容の復旧用ファイル等を選んでいないかをoperatorが確認し、キャンセル時は何もしない
 
 **ケース3: ファイル名が同じだが中身が違う（同じ日に2回精算した等）**
 - file_hashが異なるためケース2として処理される
@@ -59,6 +59,8 @@ Z004ファイルの取込み履歴。重複取込み防止、ロールバック�
 - csv_import_errorsの情報から「何を登録すればいいか」が追える
 
 **file_hashのUNIQUE制約の修正**: 当初UNIQUE制約を付けていたが、ロールバック後の再取込みで同じハッシュのレコードが2件できる可能性がある（rolled_back + completed）。UNIQUE制約を外し、アプリ側でチェックに変更する
+
+`settlement_date` は集計・表示のgroup keyでありuniqueness keyではない。active identityは `file_hash + active status` で判定する。訂正は対象import IDのrollbackと再取込みを明示した2操作で行う。
 
 ---
 
@@ -124,10 +126,11 @@ Z001/Z002/Z005 の1営業日分ファイル束を1つの日報取込みとして
 - **source_files_jsonの理由**: 外部adapterの証跡（ファイル名、個別hash、サイズ、source名）を残すが、実店舗のCSV本文や金額明細をそのまま保存しない。検索・集計に使う値は下位行テーブルへ正規化する。
 - **statusの2値設計**: Parse/Validate失敗時は取込みレコードを作らない。成功後の取消は物理削除せず `rolled_back` にする。
 
-### 重複・上書き方針
+### 冪等性・同日追加方針
 - `bundle_hash` が一致し `status='completed'` の取込みがある場合はブロックする。
-- `report_date` が一致し別 `bundle_hash` の `completed` がある場合は上書き確認を要求する。上書き時は旧 `daily_report_imports` を `rolled_back` にしてから新規取込みを作る。
+- `report_date` が一致し別 `bundle_hash` の `completed` がある場合は、既存全件を提示して追加確認を要求する。承認後も既存parentを変更せず、新規取込みだけを作る。
 - `rolled_back` の同一bundleは再取込み可能。
+- `report_date` はgroup keyであってuniqueness keyではない。訂正は対象parent IDのrollbackと再取込みを明示した2操作で行う。
 
 ---
 
@@ -228,21 +231,22 @@ Z005由来の部門別売上を保存する。日次・月次レポートの部�
 1. 3ファイルの対象日が一致することを確認する。
 2. Z005の部門名を `departments.name` に照合する。未一致はエラーではなく警告にし、`department_id=NULL` でpreview可能にする。
 3. 必須集計行（総売上または純売上など、adapterが定義する最低限のサマリ）が欠ける場合はcommit不可エラーにする。
-4. `bundle_hash` と `report_date` で重複・上書き判定を作る。
+4. `bundle_hash` でactive同一bundleを判定し、`report_date` でactive同日parent全件の追加確認snapshotを作る。
 
 **Stage 3: Preview**
-- 表示内容: 対象日、読み込む3ファイル、総売上/純売上、支払集計、部門別集計、部門未対応警告、重複/上書き判定。
-- 利用者は「取り込む」「ファイルを選び直す」「上書き確認」を選べる。
+- 表示内容: 対象日、読み込む3ファイル、総売上/純売上、支払集計、部門別集計、部門未対応警告、同一bundleブロックまたは同日別bundle追加確認。
+- 利用者は「取り込む」「ファイルを選び直す」「追加確認」を選べる。同日別bundleでは既存active parentを全件表示する。
 - previewは30分有効のtokenでCMD層cacheに保持する。Z004のpreview cacheと同じAppStateを使ってよいが、型は分ける。
 
 **Stage 4: Commit**
 BEGIN TRANSACTION内で:
-1. 上書き確認済みなら同一 `report_date` の既存 `completed` 日報取込みを `rolled_back` に更新する。
-2. `daily_report_imports` に1行INSERTする。
-3. Z001由来行を `daily_report_summary_lines` にINSERTする。
-4. Z002由来行を `daily_report_payment_lines` にINSERTする。
-5. Z005由来行を `daily_report_department_lines` にINSERTする。
-6. COMMIT。
+1. 同一active `bundle_hash` を再検査する。
+2. 同一 `report_date` のactive parent ID一覧を再取得し、preview snapshotと一致することを確認する。不一致なら副作用なしで中断する。
+3. 既存parentを変更せず `daily_report_imports` に1行INSERTする。
+4. Z001由来行を `daily_report_summary_lines` にINSERTする。
+5. Z002由来行を `daily_report_payment_lines` にINSERTする。
+6. Z005由来行を `daily_report_department_lines` にINSERTする。
+7. COMMIT。
 
 COMMIT後に:
 7. operation_logsに `daily_report_import` を記録する。
@@ -255,6 +259,7 @@ COMMIT後に:
 4. operation_logsに `daily_report_rollback` を記録する。
    - operation_logs記録失敗はrollback済み状態を戻さず、診断ログまたは後続確認対象として扱う。
 5. `sale_records` / `inventory_movements` / `products.stock_quantity` は変更しない。
+6. 更新条件は指定IDだけとし、同一 `report_date` の他parentは変更しない。
 
 ### Z004との関係
 - Z004はPLU登録後の商品別売上として既存B-1仕様を維持し、BIZ-03 commitは`pos_stock_sync=true`の商品に在庫変動を作成する。店舗採取layout AがIO-02未対応であることはDB契約を変更しない。
@@ -336,7 +341,7 @@ validate_result
 
 **画面表示内容**:
 - ファイル名、精算日
-- 重複チェック結果（ブロック/上書き確認/問題なし）
+- 冪等性チェック結果（同一hashブロック/同日別hash追加確認/問題なし）
 - 「○○件の売上を取り込みます（合計 ¥○○○）」
 - error_rowsがある場合: 「以下の○件はスキップされます」（JAN・商品名・個数・金額・理由を一覧表示）
 
@@ -348,17 +353,25 @@ validate_result
 ### Stage 4: Commit（トランザクション内で一括書込み）
 
 BEGIN TRANSACTION内で:
-1. csv_importsにレコード作成（statusは仮値。ステップ4で確定）
-2. matched_rowsの各行について:
+1. 同一active `file_hash` を再検査する。
+2. 同一 `settlement_date` のactive import ID一覧を再取得し、preview snapshotと一致することを確認する。不一致なら副作用なしで中断する。
+3. 既存importを変更せずcsv_importsにレコード作成（statusは仮値。ステップ6で確定）
+4. matched_rowsの各行について:
    - sale_recordsにINSERT（source='auto', source_line_no=レコード番号）
    - pos_stock_sync=1の商品 → products.stock_quantity更新 + inventory_movementsにINSERT
    - pos_stock_sync=0の商品 → sale_recordsのみ（在庫は動かさない）
-3. error_rowsがある場合 → csv_import_errorsテーブルにINSERT
-4. csv_imports.status / total_items / total_amount / skipped_countを確定:
+5. error_rowsがある場合 → csv_import_errorsテーブルにINSERT
+6. csv_imports.status / total_items / total_amount / skipped_countを確定:
    - error_rows=0 → status='completed'
    - error_rows>0 → status='completed_partial'
-5. COMMIT
-6. operation_logsに取込みログを記録
+7. COMMIT
+8. operation_logsに取込みログを記録
+
+**Rollback**:
+1. `csv_imports.id` で対象を特定する。settlement_dateだけで対象を選ばない。
+2. BEGIN TRANSACTION内で対象ID由来の `sale_records` / `inventory_movements` だけをvoidし、movementをproduct_code別に逆補正して対象 `csv_imports.status='rolled_back'` にする。
+3. 同一settlement_dateの他のactive import、sale_records、inventory_movementsは変更しない。すでにrolled_backの対象IDは冪等成功とする。
+4. COMMIT後に対象IDを含む `csv_rollback` operation logをbest-effortで記録する。
 
 ---
 
@@ -408,3 +421,11 @@ CSV取込み: 2026/03/21の精算データ
     quantity=1, amount=880, source="manual", reason="plu_unregistered"
     （PLU登録前の新商品ヘアゴムが1個売れた）
 ```
+
+---
+
+### 更新履歴
+
+| 日付 | PR | 内容 |
+|---|---|---|
+| 2026-08-16 | PR #79 | D-071 / SPEC-SDI-D1〜D8: business dateをgroup keyとし、両pipelineのinsert-only TX、active snapshot再検証、per-import rollbackを正本化。 |

@@ -61,6 +61,8 @@ struct DailyReportPreviewResponse {
 
 `DailyReportPreviewData`、`DailyReportImportResult`、`DailyReportRollbackResult`、`DailyReportImport` は [37.2](37-biz-daily-report-import-service.md#372-型定義) / `sales_repo` のDTOを所有元とする。CMD-12実装では、UIに返すDTOに `specta::Type` を付けてTauri wire型として公開する。`CachedDailyReportPreview` はAppState内部専用であり、wire型にはしない。
 
+`DailyReportPreviewData.duplicate_check` のwire形状は `status: DailyReportDuplicateStatus` と `same_date_imports: Vec<SameDateDailyReportImportSummary>` で固定する。summaryは `id / source_filenames / gross_amount / net_amount / imported_at` を持ち、順序は `imported_at DESC, id DESC`。hashと単一parent fieldは公開しない。
+
 **処理ステップ**:
 1. `files.len()` が3以外なら `CmdError.kind="validation"`。
 2. 各ファイルが20MBを超える場合は `CmdError.kind="validation"`。
@@ -78,7 +80,7 @@ struct DailyReportPreviewResponse {
 fn commit_daily_report_import(
     state: State<AppState>,
     preview_token: String,
-    overwrite_confirmed: bool,
+    additional_import_confirmed: bool,
 ) -> Result<DailyReportImportResult, CmdError>
 ```
 
@@ -87,9 +89,9 @@ fn commit_daily_report_import(
 2. `daily_report_preview_cache` からcached previewを取得する。
 3. cache miss / 期限切れは `CmdError.kind="import_error"`。
 4. DB接続を取得する。
-5. BIZ-08 `commit_daily_report_import` を呼ぶ。
+5. `additional_import_confirmed` をBIZ-08 `commit_daily_report_import` へ渡す。Rust wire名はこのsnake_case、TypeScript生成名は `additionalImportConfirmed` とする。
 6. 成功時、cacheからtokenを削除する。
-7. 失敗時、cacheは残して再試行可能にする。
+7. 通常の失敗時はcacheを残して再試行可能にする。ただしBIZが `同日の取込み状況が変わりました。再度プレビューしてください` を返した場合はtokenを削除し、新しいpreview/tokenを要求する。
 
 ### 45.5 rollback_daily_report_import
 
@@ -101,7 +103,7 @@ fn rollback_daily_report_import(
 ) -> Result<DailyReportRollbackResult, CmdError>
 ```
 
-BIZ-08 `rollback_daily_report_import` を呼ぶ。成功時の frontend query invalidation は [D-052](../decision-log.md) C10 と `src/lib/invalidation-contract.ts` を正本とする。sale_records / inventory_movements / products は変わらない。
+BIZ-08 `rollback_daily_report_import` を呼ぶ。指定IDだけを取消し、同日の他importは残す。成功時の frontend query invalidation は [D-052](../decision-log.md) C10 と `src/lib/invalidation-contract.ts` を正本とする。sale_records / inventory_movements / products は変わらない。
 
 ### 45.6 list_daily_report_imports
 
@@ -135,10 +137,16 @@ status filter は第1スライスでは公開しない。BIZ-08のquery型には
 
 ### 45.8 生成bindings
 
-CMD-12を実装するPRでは `#[specta::specta]` と `specta::Type` deriveを付与し、`src/lib/bindings.ts` を再生成する。
+SPEC-SDI-D3を実装する同一commitでは `#[specta::specta]` と `specta::Type` deriveを維持し、`DailyReportDuplicateStatus` / `DailyReportDuplicateCheck` / `SameDateDailyReportImportSummary` / commit引数を含む `src/lib/bindings.ts` をgeneratorで再生成する。生成物の手編集は禁止する。
 
 対象:
 - `parse_and_validate_daily_report`
 - `commit_daily_report_import`
 - `rollback_daily_report_import`
 - `list_daily_report_imports`
+
+### 更新履歴
+
+| 日付 | PR | 内容 |
+|---|---|---|
+| 2026-08-16 | PR #79 | SPEC-SDI-D3/D4: same-date summary DTO、`additional_import_confirmed`、snapshot mismatch時のtoken破棄、per-import rollback、bindings再生成義務を正本化。 |

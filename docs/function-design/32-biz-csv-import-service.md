@@ -61,18 +61,26 @@ src-tauri/src/
 #### DuplicateCheck構造体
 
 - status: DuplicateStatus
-- existing_import_id: Option\<i64\>（OverwriteRequired時のみSome）
+- same_date_imports: Vec\<SameDateCsvImportSummary\>（active importを `imported_at DESC, id DESC` で全件）
+
+#### SameDateCsvImportSummary構造体
+
+- id: i64
+- filename: String
+- total_items: i64
+- total_amount: i64
+- imported_at: String
 
 #### DuplicateStatus列挙型
 
 ```
 enum DuplicateStatus {
-    NoDuplicate,       // 問題なし
-    OverwriteRequired, // 同settlement_date、別ファイル → 上書き確認
+    NoDuplicate,
+    AdditionalImportConfirmationRequired,
 }
 ```
 
-※ 同一file_hashの取込み済みケース（旧BlockedSameFile）はparse_and_validate内で即BizError::ImportErrorを返すため、enumには含めない。DuplicateStatusはPreviewDataに格納してフロントエンドに返す値のみ定義する。
+※ 同一file_hashのactive importはparse_and_validate内で即 `BizError::ImportError` を返すため、enumには含めない。同日別hashは独立入力であり、既存importを残したまま追加する前に利用者確認を要求する。
 
 #### MatchedRow構造体（サーバ側キャッシュに保持、フロントエンドには送らない）
 
@@ -96,13 +104,13 @@ enum DuplicateStatus {
 
 #### CommitRequest構造体
 
-- overwrite_confirmed: bool（上書き確認済みフラグ）
+- additional_import_confirmed: bool（同日別hashの追加確認済みフラグ）
 - cached_data: CachedPreview（CMD層がキャッシュから復元したデータ。matched_rows, error_rows, preview_data を含む）
 
 **BIZ-03-D1（commit最小内部契約）**:
 
 - `MatchedRow` はcommitが在庫・売上・監査行の生成に使う `line_no` / `product_code` / `quantity` / `amount` / `pos_stock_sync` だけを保持する。表示専用のJAN・商品名を30分cacheへ複製しない。
-- `CommitRequest` はBIZが判断に使う `overwrite_confirmed` と、CMDがtokenで復元済みの `cached_data` だけを受け取る。tokenのUUID検証・cache対応確認・TTL・成功時削除はCMD-07の責務であり、BIZ requestへ再格納しない。
+- `CommitRequest` はBIZが判断に使う `additional_import_confirmed` と、CMDがtokenで復元済みの `cached_data` だけを受け取る。tokenのUUID検証・cache対応確認・TTL・成功時削除はCMD-07の責務であり、BIZ requestへ再格納しない。
 
 #### ImportResult構造体
 
@@ -131,6 +139,7 @@ enum DuplicateStatus {
 - matched_rows: Vec\<MatchedRow\>
 - error_rows: Vec\<ErrorRow\>
 - preview_data: PreviewData（フロントエンドに返した内容のコピー）
+- active_same_date_import_ids: Vec\<i64\>（parse時のactive import IDを `imported_at DESC, id DESC` で保持するcommit再検証snapshot）
 
 ---
 
@@ -179,8 +188,10 @@ fn parse_and_validate(
    a. file_hash 重複チェック:
       - sales_repo::find_blocking_import_by_file_hash(conn, &parse_result.file_hash) → Some → BizError::ImportError("このファイルは取込み済みです（取込みID: {id}、取込み日: {imported_at}）")
    b. settlement_date 同日チェック:
-      - sales_repo::find_imports_by_settlement_date(conn, &parse_result.settlement_date) → 非空 → DuplicateCheck { status: OverwriteRequired, existing_import_id: Some(imports[0].id) }
-      - 空 → DuplicateCheck { status: NoDuplicate, existing_import_id: None }
+      - sales_repo::find_imports_by_settlement_date(conn, &parse_result.settlement_date) を呼び、active importを `imported_at DESC, id DESC` で全件取得する
+      - 非空 → `DuplicateCheck { status: AdditionalImportConfirmationRequired, same_date_imports: 全件のSameDateCsvImportSummary }`
+      - 空 → `DuplicateCheck { status: NoDuplicate, same_date_imports: [] }`
+      - 全件のIDを同じ順序で `CachedPreview.active_same_date_import_ids` に保持する
    c. PreviewData 構築
       - matched_summary: count = matched_rows.len(), total_amount = matched_rows.iter().map(|r| r.amount as i64).sum(), warnings
       - error_summary: count = error_rows.len(), items = error_rows の先頭100件
@@ -226,7 +237,7 @@ Ok(ParseValidateResult {
                 ...
             ],
         },
-        duplicate_check: DuplicateCheck { status: NoDuplicate, existing_import_id: None },
+        duplicate_check: DuplicateCheck { status: NoDuplicate, same_date_imports: [] },
         preview_created_at: "2026-03-21T19:30:00",
     },
     preview_token: "550e8400-e29b-41d4-a716-446655440000",
@@ -251,27 +262,21 @@ fn commit_csv_import(
 
 **処理ステップ**:
 
-1. **ローカル変数の導出**（req.cached_data から展開）
+1. **ローカル変数の導出と確認フラグ整合**（req.cached_data から展開）
    - let cached = req.cached_data
    - let matched_rows = &cached.matched_rows
    - let error_rows = &cached.error_rows
    - let file_hash = &cached.preview_data.file_info.file_hash
    - let settlement_date = &cached.preview_data.file_info.settlement_date
    - let filename = &cached.preview_data.file_info.filename
-   - let existing_import_id = cached.preview_data.duplicate_check.existing_import_id（上書き時に使用）
-2. **上書き確認処理**（TX前の検証のみ）
-   - cached.preview_data.duplicate_check.status == OverwriteRequired の場合:
-     - req.overwrite_confirmed == false → BizError::ImportError("同日のデータが取込み済みです。上書きする場合は overwrite_confirmed を指定してください")
-     - req.overwrite_confirmed == true → ステップ3a で旧データ無効化を同一TX内で実行
-3. **TX開始**（conn.transaction()。RAII Drop で自動 ROLLBACK）
-3a. **上書き時の旧データ無効化**（TX内。overwrite_confirmed == true の場合のみ）
-   - void_sale_records_by_import(&tx, existing_import_id)
-   - void_movements_by_reference(&tx, "csv_import", existing_import_id) → 在庫補正（rollback_csv_importと同一ロジック）
-   - update_csv_import_status(&tx, existing_import_id, "rolled_back")
-   - ※ 旧無効化と新規反映が同一TXのため、新規commit失敗時は旧データも含めて全体ROLLBACK
-4. **file_hash 重複再チェック**（TX内、TOCTOU防止）
+   - cached statusが `NoDuplicate` なら `additional_import_confirmed=false`、`AdditionalImportConfirmationRequired` なら `true` のみ許可する。不一致は `BizError::ValidationFailed` とし、DBへ書き込まない
+2. **TX開始**（conn.transaction()。RAII Drop で自動 ROLLBACK）
+3. **file_hash 重複再チェック**（TX内、TOCTOU防止。snapshot再取得より先に行う）
    - sales_repo::find_blocking_import_by_file_hash(&tx, file_hash) → Some → BizError::ImportError("このファイルは既に取込み済みです")
-   - SQLite 単一接続前提のため競合発生は理論上ないが、プレビュー後にアプリが別操作で同ファイルを取り込んだ場合の安全策
+4. **同日active ID snapshot再検証**（TX内）
+   - `find_imports_by_settlement_date(&tx, settlement_date)` を再実行し、`imported_at DESC, id DESC` のID列を作る
+   - cachedの `active_same_date_import_ids` と完全一致しない場合は副作用なしでROLLBACKし、`BizError::ImportError("同日の取込み状況が変わりました。再度プレビューしてください")` を返す
+   - 一致した場合だけ続行する。既存import、sale_records、inventory_movementsは変更しない
 5. **csv_imports 仮INSERT**
    - sales_repo::insert_csv_import(&tx, &NewCsvImport { filename, settlement_date, file_hash, total_items: 0, total_amount: 0, skipped_count: 0, status: "completed" }) → import_id
 6. **matched_rows の各行を処理**（stock_warnings を蓄積）
@@ -298,7 +303,7 @@ fn commit_csv_import(
 11. ImportResult { csv_import_id: import_id, status, total_items, total_amount, skipped_count } を返す
     - CMD層がOk受信後にpreview_cacheからtoken削除（41-cmd-pos.md 17.5節参照）
 
-**TX境界**: ステップ3〜9が1TX。操作ログ記録（ステップ10）はTX外。
+**TX境界**: ステップ2〜9が1TX。file_hashとactive same-date snapshotの再検証から新規行の保存までを同じTXに置く。操作ログ記録（ステップ10）はTX外。
 
 **TX失敗時**: TX ROLLBACK → csv_imports レコードなし。TX 外で system_repo::insert_operation_log(conn, &NewOperationLog { operation_type: "csv_import_failed", summary: "CSV取込みに失敗しました: {error}", detail_json: None }) を記録。CMD層はErr受信時にキャッシュを削除しない（利用者が再試行可能にするため）。
 
@@ -310,7 +315,7 @@ fn commit_csv_import(
 **入力例**:
 ```
 req: CommitRequest {
-    overwrite_confirmed: false,
+    additional_import_confirmed: false,
     cached_data: CachedPreview { matched_rows: [...], error_rows: [...], preview_data: PreviewData { ... } },
 }
 ```
@@ -330,7 +335,7 @@ Ok(ImportResult {
 
 ### 15.5 rollback_csv_import
 
-**関数要求**: 指定 csv_import を論理無効化し、在庫を補正する。冪等（既に rolled_back なら何もせず成功を返す）
+**関数要求**: 指定 csv_import IDだけを論理無効化し、当該import由来の在庫だけを補正する。冪等（既に rolled_back なら何もせず成功を返す）。同一settlement_dateの他importは残す。
 
 **シグネチャ**:
 ```
@@ -363,6 +368,7 @@ fn rollback_csv_import(
    f. stock_corrections に StockCorrection { product_code, old_stock: product.stock_quantity, new_stock } を追加
 6. **csv_imports の status 更新**
    - sales_repo::update_csv_import_status(&tx, csv_import_id, "rolled_back")
+   - settlement_dateを条件にせず、指定IDだけを更新する。同日の他importは変更しない
 7. **COMMIT**（tx.commit()）
 8. **TX外: 操作ログ記録**
    - system_repo::insert_operation_log(conn, &NewOperationLog { operation_type: "csv_rollback", summary: "CSV取込みを取消しました: ID {csv_import_id}", detail_json: Some(detail_json) })
@@ -399,7 +405,7 @@ Ok(RollbackResult {
 
 ### 15.6 list_csv_imports
 
-**関数要求**: csv_imports 一覧を返す。CMD 経由のラッパー（repo 直呼び防止）
+**関数要求**: csv_imports 一覧をimport単位で返す。CMD 経由のラッパー（repo 直呼び防止）。同日複数importをcollapseせず、repoの `settlement_date DESC, imported_at DESC, id DESC` 順を維持する。
 
 **シグネチャ**:
 ```
@@ -491,7 +497,7 @@ file_hash は重複取込み判定の内部値であり operator 向け情報で
 - **上限**: エントリ数上限10件（constants::PREVIEW_CACHE_LIMIT）。insert 前に len >= 10 なら最も古いエントリ（created_at が最小）を1件削除してから insert する（FIFO）。削除されたトークンで commit が呼ばれた場合、CMD層が「プレビューが見つかりません」CmdError を返す
 - 永続化しない理由: Preview データには matched_rows（商品在庫のスナップショットを含む）があり、時間が経つと実際の在庫と乖離する。再起動後は再度 parse_and_validate を実行するのが正しい
 - 30分の根拠: 利用者がプレビュー確認→取り込み判断に十分な時間。長すぎると在庫の乖離リスクが高まる
-- **commit失敗時**: CMD層はキャッシュを削除しない（利用者が再試行可能にするため）
+- **commit失敗時**: CMD層は通常の失敗ではキャッシュを削除せず、同一tokenで再試行可能にする。ただしactive same-date snapshot不一致は同じpreviewでは解消できないため、CMD層がtokenを削除し、新しいpreviewを要求する
 - **ライフサイクル規約まとめ**: (1) ワンタイム: commit 成功時に即削除、同一トークンでの再 commit は不可 (2) 揮発: アプリ再起動で全消失、再起動後のトークンは必ず無効 (3) トークン不存在（削除済み/再起動後/追い出し）: CmdError kind="import_error" message="プレビューが見つかりません。再度ファイルを選択してください" (4) 期限切れ: CmdError kind="import_error" message="プレビューの有効期限が切れました（30分）。再度ファイルを選択してください" → UIは「ファイル選択」画面に戻す導線を表示
 - **architecture/biz-task-specs.md との差異**: 関数設計でpreview_token方式に変更した。理由: Preview結果をフロントエンドに渡して再送信させると、データ量が大きく改ざんリスクもある。preview_token方式ではサーバ側キャッシュからmatched_rowsを復元するため安全。architecture/biz-task-specs.md と整合済み（本PR内で更新）
 
@@ -509,7 +515,7 @@ enum BizError {
     NotFound(String),           // 既存 — rollback 時の csv_import 不存在
     DuplicateProductCode(String), // 既存（本モジュールでは不使用）
     DatabaseError(DbError),     // 既存
-    ImportError(String),        // 既存 — parse失敗、重複ブロック、上書き未確認等
+    ImportError(String),        // 既存 — parse失敗、同一hashブロック、snapshot不一致等
     IdempotencyConflict(String), // 既存（本モジュールでは不使用。INV-6方式）
 }
 ```
@@ -517,7 +523,8 @@ enum BizError {
 **ImportError の使い分け（BIZ層）**:
 - ファイル形式の問題（parse 失敗、サイズ超過）→ ImportError
 - 重複ブロック（file_hash 一致で取込み済み）→ ImportError
-- 上書き未確認 → ImportError
+- duplicate status と `additional_import_confirmed` の不一致 → ValidationFailed
+- active same-date snapshot不一致 → ImportError("同日の取込み状況が変わりました。再度プレビューしてください")
 - マスタ未登録（error_rows で表現）→ エラーではなくプレビューの一部として返す
 - ※ キャッシュ問題（token不正、有効期限切れ、不存在）はCMD層の責務。BIZ層には到達しない
 
@@ -531,3 +538,4 @@ enum BizError {
 | 2026-04-11 | PR #14 | 設計書定義に対し実装欠落していた sales_repo::find_csv_import_by_id を併せて実装。rollback_csv_import のステップ1（対象確認）が当初は別アプローチで検討されたが、設計書に明記された find_csv_import_by_id を採用 |
 | 2026-04-13 | PR #22 | preview キャッシュ管理の所有責務を明確化（BIZ層→CMD層）。ロック区間最小化のため CachedPreview を CMD層 AppState に保持し、commit時に BIZ層へ渡す |
 | 2026-08-03 | CSV取込み詳細 Design Phase | §15.6a get_csv_import_record を追加（CSV取込み詳細画面用 wire DTO、31 §12.6a read-only パターン、ErrorRow 再利用、resolve_movement_source 共有） |
+| 2026-08-16 | PR #79 | SPEC-SDI-D1〜D8: 同日別hashを追加取込みとし、全件summary、追加確認flag、TX内snapshot再検証、insert-only commit、per-import rollbackを正本化。 |

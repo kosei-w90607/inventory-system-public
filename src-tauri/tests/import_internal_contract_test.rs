@@ -105,9 +105,13 @@ fn test_import_internal_contract_req401_is_minimal() {
         "amount",
         "pos_stock_sync",
     ];
-    let commit_fields = ["overwrite_confirmed", "cached_data"];
+    // SPEC-SDI-D3 遷移 pin。実装 PR（packet
+    // 2026-08-16-same-day-import-idempotency の I-W4）で code rename と同時に
+    // 単一 pin へ再統一する。どちらか一方だけの変更はこの test が検出する。
+    let rust_commit_fields = ["overwrite_confirmed", "cached_data"];
+    let markdown_commit_fields = ["additional_import_confirmed", "cached_data"];
     assert_struct_fields(&csv_source, "MatchedRow", &matched_fields);
-    assert_struct_fields(&csv_source, "CommitRequest", &commit_fields);
+    assert_struct_fields(&csv_source, "CommitRequest", &rust_commit_fields);
     assert_eq!(
         markdown_field_names(markdown_section(
             &csv_design,
@@ -123,7 +127,7 @@ fn test_import_internal_contract_req401_is_minimal() {
             "#### CommitRequest構造体",
             "#### ImportResult構造体",
         )),
-        commit_fields,
+        markdown_commit_fields,
         "CommitRequest design section must keep the minimal field contract"
     );
 

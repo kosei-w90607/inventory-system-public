@@ -41,6 +41,8 @@
 
 `UI-09b-D8`: 公式部門集計と商品ランキングを同一の正本として混ぜない。Z005は部門別売上を持つが商品別JANを持たず、商品ランキングはZ004/手動販売出庫が根拠になるため。
 
+`UI-09b-D10`: 同一営業日の複数active importは月次公式部門集計と商品別集計の各series内で加算する。日次追加分が月次合計へ反映され、per-import rollback後は対象分だけが除かれることを回帰契約とする。公式日報seriesと商品別seriesは互いに加算しない。将来「取込み済み日数」を表示する場合はimport件数ではなくdistinct report dateを使い、同日複数回を複数営業日として数えない。
+
 `UI-09b-D9`（導入前受入）: 月次画面は日次履歴を束ねて参照する経路であり、紙バインダーの見え方をそのまま再現することを目的にしない。operatorが過去月・対象日へ迷わず到達でき、取込み済み日の範囲と修正後の値を信頼できるかをgo-live前に確認する。日次画面と合わせた受入が終わるまで、Excel印刷・バインダーを完全代替したとは扱わない。
 
 #### REQ-401 第2スライス表示詳細
@@ -497,3 +499,4 @@ function MonthlySalesPage() {
 | 2026-05-22 | PR-3 (tone/nav fix) | SummaryCardsBar カード溢れ対策（§57.7）: Card + CardContent に `min-w-0` + value div `truncate`（B2/B3、CSS 起因）。日次版も同方針 |
 | 2026-06-08 | selection-tone follow-up | TabsHeader と ModeTabs の active tone を shared stone selection tone に統一し、Sidebar / StatusChips と同じ選択状態の視覚言語へ寄せた。日次/月次と商品別ランキング/部門別構成比の二択切替は `SegmentedControl` primitive を共有する |
 | 2026-07-29 | 監査是正 順21a plan-first | UI-TABLE-D1として月次Department 3列 / Ranking 4列のheader implementation ownerを`src/components/sales/SortableHeader.tsx`へ正本化。列集合・sort callback・URL state・表示は不変 |
+| 2026-08-16 | PR #79 | SPEC-SDI-D6: 同日複数active importの月次加算、per-import取消後の減算、series分離、将来coverageのdistinct-date契約を正本化。 |
