@@ -2,10 +2,10 @@
 
 ## Workflow State
 
-- Phase: plan-draft
+- Phase: implementing
 - Risk: R3
 - Execution Mode: fable-window
-- Plan Commit: pending
+- Plan Commit: ba0732e
 - Amendments: none
 - Coordinator: Fable
 - Writer: Codex
@@ -506,3 +506,10 @@ Contract ID: SPEC-SDI-2026-08-16
 ## Review Response
 
 - Findings Freeze: not yet frozen; post-freeze exceptions: none
+
+### Plan Gate（2026-08-16）
+
+- Plan Review round 1（独立 Sonnet）: P1/P2 = 0、P3 × 2（Before/After 表の引用範囲特定化 / 未実装 UI の表現是正）→ 両 accept、`fdea103` で是正済み。引用実在性（32-biz / 37-biz / 両 pipeline 実装 / bindings / issue #76 comment 本文）、`bundle_hash` 実在（migration 不要判断の裏付け）、独立 rg sweep の収載漏れなし、scope 3 path、doc-check exit 0 を reviewer が独立実測。
+- Coordinator 裁定: SPEC-SDI-D3 の wire 命名・形状 = packet 案どおり accept / SPEC-SDI-D6 の集計契約（singular ID 廃止・`source_import_count`・NULL 安全側伝播・grouping identity・`product_code + source` 合算）= accept / candidate D-071 文言 = accept（Revisit 条件 = upstream が精算単位 delta から cumulative snapshot へ変わる証跡の観測時）。
+- owner plan approval: 2026-08-16（介入 1/3）。
+- 遷移: plan-draft -> plan-gate -> plan-approved -> implementing を本 state-only commit で materialize。各遷移の評価証跡 = packet/Matrix committed（`ba0732e`）、Plan Review P1/P2 = 0、Plan Commit `ba0732e` が全実装（amendment）commit に先行。
