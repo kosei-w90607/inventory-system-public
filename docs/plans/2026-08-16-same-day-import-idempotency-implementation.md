@@ -288,7 +288,7 @@ Confirmed facts:
 - backend correctness、snapshot race、NULL/grouping、invalidationは automated test で観測可能。
 - exact wording、scroll到達、dialog actions、`N回の取込みを合算` は browser/RTLでも検証でき、現時点で Windows/Tauri native にしか観測できない挙動は特定されていない。
 
-Coordinator 裁定（2026-08-16、Plan Gate）:
+Coordinator 裁定（2026-08-16）:
 
 - 採用: Windows native L3 = `not required`。merge 前の human visual confirmation で `/csv-import` の日報/Z004両タブ、同日追加Alert/Dialog、長い既存一覧のscroll、rollback dialog、`/reports/daily` の合算表示を目視する。
 - 理由: 現時点で Windows/Tauri native にしか観測できない挙動は特定されておらず、exact 文言・全件到達・cancel/single-submit は I-U1〜I-U8 の RTL が oracle として固定する。native 文脈の end-to-end 確認は D-070 runway の受入台本第2版で構造的に補完される。
