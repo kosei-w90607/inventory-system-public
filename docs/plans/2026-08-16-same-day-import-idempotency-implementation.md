@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: ready-hosted-final
+- Phase: implementing
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: b6c3a40
@@ -370,3 +370,9 @@ Contract ID: SPEC-SDI-IMPLEMENTATION-2026-08-16
 - 目視起源の P3 follow-up 候補 3 点（日報完了画面の action 間隔 / 両 tab rollback summary のラベル付き構造化・改行 / 追加確認 summary の構造化・折返し回避）は Coordinator 裁定で backlog 起票（本 PR 非同乗、closeout で `Plans.md` backlog へ）。
 - owner Ready authorization: 2026-08-16（介入 3/3、予算内完走）。
 - 遷移: human-confirm -> ready-hosted-final を本 state-only commit で materialize（Draft のまま）。本 commit 後の exact HEAD で L1 full を実行し、evidence は PR body に記録する（D-038）。
+
+### state-backtrack（2026-08-16、append-only）
+
+- 事象: Ready 化後の hosted CI（run 31907930181）で Rust tests job が fail。原因 = `test_active_sales_import_vocabulary_sweep_i_g1`（I-G1）が外部 binary `rg` を `Command::new` で起動しており、hosted runner に rg が存在せず NotFound panic。local L1 は linuxbrew rg の存在により 2 回とも PASS（環境依存の test 実装欠陥、hosted の検出は true positive）。
+- 補正: ready-hosted-final -> implementing へ単一 backward 遷移（本 state-backtrack commit）。PR #80 は Draft へ戻す。是正 = 同 test を外部 binary 非依存の pure Rust file walk + literal 検索へ書き換え（token の concat 自己回避は維持）、Matrix I-G1 行の「指定rg」文言を tool 非依存へ追随（gated amendment、SHA は後続 append）。sweep 感度は旧 token 実注入 → red → 復元で再確認する。
+- human visual confirmation（PASS 済み）は operator UI 非変更の test-only 是正のため有効のまま維持。再前進の遷移は STATECAP 3/3 消費済みのため、PR #58 先例の正規手段（Implementation Results 記入の content commit への同乗）で記録する。
