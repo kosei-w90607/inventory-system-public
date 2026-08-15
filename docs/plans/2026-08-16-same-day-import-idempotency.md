@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: implementing
+- Phase: human-confirm
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: ba0732e
@@ -11,7 +11,7 @@
 - Writer: Codex
 - Plan Reviewer: Sonnet
 - Final Reviewer: Sonnet
-- Reviewed Content HEAD: pending
+- Reviewed Content HEAD: 5b2c1b8
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
 - Human Gate: owner plan approval / Ready / merge。Windows native L3 は docs-only design-first PR ではなし
@@ -523,3 +523,8 @@ source design amendment を実施した。
 - Coordinator 裁定: SPEC-SDI-D3 の wire 命名・形状 = packet 案どおり accept / SPEC-SDI-D6 の集計契約（singular ID 廃止・`source_import_count`・NULL 安全側伝播・grouping identity・`product_code + source` 合算）= accept / candidate D-071 文言 = accept（Revisit 条件 = upstream が精算単位 delta から cumulative snapshot へ変わる証跡の観測時）。
 - owner plan approval: 2026-08-16（介入 1/3）。
 - 遷移: plan-draft -> plan-gate -> plan-approved -> implementing を本 state-only commit で materialize。各遷移の評価証跡 = packet/Matrix committed（`ba0732e`）、Plan Review P1/P2 = 0、Plan Commit `ba0732e` が全実装（amendment）commit に先行。
+
+### Final Review（2026-08-16）
+
+- Final Review round 1（独立 Sonnet、Plan Reviewer とは別 context）: Ledger 8/8 適合、Matrix M-D1〜M-D8 全 PASS、amendment 忠実性（D5 文言の一字一句一致含む）・doc 横断 Contract Audit・旧語彙 active hit 0 の独立再実測・gated amendment scope（test 分離 pin の非弱体化）を確認。P1 = 0 / P2 × 2（除外表の cite 完全性 / Plans.md エントリ陳腐化）→ Coordinator 両 accept、reviewer 修正案どおり `5b2c1b8` で是正（Coordinator は新規 cite 8 箇所を実読裏取りの上で適用）。reviewer 再検証で漏れ 0・先取り記述なし・契約変更混入なしを確認し round 1 CLOSED（P1/P2 = 0）。
+- 遷移: implementing -> local-verified -> independent-review -> human-confirm を本 state-only commit で materialize。評価証跡 = content candidate `5b2c1b8` の L1 full RESULT=PASS（evidence 位置は PR body 記載）、Final Reviewer engaged + P1/P2 = 0、Reviewed Content HEAD = `5b2c1b8`。
