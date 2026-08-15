@@ -14,7 +14,7 @@
 - Reviewed Content HEAD: pending
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
-- Human Gate: owner plan approval / 追加確認 Dialog と「N回の取込みを合算」表示の human visual confirmation / Windows native L3 実施要否の Coordinator 裁定 / Ready / merge
+- Human Gate: owner plan approval / 追加確認 Dialog と「N回の取込みを合算」表示の human visual confirmation（merge 前必須） / Ready / merge。Windows native L3 = not required（Coordinator 裁定 2026-08-16、Human Gate Proposal 参照）
 
 ## Owner Effort Budget
 
@@ -98,7 +98,7 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 - RTL / hook / reducer tests I-U1〜I-U8 / I-R5 が両タブの exact 文言、全 existing summary、cancel、single commit、rollback target、D-052 invalidation、`N回の取込みを合算` を検証する。
 - monthly repo regression I-R7 が同一日 2 completed parent を両方 SUM し、rolled_back parent を除外する。I-R8 は未実装 coverage field を増やさず、将来 count の `COUNT(DISTINCT report_date)` source contract を静的に pin する。
 - I-G1 の active-code sweep が `OverwriteRequired|overwrite_confirmed|overwriteConfirmed|OverwriteConfirmDialog|requiresOverwrite|existing_import_id|get_latest_completed_daily_report` の hit なしを返す。archive と別意味の product / stocktake / restore 語彙は変更しない。
-- `cargo fmt --check`、`cargo clippy --all-targets --all-features -- -D warnings`、`cargo test`、`npm run typecheck`、`npm run lint`、`npm run format:check`、`npm test`、`npm run build`、`bash scripts/doc-consistency-check.sh`、`bash scripts/local-ci.sh changed` が通る。
+- `cargo fmt --check`、`cargo clippy --all-targets --all-features -- -D warnings`、`cargo test`、`cd src-tauri && cargo run --bin generate_traceability -- --check`、`npm run typecheck`、`npm run lint`、`npm run format:check`、`npm test`、`npm run build`、`bash scripts/doc-consistency-check.sh`、`bash scripts/local-ci.sh changed` が通る。
 - content candidate の clean tree で `bash scripts/local-ci.sh full` が `RESULT=PASS` / start-end CLEAN を返し、その SHA と evidence path を PR body にのみ記録する。
 - independent Contract Audit が Ledger 全行を source docs から再検証し P1/P2 = 0。operator-visible UI は human visual confirmation を完了するか、owner が残存リスクを明示受理する。
 
@@ -187,7 +187,7 @@ Minimum design checks for business-app work:
 
 ## Contract Probe
 
-- N/A: unverified external premise はない。field evidence は D-071 と source docs へ正本化済みで、本 plan は local source / test inventory から導出する。Windows native L3 の要否は外部挙動 probe ではなく Plan Gate の manual-verification boundary 裁定とする。
+- N/A: unverified external premise はない。field evidence は D-071 と source docs へ正本化済みで、本 plan は local source / test inventory から導出する。Windows native L3 の要否は外部挙動 probe ではなく manual-verification boundary 裁定であり、Coordinator が not required と裁定済み（Human Gate Proposal 参照）。
 
 ## Mechanical Implementation Inventory
 
@@ -246,7 +246,7 @@ rg --files src-tauri/src/biz/csv_import_service src-tauri/src/biz/daily_report_i
 | SPEC-SDI-D2 correction | both rollback services / logs / UI result | I-B6〜I-B9 / I-U7〜I-U8 | physical delete / date-wide rollback non-scope |
 | SPEC-SDI-D3 wire | Rust DTOs/CMD/bindings/TS consumers/split pin | I-W1〜I-W4 | automated generated-contract review |
 | SPEC-SDI-D4 snapshot lifecycle | cached previews、TX recheck、CMD token lifecycle | I-B2 / I-B5 / I-W5 | manual concurrency injectionをL3へ置かない |
-| SPEC-SDI-D5 operator confirmation | shared dialog + both tab alerts/pages/hooks | I-U1〜I-U6 | human visual confirmation必須。Windows native L3はPlan Gate裁定 |
+| SPEC-SDI-D5 operator confirmation | shared dialog + both tab alerts/pages/hooks | I-U1〜I-U6 | human visual confirmation必須。Windows native L3 = not required（Coordinator 裁定済み） |
 | SPEC-SDI-D6 accounting read | sales_repo/BIZ DTO/DailySales/monthly queries | I-R1〜I-R8 | synthetic values only。series cross-add non-scope |
 | SPEC-SDI-D7 per-import list/rollback UI | rollback dialogs/hooks/list order/invalidation | I-B6〜I-B9 / I-U7〜I-U8 / I-R6 | new history route non-scope |
 | SPEC-SDI-D8 stale vocabulary | active Rust/TS/tests/generated/comment sweep | I-G1 / I-W4 | archive / unrelated overwrite unchanged |
@@ -288,12 +288,12 @@ Confirmed facts:
 - backend correctness、snapshot race、NULL/grouping、invalidationは automated test で観測可能。
 - exact wording、scroll到達、dialog actions、`N回の取込みを合算` は browser/RTLでも検証でき、現時点で Windows/Tauri native にしか観測できない挙動は特定されていない。
 
-Coordinator 裁定候補:
+Coordinator 裁定（2026-08-16、Plan Gate）:
 
-- candidate（推奨）: Windows native L3 は `not required`。ただし merge 前の human visual confirmation で `/csv-import` の日報/Z004両タブ、同日追加Alert/Dialog、長い既存一覧のscroll、rollback dialog、`/reports/daily` の合算表示を目視する。
-- alternative: operator の実運用文脈を優先して同じ項目を Windows native L3 として実施する。この場合も fault injection やDB操作は含めず、ownerは表示確認とPASS/FAILだけを行う。
-
-Plan Gate で Coordinator がどちらかを裁定する。owner plan approval / Ready / merge はいずれの案でも残る。
+- 採用: Windows native L3 = `not required`。merge 前の human visual confirmation で `/csv-import` の日報/Z004両タブ、同日追加Alert/Dialog、長い既存一覧のscroll、rollback dialog、`/reports/daily` の合算表示を目視する。
+- 理由: 現時点で Windows/Tauri native にしか観測できない挙動は特定されておらず、exact 文言・全件到達・cancel/single-submit は I-U1〜I-U8 の RTL が oracle として固定する。native 文脈の end-to-end 確認は D-070 runway の受入台本第2版で構造的に補完される。
+- 不採用 alternative: 同項目の Windows native L3 化（fault injection なしの表示確認のみで、native 固有の観測利得がないため）。
+- 残る Human Gate = owner plan approval / human visual confirmation / Ready / merge。
 
 ## Review Focus
 
