@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: human-confirm
+- Phase: ready-hosted-final
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: ba0732e
@@ -528,3 +528,8 @@ source design amendment を実施した。
 
 - Final Review round 1（独立 Sonnet、Plan Reviewer とは別 context）: Ledger 8/8 適合、Matrix M-D1〜M-D8 全 PASS、amendment 忠実性（D5 文言の一字一句一致含む）・doc 横断 Contract Audit・旧語彙 active hit 0 の独立再実測・gated amendment scope（test 分離 pin の非弱体化）を確認。P1 = 0 / P2 × 2（除外表の cite 完全性 / Plans.md エントリ陳腐化）→ Coordinator 両 accept、reviewer 修正案どおり `5b2c1b8` で是正（Coordinator は新規 cite 8 箇所を実読裏取りの上で適用）。reviewer 再検証で漏れ 0・先取り記述なし・契約変更混入なしを確認し round 1 CLOSED（P1/P2 = 0）。
 - 遷移: implementing -> local-verified -> independent-review -> human-confirm を本 state-only commit で materialize。評価証跡 = content candidate `5b2c1b8` の L1 full RESULT=PASS（evidence 位置は PR body 記載）、Final Reviewer engaged + P1/P2 = 0、Reviewed Content HEAD = `5b2c1b8`。
+
+### Ready（2026-08-16）
+
+- owner Ready authorization: 2026-08-16（介入 2/3）。Human Gate の残りは Ready 化操作と merge のみ。
+- 遷移: human-confirm -> ready-hosted-final を本 state-only commit で materialize（Draft のまま）。本 commit 後の exact HEAD で L1 full を実行し、evidence は PR body に記録する（D-038、tracked file へは書かない）。
