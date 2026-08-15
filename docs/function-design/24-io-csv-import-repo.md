@@ -553,7 +553,11 @@ fn list_daily_report_imports(
 fn get_completed_daily_report_aggregate(conn: &DbConnection, report_date: &str) -> Result<Option<OfficialDailyReportSummary>, DbError>
 ```
 
-**実装遷移義務**: 現行codeの公開symbol `get_latest_completed_daily_report` は本amendment前の登録名である。後続implementation commitで本節の `get_completed_daily_report_aggregate` へrenameし、BIZ caller / tests / design-compliance registrationを同じcommitで追随する。旧symbol名は移行対象のcode inventoryを示すだけで、最新1parentを選ぶ契約として存続しない。
+**実装遷移義務**: 現行codeの公開symbolは次の本amendment前の登録名である。後続implementation commitで本節の `get_completed_daily_report_aggregate` へrenameし、BIZ caller / tests / design-compliance registrationを同じcommitで追随する。旧symbol名は移行対象のcode inventoryを示すだけで、最新1parentを選ぶ契約として存続しない。
+
+```rust
+fn get_latest_completed_daily_report(/* 現行codeの移行元。新規caller追加禁止 */)
+```
 
 **処理ステップ**:
 1. `daily_report_imports` から `report_date=? AND status='completed'` の親を全件取得する。親がなければ `Ok(None)` を返す。
