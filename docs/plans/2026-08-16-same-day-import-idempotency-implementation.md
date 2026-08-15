@@ -2,16 +2,16 @@
 
 ## Workflow State
 
-- Phase: implementing
+- Phase: human-confirm
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: b6c3a40
-- Amendments: none
+- Amendments: 7fc7aa1
 - Coordinator: Fable
 - Writer: Codex
 - Plan Reviewer: Sonnet
 - Final Reviewer: Sonnet
-- Reviewed Content HEAD: pending
+- Reviewed Content HEAD: 7fc7aa1
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
 - Human Gate: owner plan approval / 追加確認 Dialog と「N回の取込みを合算」表示の human visual confirmation（merge 前必須） / Ready / merge。Windows native L3 = not required（Coordinator 裁定 2026-08-16、Human Gate Proposal 参照）
@@ -355,3 +355,11 @@ Contract ID: SPEC-SDI-IMPLEMENTATION-2026-08-16
 - Coordinator 裁定: Windows native L3 = not required（Human Gate Proposal に確定記録済み）。発注書の「33 行」は Coordinator の誤記で実数 31 行（reviewer 実測が是正、packet 側は当初から正）。
 - owner plan approval: 2026-08-16（介入 1/3）。
 - 遷移: plan-draft -> plan-gate -> plan-approved -> implementing を本 state-only commit で materialize。評価証跡 = packet/Matrix committed（`b6c3a40`）、Plan Review P1/P2 = 0、Plan Commit `b6c3a40` が全実装 commit に先行。
+
+### Final Review（2026-08-16）
+
+- 実装 = 単一 content commit `c1a70df`（wire 原子性は構造的に充足）。Final Review round 1（独立 Sonnet）: Ledger 全行適合、Matrix 31/31 PASS、TX 順序・NULL/grouping SQL・exact 文言・oracle 置換の非弱体化・層規律・Data Safety を実読検証し、全 gate（cargo/npm/traceability/bindings regenerate diff 0/doc-check/I-G1 sweep）を独立再実行で再現。P1 = 0 / P2 × 1（Ledger の pipeline 別分岐構造注記不足）/ P3 × 2。
+- P2-1 → accept、gated amendment `7fc7aa1` で注記追加、reviewer 再検証で round 1 CLOSED（P1/P2 = 0）。P3-1（D-052 直接再現）→ mutation 独立再実測で closure。P3-2（I-R4 fixture tautology 疑い）→ Coordinator の fixture 実読（互いに異なる非空期待 + voided 除外 + 返品負数）で closure。
+- Coordinator mutation 独立再実測（隔離 worktree、Writer と別主体）: Matrix の Adequacy Questions から注入形を独立導出し **20 mutant 全 kill、survivor 0**（同日置換復活 / TX 順序入替 / snapshot 弱体化 / 先頭 1 件打切り / rollback 日付拡大 / 符号反転 / LIMIT 1 復活 / NULL→0 / 代表 max 化 / GROUP BY source 脱落 / source_import_count 定数化 / D-052 key 除去 / 旧語彙再導入 / split pin 片側 rename、ほか。archive 除外の負検査も期待どおり green）。
+- Writer 自己検証記録の是正 2 点（実カバレッジは健在、記録の瑕疵のみ）: ①unmatched warning mutant の kill test 誤記（正 = sales_service 側 `test_get_daily_sales_warnings_unmatched_department_req501`。誤記載の repo 層 test は warnings field を持たず検出不能）②日報側 rollback 日付拡大 mutant（I-B8）の記録漏れ（実 test `test_daily_report_req401_rollback_keeps_same_date_sibling` が kill することを独立確認）。正しい対応は PR body へ反映。
+- 遷移: implementing -> local-verified -> independent-review -> human-confirm を本 state-only commit で materialize。評価証跡 = content candidate `7fc7aa1` の L1 full RESULT=PASS（evidence 位置は PR body）、Final Reviewer engaged + P1/P2 = 0、Reviewed Content HEAD = `7fc7aa1`。残 Human Gate = human visual confirmation（両タブ追加確認 Alert/Dialog / 長一覧 scroll / rollback dialog / 日次合算表示の目視）→ owner Ready → merge。
