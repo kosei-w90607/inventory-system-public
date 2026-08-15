@@ -329,7 +329,7 @@ rg -l -i "OverwriteRequired|overwrite_confirmed|overwriteConfirmed|OverwriteConf
 | Current hit / before | After contract | Decision |
 |---|---|---|
 | `32-biz-csv-import-service.md:182` / `parse.rs:180-181`: same date -> `OverwriteRequired` + `imports[0].id` | same date + distinct hash -> `AdditionalImportConfirmationRequired` + ordered `same_date_imports[]` | D1/D3 |
-| `32-biz-csv-import-service.md:263-270` / `commit.rs:97-117`: confirm -> old sale/movement void + old import rollback | snapshot-confirmed insert only; old import/sales/movements unchanged | D1/D4 |
+| `32-biz-csv-import-service.md:263-270` / `commit.rs:96-105`: confirm -> old sale/movement void + old import rollback（107-117 は TOCTOU recheck で別掲） | snapshot-confirmed insert only; old import/sales/movements unchanged | D1/D4 |
 | `37-biz-daily-report-import-service.md:177,202-204` / `parse.rs:131-132` / `commit.rs:69-78`: `same_date[0]` and same-date parents rollback | all same-date summaries shown; distinct bundle insert only | D1/D3/D4 |
 | `55-ui-csv-import.md:83,142,172,239-244`: `OverwriteConfirmDialog` / `overwriteConfirmed` | common addition Alert/Dialog / `additionalImportConfirmed` | D3/D5 |
 | `24-io-csv-import-repo.md:545-553` / `34-biz-sales-service.md:168-174` / `sales_repo.rs:1012-1089`: latest completed parent only | all completed same-date parents aggregated; singular import ID removed | D6 |
@@ -343,7 +343,7 @@ rg -l -i "OverwriteRequired|overwrite_confirmed|overwriteConfirmed|OverwriteConf
 |---|---|---|
 | `src-tauri/src/db/sales_repo.rs:1096-1140` | monthly official は全 completed parent を JOIN し SUM | 構造変更対象外。same-date regression と NULL/identity contract を追加 |
 | `src-tauri/src/db/sales_repo.rs:1142-1205` 付近の monthly product/department | all non-voided sale_records を SUM | 既に additive。regression のみ |
-| `docs/function-design/34-biz-sales-service.md:262-266` / `57-ui-monthly-sales.md:38` | 「取込み済み日」の合計 | 現表示は正。将来 coverage count だけ `COUNT(DISTINCT report_date)` を明記 |
+| `docs/function-design/34-biz-sales-service.md:262-266` / `57-ui-monthly-sales.md:38` | 「取込み済み日」の合計 | 該当 UI 表示は未実装（34-biz の後続 UI PR メモ段階）。将来実装時の coverage count に `COUNT(DISTINCT report_date)` を明記 |
 | `src-tauri/src/db/sales_repo.rs:790-850` | daily report list は import row 単位、date/time/id order | collapse しないため正。D7 として固定 |
 | `src/features/home/hooks/useHomeSummary.ts:63` | global latest import の日付 | 日次 aggregate ではないため対象外 |
 | `find_blocking_*_by_*_hash` の `LIMIT 1` | 1件でも active same hash があれば hard block | D2 の正しい idempotency guard。対象外 |
