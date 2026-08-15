@@ -281,7 +281,7 @@ fn test_parse_and_validate_req401_no_valid_data() {
 
 #[test]
 fn test_parse_and_validate_req401_file_hash_blocking() {
-    // REQ-401: CSV取込み
+    // REQ-401 / I-B1 / SPEC-SDI-D1: active同一hashはblockし、rolled_back後は再取込み可能。
     let (_dir, conn) = setup_test_db();
     create_test_product_with_jan(&conn, "TEST-001", "4912345678901", 10, true);
     let bytes = make_z004_bytes("2026-03-21", &[("4912345678901", "商品A", 3, 900)]);
@@ -289,7 +289,7 @@ fn test_parse_and_validate_req401_file_hash_blocking() {
     // まず1回パース → file_hash を取得して直接DBに登録
     let first_result = parse_and_build_cache(&conn, bytes.clone(), "Z004_260321");
     let file_hash = &first_result.preview_data.file_info.file_hash;
-    sales_repo::insert_csv_import(
+    let blocking_id = sales_repo::insert_csv_import(
         &conn,
         &NewCsvImport {
             filename: "Z004_260321".to_string(),
@@ -316,11 +316,21 @@ fn test_parse_and_validate_req401_file_hash_blocking() {
         BizError::ImportError(msg) => assert!(msg.contains("取込み済み")),
         e => panic!("Expected ImportError, got {:?}", e),
     }
+
+    sales_repo::update_csv_import_status(&conn, blocking_id, "rolled_back").unwrap();
+    let retry = parse::parse_and_validate(
+        &conn,
+        CsvParseAndValidateRequest {
+            file_bytes: make_z004_bytes("2026-03-21", &[("4912345678901", "商品A", 3, 900)]),
+            filename: "Z004_260321".to_string(),
+        },
+    );
+    assert!(retry.is_ok());
 }
 
 #[test]
-fn test_parse_and_validate_req401_settlement_date_overwrite() {
-    // REQ-401: CSV取込み
+fn test_parse_and_validate_req401_same_date_snapshot_is_ordered() {
+    // REQ-401 / I-W2 / SPEC-SDI-D3: 同日active全件を完全なordered summaryとして返す。
     let (_dir, conn) = setup_test_db();
     create_test_product_with_jan(&conn, "TEST-001", "4912345678901", 10, true);
 
@@ -338,6 +348,19 @@ fn test_parse_and_validate_req401_settlement_date_overwrite() {
         },
     )
     .unwrap();
+    sales_repo::insert_csv_import(
+        &conn,
+        &NewCsvImport {
+            filename: "Z004_newer".to_string(),
+            settlement_date: "2026-03-21".to_string(),
+            file_hash: "newer_existing_hash".to_string(),
+            total_items: 2,
+            total_amount: -300,
+            skipped_count: 0,
+            status: "completed_partial".to_string(),
+        },
+    )
+    .unwrap();
 
     let bytes = make_z004_bytes("2026-03-21", &[("4912345678901", "商品A", 3, 900)]);
     let result = parse::parse_and_validate(
@@ -350,13 +373,31 @@ fn test_parse_and_validate_req401_settlement_date_overwrite() {
     .unwrap();
     assert_eq!(
         result.preview_data.duplicate_check.status,
-        DuplicateStatus::OverwriteRequired
+        DuplicateStatus::AdditionalImportConfirmationRequired
     );
-    assert!(result
-        .preview_data
-        .duplicate_check
-        .existing_import_id
-        .is_some());
+    assert_eq!(
+        result.preview_data.duplicate_check.same_date_imports.len(),
+        2
+    );
+    assert_eq!(
+        result.preview_data.duplicate_check.same_date_imports[0].filename,
+        "Z004_newer"
+    );
+    assert_eq!(
+        result.preview_data.duplicate_check.same_date_imports[1].filename,
+        "Z004_old"
+    );
+    assert_eq!(
+        result.preview_data.duplicate_check.same_date_imports[0].total_amount,
+        -300
+    );
+    assert_eq!(
+        result.preview_data.duplicate_check.same_date_imports[0].total_items,
+        2
+    );
+    assert!(!result.preview_data.duplicate_check.same_date_imports[0]
+        .imported_at
+        .is_empty());
 }
 
 #[test]
@@ -380,8 +421,8 @@ fn test_parse_and_validate_req401_no_duplicate() {
     assert!(result
         .preview_data
         .duplicate_check
-        .existing_import_id
-        .is_none());
+        .same_date_imports
+        .is_empty());
 }
 
 #[test]

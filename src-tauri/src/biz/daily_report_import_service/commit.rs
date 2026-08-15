@@ -14,7 +14,7 @@ use crate::db::{DbConnection, DbError};
 pub fn commit_daily_report_import(
     conn: &mut DbConnection,
     cached_preview: CachedDailyReportPreview,
-    overwrite_confirmed: bool,
+    additional_import_confirmed: bool,
 ) -> Result<DailyReportImportResult, BizError> {
     if cached_preview.created_at.elapsed().as_secs() > constants::PREVIEW_CACHE_TTL_SECS {
         return Err(BizError::ImportError(
@@ -27,15 +27,23 @@ pub fn commit_daily_report_import(
                 "この日報bundleは取込み済みです".to_string(),
             ));
         }
-        DailyReportDuplicateStatus::OverwriteRequired if !overwrite_confirmed => {
-            return Err(BizError::ValidationFailed(
-                "同日のデータが取込み済みです。上書き確認が必要です".to_string(),
-            ));
+        DailyReportDuplicateStatus::NoDuplicate => {
+            if additional_import_confirmed {
+                return Err(BizError::ValidationFailed(
+                    "追加確認の指定がプレビュー結果と一致しません".to_string(),
+                ));
+            }
         }
-        _ => {}
+        DailyReportDuplicateStatus::AdditionalImportConfirmationRequired => {
+            if !additional_import_confirmed {
+                return Err(BizError::ValidationFailed(
+                    "追加確認の指定がプレビュー結果と一致しません".to_string(),
+                ));
+            }
+        }
     }
 
-    let result = execute_commit(conn, &cached_preview, overwrite_confirmed);
+    let result = execute_commit(conn, &cached_preview);
     if result.is_err() {
         let log = NewOperationLog {
             operation_type: "daily_report_import_failed".to_string(),
@@ -52,11 +60,9 @@ pub fn commit_daily_report_import(
 fn execute_commit(
     conn: &mut DbConnection,
     cached_preview: &CachedDailyReportPreview,
-    overwrite_confirmed: bool,
 ) -> Result<DailyReportImportResult, BizError> {
     let report_date = &cached_preview.preview_data.file_info.report_date;
     let bundle_hash = &cached_preview.preview_data.file_info.bundle_hash;
-    let now = chrono::Local::now().format("%Y-%m-%dT%H:%M:%S").to_string();
     let tx = conn
         .transaction()
         .map_err(|e| BizError::DatabaseError(DbError::from(e)))?;
@@ -67,15 +73,11 @@ fn execute_commit(
         ));
     }
     let same_date = sales_repo::find_daily_report_imports_by_report_date(&tx, report_date)?;
-    if !same_date.is_empty() {
-        if !overwrite_confirmed {
-            return Err(BizError::ValidationFailed(
-                "同日のデータが取込み済みです。再度プレビューしてください".to_string(),
-            ));
-        }
-        for existing in same_date {
-            sales_repo::rollback_daily_report_import(&tx, existing.id, &now)?;
-        }
+    let current_ids: Vec<_> = same_date.iter().map(|item| item.id).collect();
+    if current_ids != cached_preview.active_same_date_import_ids {
+        return Err(BizError::ImportError(
+            "同日の取込み状況が変わりました。再度プレビューしてください".to_string(),
+        ));
     }
 
     let source_files_json =
@@ -108,7 +110,6 @@ fn execute_commit(
             note,
         },
     )?;
-
     let summary_rows: Vec<NewDailyReportSummaryLine> = cached_preview
         .summary_lines
         .iter()

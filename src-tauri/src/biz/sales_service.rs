@@ -75,7 +75,7 @@ pub struct GrandTotal {
 /// レジ日報由来の公式日次サマリ
 #[derive(Debug, serde::Serialize, specta::Type)]
 pub struct OfficialDailyReportSummary {
-    pub daily_report_import_id: i64,
+    pub source_import_count: i64,
     pub report_date: String,
     pub gross_amount: Option<i64>,
     pub net_amount: Option<i64>,
@@ -222,8 +222,8 @@ pub fn get_daily_sales(conn: &DbConnection, date: &str) -> Result<DailySalesRepo
         amount: items.iter().map(|i| i.amount).sum(),
     };
 
-    let official_daily_report =
-        sales_repo::get_latest_completed_daily_report(conn, date)?.map(map_official_daily_report);
+    let official_daily_report = sales_repo::get_completed_daily_report_aggregate(conn, date)?
+        .map(map_official_daily_report);
 
     Ok(DailySalesReport {
         date: date.to_string(),
@@ -464,7 +464,7 @@ fn map_official_daily_report(
     };
 
     OfficialDailyReportSummary {
-        daily_report_import_id: row.daily_report_import_id,
+        source_import_count: row.source_import_count,
         report_date: row.report_date,
         gross_amount: row.gross_amount,
         net_amount: row.net_amount,
@@ -736,7 +736,7 @@ mod tests {
 
         let report = get_daily_sales(&conn, "2026-03-21").unwrap();
         let official = report.official_daily_report.unwrap();
-        assert_eq!(official.daily_report_import_id, import_id);
+        assert_eq!(official.source_import_count, 1);
         assert_eq!(official.report_date, "2026-03-21");
         assert_eq!(official.gross_amount, Some(12000));
         assert_eq!(official.net_amount, Some(11000));
@@ -777,14 +777,18 @@ mod tests {
 
     #[test]
     fn test_get_daily_sales_warnings_unmatched_department_req501() {
-        // REQ-501: 日次売上公式日報表示
-        // SALES2-D5: department_id NULL の日報部門行は公式セクション内warningにまとめる
+        // REQ-501 / I-R3 / SPEC-SDI-D6: 同identityの未対応部門は集約後group数で単一warning。
         let (_dir, conn) = setup_test_db();
         let import_id = seed_daily_report(&conn, "2026-03-21", "official-warning");
         seed_daily_report_lines(&conn, import_id, None);
+        let sibling_id = seed_daily_report(&conn, "2026-03-21", "official-warning-sibling");
+        seed_daily_report_lines(&conn, sibling_id, None);
 
         let report = get_daily_sales(&conn, "2026-03-21").unwrap();
         let official = report.official_daily_report.unwrap();
+        assert_eq!(official.source_import_count, 2);
+        assert_eq!(official.department_lines.len(), 1);
+        assert_eq!(official.department_lines[0].amount, 22000);
         assert_eq!(official.warnings.len(), 1);
         assert_eq!(
             official.warnings[0],

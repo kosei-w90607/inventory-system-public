@@ -7,12 +7,39 @@ use std::time::Instant;
 
 /// CachedPreview を構築するヘルパー
 fn build_cached(result: ParseValidateResult) -> CachedPreview {
+    let active_same_date_import_ids = result
+        .preview_data
+        .duplicate_check
+        .same_date_imports
+        .iter()
+        .map(|item| item.id)
+        .collect();
     CachedPreview {
         created_at: Instant::now(),
         matched_rows: result.matched_rows,
         error_rows: result.error_rows,
         preview_data: result.preview_data,
+        active_same_date_import_ids,
     }
+}
+
+fn write_surface(conn: &crate::db::DbConnection) -> [i64; 4] {
+    [
+        conn.query_row("SELECT COUNT(*) FROM csv_imports", [], |row| row.get(0))
+            .unwrap(),
+        conn.query_row("SELECT COUNT(*) FROM sale_records", [], |row| row.get(0))
+            .unwrap(),
+        conn.query_row("SELECT COUNT(*) FROM inventory_movements", [], |row| {
+            row.get(0)
+        })
+        .unwrap(),
+        conn.query_row(
+            "SELECT COALESCE(SUM(stock_quantity), 0) FROM products",
+            [],
+            |row| row.get(0),
+        )
+        .unwrap(),
+    ]
 }
 
 // --- commit_csv_import テスト ---
@@ -36,7 +63,7 @@ fn test_commit_req401_normal_flow() {
     let result = commit::commit_csv_import(
         &mut conn,
         CommitRequest {
-            overwrite_confirmed: false,
+            additional_import_confirmed: false,
             cached_data: cached,
         },
     )
@@ -59,8 +86,8 @@ fn test_commit_req401_normal_flow() {
 }
 
 #[test]
-fn test_commit_req401_overwrite_flow() {
-    // REQ-401: CSV取込み
+fn test_commit_req401_same_day_additional_import_is_insert_only() {
+    // REQ-401 / I-B3 / SPEC-SDI-D3: 同日別hashは既存分を残して追加する。
     let (_dir, mut conn) = setup_test_db();
     create_test_product_with_jan(&conn, "TEST-001", "4912345678901", 10, true);
 
@@ -71,7 +98,7 @@ fn test_commit_req401_overwrite_flow() {
     let result1 = commit::commit_csv_import(
         &mut conn,
         CommitRequest {
-            overwrite_confirmed: false,
+            additional_import_confirmed: false,
             cached_data: cached1,
         },
     )
@@ -82,19 +109,19 @@ fn test_commit_req401_overwrite_flow() {
         .unwrap();
     assert_eq!(p.product.stock_quantity, 8); // 10 - 2
 
-    // 同日の別ファイルで上書き（異なるデータ行を持つファイルで上書き）
+    // 同日の別ファイルを追加取込み
     let bytes2 = make_z004_bytes("2026-03-21", &[("4912345678901", "商品A", 5, 1500)]);
     // settlement_date 同日チェックのため手動でPreviewDataを構築
     let pv2 = parse_and_build_cache(&conn, bytes2, "Z004_new");
     assert_eq!(
         pv2.preview_data.duplicate_check.status,
-        DuplicateStatus::OverwriteRequired
+        DuplicateStatus::AdditionalImportConfirmationRequired
     );
     let cached2 = build_cached(pv2);
     let result2 = commit::commit_csv_import(
         &mut conn,
         CommitRequest {
-            overwrite_confirmed: true,
+            additional_import_confirmed: true,
             cached_data: cached2,
         },
     )
@@ -103,16 +130,40 @@ fn test_commit_req401_overwrite_flow() {
     assert_eq!(result2.total_items, 1);
     assert_eq!(result2.total_amount, 1500);
 
-    // DB検証: 旧データの在庫補正(+2) → 10 + 新データの在庫減算(-5) → 5
+    // DB検証: 旧データ(-2) と追加データ(-5) がともに残る。
     let p = product_repo::find_by_product_code(&conn, "TEST-001")
         .unwrap()
         .unwrap();
-    assert_eq!(p.product.stock_quantity, 5);
+    assert_eq!(p.product.stock_quantity, 3);
+    let imports = sales_repo::find_imports_by_settlement_date(&conn, "2026-03-21").unwrap();
+    assert_eq!(imports.len(), 2);
+    assert!(imports
+        .iter()
+        .all(|item| item.status != sales_repo::CsvImportStatus::RolledBack));
+    for import_id in [result1.csv_import_id, result2.csv_import_id] {
+        let active_sales: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM sale_records WHERE csv_import_id = ?1 AND is_voided = 0",
+                [import_id],
+                |row| row.get(0),
+            )
+            .unwrap();
+        let active_movements: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM inventory_movements
+                 WHERE reference_type = 'csv_import' AND reference_id = ?1 AND is_voided = 0",
+                [import_id],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(active_sales, 1);
+        assert_eq!(active_movements, 1);
+    }
 }
 
 #[test]
-fn test_commit_req401_overwrite_not_confirmed() {
-    // REQ-401: CSV取込み
+fn test_commit_req401_additional_import_requires_confirmation() {
+    // REQ-401 / I-B5 / SPEC-SDI-D3: 追加確認 false は副作用なしで拒否する。
     let (_dir, mut conn) = setup_test_db();
     create_test_product_with_jan(&conn, "TEST-001", "4912345678901", 10, true);
 
@@ -134,24 +185,26 @@ fn test_commit_req401_overwrite_not_confirmed() {
     let bytes = make_z004_bytes("2026-03-21", &[("4912345678901", "商品A", 3, 900)]);
     let pv = parse_and_build_cache(&conn, bytes, "Z004_new");
     let cached = build_cached(pv);
+    let before = write_surface(&conn);
 
     let result = commit::commit_csv_import(
         &mut conn,
         CommitRequest {
-            overwrite_confirmed: false,
+            additional_import_confirmed: false,
             cached_data: cached,
         },
     );
     assert!(result.is_err());
     match result.unwrap_err() {
-        BizError::ImportError(msg) => assert!(msg.contains("overwrite_confirmed")),
-        e => panic!("Expected ImportError, got {:?}", e),
+        BizError::ValidationFailed(msg) => assert!(msg.contains("追加確認")),
+        e => panic!("Expected ValidationFailed, got {:?}", e),
     }
+    assert_eq!(write_surface(&conn), before);
 }
 
 #[test]
 fn test_commit_req401_toctou_check() {
-    // REQ-401: CSV取込み
+    // REQ-401 / I-B2 / SPEC-SDI-D4: hash recheck はsnapshot mismatchより先にhard blockする。
     let (_dir, mut conn) = setup_test_db();
     create_test_product_with_jan(&conn, "TEST-001", "4912345678901", 10, true);
     let bytes = make_z004_bytes("2026-03-21", &[("4912345678901", "商品A", 3, 900)]);
@@ -174,10 +227,11 @@ fn test_commit_req401_toctou_check() {
     .unwrap();
 
     let cached = build_cached(pv);
+    let before = write_surface(&conn);
     let result = commit::commit_csv_import(
         &mut conn,
         CommitRequest {
-            overwrite_confirmed: false,
+            additional_import_confirmed: false,
             cached_data: cached,
         },
     );
@@ -186,6 +240,7 @@ fn test_commit_req401_toctou_check() {
         BizError::ImportError(msg) => assert!(msg.contains("取込み済み")),
         e => panic!("Expected ImportError, got {:?}", e),
     }
+    assert_eq!(write_surface(&conn), before);
 }
 
 #[test]
@@ -200,7 +255,7 @@ fn test_commit_req401_pos_stock_sync_false() {
     let result = commit::commit_csv_import(
         &mut conn,
         CommitRequest {
-            overwrite_confirmed: false,
+            additional_import_confirmed: false,
             cached_data: cached,
         },
     )
@@ -232,7 +287,7 @@ fn test_commit_req401_negative_stock_warning() {
     let result = commit::commit_csv_import(
         &mut conn,
         CommitRequest {
-            overwrite_confirmed: false,
+            additional_import_confirmed: false,
             cached_data: cached,
         },
     )
@@ -266,7 +321,7 @@ fn test_commit_req401_partial_with_errors() {
     let result = commit::commit_csv_import(
         &mut conn,
         CommitRequest {
-            overwrite_confirmed: false,
+            additional_import_confirmed: false,
             cached_data: cached,
         },
     )
@@ -289,7 +344,7 @@ fn test_commit_req401_sign_flip_inv1() {
     commit::commit_csv_import(
         &mut conn,
         CommitRequest {
-            overwrite_confirmed: false,
+            additional_import_confirmed: false,
             cached_data: cached,
         },
     )
@@ -304,7 +359,7 @@ fn test_commit_req401_sign_flip_inv1() {
 
 #[test]
 fn test_commit_req401_settlement_date_toctou() {
-    // REQ-401: CSV取込み
+    // REQ-401 / I-W5 / SPEC-SDI-D4: snapshot追加差分は副作用なし再preview。
     // Preview時はNoDuplicateだったが、commit前に同日データが別経路で取り込まれた場合
     let (_dir, mut conn) = setup_test_db();
     create_test_product_with_jan(&conn, "TEST-001", "4912345678901", 10, true);
@@ -332,24 +387,173 @@ fn test_commit_req401_settlement_date_toctou() {
     .unwrap();
 
     let cached = build_cached(pv);
+    let before = write_surface(&conn);
     let result = commit::commit_csv_import(
         &mut conn,
         CommitRequest {
-            overwrite_confirmed: false,
+            additional_import_confirmed: false,
             cached_data: cached,
         },
     );
     assert!(result.is_err());
     match result.unwrap_err() {
-        BizError::ImportError(msg) => assert!(msg.contains("同日")),
+        BizError::ImportError(msg) => assert_eq!(
+            msg,
+            "同日の取込み状況が変わりました。再度プレビューしてください"
+        ),
         e => panic!("Expected ImportError, got {:?}", e),
     }
+    let sales: i64 = conn
+        .query_row("SELECT COUNT(*) FROM sale_records", [], |row| row.get(0))
+        .unwrap();
+    assert_eq!(sales, 0);
+    let product = product_repo::find_by_product_code(&conn, "TEST-001")
+        .unwrap()
+        .unwrap();
+    assert_eq!(product.product.stock_quantity, 10);
+    assert_eq!(write_surface(&conn), before);
 }
 
 #[test]
-fn test_commit_req401_overwrite_confirmed_without_duplicate() {
-    // REQ-401: CSV取込み
-    // Preview が NoDuplicate なのに overwrite_confirmed=true → ValidationFailed
+fn test_commit_req401_same_date_snapshot_removal_requires_repreview() {
+    // REQ-401 / I-W5 / SPEC-SDI-D4: snapshot削除差分も完全一致比較で検出する。
+    let (_dir, mut conn) = setup_test_db();
+    create_test_product_with_jan(&conn, "TEST-001", "4912345678901", 10, true);
+    let existing_id = sales_repo::insert_csv_import(
+        &conn,
+        &sales_repo::NewCsvImport {
+            filename: "existing".to_string(),
+            settlement_date: "2026-03-21".to_string(),
+            file_hash: "existing-hash".to_string(),
+            total_items: 1,
+            total_amount: 100,
+            skipped_count: 0,
+            status: "completed".to_string(),
+        },
+    )
+    .unwrap();
+    let preview = parse_and_build_cache(
+        &conn,
+        make_z004_bytes("2026-03-21", &[("4912345678901", "商品A", 1, 300)]),
+        "Z004_new",
+    );
+    sales_repo::update_csv_import_status(&conn, existing_id, "rolled_back").unwrap();
+    let before = write_surface(&conn);
+
+    let error = commit::commit_csv_import(
+        &mut conn,
+        CommitRequest {
+            additional_import_confirmed: true,
+            cached_data: build_cached(preview),
+        },
+    )
+    .unwrap_err();
+    assert!(
+        matches!(error, BizError::ImportError(ref message) if message == "同日の取込み状況が変わりました。再度プレビューしてください")
+    );
+    assert_eq!(write_surface(&conn), before);
+}
+
+#[test]
+fn test_commit_req401_same_date_snapshot_replace_requires_repreview() {
+    // REQ-401 / I-W5 / SPEC-SDI-D4: 件数が同じでもactive ID置換を検出し副作用を出さない。
+    let (_dir, mut conn) = setup_test_db();
+    create_test_product_with_jan(&conn, "TEST-001", "4912345678901", 10, true);
+    let existing_id = sales_repo::insert_csv_import(
+        &conn,
+        &sales_repo::NewCsvImport {
+            filename: "existing-a".to_string(),
+            settlement_date: "2026-03-21".to_string(),
+            file_hash: "existing-a-hash".to_string(),
+            total_items: 1,
+            total_amount: 100,
+            skipped_count: 0,
+            status: "completed".to_string(),
+        },
+    )
+    .unwrap();
+    let preview = parse_and_build_cache(
+        &conn,
+        make_z004_bytes("2026-03-21", &[("4912345678901", "商品A", 1, 300)]),
+        "Z004_new",
+    );
+    sales_repo::update_csv_import_status(&conn, existing_id, "rolled_back").unwrap();
+    sales_repo::insert_csv_import(
+        &conn,
+        &sales_repo::NewCsvImport {
+            filename: "existing-b".to_string(),
+            settlement_date: "2026-03-21".to_string(),
+            file_hash: "existing-b-hash".to_string(),
+            total_items: 1,
+            total_amount: 200,
+            skipped_count: 0,
+            status: "completed".to_string(),
+        },
+    )
+    .unwrap();
+    let before = write_surface(&conn);
+
+    let error = commit::commit_csv_import(
+        &mut conn,
+        CommitRequest {
+            additional_import_confirmed: true,
+            cached_data: build_cached(preview),
+        },
+    )
+    .unwrap_err();
+
+    assert!(
+        matches!(error, BizError::ImportError(ref message) if message == "同日の取込み状況が変わりました。再度プレビューしてください")
+    );
+    assert_eq!(write_surface(&conn), before);
+}
+
+#[test]
+fn test_commit_req401_same_date_snapshot_order_requires_exact_match() {
+    // REQ-401 / I-W5 / SPEC-SDI-D4: set一致でもordered ID snapshotの順序差を拒否する。
+    let (_dir, mut conn) = setup_test_db();
+    create_test_product_with_jan(&conn, "TEST-001", "4912345678901", 10, true);
+    for (filename, hash) in [("old-a", "hash-a"), ("old-b", "hash-b")] {
+        sales_repo::insert_csv_import(
+            &conn,
+            &sales_repo::NewCsvImport {
+                filename: filename.to_string(),
+                settlement_date: "2026-03-21".to_string(),
+                file_hash: hash.to_string(),
+                total_items: 1,
+                total_amount: 1,
+                skipped_count: 0,
+                status: "completed".to_string(),
+            },
+        )
+        .unwrap();
+    }
+    let preview = parse_and_build_cache(
+        &conn,
+        make_z004_bytes("2026-03-21", &[("4912345678901", "商品A", 1, 300)]),
+        "new",
+    );
+    let mut cached = build_cached(preview);
+    cached.active_same_date_import_ids.reverse();
+    let before = write_surface(&conn);
+
+    let error = commit::commit_csv_import(
+        &mut conn,
+        CommitRequest {
+            additional_import_confirmed: true,
+            cached_data: cached,
+        },
+    )
+    .unwrap_err();
+    assert!(
+        matches!(error, BizError::ImportError(ref message) if message == "同日の取込み状況が変わりました。再度プレビューしてください")
+    );
+    assert_eq!(write_surface(&conn), before);
+}
+
+#[test]
+fn test_commit_req401_additional_confirmation_without_duplicate() {
+    // REQ-401 / I-B5 / SPEC-SDI-D3: NoDuplicate + true は ValidationFailed。
     let (_dir, mut conn) = setup_test_db();
     create_test_product_with_jan(&conn, "TEST-001", "4912345678901", 10, true);
     let bytes = make_z004_bytes("2026-03-21", &[("4912345678901", "商品A", 3, 900)]);
@@ -359,17 +563,19 @@ fn test_commit_req401_overwrite_confirmed_without_duplicate() {
         DuplicateStatus::NoDuplicate
     );
     let cached = build_cached(pv);
+    let before = write_surface(&conn);
 
     let result = commit::commit_csv_import(
         &mut conn,
         CommitRequest {
-            overwrite_confirmed: true, // NoDuplicate なのに true
+            additional_import_confirmed: true,
             cached_data: cached,
         },
     );
     assert!(result.is_err());
     match result.unwrap_err() {
-        BizError::ValidationFailed(msg) => assert!(msg.contains("上書き対象がありません")),
+        BizError::ValidationFailed(msg) => assert!(msg.contains("追加確認")),
         e => panic!("Expected ValidationFailed, got {:?}", e),
     }
+    assert_eq!(write_surface(&conn), before);
 }

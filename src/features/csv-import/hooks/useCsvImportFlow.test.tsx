@@ -1,5 +1,5 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { act, renderHook, waitFor } from "@testing-library/react";
+import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query";
+import { act, render, renderHook, screen, waitFor } from "@testing-library/react";
 import { useBlocker } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -12,6 +12,7 @@ import {
   type PreviewData,
   type RollbackResult,
 } from "@/lib/bindings";
+import { queryKeys } from "@/lib/query-keys";
 import { d052InvalidationOracle, expectExactInvalidations } from "@/test/invalidation-oracle";
 import { useCsvImportFlow } from "./useCsvImportFlow";
 
@@ -45,7 +46,7 @@ function makePreview(): PreviewData {
     },
     matched_summary: { count: 1, total_amount: 500, warnings: [] },
     error_summary: { count: 0, items: [] },
-    duplicate_check: { status: "NoDuplicate", existing_import_id: null },
+    duplicate_check: { status: "NoDuplicate", same_date_imports: [] },
     preview_created_at: "2026-07-23T10:00:00",
   };
 }
@@ -223,6 +224,53 @@ describe("useCsvImportFlow UI-07 D-052-C8/C9", () => {
     expectExactInvalidations(invalidateSpy.mock.calls, d052InvalidationOracle.csvImportCommit());
   });
 
+  it("test_import_command_req401_additional_confirmation_reaches_biz", async () => {
+    // REQ-401 / I-W4 / I-U6 / SPEC-SDI-D3,D5: UI trueをgenerated commandへ一回だけ渡す。
+    const additional = makePreview();
+    additional.duplicate_check = {
+      status: "AdditionalImportConfirmationRequired",
+      same_date_imports: [
+        {
+          id: 400,
+          filename: "previous.csv",
+          total_items: 1,
+          total_amount: 100,
+          imported_at: "2026-07-23T09:00:00",
+        },
+      ],
+    };
+    mockParse.mockResolvedValueOnce({
+      status: "ok",
+      data: { preview_data: additional, preview_token: "additional-preview-token" },
+    });
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    });
+    const { result } = renderHook(() => useCsvImportFlow(), {
+      wrapper: makeWrapper(queryClient),
+    });
+    act(() => {
+      result.current.selectFile({
+        bytes: new Uint8Array([1]),
+        filename: "additional.csv",
+        size: 1,
+      });
+    });
+    await waitFor(() => {
+      expect(result.current.state.status).toBe("preview");
+    });
+
+    act(() => {
+      result.current.confirmImport(true);
+    });
+
+    await waitFor(() => {
+      expect(result.current.state.status).toBe("result");
+    });
+    expect(mockCommit).toHaveBeenCalledTimes(1);
+    expect(mockCommit).toHaveBeenCalledWith("additional-preview-token", true);
+  });
+
   it("rollback invalidates the same exact independent oracle set", async () => {
     const queryClient = new QueryClient({
       defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
@@ -295,7 +343,8 @@ describe("useCsvImportFlow UI-07 D-052-C8/C9", () => {
     });
   });
 
-  it("REQ-401: rollback failure は result を保持し再試行できる", async () => {
+  it("test_import_rollback_req401_failure_retries_same_id_success_refetches_remaining_aggregate", async () => {
+    // REQ-401 / I-U8 / I-R6 / SPEC-SDI-D7 / D-052: failureはresult保持、same ID retry成功でremaining aggregateを再表示する。
     mockRollback.mockResolvedValueOnce({
       status: "error",
       error: {
@@ -308,13 +357,46 @@ describe("useCsvImportFlow UI-07 D-052-C8/C9", () => {
     const queryClient = new QueryClient({
       defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
     });
-    const { result } = renderHook(() => useCsvImportFlow(), {
-      wrapper: makeWrapper(queryClient),
+    const reportQuery = vi
+      .fn()
+      .mockResolvedValueOnce(900)
+      .mockResolvedValueOnce(900)
+      .mockResolvedValue(500);
+    const harness: { flow: ReturnType<typeof useCsvImportFlow> | null } = { flow: null };
+    function Harness() {
+      harness.flow = useCsvImportFlow();
+      const report = useQuery({
+        queryKey: queryKeys.dailySales("2026-07-23"),
+        queryFn: reportQuery,
+      });
+      return <output aria-label="日次売上合計">{report.data ?? "loading"}</output>;
+    }
+    render(
+      <QueryClientProvider client={queryClient}>
+        <Harness />
+      </QueryClientProvider>,
+    );
+    expect(await screen.findByText("900")).toBeInTheDocument();
+    act(() => {
+      harness.flow?.selectFile({
+        bytes: new Uint8Array([1, 2, 3]),
+        filename: "sales.csv",
+        size: 3,
+      });
     });
-    await reachResult(result);
+    await waitFor(() => {
+      expect(harness.flow?.state.status).toBe("preview");
+    });
+    act(() => {
+      harness.flow?.confirmImport(false);
+    });
+    await waitFor(() => {
+      expect(harness.flow?.state.status).toBe("result");
+    });
+    expect(await screen.findByText("900")).toBeInTheDocument();
 
     act(() => {
-      result.current.rollback(401);
+      harness.flow?.rollback(401);
     });
 
     await waitFor(() => {
@@ -322,6 +404,18 @@ describe("useCsvImportFlow UI-07 D-052-C8/C9", () => {
         "取り消しに失敗しました。もう一度お試しください",
       );
     });
-    expect(result.current.state.status).toBe("result");
+    expect(harness.flow?.state.status).toBe("result");
+    expect(screen.getByText("900")).toBeInTheDocument();
+
+    act(() => {
+      harness.flow?.rollback(401);
+    });
+    await waitFor(() => {
+      expect(harness.flow?.state.status).toBe("idle");
+    });
+    expect(await screen.findByText("500")).toBeInTheDocument();
+    expect(reportQuery).toHaveBeenCalledTimes(3);
+    expect(mockRollback).toHaveBeenNthCalledWith(1, 401);
+    expect(mockRollback).toHaveBeenNthCalledWith(2, 401);
   });
 });

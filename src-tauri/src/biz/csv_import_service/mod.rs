@@ -96,8 +96,16 @@ pub struct ErrorSummary {
 #[derive(Debug, Clone, Serialize, specta::Type)]
 pub struct DuplicateCheck {
     pub status: DuplicateStatus,
-    /// OverwriteRequired時のみSome
-    pub existing_import_id: Option<i64>,
+    pub same_date_imports: Vec<SameDateCsvImportSummary>,
+}
+
+#[derive(Debug, Clone, Serialize, specta::Type)]
+pub struct SameDateCsvImportSummary {
+    pub id: i64,
+    pub filename: String,
+    pub total_items: i64,
+    pub total_amount: i64,
+    pub imported_at: String,
 }
 
 /// 重複チェックのステータス
@@ -105,8 +113,8 @@ pub struct DuplicateCheck {
 pub enum DuplicateStatus {
     /// 問題なし
     NoDuplicate,
-    /// 同settlement_date、別ファイル → 上書き確認
-    OverwriteRequired,
+    /// 同settlement_date、別ファイル → 追加確認
+    AdditionalImportConfirmationRequired,
 }
 
 /// マスタ照合成功行（サーバ側キャッシュに保持、フロントエンドには送らない）
@@ -141,8 +149,8 @@ pub struct ErrorRow {
 /// commit_csv_import のリクエスト（CMD層が組み立て）
 #[derive(Debug)]
 pub struct CommitRequest {
-    /// 上書き確認済みフラグ
-    pub overwrite_confirmed: bool,
+    /// 同日追加取込み確認済みフラグ
+    pub additional_import_confirmed: bool,
     /// CMD層がキャッシュから復元したデータ
     pub cached_data: CachedPreview,
 }
@@ -156,6 +164,8 @@ pub struct CachedPreview {
     pub error_rows: Vec<ErrorRow>,
     /// フロントエンドに返した内容のコピー
     pub preview_data: PreviewData,
+    /// preview 時点の同日 active import ID snapshot（表示順）
+    pub active_same_date_import_ids: Vec<i64>,
 }
 
 /// commit_csv_import の結果

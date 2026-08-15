@@ -2,6 +2,7 @@ use super::*;
 use crate::biz::BizError;
 use crate::constants;
 use crate::db::product_repo::{self, NewProduct};
+use crate::db::sales_repo;
 use crate::db::test_support::setup_test_db;
 use std::time::{Duration, Instant};
 
@@ -74,6 +75,23 @@ fn count_rows(conn: &crate::db::DbConnection, table: &str) -> i64 {
         row.get(0)
     })
     .unwrap()
+}
+
+fn write_surface(conn: &crate::db::DbConnection) -> [i64; 7] {
+    [
+        count_rows(conn, "daily_report_imports"),
+        count_rows(conn, "daily_report_summary_lines"),
+        count_rows(conn, "daily_report_payment_lines"),
+        count_rows(conn, "daily_report_department_lines"),
+        count_rows(conn, "sale_records"),
+        count_rows(conn, "inventory_movements"),
+        conn.query_row(
+            "SELECT COALESCE(SUM(stock_quantity), 0) FROM products",
+            [],
+            |row| row.get(0),
+        )
+        .unwrap(),
+    ]
 }
 
 fn seed_product_with_stock(conn: &crate::db::DbConnection, product_code: &str, stock: i64) {
@@ -201,24 +219,31 @@ fn test_daily_report_req401_bundle_hash_stable_by_source_order() {
 
 #[test]
 fn test_daily_report_req401_duplicate_already_imported() {
-    // REQ-401 / BIZ-08: 同一bundleのcompletedはAlreadyImported
+    // REQ-401 / I-B1 / SPEC-SDI-D1: active同一bundleはAlreadyImported、rollback後は再preview可能。
     let (_dir, mut conn) = setup_test_db();
     let first = parse_and_validate_daily_report(&conn, valid_files()).unwrap();
-    commit_daily_report_import(&mut conn, first.cached_preview, false).unwrap();
+    let first = commit_daily_report_import(&mut conn, first.cached_preview, false).unwrap();
 
     let second = parse_and_validate_daily_report(&conn, valid_files()).unwrap();
     assert_eq!(
         second.preview_data.duplicate_check.status,
         DailyReportDuplicateStatus::AlreadyImported
     );
+
+    rollback_daily_report_import(&mut conn, first.daily_report_import_id).unwrap();
+    let retry = parse_and_validate_daily_report(&conn, valid_files()).unwrap();
+    assert_eq!(
+        retry.preview_data.duplicate_check.status,
+        DailyReportDuplicateStatus::NoDuplicate
+    );
 }
 
 #[test]
-fn test_daily_report_req401_overwrite_required_for_same_date_different_bundle() {
-    // REQ-401 / BIZ-08: 同日別bundleはOverwriteRequired
+fn test_daily_report_req401_additional_confirmation_for_same_date_different_bundle() {
+    // REQ-401 / I-W3 / SPEC-SDI-D3: 同日別bundleは全件・全files/totalsのordered snapshot付き追加確認。
     let (_dir, mut conn) = setup_test_db();
     let first = parse_and_validate_daily_report(&conn, valid_files()).unwrap();
-    commit_daily_report_import(&mut conn, first.cached_preview, false).unwrap();
+    let first = commit_daily_report_import(&mut conn, first.cached_preview, false).unwrap();
 
     let second_files = vec![
         z001_with_lines(
@@ -229,15 +254,70 @@ fn test_daily_report_req401_overwrite_required_for_same_date_different_bundle() 
         z005("2026-03-21"),
     ];
     let second = parse_and_validate_daily_report(&conn, second_files).unwrap();
+    let second = commit_daily_report_import(&mut conn, second.cached_preview, true).unwrap();
+    let third = parse_and_validate_daily_report(
+        &conn,
+        vec![
+            z001_with_lines(
+                "2026-03-21",
+                &[
+                    ("101", "総売", "10", "14000"),
+                    ("201", "純売", "9", "12500"),
+                ],
+            ),
+            z002("2026-03-21"),
+            z005("2026-03-21"),
+        ],
+    )
+    .unwrap();
     assert_eq!(
-        second.preview_data.duplicate_check.status,
-        DailyReportDuplicateStatus::OverwriteRequired
+        third.preview_data.duplicate_check.status,
+        DailyReportDuplicateStatus::AdditionalImportConfirmationRequired
     );
-    assert!(second
-        .preview_data
-        .duplicate_check
-        .existing_import_id
-        .is_some());
+    let summaries = &third.preview_data.duplicate_check.same_date_imports;
+    assert_eq!(summaries.len(), 2);
+    assert_eq!(summaries[0].id, second.daily_report_import_id);
+    assert_eq!(summaries[1].id, first.daily_report_import_id);
+    assert_eq!(summaries[0].source_filenames.len(), 3);
+    assert_eq!(summaries[0].gross_amount, Some(13000));
+    assert_eq!(summaries[0].net_amount, Some(12000));
+    assert!(!summaries[0].imported_at.is_empty());
+}
+
+#[test]
+fn test_daily_report_req401_corrupt_same_date_source_files_metadata_fails_safe() {
+    // REQ-401 / I-W3 / SPEC-SDI-D3: 既存metadata破損時はfilenameを捏造せずpreviewを安全側errorにする。
+    let (_dir, conn) = setup_test_db();
+    sales_repo::insert_daily_report_import(
+        &conn,
+        &sales_repo::NewDailyReportImport {
+            report_date: "2026-03-21".to_string(),
+            source_adapter: "casio_sr_s4000".to_string(),
+            bundle_hash: "corrupt-existing-bundle".to_string(),
+            source_files_json: "{not-json".to_string(),
+            gross_amount: Some(1),
+            net_amount: Some(1),
+            status: "completed".to_string(),
+            note: None,
+        },
+    )
+    .unwrap();
+
+    let error = parse_and_validate_daily_report(
+        &conn,
+        vec![
+            z001_with_lines(
+                "2026-03-21",
+                &[("101", "総売", "9", "13000"), ("201", "純売", "8", "12000")],
+            ),
+            z002("2026-03-21"),
+            z005("2026-03-21"),
+        ],
+    )
+    .unwrap_err();
+    assert!(
+        matches!(error, BizError::ImportError(ref message) if message == "既存日報のファイル情報を読み取れません")
+    );
 }
 
 #[test]
@@ -300,8 +380,8 @@ fn test_daily_report_req401_commit_inserts_parent_lines_and_log() {
 }
 
 #[test]
-fn test_daily_report_req401_commit_overwrite_rolls_back_old() {
-    // REQ-401 / BIZ-08: overwrite確定時は同日completedをrolled_backにして新規作成する
+fn test_daily_report_req401_commit_same_date_is_insert_only() {
+    // REQ-401 / I-B4 / SPEC-SDI-D1: 追加確定でも既存completedと全childを保持する。
     let (_dir, mut conn) = setup_test_db();
     let first = parse_and_validate_daily_report(&conn, valid_files()).unwrap();
     let first_result = commit_daily_report_import(&mut conn, first.cached_preview, false).unwrap();
@@ -328,7 +408,35 @@ fn test_daily_report_req401_commit_overwrite_rolls_back_old() {
             |row| row.get(0),
         )
         .unwrap();
-    assert_eq!(old_status, "rolled_back");
+    assert_eq!(old_status, "completed");
+    assert_eq!(first_result.gross_amount, Some(12000));
+    assert_eq!(second_result.gross_amount, Some(13000));
+    for (import_id, expected_max_summary) in [
+        (first_result.daily_report_import_id, 12000_i64),
+        (second_result.daily_report_import_id, 13000_i64),
+    ] {
+        let max_summary: i64 = conn
+            .query_row(
+                "SELECT MAX(amount) FROM daily_report_summary_lines WHERE daily_report_import_id = ?1",
+                [import_id],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(max_summary, expected_max_summary);
+        for table in [
+            "daily_report_payment_lines",
+            "daily_report_department_lines",
+        ] {
+            let child_count: i64 = conn
+                .query_row(
+                    &format!("SELECT COUNT(*) FROM {table} WHERE daily_report_import_id = ?1"),
+                    [import_id],
+                    |row| row.get(0),
+                )
+                .unwrap();
+            assert!(child_count > 0, "{table} child rows must remain");
+        }
+    }
 }
 
 #[test]
@@ -353,8 +461,8 @@ fn test_daily_report_req401_commit_does_not_write_sale_records_or_stock() {
 }
 
 #[test]
-fn test_daily_report_req401_commit_overwrite_unconfirmed_validation_failed() {
-    // REQ-401 / BIZ-08: OverwriteRequired preview は overwrite_confirmed=false でValidationFailed
+fn test_daily_report_req401_commit_additional_unconfirmed_validation_failed() {
+    // REQ-401 / I-B5 / SPEC-SDI-D3: 追加確認required + false はValidationFailed。
     let (_dir, mut conn) = setup_test_db();
     let first = parse_and_validate_daily_report(&conn, valid_files()).unwrap();
     commit_daily_report_import(&mut conn, first.cached_preview, false).unwrap();
@@ -370,11 +478,29 @@ fn test_daily_report_req401_commit_overwrite_unconfirmed_validation_failed() {
     let second = parse_and_validate_daily_report(&conn, second_files).unwrap();
     assert_eq!(
         second.preview_data.duplicate_check.status,
-        DailyReportDuplicateStatus::OverwriteRequired
+        DailyReportDuplicateStatus::AdditionalImportConfirmationRequired
     );
 
+    let before = write_surface(&conn);
     let result = commit_daily_report_import(&mut conn, second.cached_preview, false);
     assert!(matches!(result, Err(BizError::ValidationFailed(_))));
+    assert_eq!(write_surface(&conn), before);
+}
+
+#[test]
+fn test_daily_report_req401_commit_no_duplicate_confirmed_validation_failed() {
+    // REQ-401 / I-B5 / SPEC-SDI-D3: NoDuplicate + true は副作用なしValidationFailed。
+    let (_dir, mut conn) = setup_test_db();
+    let parsed = parse_and_validate_daily_report(&conn, valid_files()).unwrap();
+
+    let before = write_surface(&conn);
+    let result = commit_daily_report_import(&mut conn, parsed.cached_preview, true);
+
+    assert!(matches!(result, Err(BizError::ValidationFailed(_))));
+    assert_eq!(count_rows(&conn, "daily_report_imports"), 0);
+    assert_eq!(count_rows(&conn, "daily_report_payment_lines"), 0);
+    assert_eq!(count_rows(&conn, "daily_report_department_lines"), 0);
+    assert_eq!(write_surface(&conn), before);
 }
 
 #[test]
@@ -390,8 +516,8 @@ fn test_daily_report_req401_commit_expired_preview_import_error() {
 }
 
 #[test]
-fn test_daily_report_req401_stale_overwrite_preview_same_bundle_conflicts() {
-    // REQ-401 / BIZ-08: 古いOverwriteRequiredプレビューでも同一bundleの二重取込みを防ぐ
+fn test_daily_report_req401_stale_additional_preview_same_bundle_conflicts() {
+    // REQ-401 / I-B2 / SPEC-SDI-D4: hash-first recheckでstale previewの同一bundle二重取込みを防ぐ。
     let (_dir, mut conn) = setup_test_db();
     let first = parse_and_validate_daily_report(&conn, valid_files()).unwrap();
     commit_daily_report_import(&mut conn, first.cached_preview, false).unwrap();
@@ -407,12 +533,13 @@ fn test_daily_report_req401_stale_overwrite_preview_same_bundle_conflicts() {
     let stale_second = parse_and_validate_daily_report(&conn, second_files.clone()).unwrap();
     assert_eq!(
         stale_second.preview_data.duplicate_check.status,
-        DailyReportDuplicateStatus::OverwriteRequired
+        DailyReportDuplicateStatus::AdditionalImportConfirmationRequired
     );
 
     let current_second = parse_and_validate_daily_report(&conn, second_files).unwrap();
     commit_daily_report_import(&mut conn, current_second.cached_preview, true).unwrap();
 
+    let before = write_surface(&conn);
     let result = commit_daily_report_import(&mut conn, stale_second.cached_preview, true);
     assert!(matches!(result, Err(BizError::IdempotencyConflict(_))));
 
@@ -423,7 +550,7 @@ fn test_daily_report_req401_stale_overwrite_preview_same_bundle_conflicts() {
             |row| row.get(0),
         )
         .unwrap();
-    assert_eq!(completed_count, 1);
+    assert_eq!(completed_count, 2);
     let total_count: i64 = conn
         .query_row(
             "SELECT COUNT(*) FROM daily_report_imports WHERE report_date = '2026-03-21'",
@@ -432,23 +559,126 @@ fn test_daily_report_req401_stale_overwrite_preview_same_bundle_conflicts() {
         )
         .unwrap();
     assert_eq!(total_count, 2);
+    assert_eq!(write_surface(&conn), before);
+}
+
+#[test]
+fn test_daily_report_req401_snapshot_change_requires_repreview_without_side_effects() {
+    // REQ-401 / I-W5 / SPEC-SDI-D4: active ID snapshot差分は副作用なしで拒否する。
+    let (_dir, mut conn) = setup_test_db();
+    let first = parse_and_validate_daily_report(&conn, valid_files()).unwrap();
+    commit_daily_report_import(&mut conn, first.cached_preview, false).unwrap();
+
+    let stale = parse_and_validate_daily_report(
+        &conn,
+        vec![
+            z001_with_lines(
+                "2026-03-21",
+                &[("101", "総売", "9", "13000"), ("201", "純売", "8", "12000")],
+            ),
+            z002("2026-03-21"),
+            z005("2026-03-21"),
+        ],
+    )
+    .unwrap();
+    let concurrent = parse_and_validate_daily_report(
+        &conn,
+        vec![
+            z001_with_lines(
+                "2026-03-21",
+                &[
+                    ("101", "総売", "10", "14000"),
+                    ("201", "純売", "9", "12500"),
+                ],
+            ),
+            z002("2026-03-21"),
+            z005("2026-03-21"),
+        ],
+    )
+    .unwrap();
+    commit_daily_report_import(&mut conn, concurrent.cached_preview, true).unwrap();
+    let before: i64 = conn
+        .query_row("SELECT COUNT(*) FROM daily_report_imports", [], |row| {
+            row.get(0)
+        })
+        .unwrap();
+    let before_surface = write_surface(&conn);
+
+    let error = commit_daily_report_import(&mut conn, stale.cached_preview, true).unwrap_err();
+    assert!(
+        matches!(error, BizError::ImportError(ref message) if message == "同日の取込み状況が変わりました。再度プレビューしてください")
+    );
+    let after: i64 = conn
+        .query_row("SELECT COUNT(*) FROM daily_report_imports", [], |row| {
+            row.get(0)
+        })
+        .unwrap();
+    assert_eq!(after, before);
+    assert_eq!(write_surface(&conn), before_surface);
+}
+
+#[test]
+fn test_daily_report_req401_snapshot_replace_requires_repreview_without_side_effects() {
+    // REQ-401 / I-W5 / SPEC-SDI-D4: 同件数のactive parent ID置換もexact snapshotで検出する。
+    let (_dir, mut conn) = setup_test_db();
+    let first = parse_and_validate_daily_report(&conn, valid_files()).unwrap();
+    let first = commit_daily_report_import(&mut conn, first.cached_preview, false).unwrap();
+    let stale = parse_and_validate_daily_report(
+        &conn,
+        vec![
+            z001_with_lines(
+                "2026-03-21",
+                &[("101", "総売", "9", "13000"), ("201", "純売", "8", "12000")],
+            ),
+            z002("2026-03-21"),
+            z005("2026-03-21"),
+        ],
+    )
+    .unwrap();
+    rollback_daily_report_import(&mut conn, first.daily_report_import_id).unwrap();
+    let replacement = parse_and_validate_daily_report(
+        &conn,
+        vec![
+            z001_with_lines(
+                "2026-03-21",
+                &[
+                    ("101", "総売", "10", "14000"),
+                    ("201", "純売", "9", "12500"),
+                ],
+            ),
+            z002("2026-03-21"),
+            z005("2026-03-21"),
+        ],
+    )
+    .unwrap();
+    commit_daily_report_import(&mut conn, replacement.cached_preview, false).unwrap();
+    let before = write_surface(&conn);
+
+    let error = commit_daily_report_import(&mut conn, stale.cached_preview, true).unwrap_err();
+
+    assert!(
+        matches!(error, BizError::ImportError(ref message) if message == "同日の取込み状況が変わりました。再度プレビューしてください")
+    );
+    assert_eq!(write_surface(&conn), before);
 }
 
 #[test]
 fn test_daily_report_req401_commit_already_imported_conflict() {
-    // REQ-401 / BIZ-08: AlreadyImported previewをcommitしようとするとIdempotencyConflict
+    // REQ-401 / I-B5 / SPEC-SDI-D3: AlreadyImported previewは副作用なしIdempotencyConflict。
     let (_dir, mut conn) = setup_test_db();
     let first = parse_and_validate_daily_report(&conn, valid_files()).unwrap();
     commit_daily_report_import(&mut conn, first.cached_preview, false).unwrap();
     let second = parse_and_validate_daily_report(&conn, valid_files()).unwrap();
 
+    let before = write_surface(&conn);
     let result = commit_daily_report_import(&mut conn, second.cached_preview, false);
     assert!(matches!(result, Err(BizError::IdempotencyConflict(_))));
+    assert_eq!(write_surface(&conn), before);
 }
 
 #[test]
 fn test_daily_report_req401_rollback_idempotent_and_no_stock_change() {
-    // REQ-401 / BIZ-08 / D-025: rollbackは親statusのみ。在庫・sale_records・movementsを変えない
+    // REQ-401 / I-B8 / SPEC-SDI-D2: rollback冪等再実行は親statusのみで在庫系列を変えない。
     let (_dir, mut conn) = setup_test_db();
     let parsed = parse_and_validate_daily_report(&conn, valid_files()).unwrap();
     let committed = commit_daily_report_import(&mut conn, parsed.cached_preview, false).unwrap();
@@ -474,6 +704,98 @@ fn test_daily_report_req401_rollback_idempotent_and_no_stock_change() {
             .unwrap();
         assert_eq!(count, 0, "{} must stay empty", table);
     }
+}
+
+#[test]
+fn test_daily_report_req401_rollback_keeps_same_date_sibling() {
+    // REQ-401 / I-B8 / SPEC-SDI-D2,D7: 日報rollbackはper-importで同日siblingを保持する。
+    let (_dir, mut conn) = setup_test_db();
+    let first = parse_and_validate_daily_report(&conn, valid_files()).unwrap();
+    let first = commit_daily_report_import(&mut conn, first.cached_preview, false).unwrap();
+    let second_files = vec![
+        z001_with_lines(
+            "2026-03-21",
+            &[("101", "総売", "9", "13000"), ("201", "純売", "8", "12000")],
+        ),
+        z002("2026-03-21"),
+        z005("2026-03-21"),
+    ];
+    let second = parse_and_validate_daily_report(&conn, second_files).unwrap();
+    let second = commit_daily_report_import(&mut conn, second.cached_preview, true).unwrap();
+
+    rollback_daily_report_import(&mut conn, first.daily_report_import_id).unwrap();
+
+    let active = sales_repo::find_daily_report_imports_by_report_date(&conn, "2026-03-21").unwrap();
+    assert_eq!(active.len(), 1);
+    assert_eq!(active[0].id, second.daily_report_import_id);
+    let aggregate = sales_repo::get_completed_daily_report_aggregate(&conn, "2026-03-21")
+        .unwrap()
+        .unwrap();
+    assert_eq!(aggregate.source_import_count, 1);
+    assert_eq!(aggregate.gross_amount, Some(13000));
+    assert_eq!(aggregate.net_amount, Some(12000));
+    assert!(aggregate
+        .payment_lines
+        .iter()
+        .any(|line| line.payment_key == "cash" && line.amount == Some(11000)));
+
+    rollback_daily_report_import(&mut conn, first.daily_report_import_id).unwrap();
+    let repeated = sales_repo::get_completed_daily_report_aggregate(&conn, "2026-03-21")
+        .unwrap()
+        .unwrap();
+    assert_eq!(repeated.gross_amount, Some(13000));
+}
+
+#[test]
+fn test_daily_report_rollback_req401_logs_exact_selected_id_and_survives_log_failure() {
+    // REQ-401 / I-B9 / SPEC-SDI-D2: daily log失敗もbusiness rollbackを戻さず、成功logは選択IDを記録する。
+    let (_dir, mut conn) = setup_test_db();
+    let first = parse_and_validate_daily_report(&conn, valid_files()).unwrap();
+    let first = commit_daily_report_import(&mut conn, first.cached_preview, false).unwrap();
+    let second = parse_and_validate_daily_report(
+        &conn,
+        vec![
+            z001_with_lines(
+                "2026-03-21",
+                &[("101", "総売", "9", "13000"), ("201", "純売", "8", "12000")],
+            ),
+            z002("2026-03-21"),
+            z005("2026-03-21"),
+        ],
+    )
+    .unwrap();
+    let second = commit_daily_report_import(&mut conn, second.cached_preview, true).unwrap();
+
+    conn.execute_batch(
+        "CREATE TRIGGER fail_daily_rollback_log
+         BEFORE INSERT ON operation_logs
+         WHEN NEW.operation_type = 'daily_report_rollback'
+         BEGIN SELECT RAISE(FAIL, 'synthetic log failure'); END;",
+    )
+    .unwrap();
+    let result = rollback_daily_report_import(&mut conn, first.daily_report_import_id).unwrap();
+    assert_eq!(result.status, "rolled_back");
+    let sibling = sales_repo::find_daily_report_import_by_id(&conn, second.daily_report_import_id)
+        .unwrap()
+        .unwrap();
+    assert_eq!(sibling.status, "completed");
+
+    conn.execute_batch("DROP TRIGGER fail_daily_rollback_log;")
+        .unwrap();
+    rollback_daily_report_import(&mut conn, second.daily_report_import_id).unwrap();
+    let (summary, detail): (String, String) = conn
+        .query_row(
+            "SELECT summary, detail_json FROM operation_logs
+             WHERE operation_type = 'daily_report_rollback' ORDER BY id DESC LIMIT 1",
+            [],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )
+        .unwrap();
+    assert!(summary.contains(&format!("ID {}", second.daily_report_import_id)));
+    assert!(detail.contains(&format!(
+        r#""daily_report_import_id":{}"#,
+        second.daily_report_import_id
+    )));
 }
 
 #[test]

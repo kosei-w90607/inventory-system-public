@@ -19,6 +19,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { DailyReportImportResult, DailyReportPreviewData } from "@/lib/bindings";
 import { describeError } from "@/lib/describe-error";
 import { useDailyReportImportFlow } from "./hooks/useDailyReportImportFlow";
+import { AdditionalImportConfirmDialog } from "../csv-import/components/AdditionalImportConfirmDialog";
 
 export function DailyReportImportPage() {
   const flow = useDailyReportImportFlow();
@@ -53,6 +54,7 @@ export function DailyReportImportPage() {
           <DailyReportResultStep
             result={state.result}
             reportDate={state.reportDate}
+            filenames={state.filenames}
             isRollingBack={flow.isRollingBack}
             onRollback={() => {
               flow.rollback(state.result.daily_report_import_id);
@@ -129,11 +131,12 @@ function DailyReportPreviewStep({
   filenames: string[];
   isImporting: boolean;
   selectionError: string | null;
-  onConfirm: (overwriteConfirmed: boolean) => void;
+  onConfirm: (additionalImportConfirmed: boolean) => void;
   onChooseFiles: () => void;
 }) {
-  const [confirmOverwrite, setConfirmOverwrite] = useState(false);
-  const requiresOverwrite = preview.duplicate_check.status === "OverwriteRequired";
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const requiresAdditionalConfirm =
+    preview.duplicate_check.status === "AdditionalImportConfirmationRequired";
   const alreadyImported = preview.duplicate_check.status === "AlreadyImported";
 
   return (
@@ -145,11 +148,11 @@ function DailyReportPreviewStep({
         </Alert>
       )}
 
-      {requiresOverwrite && (
+      {requiresAdditionalConfirm && (
         <Alert className="border-warning bg-warning-soft text-warning-strong">
-          <AlertTitle>同じ対象日の日報があります</AlertTitle>
+          <AlertTitle>同じ日の取込みがあります</AlertTitle>
           <AlertDescription className="text-warning-strong">
-            取り込むには上書き確認にチェックしてください。
+            既存分を残したまま今回分を追加します。内容を確認してください。
           </AlertDescription>
         </Alert>
       )}
@@ -158,9 +161,11 @@ function DailyReportPreviewStep({
         <CardHeader className="flex flex-row items-center justify-between gap-4">
           <CardTitle>取込み内容</CardTitle>
           <Badge
-            variant={alreadyImported ? "destructive" : requiresOverwrite ? "outline" : "secondary"}
+            variant={
+              alreadyImported ? "destructive" : requiresAdditionalConfirm ? "outline" : "secondary"
+            }
           >
-            {alreadyImported ? "取込み済み" : requiresOverwrite ? "上書き確認" : "確認済み"}
+            {alreadyImported ? "取込み済み" : requiresAdditionalConfirm ? "追加確認" : "確認済み"}
           </Badge>
         </CardHeader>
         <CardContent className="grid gap-3 text-sm md:grid-cols-2">
@@ -215,25 +220,16 @@ function DailyReportPreviewStep({
         </Card>
       </div>
 
-      {requiresOverwrite && (
-        <label className="flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={confirmOverwrite}
-            onChange={(event) => {
-              setConfirmOverwrite(event.target.checked);
-            }}
-          />
-          同じ対象日の既存日報を取り消して上書きします
-        </label>
-      )}
-
       <div className="flex flex-wrap gap-2">
         <Button
           onClick={() => {
-            onConfirm(requiresOverwrite);
+            if (requiresAdditionalConfirm) {
+              setDialogOpen(true);
+            } else {
+              onConfirm(false);
+            }
           }}
-          disabled={isImporting || alreadyImported || (requiresOverwrite && !confirmOverwrite)}
+          disabled={isImporting || alreadyImported}
         >
           取り込む
         </Button>
@@ -242,6 +238,27 @@ function DailyReportPreviewStep({
         </Button>
       </div>
       <SelectionErrorMessage message={selectionError} />
+      <AdditionalImportConfirmDialog
+        open={dialogOpen}
+        existingImports={preview.duplicate_check.same_date_imports.map((item) => ({
+          id: item.id,
+          filenames: item.source_filenames.join(" / "),
+          amount: `総売上 ${formatMoney(item.gross_amount)} / 純売上 ${formatMoney(item.net_amount)}`,
+          importedAt: item.imported_at,
+        }))}
+        incomingImport={{
+          filenames: filenames.join(" / "),
+          amount: `総売上 ${formatMoney(preview.totals.gross_amount)} / 純売上 ${formatMoney(preview.totals.net_amount)}`,
+          importedAt: preview.preview_created_at,
+        }}
+        onConfirm={() => {
+          setDialogOpen(false);
+          onConfirm(true);
+        }}
+        onCancel={() => {
+          setDialogOpen(false);
+        }}
+      />
     </div>
   );
 }
@@ -269,11 +286,13 @@ function DailyReportImportingStep({ filenames }: { filenames: string[] }) {
 function DailyReportResultStep({
   result,
   reportDate,
+  filenames,
   isRollingBack,
   onRollback,
 }: {
   result: DailyReportImportResult;
   reportDate: string;
+  filenames: string[];
   isRollingBack: boolean;
   onRollback: () => void;
 }) {
@@ -311,8 +330,10 @@ function DailyReportResultStep({
             <AlertDialogHeader>
               <AlertDialogTitle>日報取込みを取り消しますか？</AlertDialogTitle>
               <AlertDialogDescription>
-                ID {result.daily_report_import_id}{" "}
-                の日報取込みを取り消します。取消しても在庫数は変わりません。
+                この取込みだけを取り消します。同じ日の他の取込みは残ります。ID{" "}
+                {result.daily_report_import_id} / {reportDate} / {filenames.join(" / ")} / 総売上{" "}
+                {formatMoney(result.gross_amount)} / 純売上 {formatMoney(result.net_amount)}
+                。取消しても在庫数は変わりません。
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>

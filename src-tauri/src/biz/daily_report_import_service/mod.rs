@@ -98,13 +98,22 @@ pub struct DailyReportWarning {
 pub enum DailyReportDuplicateStatus {
     NoDuplicate,
     AlreadyImported,
-    OverwriteRequired,
+    AdditionalImportConfirmationRequired,
 }
 
 #[derive(Debug, Clone, Serialize, specta::Type)]
 pub struct DailyReportDuplicateCheck {
     pub status: DailyReportDuplicateStatus,
-    pub existing_import_id: Option<i64>,
+    pub same_date_imports: Vec<SameDateDailyReportImportSummary>,
+}
+
+#[derive(Debug, Clone, Serialize, specta::Type)]
+pub struct SameDateDailyReportImportSummary {
+    pub id: i64,
+    pub source_filenames: Vec<String>,
+    pub gross_amount: Option<i64>,
+    pub net_amount: Option<i64>,
+    pub imported_at: String,
 }
 
 #[derive(Debug, Clone)]
@@ -114,6 +123,7 @@ pub struct CachedDailyReportPreview {
     pub summary_lines: Vec<CachedDailyReportSummaryLine>,
     pub payment_lines: Vec<DailyReportPaymentLinePreview>,
     pub department_lines: Vec<DailyReportDepartmentLinePreview>,
+    pub active_same_date_import_ids: Vec<i64>,
 }
 
 #[derive(Debug, Clone)]

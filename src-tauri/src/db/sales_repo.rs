@@ -4,7 +4,6 @@
 //! IO-01: SQLiteデータアクセス層（sales_repository）
 
 use super::{DbConnection, DbError};
-use rusqlite::OptionalExtension;
 
 // ---------------------------------------------------------------------------
 // 型定義
@@ -305,7 +304,7 @@ pub fn find_blocking_import_by_file_hash(
     }
 }
 
-/// settlement_date で有効な csv_imports を検索する（同日上書き確認用）
+/// settlement_date で有効な csv_imports を検索する（同日追加確認用）
 ///
 /// 24-io-csv-import-repo.md §14.7
 pub fn find_imports_by_settlement_date(
@@ -315,7 +314,7 @@ pub fn find_imports_by_settlement_date(
     let mut stmt = conn.prepare(
         "SELECT id, filename, settlement_date, file_hash, total_items, total_amount, skipped_count, status, imported_at
          FROM csv_imports WHERE settlement_date = ?1 AND status IN ('completed','completed_partial')
-         ORDER BY id DESC",
+         ORDER BY imported_at DESC, id DESC",
     )?;
     let rows = stmt.query_map(rusqlite::params![date], row_to_csv_import)?;
     let mut imports = Vec::new();
@@ -758,7 +757,7 @@ pub fn find_daily_report_imports_by_report_date(
                 gross_amount, net_amount, status, imported_at, rolled_back_at, note
          FROM daily_report_imports
          WHERE report_date = ?1 AND status = 'completed'
-         ORDER BY id DESC",
+         ORDER BY imported_at DESC, id DESC",
     )?;
     let rows = stmt.query_map(rusqlite::params![report_date], row_to_daily_report_import)?;
     let mut imports = Vec::new();
@@ -938,7 +937,7 @@ pub struct MonthlySaleDeptRow {
 /// 日次売上画面向けの公式日報サマリ（DB DTO）
 #[derive(Debug, serde::Serialize)]
 pub struct OfficialDailyReportRow {
-    pub daily_report_import_id: i64,
+    pub source_import_count: i64,
     pub report_date: String,
     pub gross_amount: Option<i64>,
     pub net_amount: Option<i64>,
@@ -982,12 +981,13 @@ pub fn get_daily_sales_records(
     let mut stmt = conn
         .prepare(
             "SELECT sr.product_code, p.name, d.name as department_name,
-                    d.id as department_id, sr.quantity, sr.amount, sr.source
+                    d.id as department_id, SUM(sr.quantity), SUM(sr.amount), sr.source
              FROM sale_records sr
              INNER JOIN products p ON sr.product_code = p.product_code
              INNER JOIN departments d ON p.department_id = d.id
              WHERE sr.sale_date = ?1 AND sr.is_voided = 0
-             ORDER BY d.id ASC, p.product_code ASC",
+             GROUP BY sr.product_code, p.name, d.name, d.id, sr.source
+             ORDER BY d.id ASC, sr.product_code ASC, sr.source ASC",
         )
         .map_err(|e| DbError::QueryFailed(e.to_string()))?;
 
@@ -1009,87 +1009,207 @@ pub fn get_daily_sales_records(
         .map_err(|e| DbError::QueryFailed(e.to_string()))
 }
 
-/// 指定日の最新completed日報取込みと配下の公式日報行を取得する
-pub fn get_latest_completed_daily_report(
+/// 指定日の全completed日報取込みと配下行を公式日次サマリへ集約する。
+pub fn get_completed_daily_report_aggregate(
     conn: &DbConnection,
     report_date: &str,
 ) -> Result<Option<OfficialDailyReportRow>, DbError> {
-    let parent = conn
-        .query_row(
+    let mut parent_stmt = conn
+        .prepare(
             "SELECT id, report_date, gross_amount, net_amount
              FROM daily_report_imports
              WHERE report_date = ?1 AND status = 'completed'
-             ORDER BY id DESC
-             LIMIT 1",
-            [report_date],
-            |row| {
-                Ok((
-                    row.get::<_, i64>(0)?,
-                    row.get::<_, String>(1)?,
-                    row.get::<_, Option<i64>>(2)?,
-                    row.get::<_, Option<i64>>(3)?,
-                ))
-            },
+             ORDER BY imported_at DESC, id DESC",
         )
-        .optional()
+        .map_err(|e| DbError::QueryFailed(e.to_string()))?;
+    let parents = parent_stmt
+        .query_map([report_date], |row| {
+            Ok((
+                row.get::<_, i64>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, Option<i64>>(2)?,
+                row.get::<_, Option<i64>>(3)?,
+            ))
+        })
+        .map_err(|e| DbError::QueryFailed(e.to_string()))?
+        .collect::<Result<Vec<_>, _>>()
         .map_err(|e| DbError::QueryFailed(e.to_string()))?;
 
-    let Some((daily_report_import_id, report_date, gross_amount, net_amount)) = parent else {
+    if parents.is_empty() {
         return Ok(None);
-    };
+    }
+    let parent_ids: Vec<_> = parents.iter().map(|parent| parent.0).collect();
+    let report_date = parents[0].1.clone();
+    let gross_amount = sum_optional_strict(parents.iter().map(|parent| parent.2));
+    let net_amount = sum_optional_strict(parents.iter().map(|parent| parent.3));
 
     let mut payment_stmt = conn
         .prepare(
-            "SELECT payment_key, label, amount, count
-             FROM daily_report_payment_lines
-             WHERE daily_report_import_id = ?1
-             ORDER BY sort_order ASC, id ASC",
+            "SELECT l.payment_key, l.label, l.amount, l.count, l.sort_order, l.id
+             FROM daily_report_payment_lines l
+             INNER JOIN daily_report_imports i ON i.id = l.daily_report_import_id
+             WHERE i.report_date = ?1 AND i.status = 'completed'
+             ORDER BY l.sort_order ASC, l.id ASC",
         )
         .map_err(|e| DbError::QueryFailed(e.to_string()))?;
     let payment_lines = payment_stmt
-        .query_map([daily_report_import_id], |row| {
-            Ok(OfficialDailyPaymentRow {
-                payment_key: row.get(0)?,
-                label: row.get(1)?,
-                amount: row.get(2)?,
-                count: row.get(3)?,
-            })
+        .query_map([report_date.as_str()], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, Option<i64>>(2)?,
+                row.get::<_, Option<i64>>(3)?,
+                row.get::<_, i64>(4)?,
+                row.get::<_, i64>(5)?,
+            ))
         })
         .map_err(|e| DbError::QueryFailed(e.to_string()))?
         .collect::<Result<Vec<_>, _>>()
         .map_err(|e| DbError::QueryFailed(e.to_string()))?;
+    type PaymentGroup = (String, Vec<Option<i64>>, Vec<Option<i64>>, i64, i64);
+    let mut payment_groups: std::collections::BTreeMap<String, PaymentGroup> =
+        std::collections::BTreeMap::new();
+    for (key, label, amount, count, sort_order, id) in payment_lines {
+        let group = payment_groups
+            .entry(key)
+            .or_insert_with(|| (label.clone(), Vec::new(), Vec::new(), sort_order, id));
+        group.1.push(amount);
+        group.2.push(count);
+        if (sort_order, id) < (group.3, group.4) {
+            group.0 = label;
+            group.3 = sort_order;
+            group.4 = id;
+        }
+    }
+    let mut payment_lines: Vec<_> = payment_groups
+        .into_iter()
+        .map(|(payment_key, (label, amounts, counts, sort_order, id))| {
+            (
+                (sort_order, id),
+                OfficialDailyPaymentRow {
+                    payment_key,
+                    label,
+                    amount: sum_optional_strict(amounts),
+                    count: sum_optional_strict(counts),
+                },
+            )
+        })
+        .collect();
+    payment_lines.sort_by_key(|item| item.0);
+    let payment_lines = payment_lines.into_iter().map(|item| item.1).collect();
 
     let mut department_stmt = conn
         .prepare(
-            "SELECT department_id, raw_department_name, normalized_department_name, amount, quantity, count
-             FROM daily_report_department_lines
-             WHERE daily_report_import_id = ?1
-             ORDER BY sort_order ASC, id ASC",
+            "SELECT l.department_id, l.raw_department_name, l.normalized_department_name,
+                    l.amount, l.quantity, l.count, l.sort_order, l.id
+             FROM daily_report_department_lines l
+             INNER JOIN daily_report_imports i ON i.id = l.daily_report_import_id
+             WHERE i.report_date = ?1 AND i.status = 'completed'
+             ORDER BY l.sort_order ASC, l.id ASC",
         )
         .map_err(|e| DbError::QueryFailed(e.to_string()))?;
     let department_lines = department_stmt
-        .query_map([daily_report_import_id], |row| {
-            Ok(OfficialDailyDepartmentRow {
-                department_id: row.get(0)?,
-                raw_department_name: row.get(1)?,
-                normalized_department_name: row.get(2)?,
-                amount: row.get(3)?,
-                quantity: row.get(4)?,
-                count: row.get(5)?,
-            })
+        .query_map([report_date.as_str()], |row| {
+            Ok((
+                row.get::<_, Option<i64>>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, Option<String>>(2)?,
+                row.get::<_, i64>(3)?,
+                row.get::<_, Option<i64>>(4)?,
+                row.get::<_, Option<i64>>(5)?,
+                row.get::<_, i64>(6)?,
+                row.get::<_, i64>(7)?,
+            ))
         })
         .map_err(|e| DbError::QueryFailed(e.to_string()))?
         .collect::<Result<Vec<_>, _>>()
         .map_err(|e| DbError::QueryFailed(e.to_string()))?;
+    type DepartmentGroup = (
+        Option<i64>,
+        String,
+        Option<String>,
+        i64,
+        Vec<Option<i64>>,
+        Vec<Option<i64>>,
+        i64,
+        i64,
+    );
+    let mut department_groups: std::collections::BTreeMap<(Option<i64>, String), DepartmentGroup> =
+        std::collections::BTreeMap::new();
+    for (department_id, raw, normalized, amount, quantity, count, sort_order, id) in
+        department_lines
+    {
+        let identity = if let Some(department_id) = department_id {
+            (Some(department_id), String::new())
+        } else {
+            (None, normalized.clone().unwrap_or_else(|| raw.clone()))
+        };
+        let group = department_groups.entry(identity).or_insert_with(|| {
+            (
+                department_id,
+                raw.clone(),
+                normalized.clone(),
+                0,
+                Vec::new(),
+                Vec::new(),
+                sort_order,
+                id,
+            )
+        });
+        group.3 += amount;
+        group.4.push(quantity);
+        group.5.push(count);
+        if (sort_order, id) < (group.6, group.7) {
+            group.1 = raw;
+            group.2 = normalized;
+            group.6 = sort_order;
+            group.7 = id;
+        }
+    }
+    let mut department_lines: Vec<_> = department_groups
+        .into_values()
+        .map(
+            |(
+                department_id,
+                raw_department_name,
+                normalized_department_name,
+                amount,
+                quantities,
+                counts,
+                sort_order,
+                id,
+            )| {
+                (
+                    (sort_order, id),
+                    OfficialDailyDepartmentRow {
+                        department_id,
+                        raw_department_name,
+                        normalized_department_name,
+                        amount,
+                        quantity: sum_optional_strict(quantities),
+                        count: sum_optional_strict(counts),
+                    },
+                )
+            },
+        )
+        .collect();
+    department_lines.sort_by_key(|item| item.0);
+    let department_lines = department_lines.into_iter().map(|item| item.1).collect();
 
     Ok(Some(OfficialDailyReportRow {
-        daily_report_import_id,
+        source_import_count: parent_ids.len() as i64,
         report_date,
         gross_amount,
         net_amount,
         payment_lines,
         department_lines,
     }))
+}
+
+fn sum_optional_strict(values: impl IntoIterator<Item = Option<i64>>) -> Option<i64> {
+    values
+        .into_iter()
+        .try_fold(0_i64, |sum, value| value.map(|value| sum + value))
 }
 
 /// 指定期間のcompleted日報から公式部門集計を取得する
@@ -2023,9 +2143,8 @@ mod tests {
     }
 
     #[test]
-    fn test_get_latest_completed_daily_report_returns_latest_req501() {
-        // REQ-501: 日次売上公式日報表示
-        // FUNC-14.21: 指定日の最新completed親と配下行をsort_order順で返す
+    fn test_completed_daily_report_aggregate_req501_all_active_parents() {
+        // REQ-501 / I-R1 / SPEC-SDI-D6: 指定日の全completed親と配下行を加算する。
         let (_dir, conn) = setup_test_db();
         let old_id = seed_daily_report_import(&conn, "2026-03-21", "latest-old", "completed");
         insert_daily_report_payment_lines(
@@ -2082,41 +2201,330 @@ mod tests {
         )
         .unwrap();
 
-        let report = get_latest_completed_daily_report(&conn, "2026-03-21")
+        let report = get_completed_daily_report_aggregate(&conn, "2026-03-21")
             .unwrap()
             .unwrap();
-        assert_eq!(report.daily_report_import_id, latest_id);
-        assert_eq!(report.gross_amount, Some(12000));
-        assert_eq!(report.net_amount, Some(11000));
-        assert_eq!(report.payment_lines[0].payment_key, "cash");
-        assert_eq!(report.payment_lines[1].payment_key, "credit");
+        assert_eq!(report.source_import_count, 2);
+        assert_eq!(report.gross_amount, Some(24000));
+        assert_eq!(report.net_amount, Some(22000));
+        assert_eq!(report.payment_lines[0].payment_key, "old");
+        assert_eq!(report.payment_lines[1].payment_key, "cash");
+        assert_eq!(report.payment_lines[2].payment_key, "credit");
         assert_eq!(report.department_lines.len(), 1);
     }
 
     #[test]
-    fn test_get_latest_completed_daily_report_excludes_rolled_back_req501() {
+    fn test_get_completed_daily_report_aggregate_req501_propagates_parent_and_line_nulls() {
+        // REQ-501 / I-R2 / SPEC-SDI-D6: 一親/一行のNULLをpartial sumや0へ変換しない。
+        let (_dir, conn) = setup_test_db();
+        let first = insert_daily_report_import(
+            &conn,
+            &NewDailyReportImport {
+                gross_amount: None,
+                net_amount: Some(100),
+                ..new_daily_report_import("2026-03-21", "null-a", "completed")
+            },
+        )
+        .unwrap();
+        let second = insert_daily_report_import(
+            &conn,
+            &NewDailyReportImport {
+                gross_amount: Some(200),
+                net_amount: Some(300),
+                ..new_daily_report_import("2026-03-21", "null-b", "completed")
+            },
+        )
+        .unwrap();
+        insert_daily_report_payment_lines(
+            &conn,
+            &[
+                NewDailyReportPaymentLine {
+                    daily_report_import_id: first,
+                    source_file: "Z002".into(),
+                    payment_key: "cash".into(),
+                    label: "現金旧".into(),
+                    amount: None,
+                    count: Some(1),
+                    sort_order: 2,
+                },
+                NewDailyReportPaymentLine {
+                    daily_report_import_id: second,
+                    source_file: "Z002".into(),
+                    payment_key: "cash".into(),
+                    label: "現金新".into(),
+                    amount: Some(200),
+                    count: Some(2),
+                    sort_order: 1,
+                },
+            ],
+        )
+        .unwrap();
+        insert_daily_report_department_lines(
+            &conn,
+            &[
+                NewDailyReportDepartmentLine {
+                    daily_report_import_id: first,
+                    source_file: "Z005".into(),
+                    department_id: Some(1),
+                    raw_department_name: "旧名".into(),
+                    normalized_department_name: Some("その他小物".into()),
+                    amount: 100,
+                    quantity: None,
+                    count: Some(1),
+                    sort_order: 2,
+                },
+                NewDailyReportDepartmentLine {
+                    daily_report_import_id: second,
+                    source_file: "Z005".into(),
+                    department_id: Some(1),
+                    raw_department_name: "新名".into(),
+                    normalized_department_name: Some("その他小物".into()),
+                    amount: 200,
+                    quantity: Some(2),
+                    count: Some(2),
+                    sort_order: 1,
+                },
+            ],
+        )
+        .unwrap();
+
+        let report = get_completed_daily_report_aggregate(&conn, "2026-03-21")
+            .unwrap()
+            .unwrap();
+        assert_eq!(report.source_import_count, 2);
+        assert_eq!(report.gross_amount, None);
+        assert_eq!(report.net_amount, Some(400));
+        assert_eq!(report.payment_lines[0].label, "現金新");
+        assert_eq!(report.payment_lines[0].amount, None);
+        assert_eq!(report.payment_lines[0].count, Some(3));
+        assert_eq!(report.department_lines[0].raw_department_name, "新名");
+        assert_eq!(report.department_lines[0].amount, 300);
+        assert_eq!(report.department_lines[0].quantity, None);
+        assert_eq!(report.department_lines[0].count, Some(3));
+    }
+
+    #[test]
+    fn test_get_completed_daily_report_aggregate_req501_groups_identities_deterministically() {
+        // REQ-501 / I-R3 / SPEC-SDI-D6: known ID / normalized / raw fallback identityと代表行を固定する。
+        let (_dir, conn) = setup_test_db();
+        let first = seed_daily_report_import(&conn, "2026-03-21", "groups-a", "completed");
+        let second = seed_daily_report_import(&conn, "2026-03-21", "groups-b", "completed");
+        insert_daily_report_payment_lines(
+            &conn,
+            &[
+                NewDailyReportPaymentLine {
+                    daily_report_import_id: first,
+                    source_file: "Z002".into(),
+                    payment_key: "cash".into(),
+                    label: "現金 旧".into(),
+                    amount: Some(100),
+                    count: Some(1),
+                    sort_order: 4,
+                },
+                NewDailyReportPaymentLine {
+                    daily_report_import_id: second,
+                    source_file: "Z002".into(),
+                    payment_key: "cash".into(),
+                    label: "現金 新".into(),
+                    amount: Some(200),
+                    count: Some(2),
+                    sort_order: 1,
+                },
+            ],
+        )
+        .unwrap();
+        insert_daily_report_department_lines(
+            &conn,
+            &[
+                NewDailyReportDepartmentLine {
+                    daily_report_import_id: first,
+                    source_file: "Z005".into(),
+                    department_id: Some(1),
+                    raw_department_name: "既知部門 旧".into(),
+                    normalized_department_name: Some("旧label".into()),
+                    amount: 400,
+                    quantity: Some(4),
+                    count: Some(4),
+                    sort_order: 5,
+                },
+                NewDailyReportDepartmentLine {
+                    daily_report_import_id: second,
+                    source_file: "Z005".into(),
+                    department_id: Some(1),
+                    raw_department_name: "既知部門 新".into(),
+                    normalized_department_name: Some("新label".into()),
+                    amount: 500,
+                    quantity: Some(5),
+                    count: Some(5),
+                    sort_order: 0,
+                },
+                NewDailyReportDepartmentLine {
+                    daily_report_import_id: first,
+                    source_file: "Z005".into(),
+                    department_id: None,
+                    raw_department_name: "生地 旧".into(),
+                    normalized_department_name: Some("生地".into()),
+                    amount: 100,
+                    quantity: Some(1),
+                    count: Some(1),
+                    sort_order: 4,
+                },
+                NewDailyReportDepartmentLine {
+                    daily_report_import_id: second,
+                    source_file: "Z005".into(),
+                    department_id: None,
+                    raw_department_name: "生地 新".into(),
+                    normalized_department_name: Some("生地".into()),
+                    amount: 200,
+                    quantity: Some(2),
+                    count: Some(2),
+                    sort_order: 1,
+                },
+                NewDailyReportDepartmentLine {
+                    daily_report_import_id: second,
+                    source_file: "Z005".into(),
+                    department_id: None,
+                    raw_department_name: "毛糸".into(),
+                    normalized_department_name: None,
+                    amount: 300,
+                    quantity: Some(3),
+                    count: Some(3),
+                    sort_order: 2,
+                },
+            ],
+        )
+        .unwrap();
+
+        let report = get_completed_daily_report_aggregate(&conn, "2026-03-21")
+            .unwrap()
+            .unwrap();
+        assert_eq!(report.payment_lines.len(), 1);
+        assert_eq!(report.payment_lines[0].payment_key, "cash");
+        assert_eq!(report.payment_lines[0].label, "現金 新");
+        assert_eq!(report.payment_lines[0].amount, Some(300));
+        assert_eq!(report.payment_lines[0].count, Some(3));
+        assert_eq!(report.department_lines.len(), 3);
+        let known = report
+            .department_lines
+            .iter()
+            .find(|line| line.department_id == Some(1))
+            .unwrap();
+        assert_eq!(known.raw_department_name, "既知部門 新");
+        assert_eq!(known.normalized_department_name.as_deref(), Some("新label"));
+        assert_eq!(known.amount, 900);
+        assert_eq!(known.quantity, Some(9));
+        let fabric = report
+            .department_lines
+            .iter()
+            .find(|line| line.normalized_department_name.as_deref() == Some("生地"))
+            .unwrap();
+        assert_eq!(fabric.raw_department_name, "生地 新");
+        assert_eq!(fabric.amount, 300);
+    }
+
+    #[test]
+    fn test_completed_daily_report_aggregate_excludes_rolled_back_req501() {
         // REQ-501: 日次売上公式日報表示
         // FUNC-14.21: rolled_back親は公式表示対象外
         let (_dir, conn) = setup_test_db();
         seed_daily_report_import(&conn, "2026-03-21", "rolled", "rolled_back");
 
-        let report = get_latest_completed_daily_report(&conn, "2026-03-21").unwrap();
+        let report = get_completed_daily_report_aggregate(&conn, "2026-03-21").unwrap();
         assert!(report.is_none());
     }
 
     #[test]
-    fn test_get_latest_completed_daily_report_after_overwrite_req501() {
-        // REQ-501: 日次売上公式日報表示
-        // FUNC-14.21: 上書き後はrolled_back旧親ではなく新completed親を返す
+    fn test_completed_daily_report_aggregate_after_per_import_rollback_req501() {
+        // REQ-501 / I-R6 / SPEC-SDI-D6,D7: rollback済み親を除外し sibling completed を返す。
         let (_dir, conn) = setup_test_db();
         let old_id = seed_daily_report_import(&conn, "2026-03-21", "overwrite-old", "completed");
+        conn.execute(
+            "UPDATE daily_report_imports SET gross_amount = 100, net_amount = 90 WHERE id = ?1",
+            [old_id],
+        )
+        .unwrap();
+        insert_daily_report_payment_lines(
+            &conn,
+            &[NewDailyReportPaymentLine {
+                daily_report_import_id: old_id,
+                source_file: "Z002".into(),
+                payment_key: "cash".into(),
+                label: "取消対象".into(),
+                amount: Some(100),
+                count: Some(1),
+                sort_order: 1,
+            }],
+        )
+        .unwrap();
+        insert_daily_report_department_lines(
+            &conn,
+            &[NewDailyReportDepartmentLine {
+                daily_report_import_id: old_id,
+                source_file: "Z005".into(),
+                department_id: Some(1),
+                raw_department_name: "取消対象部門".into(),
+                normalized_department_name: Some("取消対象部門".into()),
+                amount: 100,
+                quantity: Some(1),
+                count: Some(1),
+                sort_order: 1,
+            }],
+        )
+        .unwrap();
         rollback_daily_report_import(&conn, old_id, "2026-03-22T10:00:00").unwrap();
-        let new_id = seed_daily_report_import(&conn, "2026-03-21", "overwrite-new", "completed");
+        let sibling_id = seed_daily_report_import(&conn, "2026-03-21", "sibling-new", "completed");
+        conn.execute(
+            "UPDATE daily_report_imports SET gross_amount = 700, net_amount = 600 WHERE id = ?1",
+            [sibling_id],
+        )
+        .unwrap();
+        insert_daily_report_payment_lines(
+            &conn,
+            &[NewDailyReportPaymentLine {
+                daily_report_import_id: sibling_id,
+                source_file: "Z002".into(),
+                payment_key: "cash".into(),
+                label: "残存支払".into(),
+                amount: Some(600),
+                count: Some(6),
+                sort_order: 1,
+            }],
+        )
+        .unwrap();
+        insert_daily_report_department_lines(
+            &conn,
+            &[NewDailyReportDepartmentLine {
+                daily_report_import_id: sibling_id,
+                source_file: "Z005".into(),
+                department_id: Some(1),
+                raw_department_name: "残存部門".into(),
+                normalized_department_name: Some("残存部門".into()),
+                amount: 600,
+                quantity: Some(6),
+                count: Some(6),
+                sort_order: 1,
+            }],
+        )
+        .unwrap();
 
-        let report = get_latest_completed_daily_report(&conn, "2026-03-21")
+        let report = get_completed_daily_report_aggregate(&conn, "2026-03-21")
             .unwrap()
             .unwrap();
-        assert_eq!(report.daily_report_import_id, new_id);
+        assert_eq!(report.source_import_count, 1);
+        assert_eq!(report.gross_amount, Some(700));
+        assert_eq!(report.net_amount, Some(600));
+        assert_eq!(report.payment_lines.len(), 1);
+        assert_eq!(report.payment_lines[0].label, "残存支払");
+        assert_eq!(report.payment_lines[0].amount, Some(600));
+        assert_eq!(report.department_lines.len(), 1);
+        assert_eq!(report.department_lines[0].raw_department_name, "残存部門");
+        assert_eq!(report.department_lines[0].amount, 600);
+        assert!(!rollback_daily_report_import(&conn, old_id, "2026-03-22T11:00:00").unwrap());
+        let repeated = get_completed_daily_report_aggregate(&conn, "2026-03-21")
+            .unwrap()
+            .unwrap();
+        assert_eq!(repeated.gross_amount, Some(700));
+        assert_eq!(repeated.department_lines[0].amount, 600);
     }
 
     #[test]
@@ -2268,21 +2676,26 @@ mod tests {
     }
 
     #[test]
-    fn test_get_daily_sales_records_req501_normal() {
-        // REQ-501: 日次売上（日付別商品売上集計）
-        // 2.10: auto+manual混在の正常取得
+    fn test_get_daily_sales_records_req501_sums_product_and_source_across_imports() {
+        // REQ-501 / I-R4 / SPEC-SDI-D6: product_code + source ごとに合算しsource間は分離する。
         let (_dir, conn) = setup_test_db();
         seed_product_with_dept(&conn, "P001", 1);
         seed_product_with_dept(&conn, "P002", 3);
         seed_sale(&conn, "P001", "2026-03-21", 2, 1000, "auto", false);
+        seed_sale(&conn, "P001", "2026-03-21", 3, 1500, "auto", false);
+        seed_sale(&conn, "P001", "2026-03-21", 1, 400, "manual", false);
+        seed_sale(&conn, "P001", "2026-03-21", 9, 9000, "auto", true);
         seed_sale(&conn, "P002", "2026-03-21", 1, 500, "manual", false);
 
         let rows = get_daily_sales_records(&conn, "2026-03-21").unwrap();
-        assert_eq!(rows.len(), 2);
+        assert_eq!(rows.len(), 3);
         assert_eq!(rows[0].product_code, "P001"); // dept 1 < dept 3
         assert_eq!(rows[0].source, "auto");
-        assert_eq!(rows[1].product_code, "P002");
+        assert_eq!((rows[0].quantity, rows[0].amount), (5, 2500));
+        assert_eq!(rows[1].product_code, "P001");
         assert_eq!(rows[1].source, "manual");
+        assert_eq!((rows[1].quantity, rows[1].amount), (1, 400));
+        assert_eq!(rows[2].product_code, "P002");
     }
 
     #[test]
@@ -2385,12 +2798,12 @@ mod tests {
     }
 
     #[test]
-    fn test_get_monthly_official_department_totals_aggregates_req502() {
-        // REQ-502: 月次売上公式部門集計
-        // FUNC-14.22: completed日報のZ005部門行を月内集計する
+    fn test_get_monthly_official_department_totals_req502_includes_two_same_date_parents() {
+        // REQ-502 / I-R7 / SPEC-SDI-D6: 同一日2 completedをSUMしrolled_backを除外する。
         let (_dir, conn) = setup_test_db();
         let first = seed_daily_report_import(&conn, "2026-03-01", "monthly-a", "completed");
-        let second = seed_daily_report_import(&conn, "2026-03-15", "monthly-b", "completed");
+        let second = seed_daily_report_import(&conn, "2026-03-01", "monthly-b", "completed");
+        let rolled = seed_daily_report_import(&conn, "2026-03-01", "monthly-rolled", "rolled_back");
         seed_daily_report_import(&conn, "2026-04-01", "monthly-other", "completed");
         insert_daily_report_department_lines(
             &conn,
@@ -2404,6 +2817,17 @@ mod tests {
                     amount: 1000,
                     quantity: Some(2),
                     count: Some(1),
+                    sort_order: 1,
+                },
+                NewDailyReportDepartmentLine {
+                    daily_report_import_id: rolled,
+                    source_file: "Z005".to_string(),
+                    department_id: Some(1),
+                    raw_department_name: "その他小物".to_string(),
+                    normalized_department_name: Some("その他小物".to_string()),
+                    amount: 9000,
+                    quantity: Some(9),
+                    count: Some(9),
                     sort_order: 1,
                 },
                 NewDailyReportDepartmentLine {

@@ -1,21 +1,22 @@
 // src/features/csv-import/components/PreviewStep.tsx
 //
-// Step 2/3: プレビュー確認 + 取込み / 選び直し CTA + OverwriteConfirmDialog 連動。
+// Step 2/3: プレビュー確認 + 取込み / 選び直し CTA + 同日追加確認。
 // 設計: docs/function-design/55-ui-csv-import.md §55.1 / §55.4 step 6-10 / §55.5
 
 import { useState } from "react";
 import { FilePicker, type PickedFile } from "@/components/FilePicker";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { PreviewData } from "@/lib/bindings";
 import { ErrorRowsTable } from "./ErrorRowsTable";
-import { OverwriteConfirmDialog } from "./OverwriteConfirmDialog";
+import { AdditionalImportConfirmDialog } from "./AdditionalImportConfirmDialog";
 
 export interface PreviewStepProps {
   preview: PreviewData;
   filename: string;
-  onConfirm: (overwriteConfirmed: boolean) => void;
+  onConfirm: (additionalImportConfirmed: boolean) => void;
   onReselect: (file: PickedFile) => void;
   isImporting: boolean;
 }
@@ -30,17 +31,18 @@ export function PreviewStep({
   const { file_info, matched_summary, error_summary, duplicate_check } = preview;
   const [dialogOpen, setDialogOpen] = useState(false);
 
-  const requiresOverwriteConfirm = duplicate_check.status === "OverwriteRequired";
+  const requiresAdditionalConfirm =
+    duplicate_check.status === "AdditionalImportConfirmationRequired";
 
   function handleImportClick() {
-    if (requiresOverwriteConfirm) {
+    if (requiresAdditionalConfirm) {
       setDialogOpen(true);
       return;
     }
     onConfirm(false);
   }
 
-  function handleOverwriteConfirm() {
+  function handleAdditionalConfirm() {
     setDialogOpen(false);
     onConfirm(true);
   }
@@ -48,8 +50,9 @@ export function PreviewStep({
   return (
     <div className="space-y-4">
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between gap-4">
           <CardTitle>ファイル情報</CardTitle>
+          {requiresAdditionalConfirm && <Badge variant="outline">追加確認</Badge>}
         </CardHeader>
         <CardContent className="space-y-2 text-sm">
           <div>
@@ -97,12 +100,11 @@ export function PreviewStep({
 
       {error_summary.count > 0 && <ErrorRowsTable errorSummary={error_summary} />}
 
-      {requiresOverwriteConfirm && (
-        <Alert variant="destructive">
-          <AlertTitle>同じ精算日の取込み履歴があります</AlertTitle>
+      {requiresAdditionalConfirm && (
+        <Alert>
+          <AlertTitle>同じ日の取込みがあります</AlertTitle>
           <AlertDescription>
-            既存の取込み (ID: {duplicate_check.existing_import_id ?? "—"})
-            を上書きするには「取り込む」を押し、表示される確認ダイアログで承認してください。
+            既存分を残したまま今回分を追加します。内容を確認してください。
           </AlertDescription>
         </Alert>
       )}
@@ -122,10 +124,20 @@ export function PreviewStep({
         />
       </div>
 
-      <OverwriteConfirmDialog
+      <AdditionalImportConfirmDialog
         open={dialogOpen}
-        existingImportId={duplicate_check.existing_import_id}
-        onConfirm={handleOverwriteConfirm}
+        existingImports={duplicate_check.same_date_imports.map((item) => ({
+          id: item.id,
+          filenames: item.filename,
+          amount: `¥${item.total_amount.toLocaleString("ja-JP")} / ${item.total_items.toLocaleString("ja-JP")}件`,
+          importedAt: item.imported_at,
+        }))}
+        incomingImport={{
+          filenames: file_info.filename,
+          amount: `¥${matched_summary.total_amount.toLocaleString("ja-JP")} / ${matched_summary.count.toLocaleString("ja-JP")}件`,
+          importedAt: preview.preview_created_at,
+        }}
+        onConfirm={handleAdditionalConfirm}
         onCancel={() => {
           setDialogOpen(false);
         }}

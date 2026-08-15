@@ -70,15 +70,15 @@ pub fn parse_and_validate_daily_report(
 pub fn commit_daily_report_import(
     state: State<AppState>,
     preview_token: String,
-    overwrite_confirmed: bool,
+    additional_import_confirmed: bool,
 ) -> Result<DailyReportImportResult, CmdError> {
-    commit_daily_report_import_with_state(&state, preview_token, overwrite_confirmed)
+    commit_daily_report_import_with_state(&state, preview_token, additional_import_confirmed)
 }
 
 fn commit_daily_report_import_with_state(
     state: &AppState,
     preview_token: String,
-    overwrite_confirmed: bool,
+    additional_import_confirmed: bool,
 ) -> Result<DailyReportImportResult, CmdError> {
     validate_preview_token(&preview_token)?;
     let cached_preview = {
@@ -114,7 +114,7 @@ fn commit_daily_report_import_with_state(
     match daily_report_import_service::commit_daily_report_import(
         &mut conn,
         cached_preview,
-        overwrite_confirmed,
+        additional_import_confirmed,
     ) {
         Ok(result) => {
             drop(conn);
@@ -125,7 +125,20 @@ fn commit_daily_report_import_with_state(
             cache.remove(&preview_token);
             Ok(result)
         }
-        Err(err) => Err(CmdError::from(err)),
+        Err(err) => {
+            if err
+                .to_string()
+                .contains("同日の取込み状況が変わりました。再度プレビューしてください")
+            {
+                drop(conn);
+                let mut cache = state
+                    .daily_report_preview_cache
+                    .lock()
+                    .map_err(|error| CmdError::internal("キャッシュ取得エラー", error))?;
+                cache.remove(&preview_token);
+            }
+            Err(CmdError::from(err))
+        }
     }
 }
 
@@ -251,13 +264,14 @@ mod tests {
                 warnings: Vec::new(),
                 duplicate_check: DailyReportDuplicateCheck {
                     status: DailyReportDuplicateStatus::NoDuplicate,
-                    existing_import_id: None,
+                    same_date_imports: Vec::new(),
                 },
                 preview_created_at: "2026-03-21T10:00:00".to_string(),
             },
             summary_lines: Vec::new(),
             payment_lines: Vec::new(),
             department_lines: Vec::new(),
+            active_same_date_import_ids: Vec::new(),
         }
     }
 
@@ -385,5 +399,66 @@ mod tests {
 
         assert_eq!(cache.len(), constants::PREVIEW_CACHE_LIMIT - 1);
         assert!(!cache.contains_key(&format!("token-{}", constants::PREVIEW_CACHE_LIMIT - 1)));
+    }
+
+    #[test]
+    fn test_daily_report_cmd_req401_snapshot_mismatch_deletes_preview_token() {
+        // REQ-401 / I-W5 / SPEC-SDI-D4: mismatch tokenは破棄し新previewを要求する。
+        let (_dir, state) = app_state();
+        let concurrent_id = crate::db::sales_repo::insert_daily_report_import(
+            &state.db.lock().unwrap(),
+            &crate::db::sales_repo::NewDailyReportImport {
+                report_date: "2026-03-21".into(),
+                source_adapter: "casio_sr_s4000".into(),
+                bundle_hash: "concurrent".into(),
+                source_files_json: "[]".into(),
+                gross_amount: Some(1),
+                net_amount: Some(1),
+                status: "completed".into(),
+                note: None,
+            },
+        )
+        .unwrap();
+        let token = uuid::Uuid::new_v4().to_string();
+        state
+            .daily_report_preview_cache
+            .lock()
+            .unwrap()
+            .insert(token.clone(), cached(Instant::now()));
+
+        let error =
+            commit_daily_report_import_with_state(&state, token.clone(), false).unwrap_err();
+        assert_eq!(
+            error.message,
+            "同日の取込み状況が変わりました。再度プレビューしてください"
+        );
+        assert!(!state
+            .daily_report_preview_cache
+            .lock()
+            .unwrap()
+            .contains_key(&token));
+        let retry = commit_daily_report_import_with_state(&state, token, false).unwrap_err();
+        assert_eq!(retry.kind, CmdErrorKind::ImportError);
+
+        let new_token = uuid::Uuid::new_v4().to_string();
+        let mut fresh = cached_with_status(
+            Instant::now(),
+            DailyReportDuplicateStatus::AdditionalImportConfirmationRequired,
+        );
+        fresh.active_same_date_import_ids = vec![concurrent_id];
+        fresh.preview_data.file_info.bundle_hash = "fresh-hash".to_string();
+        state
+            .daily_report_preview_cache
+            .lock()
+            .unwrap()
+            .insert(new_token.clone(), fresh);
+        let committed =
+            commit_daily_report_import_with_state(&state, new_token.clone(), true).unwrap();
+        assert_eq!(committed.status, "completed");
+        assert!(!state
+            .daily_report_preview_cache
+            .lock()
+            .unwrap()
+            .contains_key(&new_token));
     }
 }

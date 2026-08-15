@@ -67,6 +67,26 @@ fn assert_struct_fields(source: &str, struct_name: &str, expected: &[&str]) {
     );
 }
 
+fn typescript_type_fields(source: &str, type_name: &str) -> Vec<String> {
+    let anchor = format!("export type {type_name} = {{");
+    let start = source
+        .find(&anchor)
+        .unwrap_or_else(|| panic!("TypeScript type {type_name} not found"))
+        + anchor.len();
+    let end = source[start..]
+        .find("\n};")
+        .map(|offset| start + offset)
+        .unwrap_or_else(|| panic!("TypeScript type {type_name} is not closed"));
+    source[start..end]
+        .lines()
+        .filter_map(|line| {
+            line.trim()
+                .split_once(':')
+                .map(|(name, _)| name.to_string())
+        })
+        .collect()
+}
+
 fn markdown_section<'a>(source: &'a str, heading: &str, next_heading: &str) -> &'a str {
     let start = source
         .find(heading)
@@ -105,13 +125,10 @@ fn test_import_internal_contract_req401_is_minimal() {
         "amount",
         "pos_stock_sync",
     ];
-    // SPEC-SDI-D3 遷移 pin。実装 PR（packet
-    // 2026-08-16-same-day-import-idempotency の I-W4）で code rename と同時に
-    // 単一 pin へ再統一する。どちらか一方だけの変更はこの test が検出する。
-    let rust_commit_fields = ["overwrite_confirmed", "cached_data"];
-    let markdown_commit_fields = ["additional_import_confirmed", "cached_data"];
+    // I-W4 / SPEC-SDI-D3: 実装完了後は source design と Rust を単一 exact pin で固定する。
+    let commit_fields = ["additional_import_confirmed", "cached_data"];
     assert_struct_fields(&csv_source, "MatchedRow", &matched_fields);
-    assert_struct_fields(&csv_source, "CommitRequest", &rust_commit_fields);
+    assert_struct_fields(&csv_source, "CommitRequest", &commit_fields);
     assert_eq!(
         markdown_field_names(markdown_section(
             &csv_design,
@@ -127,7 +144,7 @@ fn test_import_internal_contract_req401_is_minimal() {
             "#### CommitRequest構造体",
             "#### ImportResult構造体",
         )),
-        markdown_commit_fields,
+        commit_fields,
         "CommitRequest design section must keep the minimal field contract"
     );
 
@@ -173,4 +190,111 @@ fn test_import_internal_contract_req401_is_minimal() {
             ],
         );
     }
+}
+
+#[test]
+fn test_wire_contract_req401_i_w1_i_w2_i_w3_i_w5_generated_binding_is_atomic() {
+    // REQ-401 / I-W1 / I-W2 / I-W3 / I-W5 / SPEC-SDI-D1,D2,D3,D6:
+    // producer/consumer generated contract must switch as one exact surface.
+    let bindings = read_repo_file("src/lib/bindings.ts");
+    for required in [
+        "AdditionalImportConfirmationRequired",
+        "AlreadyImported",
+        "additionalImportConfirmed",
+        "same_date_imports",
+        "source_import_count",
+    ] {
+        assert!(
+            bindings.contains(required),
+            "generated bindings missing {required}"
+        );
+    }
+    for removed in [
+        ["Overwrite", "Required"].concat(),
+        ["overwrite", "Confirmed"].concat(),
+        ["existing", "_import_id"].concat(),
+    ] {
+        assert!(
+            !bindings.contains(&removed),
+            "generated bindings retained {removed}"
+        );
+    }
+    assert_eq!(
+        typescript_type_fields(&bindings, "OfficialDailyReportSummary"),
+        [
+            "source_import_count",
+            "report_date",
+            "gross_amount",
+            "net_amount",
+            "payment_lines",
+            "department_lines",
+            "warnings",
+        ],
+        "OfficialDailyReportSummary must use source count without a singular import ID"
+    );
+}
+
+#[test]
+fn test_sales_design_req502_future_coverage_counts_distinct_report_dates() {
+    // REQ-502 / I-R8 / SPEC-SDI-D6: 未実装coverage fieldの将来契約だけをsource docsへpinする。
+    for path in [
+        "docs/function-design/24-io-csv-import-repo.md",
+        "docs/function-design/34-biz-sales-service.md",
+    ] {
+        let source = read_repo_file(path);
+        assert!(
+            source.contains("COUNT(DISTINCT report_date)"),
+            "{path} must count future coverage by distinct business dates"
+        );
+    }
+}
+
+fn sweep_dir_for_tokens(dir: &Path, tokens: &[String], hits: &mut Vec<String>) {
+    // 外部 binary（rg 等）へ依存すると hosted runner に存在せず環境依存 fail する
+    // （2026-08-16 hosted CI 実発生）ため、file walk + literal 検索を test 内蔵で行う。
+    let entries =
+        fs::read_dir(dir).unwrap_or_else(|error| panic!("read_dir failed for {dir:?}: {error}"));
+    for entry in entries {
+        let path = entry
+            .unwrap_or_else(|error| panic!("dir entry failed under {dir:?}: {error}"))
+            .path();
+        if path.is_dir() {
+            sweep_dir_for_tokens(&path, tokens, hits);
+            continue;
+        }
+        let bytes =
+            fs::read(&path).unwrap_or_else(|error| panic!("read failed for {path:?}: {error}"));
+        let text = String::from_utf8_lossy(&bytes);
+        for (index, line) in text.lines().enumerate() {
+            for token in tokens {
+                if line.contains(token.as_str()) {
+                    hits.push(format!("{}:{}:{}", path.display(), index + 1, line.trim()));
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn test_active_sales_import_vocabulary_sweep_i_g1() {
+    // REQ-401 / I-G1 / SPEC-SDI-D8: active Rust/TS/generated surfaceに旧取込み契約を残さない。
+    let repo_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("..");
+    let removed = [
+        ["Overwrite", "Required"].concat(),
+        ["overwrite", "_confirmed"].concat(),
+        ["overwrite", "Confirmed"].concat(),
+        ["Overwrite", "ConfirmDialog"].concat(),
+        ["requires", "Overwrite"].concat(),
+        ["existing", "_import_id"].concat(),
+        ["get_latest", "_completed_daily_report"].concat(),
+    ];
+    let mut hits = Vec::new();
+    for target in ["src-tauri/src", "src-tauri/tests", "src"] {
+        sweep_dir_for_tokens(&repo_root.join(target), &removed, &mut hits);
+    }
+    assert!(
+        hits.is_empty(),
+        "active stale vocabulary:\n{}",
+        hits.join("\n")
+    );
 }

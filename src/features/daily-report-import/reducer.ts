@@ -36,7 +36,7 @@ export function dailyReportImportReducer(
           status: "importing",
           preview: state.preview,
           previewToken: state.previewToken,
-          overwriteConfirmed: action.overwriteConfirmed,
+          additionalImportConfirmed: action.additionalImportConfirmed,
           filenames: state.filenames,
         };
       }
@@ -46,7 +46,12 @@ export function dailyReportImportReducer(
       return state;
     case "importing":
       if (action.type === "import_succeeded") {
-        return { status: "result", result: action.result, reportDate: action.reportDate };
+        return {
+          status: "result",
+          result: action.result,
+          reportDate: action.reportDate,
+          filenames: state.filenames,
+        };
       }
       if (action.type === "import_failed") {
         return {

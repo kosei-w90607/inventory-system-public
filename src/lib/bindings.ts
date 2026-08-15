@@ -141,7 +141,7 @@ export const commands = {
 	 *
 	 *  docs/function-design/41-cmd-pos.md §17.5 commit_csv_import
 	 */
-	commitCsvImport: (previewToken: string, overwriteConfirmed: boolean) => typedError<ImportResult, CmdError>(__TAURI_INVOKE("commit_csv_import", { previewToken, overwriteConfirmed })),
+	commitCsvImport: (previewToken: string, additionalImportConfirmed: boolean) => typedError<ImportResult, CmdError>(__TAURI_INVOKE("commit_csv_import", { previewToken, additionalImportConfirmed })),
 	/**
 	 *  CSV取込みをロールバック（論理無効化）する
 	 *
@@ -161,7 +161,7 @@ export const commands = {
 	 */
 	getCsvImportRecord: (importId: number) => typedError<CsvImportRecordDetail, CmdError>(__TAURI_INVOKE("get_csv_import_record", { importId })),
 	parseAndValidateDailyReport: (files: DailyReportSourceFileRequest[]) => typedError<DailyReportPreviewResponse, CmdError>(__TAURI_INVOKE("parse_and_validate_daily_report", { files })),
-	commitDailyReportImport: (previewToken: string, overwriteConfirmed: boolean) => typedError<DailyReportImportResult, CmdError>(__TAURI_INVOKE("commit_daily_report_import", { previewToken, overwriteConfirmed })),
+	commitDailyReportImport: (previewToken: string, additionalImportConfirmed: boolean) => typedError<DailyReportImportResult, CmdError>(__TAURI_INVOKE("commit_daily_report_import", { previewToken, additionalImportConfirmed })),
 	rollbackDailyReportImport: (dailyReportImportId: number) => typedError<DailyReportRollbackResult, CmdError>(__TAURI_INVOKE("rollback_daily_report_import", { dailyReportImportId })),
 	listDailyReportImports: (page: number, perPage: number, dateFrom: string | null, dateTo: string | null) => typedError<PaginatedResult<DailyReportImport>, CmdError>(__TAURI_INVOKE("list_daily_report_imports", { page, perPage, dateFrom, dateTo })),
 	/**
@@ -448,10 +448,10 @@ export type DailyReportDepartmentLinePreview = {
 
 export type DailyReportDuplicateCheck = {
 	status: DailyReportDuplicateStatus,
-	existing_import_id: number | null,
+	same_date_imports: SameDateDailyReportImportSummary[],
 };
 
-export type DailyReportDuplicateStatus = "NoDuplicate" | "AlreadyImported" | "OverwriteRequired";
+export type DailyReportDuplicateStatus = "NoDuplicate" | "AlreadyImported" | "AdditionalImportConfirmationRequired";
 
 export type DailyReportFileInfo = {
 	report_date: string,
@@ -646,16 +646,15 @@ export type DisposalType = "disposal" | "damage" | "other";
 // 重複チェック結果
 export type DuplicateCheck = {
 	status: DuplicateStatus,
-	// OverwriteRequired時のみSome
-	existing_import_id: number | null,
+	same_date_imports: SameDateCsvImportSummary[],
 };
 
 // 重複チェックのステータス
 export type DuplicateStatus =
 // 問題なし
 "NoDuplicate" |
-// 同settlement_date、別ファイル → 上書き確認
-"OverwriteRequired";
+// 同settlement_date、別ファイル → 追加確認
+"AdditionalImportConfirmationRequired";
 
 // エラー行（フロント送信 + キャッシュ兼用）
 export type ErrorRow = {
@@ -970,7 +969,7 @@ export type OfficialDailyPaymentLine = {
 
 // レジ日報由来の公式日次サマリ
 export type OfficialDailyReportSummary = {
-	daily_report_import_id: number,
+	source_import_count: number,
 	report_date: string,
 	gross_amount: number | null,
 	net_amount: number | null,
@@ -1382,6 +1381,22 @@ export type SalesReportType =
 "monthly_by_product" |
 // 月次・部門別（target: YYYY-MM）
 "monthly_by_department";
+
+export type SameDateCsvImportSummary = {
+	id: number,
+	filename: string,
+	total_items: number,
+	total_amount: number,
+	imported_at: string,
+};
+
+export type SameDateDailyReportImportSummary = {
+	id: number,
+	source_filenames: string[],
+	gross_amount: number | null,
+	net_amount: number | null,
+	imported_at: string,
+};
 
 export type SaveImageRequest = {
 	image_base64: string,

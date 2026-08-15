@@ -3,7 +3,7 @@
 // UI-01b-D13: 「廃番にする」操作の確認ダイアログ。
 // shadcn AlertDialog を使用、Esc / 外側クリック / キャンセルは onCancel として動作。
 // 「表示に戻す」は確認なしで直接実行するため、本ダイアログは廃番化のみに使う。
-// 先例: src/features/csv-import/components/OverwriteConfirmDialog.tsx
+// 先例: src/features/csv-import/components/AdditionalImportConfirmDialog.tsx
 // 設計: docs/function-design/51-ui-product-form.md §7.1 UI-01b-D13 / §7.5 step 5
 
 import {

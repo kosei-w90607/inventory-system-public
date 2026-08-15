@@ -49,7 +49,7 @@ export function csvImportReducer(state: CsvImportState, action: CsvImportAction)
           status: "importing",
           preview: state.preview,
           previewToken: state.previewToken,
-          overwriteConfirmed: action.overwriteConfirmed,
+          additionalImportConfirmed: action.additionalImportConfirmed,
           filename: state.filename,
         };
       }
@@ -65,6 +65,7 @@ export function csvImportReducer(state: CsvImportState, action: CsvImportAction)
           status: "result",
           result: action.result,
           settlementDate: action.settlementDate,
+          filename: state.filename,
         };
       }
       if (action.type === "import_failed") {
