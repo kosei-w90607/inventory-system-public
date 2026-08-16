@@ -10,7 +10,7 @@
 2026-06-30 の UI-08 前フィールド確認により、旧結論を更新する。
 
 - current SALES track: 現在の店舗日報は、SDからCASIO PCツールへ取り込んだ `Z001`、`Z002`、`Z005` を既存Excelファイル群へほぼそのまま貼り付ける。Excelは毎日上書きされ、日別履歴を保持しないため、その日の状態を残す役割は印刷物とバインダーが担う。REQ-401 は Z004 単独ではなく、この日報入力を前提に再設計する。
-- PLU / UI-08 track: `Z004` は将来取得する候補ではなく、CV17 が既に出力する PLU(商品) 別売上レポートである。`メモリNo. / コード / 名称 / 個数 / 金額` を持ち、2026-07-06 のテスト販売1件が個数非ゼロ行として出力された。BIZ-03は従来shapeでsale_records作成、`pos_stock_sync`に基づく在庫増減、rollbackまで実装済み。将来の作業は Z004 の取得可否や在庫ロジックの新設ではなく、layout A/B 対応、段階的PLU導入、店舗採取shapeを通した既存lifecycleのend-to-end再検証である。
+- PLU / UI-08 track: `Z004` は将来取得する候補ではなく、CV17 が既に出力する PLU(商品) 別売上レポートである。メモリNo. / コード / 名称 / 個数 / 金額 の列意味（実ヘッダ表記 = `レコード / ｽｷｬﾆﾝｸﾞｺｰﾄﾞ / キャラクター / 個数 / 金額`、2026-08-17 機械抽出）を持ち、2026-07-06 のテスト販売1件が個数非ゼロ行として出力された。BIZ-03は従来shapeでsale_records作成、`pos_stock_sync`に基づく在庫増減、rollbackまで実装済み。将来の作業は Z004 の取得可否や在庫ロジックの新設ではなく、layout A/B 対応、段階的PLU導入、店舗採取shapeを通した既存lifecycleのend-to-end再検証である。
 - operator workflow: CV17 上では `Z001` / `Z002` / `Z004` / `Z005` は同じ売上日報・月報の画面群にあり、タブで切り替え、同じ書出し操作でまとめて出力できる。本書ではこの外部ツール上の集合を **日報ファイル群** と呼べるが、アプリ core では `Z001/Z002/Z005` の公式日報集計と `Z004` の商品別売上・在庫 track を別の意味・import lifecycle として維持する。
 - UI-08 readiness: 現場のインストール済みツールは ProductName `CV-17`、FileVersion/ProductVersion `1.1.1.0`。CV17 1.1.1 / SR-S4000 向けPLUファイルは `.txt`、タブ区切りSJIS/CP932、11列ヘッダ、13桁JAN/EAN-13必須、通常PLU使用数 + 1 のスキャニングPLU開始番号を前提にする。2026-07-03 field gate で `CV17 TXT import -> PC tool SD settings write -> SR-S4000 設定読み -> barcode/register behavior confirmation` の成功手順を確認済み。PR #122 最新のアプリ生成 `.txt` での同一手順の再確認は 2026-07-06 に完了した（issue #135）。
 

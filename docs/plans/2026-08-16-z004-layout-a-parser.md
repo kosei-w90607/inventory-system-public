@@ -6,7 +6,7 @@ Use the field definitions, enums, transition evidence, packet-selection rule, an
 
 If a state-only commit materializes multiple phases, list the complete adjacent forward sequence and the pre-existing evidence for every intermediate transition in an append-only review/evidence record. Recording compression never permits a gate skip.
 
-- Phase: implementing
+- Phase: local-verified
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: 8aa96a5
@@ -340,6 +340,15 @@ Ledger 10/10 適合・P1 = 0 / P2 = 1 / P3 = 2。Coordinator 裁定（全件実�
 - 新規 P3（Findings Freeze 未更新）: 本 state-only commit で frozen へ更新（是正済み）。
 
 **Final Review CLOSED（P1/P2 = 0）**。
+
+### Final Review a9fd1db 再検証（同一 Final Reviewer、2026-08-17）
+
+Amendment 4 の実体は全 PASS（契約-実装一致 / fixture 実形状整合・file_hash を reviewer が別言語独立再計算で一致確認 / 凍結維持 diff 検分 / mutation 2 設問の机上トレース妥当）。新規 findings の裁定（全件 accept）:
+
+- 新規 P2-a（doc 同期取りこぼし 3 箇所: 23-io evidence note の旧ヘッダ列挙 / 23-io 入力例の旧ヘッダ行重複 + 行番号 off-by-one / plu-export 冒頭要約）: same-PR 是正。「列意味」と「実ヘッダ表記」を分離する形で全 3 箇所を更新し、「メモリNo」パターンの機械的 grep sweep で forward-looking 残存 0 を実測確認。
+- 新規 P2-b（PR body の孤立 evidence 行 = 旧 1c87b27 参照）: PR body から削除・更新。
+- 新規 P3（PR body の test 件数表記の off-by-one 疑い）: PR body 側で実測値へ更新（tracked docs には件数を書かない D-038 を維持）。
+- process 採用: reviewer 推奨の「是正時は関連 doc 全文への機械的 grep sweep を手順に組み込む」を本是正から適用（doc 同期取りこぼしの同型 2 巡目に対する構造対策。WER 候補として記録）。
 
 ### owner L3 round 1 FAIL + gated Amendment 4（2026-08-17、実ヘッダ半角カナ是正）
 
