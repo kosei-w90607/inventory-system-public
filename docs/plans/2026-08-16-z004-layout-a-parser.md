@@ -73,7 +73,7 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 - `src-tauri/src/io/z004_parser.rs`: 二形状対応（従来 shape + layout A）の layout 検出・精算日抽出の実装（Spec Contract SPEC-Z4A-D1〜D6）。
 - `docs/function-design/23-io-z004-parser.md`: 契約 amendment — 二形状受理・layout A 構造・精算日抽出規則・E パディング語義の正本化（SPEC-Z4A-D1〜D6 の doc 側正本）、`total_data_lines` 定義の一般化、2026-08-01 evidence boundary 注記の実態同期。
 - `docs/function-design/55-ui-csv-import.md`: 「店舗採取 layout A は IO-02 未対応」記述 2 箇所（冒頭 evidence sync 注記・取込み種別表）の実態同期。
-- `docs/plu-export-and-real-csv-verification.md`: CSV-05 / CSV-09 / CSV-10 の状態行を「parser 改修後」から本 change 後の状態へ同期（CSV-09/10 の実走完了記録は L3 evidence 確定後）。
+- `docs/plu-export-and-real-csv-verification.md`: CSV-05 / CSV-06 / CSV-07 / CSV-09 / CSV-10 の状態行を実態へ同期（CSV-06/07 は issue #76 実機バッチ evidence〈2026-08-15 PASS〉で即時同期可、CSV-09/10 のみ L3 evidence 確定後に完了記録。Plan Gate round 1 F2）。
 - 新規 synthetic layout A fixture（CP932 / CRLF / 全フィールドクォート / メタ 6 行・日付 5 行目 / ヘッダ 1 行 / 13桁JAN+E・8桁+EEEEEE・全ゼロ・返品マイナス・複数数量行を含む匿名化 shape）と新規 unit tests。
 - 新規 test が REQ token を含む場合は `cargo run --bin generate_traceability` で `90-traceability.md` 再生成を同一 PR で実施。
 
@@ -87,7 +87,7 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 
 ## Acceptance Criteria
 
-- AC1: synthetic layout A fixture の parse が成功し、settlement_date がメタ日付行から YYYY-MM-DD で得られる（新規 unit test、`cargo test -p` 対象 crate の該当 test green）。
+- AC1: synthetic layout A fixture の parse が成功し、settlement_date がメタ日付行から YYYY-MM-DD で得られる（新規 unit test、`cargo test -p` 対象 crate の該当 test green）。adversarial case（非日付メタ値に日付様文字列を混在させても layout A 検出・「日付」ラベル行優先が保たれる）は `parse_z004_layout_a_datelike_meta_first_line` green で拘束する。
 - AC2: 従来 shape の既存 unit tests が全件無改変のまま green（`git diff` で既存 test 関数の変更ゼロ + L1 full CLEAN）。
 - AC3: どちらの shape でもない入力（日付行なし・ヘッダ行なし・メタ走査上限超過）が致命的エラーで安全停止する（新規 negative tests `parse_z004_layout_a_no_date_fails` / `parse_z004_layout_a_no_header_fails` / `parse_z004_unrecognized_shape_fails` green）。
 - AC4: `YYYY/M/D` 形式のメタ日付が `YYYY-MM-DD` へゼロ埋め正規化される（新規 unit test green）。
@@ -129,9 +129,9 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 
 | Spec / requirement ID | Source design doc section | Decision ID | Why / rejected alternatives | Implementation target | Test target |
 |---|---|---|---|---|---|
-| REQ-401（Z004 取込み） | 23-io §13.3 | SPEC-Z4A-D1 | 二形状受理 + fail-closed。従来 shape 廃止案は既存 fixture/test 凍結と後方互換を壊すため不採用 | `parse_z004` | T-A1 / T-N1〜N3 |
-| REQ-401 | 23-io §13.3（新設節） | SPEC-Z4A-D2 | layout A 検出はヘッダ行（最初の 5 フィールド行）検出方式。メタ固定 6 行依存は CV17 版差に脆いため不採用 | `parse_z004` layout 検出 | T-A1 / T-A5 / T-N2 |
-| REQ-401 | 23-io §13.3（新設節） | SPEC-Z4A-D3 | 精算日はメタ行群走査の最初の日付パターン。`YYYY/M/D` 受理 + ゼロ埋め正規化（29-io §29.4 と同基準）。メタ 5 行目固定参照は不採用（同上） | 日付抽出・正規化 | T-A2 / T-A3 / T-N1 |
+| REQ-401（Z004 取込み） | 23-io §13.3 | SPEC-Z4A-D1 | 二形状受理 + fail-closed。従来 shape 判定は 1 行目日付 + 2 行目ヘッダ検査の二重条件（日付様メタ値による誤ルーティングの構造排除）。従来 shape 廃止案は既存 fixture/test 凍結と後方互換を壊すため不採用 | `parse_z004` | T-A1 / T-A7 / T-N1〜N3 |
+| REQ-401 | 23-io §13.3（新設節） | SPEC-Z4A-D2 | layout A 検出はヘッダ検査（5 フィールド + ラベル内容照合）方式。field 数のみの検出は移植元 `is_header_fields` より弱く不採用。メタ固定 6 行依存は CV17 版差に脆いため不採用。ヘッダ未検出は `NoSettlementDate` variant（凍結 negative test 互換） | `parse_z004` layout 検出 | T-A1 / T-A5 / T-N2 |
+| REQ-401 | 23-io §13.3（新設節） | SPEC-Z4A-D3 | 精算日は「日付」ラベル行優先 + 最初の日付パターン fallback。`YYYY/M/D` 受理 + ゼロ埋め正規化（29-io §29.4 と同基準）。メタ 5 行目固定参照は不採用（同上） | 日付抽出・正規化 | T-A2 / T-A3 / T-A7 / T-N1 |
 | REQ-401 | 23-io §13.2 | SPEC-Z4A-D4 | ParseResult 出力契約不変。下流（BIZ-03 / SPEC-SDI 基盤）を無改変で成立させる | 型定義（変更なしの確認） | T-A1 + 既存 test 凍結 |
 | REQ-401 | 23-io §13.5 | SPEC-Z4A-D5 | E = 14 桁固定幅パディングの語義正本化。8桁+EEEEEE は invalid_jan 行エラー維持（silent skip は売上行の不可視喪失のため不採用） | doc 語義修正（挙動不変） | T-A4 |
 | REQ-401 | 23-io §13.6 | SPEC-Z4A-D6 | 全スロットダンプ（5,000 行規模）受理。既存上限 10,000 行 / 20MB（BIZ-03 検査）内で新規ガード不要 | 境界仕様（確認） | T-A6 |
@@ -141,7 +141,7 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 
 - Source docs can answer what is being built and why without chat history or archived Plan Packets: 可。形状事実は plu-export doc「2026-07-06 実機確認」、layout 知見は 29-io §29.4、scope 根拠は D-070 に既存。本 change で 23-io に契約として正本化する。
 - Plan-only durable decisions found and promoted to source docs / decision-log / ADR: SPEC-Z4A-D1〜D6 を 23-io へ正本化（本 PR 内）。
-- Assumptions and constraints: 実ファイルは CP932 / CRLF / 全フィールドクォート / メタ行 2 列・データ行とヘッダ行 5 フィールド（2026-07-06 解析 + 2026-08-15 Z-LAYOUT 差分なしで検証済み）。IO 層は純関数・DB 非依存を維持。
+- Assumptions and constraints: 実ファイルは CP932 / CRLF / 全フィールドクォート / メタ行 2 列（ラベル + 値: 管理No./ファイル/帳票/番号/日付/時刻）・データ行とヘッダ行 5 フィールド（2026-07-06 解析 + 2026-08-15 Z-LAYOUT 差分なしで検証済み）。非日付メタ値が日付パターンを含まないことには**依存しない**設計とする（従来 shape 判定のヘッダ検査重畳 + 「日付」ラベル行優先で誤ルーティング・誤抽出を構造的に排除し、T-A7 で拘束。Plan Gate round 1 F3）。IO 層は純関数・DB 非依存を維持。
 - Deferred design gaps, risk, and follow-up target: layout B（連結型）は実サンプル未採取のため安全停止のまま defer（Non-scope 参照）。`EcrDatas` の保持期間・命名等の運用設計は runway 外の既存 backlog（日報取込み運用設計）。
 - Test Design Matrix can cite design decision IDs or source doc sections: 可（SPEC-Z4A-D1〜D7）。
 - Absolute guarantee / escape hatch self-check completed, with every exception checked and compatibility stated: 完了。例外 = 二形状のどちらでもない入力は全て致命的エラー安全停止（escape hatch なし）。従来 shape の互換は既存 test 凍結で機械保証。
@@ -187,9 +187,9 @@ Minimum design checks for business-app work:
 
 | Design contract / decision ID | Implementation target | Automated test | L3 or non-scope |
 |---|---|---|---|
-| SPEC-Z4A-D1 二形状受理 + fail-closed | `parse_z004` layout 検出分岐 | T-A1（layout A 成功）/ T-N3（どちらでもない入力の安全停止）/ 既存従来 shape tests（凍結） | L3: 実ファイル取込み成功 |
-| SPEC-Z4A-D2 ヘッダ検出方式のメタ読み飛ばし | layout A 走査 | T-A1 / T-A5（メタ行数変動耐性）/ T-N2（ヘッダ不在） | — |
-| SPEC-Z4A-D3 メタ日付走査 + 正規化 | 日付抽出 | T-A2（YYYY-MM-DD）/ T-A3（YYYY/M/D ゼロ埋め）/ T-N1（日付なし） | — |
+| SPEC-Z4A-D1 二形状受理（二重条件判定）+ fail-closed | `parse_z004` layout 検出分岐 | T-A1（layout A 成功）/ T-A7（日付様メタ値の誤ルーティング排除）/ T-N3（どちらでもない入力の安全停止）/ 既存従来 shape tests（凍結） | L3: 実ファイル取込み成功 |
+| SPEC-Z4A-D2 ヘッダ検査（5 フィールド + ラベル照合）のメタ読み飛ばし・未検出 NoSettlementDate | layout A 走査 | T-A1 / T-A5（メタ行数変動耐性）/ T-N2（ヘッダ不在、`NoSettlementDate` variant） | — |
+| SPEC-Z4A-D3 「日付」ラベル行優先 + fallback 走査 + 正規化 | 日付抽出 | T-A2（YYYY-MM-DD）/ T-A3（YYYY/M/D ゼロ埋め）/ T-A7（ラベル優先）/ T-N1（日付なし） | — |
 | SPEC-Z4A-D4 ParseResult 出力契約不変 | 型・下流無改変 | T-A1 の全 field assert + 既存 test 凍結（AC2） | — |
 | SPEC-Z4A-D5 E パディング語義・8桁行の可視エラー維持 | `normalize_jan`（挙動不変）+ 23-io 語義修正 | T-A4（8桁+EEEEEE → invalid_jan、他行継続） | — |
 | SPEC-Z4A-D6 全スロットダンプ受理・全ゼロ skip | 既存境界の確認 | T-A6（大型 fixture: 空スロット多数 + 実データ行混在の件数 assert） | — |
@@ -222,7 +222,7 @@ Test Design Matrix: [test-matrices/2026-08-16-z004-layout-a-parser.md](test-matr
 
 ## Review Focus
 
-- layout 検出の fail-closed 性: 「1 行目に日付なし → layout A 走査」の分岐が、不正ファイルを誤って layout A として受理しないか（メタ走査上限・ヘッダ検出条件の堅牢性）。
+- layout 検出の fail-closed 性: 二重条件判定（1 行目日付 + 2 行目ヘッダ検査）と layout A 走査が、不正ファイルを誤受理しないか（メタ走査上限・ヘッダ検査のラベル照合・「日付」ラベル行優先の堅牢性）。
 - 従来 shape の完全非退行: 既存 test 凍結の diff 検分と、検出分岐追加による従来経路の意味論変化がないこと。
 - 日付正規化のゼロ埋め・境界（1 桁月日、不正日付文字列）。
 - fixture の匿名化 shape 準拠（Data Safety）。
@@ -232,9 +232,9 @@ Test Design Matrix: [test-matrices/2026-08-16-z004-layout-a-parser.md](test-matr
 
 Contract ID: SPEC-Z4A-D1〜D7
 
-- SPEC-Z4A-D1（二形状受理・fail-closed）: `parse_z004` は (a) 従来 shape（1 行目に `YYYY-MM-DD` 日付パターン、2 行目ヘッダ、3 行目以降データ）と (b) layout A（メタ行群 + ヘッダ 1 行 + データ行群）の両方を受理する。判定は「改行正規化後の 1 行目に日付パターンがあれば従来 shape、なければ layout A 走査」。どちらの shape としても成立しない入力は致命的エラー（`Z004ParseError`）で安全停止し、部分 parse 結果を返さない。
-- SPEC-Z4A-D2（layout A 構造検出）: layout A 走査では、先頭から最初の「5 フィールドに分割できる行」をヘッダ行として検出し、それより前の行群をメタとして扱う。ヘッダ検出は先頭 20 行以内に限定し、超過時は `NoDataLines` 系の致命的エラーで停止する。メタ行数の固定値（6 行）には依存しない（CV17 の版差・帳票差への堅牢性。事実としてのメタ 6 行は fixture に反映する）。データ行はヘッダ行の次行以降とし、行単位処理（空行 skip / 空スロット skip / 行単位エラー）は既存契約のまま適用する。
-- SPEC-Z4A-D3（精算日抽出・正規化）: layout A では、メタ行群を先頭から走査し最初に見つかる日付パターンを settlement_date とする。受理形式は `YYYY-MM-DD` と `YYYY/M/D`（月日 1〜2 桁）で、出力は常にゼロ埋め `YYYY-MM-DD` に正規化する（29-io §29.4 の日付受理と同基準）。メタ行群に日付が見つからない場合は `NoSettlementDate` で停止する。従来 shape の 1 行目抽出は現行契約のまま不変。
+- SPEC-Z4A-D1（二形状受理・fail-closed）: `parse_z004` は (a) 従来 shape（1 行目に `YYYY-MM-DD` 日付パターン、2 行目ヘッダ、3 行目以降データ）と (b) layout A（メタ行群 + ヘッダ 1 行 + データ行群）の両方を受理する。判定は「改行正規化後、1 行目に日付パターンがあり**かつ** 2 行目が SPEC-Z4A-D2 のヘッダ検査を満たす場合に従来 shape、それ以外は layout A 走査」。二重条件により、日付様文字列を含むメタ値による従来 shape への誤ルーティング（誤 settlement_date + 行ずれの大量 parse_errors）を構造的に排除する（Plan Gate round 1 F3）。どちらの shape としても成立しない入力は致命的エラー（`Z004ParseError`）で安全停止し、部分 parse 結果を返さない。
+- SPEC-Z4A-D2（layout A 構造検出・ヘッダ検査）: ヘッダ検査は「5 フィールドに分割でき、かつ『コード』を含むフィールドと『金額』を含むフィールドが存在する行」とする（29-io 移植元 `is_header_fields` と同型の field 数 + ラベル内容照合。従来 shape ヘッダ `No,コード,名称,個数,金額` も同一基準で pass する。メタ行は 2 列のため field 数でも排除され、内容照合は防御の重畳）。layout A 走査では先頭 20 行以内で最初にヘッダ検査を満たす行をヘッダとし、それより前の行群をメタとして扱う。20 行以内に未検出の場合は `NoSettlementDate` で安全停止する（既存凍結 negative test `test_parse_z004_req401_no_settlement_date` が「日付なし・ヘッダなし」入力に同 variant を assert しており、variant 互換を維持する。`NoDataLines` は既存どおり 2 行未満の pre-check 専用）。メタ行数の固定値（6 行）には依存しない（CV17 の版差・帳票差への堅牢性。事実としてのメタ 6 行は fixture に反映する）。データ行はヘッダ行の次行以降とし、行単位処理（空行 skip / 空スロット skip / 行単位エラー）は既存契約のまま適用する。
+- SPEC-Z4A-D3（精算日抽出・正規化）: layout A では、メタ行群のうち第 1 フィールドに「日付」を含む行の値からの日付パターン抽出を優先し、該当行がない場合のみメタ行群を先頭から走査した最初の日付パターンへ fallback する（実ファイルのメタはラベル 2 列構成〈管理No./ファイル/帳票/番号/日付/時刻〉であり、ラベル優先は非日付メタ値の偶然一致に対する防御）。受理形式は `YYYY-MM-DD` と `YYYY/M/D`（月日 1〜2 桁）で、出力は常にゼロ埋め `YYYY-MM-DD` に正規化する（29-io §29.4 の日付受理と同基準）。メタ行群に日付が見つからない場合は `NoSettlementDate` で停止する。従来 shape の 1 行目抽出は現行契約のまま不変。
 - SPEC-Z4A-D4（出力契約不変）: `ParseResult` / `ParsedRow` / `ParseError` / `Z004ParseError` の型・意味論は変更しない。`line_no` は物理行番号（1 始まり）のまま。`total_data_lines` の定義は「3 行目以降」から「ヘッダ行より後の行のうちフィールド分割を試みた行」へ一般化する（従来 shape ではヘッダ = 2 行目のため実質同値）。BIZ-03 以降・bindings は無改変。
 - SPEC-Z4A-D5（E パディング語義）: コード欄の `E` は 14 桁固定幅の右パディングであり識別子ではない（2026-07-06 確定事項）。23-io §13.5 の「レジ固有サフィックス」記述をパディング語義へ是正する。正規化の挙動は不変: 13 桁 JAN + `E` は 13 桁化、8 桁独自コード + `EEEEEE` は invalid_jan の行単位エラーとして可視のまま維持する（silent skip は売上行の不可視喪失となるため不採用。当該行は商品マスタ非対象で取込み不能が正であり、エラー可視性が operator への正直な報告である）。
 - SPEC-Z4A-D6（全スロットダンプ受理）: layout A は売上有無を問わない全スロットダンプ（5,000 行規模）である。既存上限（10,000 行 / 20MB、BIZ-03 検査）の範囲内であり、parser 側に新規サイズガードは設けない。全ゼロコード行の空スロット skip は既存契約のまま。
@@ -244,9 +244,9 @@ Contract ID: SPEC-Z4A-D1〜D7
 
 | Spec ID | Plan Step | Test | Review Focus | Evidence |
 |---|---|---|---|---|
-| SPEC-Z4A-D1 | layout 検出分岐の実装 | T-A1 / T-N3 + 既存凍結 tests | fail-closed 性 | L1 full + L3 |
-| SPEC-Z4A-D2 | ヘッダ検出・メタ読み飛ばし | T-A1 / T-A5 / T-N2 | 検出条件の堅牢性 | L1 full |
-| SPEC-Z4A-D3 | 日付走査・正規化 | T-A2 / T-A3 / T-N1 | ゼロ埋め・境界 | L1 full |
+| SPEC-Z4A-D1 | layout 検出分岐（二重条件）の実装 | T-A1 / T-A7 / T-N3 + 既存凍結 tests | fail-closed 性 | L1 full + L3 |
+| SPEC-Z4A-D2 | ヘッダ検査・メタ読み飛ばし | T-A1 / T-A5 / T-N2 | 検出条件の堅牢性・error variant 互換 | L1 full |
+| SPEC-Z4A-D3 | 日付ラベル優先走査・正規化 | T-A2 / T-A3 / T-A7 / T-N1 | ゼロ埋め・境界 | L1 full |
 | SPEC-Z4A-D4 | 出力契約の非変更確認 | T-A1 全 field assert + AC2 | 型 diff ゼロ | L1 full |
 | SPEC-Z4A-D5 | 23-io 語義修正（挙動不変） | T-A4 | doc と実装の一致 | Contract Audit |
 | SPEC-Z4A-D6 | 境界確認 | T-A6 | 件数 assert | L1 full |
@@ -269,3 +269,13 @@ Do not transcribe exact-HEAD SHA or test counts here (D-035/D-038 Evidence Owner
 Fill after review.
 If R3 review-only sub-agent is skipped, record an explicit line beginning with `Review-only skipped because:` and the reason.
 - Findings Freeze: not yet frozen; post-freeze exceptions: none.
+
+### Plan Gate round 1（独立 Sonnet Plan Reviewer、対象 = plan-first commit 8aa96a5）
+
+P1 = 0 / P2 = 3 / P3 = 1。全件 accept、同一 packet 内で是正（plan-gate に留まったままの in-place 修正、Coordinator が引用を実読裏取りのうえ裁定）。
+
+- F1 (P2) accept: ヘッダ検出が field 数のみで移植元 `is_header_fields`（field 数 + ラベル内容照合）より弱い → SPEC-Z4A-D2 をラベル照合込みのヘッダ検査へ改訂。
+- F2 (P2) accept: plu-export doc の CSV-06/07 が issue #76 evidence（2026-08-15 PASS）と drift したまま同期対象から漏れ → Scope を CSV-05/06/07/09/10 へ拡張。
+- F3 (P2) accept（構造是正の強い形を採用）: 従来 shape 判定が「1 行目日付のみ」で日付様メタ値による誤ルーティングの新失敗モードを持つ → SPEC-Z4A-D1 を二重条件（1 行目日付 + 2 行目ヘッダ検査）へ、SPEC-Z4A-D3 を「日付」ラベル行優先へ改訂し、T-A7 で拘束。
+- F4 (P3) accept: ヘッダ走査上限 20 の off-by-one が mutation 拘束されていない → Matrix の boundary case と mutation 設問を追加。
+- Coordinator 自己検出 (P2 相当): 初稿 SPEC-Z4A-D2 の「ヘッダ未検出 → `NoDataLines` 系」は凍結 negative test `test_parse_z004_req401_no_settlement_date`（`NoSettlementDate` variant を assert）と衝突 → `NoSettlementDate` variant 互換へ是正。
