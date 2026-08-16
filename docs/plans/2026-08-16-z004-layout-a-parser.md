@@ -288,3 +288,9 @@ P1 = 0 / P2 = 2 / P3 = 1。round 1 是正 5 件中 4 件適正・F4 不十分の
 - N1 (P2) accept: `NoSettlementDate` の旧文言「1行目から…」が二形状対応後は事実誤認 → 原因別 2 文言（ヘッダ未検出 / 精算日未検出）を SPEC-Z4A-D2/D3 に exact 確定。凍結 tests は variant のみ assert を rg 実測で確認済み。
 - N2 (P2) accept: ラベル照合の mutation 設問が既存 fixture では拘束されない（5 フィールド非ヘッダ行が fixture 群に不存在）→ T-A7 fixture に decoy（5 フィールド・ラベル位置不一致の非ヘッダ行）を追加し、照合除去で確実に red になる構成へ。
 - N3 (P3) accept（強い形を採用）: 「is_header_fields と同型」の精度過大 → 位置アンカー付き照合（第 2 フィールド『コード』+ 第 5 フィールド『金額』）へ設計自体を強化し、記述と実体を一致させた。
+
+### Plan Gate round 3（fresh 独立 Sonnet Plan Reviewer、対象 = ce6869d、収束確認）
+
+P1 = 0 / P2 = 0 / P3 = 1（記録のみ）。round 2 是正 3 件（N1/N2/N3）は source 実測（凍結 test の assert 実読 / 両ヘッダのフィールド位置逐次照合 / 移植元 `is_header_fields` 実読）で全件適正判定。sweep 漏れなし。**Plan Gate 収束（round 3/3、これ以上の round 不要）**。
+
+- P3-1（記録のみ、disposition = 発注書へ反映）: T-A7 が 3 つの mutation 標的（誤ルーティング排除 / 日付ラベル優先 / decoy ヘッダ誤認排除)を 1 test に束ねており fail 時の切り分けがやや弱い → Writer 発注書に「T-A7 内の assert に契約 ID コメントを付し、切り分け可能な assert 順で書く」を含める。新規 test 分割はコスト対効果で不採用。
