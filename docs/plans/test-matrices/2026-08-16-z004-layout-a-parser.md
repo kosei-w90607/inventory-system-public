@@ -7,7 +7,7 @@ Risk: R3
 ## Contracts Under Test
 
 - SPEC-Z4A-D1: 二形状受理（従来 shape = 1 行目日付 + 2 行目ヘッダ検査の二重条件 / layout A）、どちらでもない入力の致命的エラー安全停止
-- SPEC-Z4A-D2: layout A のヘッダ検査（5 フィールド + 『コード』『金額』ラベル照合、先頭 20 行以内）とメタ読み飛ばし、未検出は `NoSettlementDate` variant で停止
+- SPEC-Z4A-D2: layout A のヘッダ検査（5 フィールド + 位置アンカー: 第 2 フィールド『コード』・第 5 フィールド『金額』、先頭 20 行以内）とメタ読み飛ばし、未検出は `NoSettlementDate` variant・文言「ヘッダ行を検出できません。ファイル形式を確認してください」で停止
 - SPEC-Z4A-D3: 精算日抽出は「日付」ラベル行優先 + 最初の日付パターン fallback（YYYY-MM-DD / YYYY/M/D 受理 → ゼロ埋め正規化）
 - SPEC-Z4A-D4: ParseResult 出力契約不変（line_no 物理行番号、total_data_lines 一般化定義）
 - SPEC-Z4A-D5: 8桁+EEEEEE の invalid_jan 行単位エラー維持（他行処理継続）
@@ -37,10 +37,10 @@ Risk: R3
 | SPEC-Z4A-D3 | ゼロ埋め欠落 | unit | T-A3 `parse_z004_layout_a_settlement_date_slash_padded` | メタ日付 `2026/8/5` が `2026-08-05` に正規化されない |
 | SPEC-Z4A-D5 | 8桁行の silent skip / 誤受理 | unit | T-A4 `parse_z004_layout_a_8digit_code_invalid_jan` | 8桁+EEEEEE 行が invalid_jan の ParseError にならない、または当該エラーで他行の処理が停止する |
 | SPEC-Z4A-D2 | メタ行数固定依存 | unit | T-A5 `parse_z004_layout_a_meta_line_count_tolerance` | メタ行数が 6 以外（例 5 / 7）の synthetic 入力でヘッダ検出が失敗する |
-| SPEC-Z4A-D1/D3 | 日付様メタ値での誤ルーティング・誤抽出 | unit (adversarial) | T-A7 `parse_z004_layout_a_datelike_meta_first_line` | メタ行 1（管理No.）の値に日付様文字列を含む layout A fixture が従来 shape へ誤ルーティングされる、または settlement_date が「日付」ラベル行の値にならない |
+| SPEC-Z4A-D1/D2/D3 | 日付様メタ値での誤ルーティング・誤抽出 / decoy ヘッダ誤認 | unit (adversarial) | T-A7 `parse_z004_layout_a_datelike_meta_first_line` | メタ行 1（管理No.）の値に日付様文字列を含む layout A fixture が従来 shape へ誤ルーティングされる、settlement_date が「日付」ラベル行の値にならない、または真のヘッダより前に置いた **decoy 行（5 フィールドだが第 2『コード』/第 5『金額』の位置アンカー不一致）** がヘッダ誤認されてデータ行の件数・行番号がずれる（round 2 N2: ラベル照合を外した mutant はこの decoy で確実に red になる） |
 | SPEC-Z4A-D6 | 空スロット skip 退行 | unit | T-A6 `parse_z004_layout_a_slot_dump_counts` | 全ゼロコード行（13/14 桁）が parsed_rows か parse_errors に混入する、または実データ行件数の assert が不一致 |
-| SPEC-Z4A-D1/D3 | 日付なしの誤受理 | unit (negative) | T-N1 `parse_z004_layout_a_no_date_fails` | メタ行群に日付パターンがない入力が NoSettlementDate で停止しない |
-| SPEC-Z4A-D2 | ヘッダ不在の誤受理 / 走査暴走 | unit (negative) | T-N2 `parse_z004_layout_a_no_header_fails` | ヘッダ検査を満たす行が先頭 20 行以内にない入力（21 行目ヘッダ配置 case を含む）が `NoSettlementDate` variant で停止しない。対で「ちょうど 20 行目ヘッダ配置」の成功 case が受理されない場合も red |
+| SPEC-Z4A-D1/D3 | 日付なしの誤受理 | unit (negative) | T-N1 `parse_z004_layout_a_no_date_fails` | メタ行群に日付パターンがない入力（ヘッダは検出される）が NoSettlementDate variant + 文言「精算日を抽出できません。ファイル形式を確認してください」で停止しない |
+| SPEC-Z4A-D2 | ヘッダ不在の誤受理 / 走査暴走 | unit (negative) | T-N2 `parse_z004_layout_a_no_header_fails` | ヘッダ検査を満たす行が先頭 20 行以内にない入力（21 行目ヘッダ配置 case を含む）が `NoSettlementDate` variant + 文言「ヘッダ行を検出できません。ファイル形式を確認してください」で停止しない。対で「ちょうど 20 行目ヘッダ配置」の成功 case が受理されない場合も red |
 | SPEC-Z4A-D1 | 二形状外の誤受理 | unit (negative) | T-N3 `parse_z004_unrecognized_shape_fails` | 二形状のどちらでもない構造（例: 2 列行のみのファイル）が部分 parse 結果を返す |
 | SPEC-Z4A-D4/D7 | 従来 shape 退行 | regression | 既存 `z004_parser` unit tests（`src-tauri/src/io/z004_parser.rs` `mod tests` 内、無改変） | 検出分岐追加により従来 shape の parse 結果・エラー種別・文言が変化する |
 
@@ -57,7 +57,7 @@ parser は純関数で自身の永続 state を持たない。取込み lifecycl
 
 | Source pattern / contract | Repository sites inspected | Ported sites | Explicit exclusions and reason | Test / evidence |
 |---|---|---|---|---|
-| 29-io §29.4 layout A 検出（ヘッダ検出でメタ読み飛ばし、`is_header_fields` の field 数 + ラベル内容照合と同型）+ 日付 2 形式正規化 | `daily_report_parser`（IO-07） | `z004_parser`（IO-02、本 change） | layout B 連結型検出は移植しない（Z004 実サンプル未採取、Non-scope） | T-A1〜T-A5 / T-A7 |
+| 29-io §29.4 layout A 検出（ヘッダ検出でメタ読み飛ばし、`is_header_fields` と同型の field 数 + 位置アンカー付きラベル照合）+ 日付 2 形式正規化 | `daily_report_parser`（IO-07） | `z004_parser`（IO-02、本 change） | layout B 連結型検出は移植しない（Z004 実サンプル未採取、Non-scope） | T-A1〜T-A5 / T-A7 |
 | E 除去正規化（normalize_jan） | `z004_parser` のみ（他 parser に JAN 正規化なし） | 変更なし（語義 doc 修正のみ） | — | T-A4 + 既存 tests 凍結 |
 | 改行正規化（NEL / CRLF / CR） | `z004_parser` / `daily_report_parser` | 変更なし（既存契約のまま layout A にも適用） | — | T-A1（CRLF fixture） |
 
@@ -113,7 +113,8 @@ parser は純関数で自身の永続 state を持たない。取込み lifecycl
 - 従来 shape 判定の 2 行目ヘッダ検査を外し「1 行目日付のみ」に戻したら → T-A7 が red（日付様メタ値で従来 shape へ誤ルーティング）
 - ヘッダ走査上限 20 を撤廃したら → T-N2 が red（上限超過入力が停止しない）
 - ヘッダ走査上限を 21 に緩めたら → T-N2 の「21 行目ヘッダ = 停止」case が red / 19 に狭めたら → 「20 行目ヘッダ = 受理」case が red
-- ヘッダ検査のラベル内容照合（『コード』『金額』）を外し field 数のみにしたら → T-A7 または T-N3 系の 5 フィールド非ヘッダ行 fixture が red
+- ヘッダ検査のラベル照合（位置アンカー込み）を外し field 数のみにしたら → T-A7 が red（decoy 5 フィールド行がヘッダ誤認され件数・行番号ずれ）
+- ラベル照合を位置非依存（どのフィールドでも可）に緩めたら → T-A7 の decoy（『コード』『金額』を誤位置に含む変種）が red
 - ヘッダ検出条件を「5 フィールド」から「2 フィールド以上」に緩めたら → T-A1/T-A5 が red(メタ行がヘッダ誤認され settlement_date またはデータ行数が不一致)
 - 日付正規化のゼロ埋めを除去したら → T-A3 が red
 - 「日付」ラベル行優先を外し単純な最初の一致にしたら → T-A7 が red（管理No. の日付様文字列を誤採用）
