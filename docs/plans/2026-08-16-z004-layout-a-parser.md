@@ -350,6 +350,10 @@ Amendment 4 の実体は全 PASS（契約-実装一致 / fixture 実形状整合
 - 新規 P3（PR body の test 件数表記の off-by-one 疑い）: PR body 側で実測値へ更新（tracked docs には件数を書かない D-038 を維持）。
 - process 採用: reviewer 推奨の「是正時は関連 doc 全文への機械的 grep sweep を手順に組み込む」を本是正から適用（doc 同期取りこぼしの同型 2 巡目に対する構造対策。WER 候補として記録）。
 
+### Final Review 最終確認（同一 Final Reviewer、対象 = 65ce4b5、2026-08-17）
+
+再検証 P2×2 / P3×1 の是正を全項目 PASS 判定（3 箇所の是正文言と実測事実の一致・入力例の行番号と実 fixture 定数 padding の一致を diff 精読で確認 / PR body の SHA・evidence・件数整合 / 残存 P1/P2 = 0）。手続き（backtrack 2 回目 4ed5983 → 是正 content commit 同乗）も遷移表・STATECAP 制約と整合と判定。**Final Review CLOSED（P1/P2 = 0、candidate = 65ce4b5）**。以後は owner L3 round 2 + Ready 承認の evidence が揃った時点で、local-verified → independent-review → human-confirm → ready-hosted-final を単一 state-only commit で materialize する（Reviewed Content HEAD = 65ce4b5、Amendments へ a5f7af5 / a9fd1db を追記予定）。
+
 ### owner L3 round 1 FAIL + gated Amendment 4（2026-08-17、実ヘッダ半角カナ是正）
 
 owner L3 round 1 = **FAIL（true positive、L3 gate の実効性実証）**。実 Z004（Issue 採取ファイルの Z004、preview 段階・取込み確定なし・在庫売上変更なし、recovery baseline = inventory_backup_20260817_014028.db）が「精算日を抽出できません」で安全停止。
