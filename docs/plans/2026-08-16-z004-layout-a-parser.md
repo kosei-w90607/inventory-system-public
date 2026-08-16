@@ -6,7 +6,7 @@ Use the field definitions, enums, transition evidence, packet-selection rule, an
 
 If a state-only commit materializes multiple phases, list the complete adjacent forward sequence and the pre-existing evidence for every intermediate transition in an append-only review/evidence record. Recording compression never permits a gate skip.
 
-- Phase: local-verified
+- Phase: human-confirm
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: 8aa96a5
@@ -15,7 +15,7 @@ If a state-only commit materializes multiple phases, list the complete adjacent 
 - Writer: Codex
 - Plan Reviewer: Sonnet subagent（独立、Writer と別 context）
 - Final Reviewer: Sonnet subagent（独立、Writer と別 context）
-- Reviewed Content HEAD: pending
+- Reviewed Content HEAD: a5f7af5
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
 - Human Gate: L3 実ファイル取込み確認（CSV-09/CSV-10 相当）/ Ready 承認 / merge
@@ -25,6 +25,7 @@ Transition narrative（append-only）:
 - 本 packet 作成 commit で kickoff → spec-check → design → plan-draft → plan-gate を materialize する。evidence: task scope と Risk は本 packet に記録（kickoff → spec-check）/ in-scope source docs は Design Sources に列挙し設計更新要と判定（spec-check → design）/ 設計判断は本 packet Spec Contract に確定済みで未解決の設計問題なし、source doc への反映は本 PR 内で Writer が実施（design → plan-draft、PR #77 先例の「updated in this PR」形）/ packet + Test Design Matrix を同一 commit で commit（plan-draft → plan-gate）。
 - state-only 遷移 commit で plan-gate → plan-approved → implementing を materialize する（recording compression の正規例）。evidence: 独立 Plan Reviewer rally 3 round で P1/P2 = 0 収束（Review Response の round 1〜3 記録、最終 round 3 は対象 ce6869d）/ owner plan 承認 2026-08-17（介入 1 回目 / 予算 3 回）/ plan-first commit 8aa96a5 は全実装 commit に先行（PK5 ancestry）。
 - state-only 遷移 commit で implementing → local-verified を materialize する。evidence: content candidate に対する L1 `local-ci.sh full` は CLEAN / PASS、candidate SHA と evidence 位置は Draft PR #81 body に記録。独立 Final Review と owner L3 は未実施のため Phase は local-verified に留める。
+- state-only 遷移 commit で local-verified → independent-review → human-confirm を materialize する（隣接 forward の recording compression）。evidence: L1 full CLEAN（candidate a5f7af5、evidence は PR body）/ 独立 Final Reviewer engaged・Contract Audit 実施（local-verified → independent-review）/ Final Review CLOSED P1/P2 = 0（Review Response の round 1 + 統合再検証記録）+ Reviewed Content HEAD = a5f7af5 設定（independent-review → human-confirm）。
 - **STATECAP 是正の consolidation（2026-08-17、履歴統合の逸脱記録）**: 上記の implementing → local-verified を state-only 遷移 commit（旧 8450de5）として立てた記録方式は、STATECAP の非 sanctioned slot を消費し（総数 cap 3 / post-impl cap 2 に対し、以後の human-confirm + ready-hosted-final で両 cap 超過が必発の潜伏欠陥）、checker 実読で Coordinator が検出した。PR #64 先例（recording compression 統合是正）に従い、Draft 段階で旧 content commit 1c87b27 + 旧 state-only 8450de5 を単一 content commit へ統合し、implementing → local-verified はその content commit 同乗（PR #58 先例の正規手段）へ改めた。統合 commit には Final Review round 1 の P2 是正（drift sweep）と gated Amendment 3 も同乗する。L1 full は統合後 tree で再実行し、evidence は PR body を正とする。Plan Commit 8aa96a5 / Amendments 8236176, 4efda0e は不変（PK5 維持）。
 
 ## Owner Effort Budget
@@ -272,7 +273,7 @@ Contract ID: SPEC-Z4A-D1〜D7
 Fill after review.
 If R3 review-only sub-agent is skipped, record an explicit line beginning with `Review-only skipped because:` and the reason.
 - Review-only skipped because: packet は独立 Sonnet Final Reviewer を割当済みで、Draft 後の independent-review phase で Contract Audit を行う。同一 vendor の Codex subagent は D-062 の独立性を満たさないため、Draft checkpoint での代替起動はしない。
-- Findings Freeze: not yet frozen; post-freeze exceptions: none.
+- Findings Freeze: frozen after Broad Audit（Final Review round 1 + 統合 commit 再検証、2026-08-17）; post-freeze exceptions: none.
 
 ### Plan Gate round 1（独立 Sonnet Plan Reviewer、対象 = plan-first commit 8aa96a5）
 
@@ -327,3 +328,12 @@ Ledger 10/10 適合・P1 = 0 / P2 = 1 / P3 = 2。Coordinator 裁定（全件実�
 - F-DRIFT-1 (P2) accept・same-PR 是正: 「layout A は IO-02 未対応」旧文言が live source docs 5 file 6 箇所（ARCHITECTURE ×2 / PROJECT_HANDOFF / pos-tables / ui-task-specs / 32-biz）に残存 — Writer の sweep は 23-io / 55-ui / plu-export の 3 文書限定で、repo 全体 grep が対象を捕捉。6 箇所を実態同期（drift-fix sweep、DEV_WORKFLOW Review Rules の same-PR fix 該当）。
 - F-DATE-1 (P3) accept・gated Amendment 3: 実装の dash 形 `YYYY-M-D`（月日 1〜2 桁）受理が Spec 文言より広い → 23-io と本 packet D3 の文言を実装へ整合（受理拡張の明示、fail-closed 性の変更なし）。
 - F-EXPECT-1 (P3) 記録のみ: `conventional_date.expect(...)` は bool 判定で論理的に到達不能。if-let 化はコード変更の再検証コストに見合わないため非採用、将来の同 file 改修時に同乗可。
+
+### Final Review 統合 commit 再検証（同一 Final Reviewer、対象 = a5f7af5、2026-08-17）
+
+再検証 5 項目（drift 是正文言 / 残存 grep 0 / Amendment 3 整合 / 統合の src 無欠損性 `git diff 8450de5 a5f7af5 -- src-tauri/` = 0 行 / packet 記録整合）**全 PASS**。gate 独立再現（z004 unit tests / clippy / doc check）も green。新規 findings の裁定:
+
+- 新規 P2（PR body 鮮度）: reviewer の読取りと並行して Coordinator が既に body 更新を適用済み（非同期競合の見かけ上の指摘）。現 body の candidate SHA / evidence path / drift grep 行が a5f7af5 系であることを機械確認し解消 — reviewer 自身が「更新済みなら CLOSED 相当・実体側の追加是正不要」と明示。
+- 新規 P3（Findings Freeze 未更新）: 本 state-only commit で frozen へ更新（是正済み）。
+
+**Final Review CLOSED（P1/P2 = 0）**。
