@@ -6,7 +6,7 @@ Use the field definitions, enums, transition evidence, packet-selection rule, an
 
 If a state-only commit materializes multiple phases, list the complete adjacent forward sequence and the pre-existing evidence for every intermediate transition in an append-only review/evidence record. Recording compression never permits a gate skip.
 
-- Phase: human-confirm
+- Phase: implementing
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: 8aa96a5
@@ -15,7 +15,7 @@ If a state-only commit materializes multiple phases, list the complete adjacent 
 - Writer: Codex
 - Plan Reviewer: Sonnet subagent（独立、Writer と別 context）
 - Final Reviewer: Sonnet subagent（独立、Writer と別 context）
-- Reviewed Content HEAD: a5f7af5
+- Reviewed Content HEAD: pending
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
 - Human Gate: L3 実ファイル取込み確認（CSV-09/CSV-10 相当）/ Ready 承認 / merge
@@ -25,6 +25,7 @@ Transition narrative（append-only）:
 - 本 packet 作成 commit で kickoff → spec-check → design → plan-draft → plan-gate を materialize する。evidence: task scope と Risk は本 packet に記録（kickoff → spec-check）/ in-scope source docs は Design Sources に列挙し設計更新要と判定（spec-check → design）/ 設計判断は本 packet Spec Contract に確定済みで未解決の設計問題なし、source doc への反映は本 PR 内で Writer が実施（design → plan-draft、PR #77 先例の「updated in this PR」形）/ packet + Test Design Matrix を同一 commit で commit（plan-draft → plan-gate）。
 - state-only 遷移 commit で plan-gate → plan-approved → implementing を materialize する（recording compression の正規例）。evidence: 独立 Plan Reviewer rally 3 round で P1/P2 = 0 収束（Review Response の round 1〜3 記録、最終 round 3 は対象 ce6869d）/ owner plan 承認 2026-08-17（介入 1 回目 / 予算 3 回）/ plan-first commit 8aa96a5 は全実装 commit に先行（PK5 ancestry）。
 - state-only 遷移 commit で implementing → local-verified を materialize する。evidence: content candidate に対する L1 `local-ci.sh full` は CLEAN / PASS、candidate SHA と evidence 位置は Draft PR #81 body に記録。独立 Final Review と owner L3 は未実施のため Phase は local-verified に留める。
+- **state-backtrack human-confirm → implementing（2026-08-17）**: owner L3 round 1 FAIL（true positive）— 実 Z004（layout A）が「精算日を抽出できません」で安全停止。根本原因 = 実ヘッダ第 2 フィールドは半角カナ「ｽｷｬﾆﾝｸﾞｺｰﾄﾞ」であり、SPEC-Z4A-D1/D2・実装・synthetic fixture の全角「コード」照合が実形状と不一致（owner handoff + Coordinator の実ファイル機械抽出で二重確認。あわせてメタ実ラベル = マシンNo./ファイル/モード/精算回数/日付/時刻、7 行目空行区切りの新事実を確定）。取込み確定なし・在庫売上変更なし、recovery baseline = inventory_backup_20260817_014028.db。是正は gated Amendment 4 + 実装修正で行い、implementing から再前進する（Reviewed Content HEAD は pending へ戻す。a5f7af5 の監査記録は Review Response に保持）。
 - state-only 遷移 commit で local-verified → independent-review → human-confirm を materialize する（隣接 forward の recording compression）。evidence: L1 full CLEAN（candidate a5f7af5、evidence は PR body）/ 独立 Final Reviewer engaged・Contract Audit 実施（local-verified → independent-review）/ Final Review CLOSED P1/P2 = 0（Review Response の round 1 + 統合再検証記録）+ Reviewed Content HEAD = a5f7af5 設定（independent-review → human-confirm）。
 - **STATECAP 是正の consolidation（2026-08-17、履歴統合の逸脱記録）**: 上記の implementing → local-verified を state-only 遷移 commit（旧 8450de5）として立てた記録方式は、STATECAP の非 sanctioned slot を消費し（総数 cap 3 / post-impl cap 2 に対し、以後の human-confirm + ready-hosted-final で両 cap 超過が必発の潜伏欠陥）、checker 実読で Coordinator が検出した。PR #64 先例（recording compression 統合是正）に従い、Draft 段階で旧 content commit 1c87b27 + 旧 state-only 8450de5 を単一 content commit へ統合し、implementing → local-verified はその content commit 同乗（PR #58 先例の正規手段）へ改めた。統合 commit には Final Review round 1 の P2 是正（drift sweep）と gated Amendment 3 も同乗する。L1 full は統合後 tree で再実行し、evidence は PR body を正とする。Plan Commit 8aa96a5 / Amendments 8236176, 4efda0e は不変（PK5 維持）。
 
