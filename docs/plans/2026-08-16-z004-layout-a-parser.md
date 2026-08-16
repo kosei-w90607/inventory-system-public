@@ -6,10 +6,10 @@ Use the field definitions, enums, transition evidence, packet-selection rule, an
 
 If a state-only commit materializes multiple phases, list the complete adjacent forward sequence and the pre-existing evidence for every intermediate transition in an append-only review/evidence record. Recording compression never permits a gate skip.
 
-- Phase: plan-gate
+- Phase: implementing
 - Risk: R3
 - Execution Mode: fable-window
-- Plan Commit: pending
+- Plan Commit: 8aa96a5
 - Amendments: none
 - Coordinator: Fable (main thread)
 - Writer: Codex
@@ -23,6 +23,7 @@ If a state-only commit materializes multiple phases, list the complete adjacent 
 Transition narrative（append-only）:
 
 - 本 packet 作成 commit で kickoff → spec-check → design → plan-draft → plan-gate を materialize する。evidence: task scope と Risk は本 packet に記録（kickoff → spec-check）/ in-scope source docs は Design Sources に列挙し設計更新要と判定（spec-check → design）/ 設計判断は本 packet Spec Contract に確定済みで未解決の設計問題なし、source doc への反映は本 PR 内で Writer が実施（design → plan-draft、PR #77 先例の「updated in this PR」形）/ packet + Test Design Matrix を同一 commit で commit（plan-draft → plan-gate）。
+- state-only 遷移 commit で plan-gate → plan-approved → implementing を materialize する（recording compression の正規例）。evidence: 独立 Plan Reviewer rally 3 round で P1/P2 = 0 収束（Review Response の round 1〜3 記録、最終 round 3 は対象 ce6869d）/ owner plan 承認 2026-08-17（介入 1 回目 / 予算 3 回）/ plan-first commit 8aa96a5 は全実装 commit に先行（PK5 ancestry）。
 
 ## Owner Effort Budget
 
