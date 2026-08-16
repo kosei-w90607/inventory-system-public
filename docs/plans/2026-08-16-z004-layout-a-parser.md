@@ -6,7 +6,7 @@ Use the field definitions, enums, transition evidence, packet-selection rule, an
 
 If a state-only commit materializes multiple phases, list the complete adjacent forward sequence and the pre-existing evidence for every intermediate transition in an append-only review/evidence record. Recording compression never permits a gate skip.
 
-- Phase: implementing
+- Phase: local-verified
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: 8aa96a5
@@ -24,6 +24,8 @@ Transition narrative（append-only）:
 
 - 本 packet 作成 commit で kickoff → spec-check → design → plan-draft → plan-gate を materialize する。evidence: task scope と Risk は本 packet に記録（kickoff → spec-check）/ in-scope source docs は Design Sources に列挙し設計更新要と判定（spec-check → design）/ 設計判断は本 packet Spec Contract に確定済みで未解決の設計問題なし、source doc への反映は本 PR 内で Writer が実施（design → plan-draft、PR #77 先例の「updated in this PR」形）/ packet + Test Design Matrix を同一 commit で commit（plan-draft → plan-gate）。
 - state-only 遷移 commit で plan-gate → plan-approved → implementing を materialize する（recording compression の正規例）。evidence: 独立 Plan Reviewer rally 3 round で P1/P2 = 0 収束（Review Response の round 1〜3 記録、最終 round 3 は対象 ce6869d）/ owner plan 承認 2026-08-17（介入 1 回目 / 予算 3 回）/ plan-first commit 8aa96a5 は全実装 commit に先行（PK5 ancestry）。
+- state-only 遷移 commit で implementing → local-verified を materialize する。evidence: content candidate に対する L1 `local-ci.sh full` は CLEAN / PASS、candidate SHA と evidence 位置は Draft PR #81 body に記録。独立 Final Review と owner L3 は未実施のため Phase は local-verified に留める。
+- **STATECAP 是正の consolidation（2026-08-17、履歴統合の逸脱記録）**: 上記の implementing → local-verified を state-only 遷移 commit（旧 8450de5）として立てた記録方式は、STATECAP の非 sanctioned slot を消費し（総数 cap 3 / post-impl cap 2 に対し、以後の human-confirm + ready-hosted-final で両 cap 超過が必発の潜伏欠陥）、checker 実読で Coordinator が検出した。PR #64 先例（recording compression 統合是正）に従い、Draft 段階で旧 content commit 1c87b27 + 旧 state-only 8450de5 を単一 content commit へ統合し、implementing → local-verified はその content commit 同乗（PR #58 先例の正規手段）へ改めた。統合 commit には Final Review round 1 の P2 是正（drift sweep）と gated Amendment 3 も同乗する。L1 full は統合後 tree で再実行し、evidence は PR body を正とする。Plan Commit 8aa96a5 / Amendments 8236176, 4efda0e は不変（PK5 維持）。
 
 ## Owner Effort Budget
 
@@ -236,7 +238,7 @@ Contract ID: SPEC-Z4A-D1〜D7
 
 - SPEC-Z4A-D1（二形状受理・fail-closed）: `parse_z004` は (a) 従来 shape（1 行目に `YYYY-MM-DD` 日付パターン、2 行目ヘッダ、3 行目以降データ）と (b) layout A（メタ行群 + ヘッダ 1 行 + データ行群）の両方を受理する。判定は「改行正規化後、1 行目に日付パターンがあり**かつ** 2 行目が 5 フィールドに分割でき第 2 フィールドに『コード』を含む場合に従来 shape、それ以外は layout A 走査」。2 行目条件は **中間強度（5 フィールド + 第 2 フィールド『コード』含有、第 5 フィールドのラベル照合なし）** とする — 凍結 BIZ test の従来 shape fixture には省略ラベルヘッダ（`"No.","コード","名","個","額"` = 第 5 フィールド「額」）が実在し、D2 の全アンカー照合を従来 shape 判定に課すと凍結 test `test_parse_and_validate_req401_invalid_settlement_date` が red になる（gated Amendment 1、Writer fail-closed true positive）。一方、第 2 フィールド『コード』は全凍結 fixture で一貫して pass することを focused review が実測済みのため保持する（gated Amendment 2 = focused review P2-1 修正案の採用。互換コストゼロで防御強度を最大化）。二重条件により、日付様文字列を含むメタ値による従来 shape への誤ルーティング（誤 settlement_date + 行ずれの大量 parse_errors）は構造的に排除される（実 layout A のメタ行は 2 列で field 数条件により、5 フィールドの adversarial 行は『コード』条件により排除。Plan Gate round 1 F3 の防御は保持）。layout A 走査側のヘッダ検査（SPEC-Z4A-D2 の位置アンカー照合）は不変。どちらの shape としても成立しない入力は致命的エラー（`Z004ParseError`）で安全停止し、部分 parse 結果を返さない。
 - SPEC-Z4A-D2（layout A 構造検出・ヘッダ検査）: ヘッダ検査は「5 フィールドに分割でき、**第 2 フィールドに『コード』、第 5 フィールドに『金額』を含む**行」とする（29-io 移植元 `is_header_fields` と同型の field 数 + 位置アンカー付きラベル照合。従来 shape ヘッダ `No,コード,名称,個数,金額` も実ファイルヘッダ〈メモリNo./コード/名称/個数/金額〉も同一基準で pass する。メタ行は 2 列のため field 数でも排除され、位置アンカー照合は 5 フィールドの非ヘッダ行に対する防御の重畳。Plan Gate round 2 N3）。layout A 走査では先頭 20 行以内で最初にヘッダ検査を満たす行をヘッダとし、それより前の行群をメタとして扱う。20 行以内に未検出の場合は `NoSettlementDate` variant・文言「ヘッダ行を検出できません。ファイル形式を確認してください」で安全停止する（既存凍結 negative test `test_parse_z004_req401_no_settlement_date` は variant のみ assert〈message assert なしを rg で実測済み〉のため variant 互換で凍結維持。`NoDataLines` は既存どおり 2 行未満の pre-check 専用）。メタ行数の固定値（6 行）には依存しない（CV17 の版差・帳票差への堅牢性。事実としてのメタ 6 行は fixture に反映する）。データ行はヘッダ行の次行以降とし、行単位処理（空行 skip / 空スロット skip / 行単位エラー）は既存契約のまま適用する。
-- SPEC-Z4A-D3（精算日抽出・正規化）: layout A では、メタ行群のうち第 1 フィールドに「日付」を含む行の値からの日付パターン抽出を優先し、該当行がない場合のみメタ行群を先頭から走査した最初の日付パターンへ fallback する（実ファイルのメタはラベル 2 列構成〈管理No./ファイル/帳票/番号/日付/時刻〉であり、ラベル優先は非日付メタ値の偶然一致に対する防御）。受理形式は `YYYY-MM-DD` と `YYYY/M/D`（月日 1〜2 桁）で、出力は常にゼロ埋め `YYYY-MM-DD` に正規化する（29-io §29.4 の日付受理と同基準）。メタ行群に日付が見つからない場合は `NoSettlementDate` variant・文言「精算日を抽出できません。ファイル形式を確認してください」で停止する。従来 shape の 1 行目抽出は現行契約のまま不変。**利用者向け文言の改訂（Plan Gate round 2 N1）**: 旧文言「1行目から精算日（YYYY-MM-DD）を抽出できません」は「1行目」という位置限定が二形状対応後は事実誤認となるため退役し、上記 2 文言（原因別: ヘッダ未検出 / 精算日未検出）へ置き換える。凍結 tests は variant のみ assert のため無改変で green（実測済み）。23-io の処理ステップ・エラーハンドリング表の文言も同一 PR で同期する。
+- SPEC-Z4A-D3（精算日抽出・正規化）: layout A では、メタ行群のうち第 1 フィールドに「日付」を含む行の値からの日付パターン抽出を優先し、該当行がない場合のみメタ行群を先頭から走査した最初の日付パターンへ fallback する（実ファイルのメタはラベル 2 列構成〈管理No./ファイル/帳票/番号/日付/時刻〉であり、ラベル優先は非日付メタ値の偶然一致に対する防御）。受理形式は `YYYY-MM-DD` / `YYYY-M-D` / `YYYY/M/D`（dash / slash 両区切りとも月日 1〜2 桁）で、出力は常にゼロ埋め `YYYY-MM-DD` に正規化する（29-io §29.4 の日付受理と同基準。dash 形の 1〜2 桁明示は gated Amendment 3 = Final Review F-DATE-1 の実装整合）。メタ行群に日付が見つからない場合は `NoSettlementDate` variant・文言「精算日を抽出できません。ファイル形式を確認してください」で停止する。従来 shape の 1 行目抽出は現行契約のまま不変。**利用者向け文言の改訂（Plan Gate round 2 N1）**: 旧文言「1行目から精算日（YYYY-MM-DD）を抽出できません」は「1行目」という位置限定が二形状対応後は事実誤認となるため退役し、上記 2 文言（原因別: ヘッダ未検出 / 精算日未検出）へ置き換える。凍結 tests は variant のみ assert のため無改変で green（実測済み）。23-io の処理ステップ・エラーハンドリング表の文言も同一 PR で同期する。
 - SPEC-Z4A-D4（出力契約不変）: `ParseResult` / `ParsedRow` / `ParseError` / `Z004ParseError` の型・意味論は変更しない。`line_no` は物理行番号（1 始まり）のまま。`total_data_lines` の定義は「3 行目以降」から「ヘッダ行より後の行のうちフィールド分割を試みた行」へ一般化する（従来 shape ではヘッダ = 2 行目のため実質同値）。BIZ-03 以降・bindings は無改変。
 - SPEC-Z4A-D5（E パディング語義）: コード欄の `E` は 14 桁固定幅の右パディングであり識別子ではない（2026-07-06 確定事項）。23-io §13.5 の「レジ固有サフィックス」記述をパディング語義へ是正する。正規化の挙動は不変: 13 桁 JAN + `E` は 13 桁化、8 桁独自コード + `EEEEEE` は invalid_jan の行単位エラーとして可視のまま維持する（silent skip は売上行の不可視喪失となるため不採用。当該行は商品マスタ非対象で取込み不能が正であり、エラー可視性が operator への正直な報告である）。
 - SPEC-Z4A-D6（全スロットダンプ受理）: layout A は売上有無を問わない全スロットダンプ（5,000 行規模）である。既存上限（10,000 行 / 20MB、BIZ-03 検査）の範囲内であり、parser 側に新規サイズガードは設けない。全ゼロコード行の空スロット skip は既存契約のまま。
@@ -262,14 +264,14 @@ Contract ID: SPEC-Z4A-D1〜D7
 
 ## Implementation Results
 
-Fill after implementation.
-
-Do not transcribe exact-HEAD SHA or test counts here (D-035/D-038 Evidence Ownership). Record a qualitative summary and the PR link only.
+- 従来 shape の中間強度検査と layout A の位置アンカー付きヘッダ走査を分離し、ラベル優先の精算日抽出、原因別文言、走査上限、後方互換の出力契約を実装した。synthetic layout A tests と mutation 実注入で SPEC-Z4A-D1〜D6 を拘束し、既存従来 shape tests / ParseResult 型 / BIZ・CMD・UI は非改変を維持した。
+- Draft PR: https://github.com/kosei-w90607/inventory-system-public/pull/81
 
 ## Review Response
 
 Fill after review.
 If R3 review-only sub-agent is skipped, record an explicit line beginning with `Review-only skipped because:` and the reason.
+- Review-only skipped because: packet は独立 Sonnet Final Reviewer を割当済みで、Draft 後の independent-review phase で Contract Audit を行う。同一 vendor の Codex subagent は D-062 の独立性を満たさないため、Draft checkpoint での代替起動はしない。
 - Findings Freeze: not yet frozen; post-freeze exceptions: none.
 
 ### Plan Gate round 1（独立 Sonnet Plan Reviewer、対象 = plan-first commit 8aa96a5）
@@ -313,3 +315,15 @@ Amendment 1 の focused review（独立 Sonnet、対象 8236176 + 094485e）は 
 - 新規拘束: T-A8（1 行目日付様 + 2 行目 5 フィールド非ヘッダ〈『コード』なし〉→ layout A 走査で正しく parse。『コード』条件を外した mutant で red）を Matrix に追加。
 - P3-1 residual: メタ 1 行のみ + 日付様値 + 5 フィールド + 第 2『コード』を偶然満たす入力は理論上残るが、実ファイル前提（メタ 2 列・6 行、2026-07-06 + 2026-08-15 検証）から乖離が大きく、CV17 版差の顕在化時に再判断（記録のみ、非 blocking）。
 - 本 amendment は focused reviewer 自身が実測裏付きで提案した修正案の採用であり、独立再レビューは要さない（相互修正案方式）。実装への反映は Writer 再開発注に含める。
+
+### Coordinator mutation 独立再実測（2026-08-17）
+
+Test Design Matrix の adequacy questions から記録非参照で 13 形を独立導出し、隔離 worktree（baseline green）で逐次実注入 — **全 kill・survivor 0**。境界系（走査上限の off-by-one 両側 / decoy によるラベル照合・位置非依存化の弱体化 2 形 / 「日付」ラベル優先除去 / silent skip 化 / ヘッダ行 data 混入）と、gated Amendment 1 起源の凍結 BIZ test による layout 判定恒偽化の kill を含む。全 mutant 復元・worktree clean 確認済み。注入形と red test の対応表は session 記録（scratchpad mutation-plan）に保持、要旨のみ本記録とする。
+
+### Final Review round 1（独立 Sonnet、対象 = 統合前 content 1c87b27 相当、2026-08-17）
+
+Ledger 10/10 適合・P1 = 0 / P2 = 1 / P3 = 2。Coordinator 裁定（全件実測裏取り済み）:
+
+- F-DRIFT-1 (P2) accept・same-PR 是正: 「layout A は IO-02 未対応」旧文言が live source docs 5 file 6 箇所（ARCHITECTURE ×2 / PROJECT_HANDOFF / pos-tables / ui-task-specs / 32-biz）に残存 — Writer の sweep は 23-io / 55-ui / plu-export の 3 文書限定で、repo 全体 grep が対象を捕捉。6 箇所を実態同期（drift-fix sweep、DEV_WORKFLOW Review Rules の same-PR fix 該当）。
+- F-DATE-1 (P3) accept・gated Amendment 3: 実装の dash 形 `YYYY-M-D`（月日 1〜2 桁）受理が Spec 文言より広い → 23-io と本 packet D3 の文言を実装へ整合（受理拡張の明示、fail-closed 性の変更なし）。
+- F-EXPECT-1 (P3) 記録のみ: `conventional_date.expect(...)` は bool 判定で論理的に到達不能。if-let 化はコード変更の再検証コストに見合わないため非採用、将来の同 file 改修時に同乗可。
