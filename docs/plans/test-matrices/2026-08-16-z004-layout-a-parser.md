@@ -6,7 +6,7 @@ Risk: R3
 
 ## Contracts Under Test
 
-- SPEC-Z4A-D1: 二形状受理（従来 shape = 1 行目日付 + 2 行目 5 フィールド検査の二重条件〈ラベル照合なし、gated Amendment 1〉/ layout A）、どちらでもない入力の致命的エラー安全停止
+- SPEC-Z4A-D1: 二形状受理（従来 shape = 1 行目日付 + 2 行目中間強度検査〈5 フィールド + 第 2 フィールド『コード』含有、gated Amendment 1・2〉/ layout A）、どちらでもない入力の致命的エラー安全停止
 - SPEC-Z4A-D2: layout A のヘッダ検査（5 フィールド + 位置アンカー: 第 2 フィールド『コード』・第 5 フィールド『金額』、先頭 20 行以内）とメタ読み飛ばし、未検出は `NoSettlementDate` variant・文言「ヘッダ行を検出できません。ファイル形式を確認してください」で停止
 - SPEC-Z4A-D3: 精算日抽出は「日付」ラベル行優先 + 最初の日付パターン fallback（YYYY-MM-DD / YYYY/M/D 受理 → ゼロ埋め正規化）
 - SPEC-Z4A-D4: ParseResult 出力契約不変（line_no 物理行番号、total_data_lines 一般化定義）
@@ -39,6 +39,7 @@ Risk: R3
 | SPEC-Z4A-D2 | メタ行数固定依存 | unit | T-A5 `parse_z004_layout_a_meta_line_count_tolerance` | メタ行数が 6 以外（例 5 / 7）の synthetic 入力でヘッダ検出が失敗する |
 | SPEC-Z4A-D1/D2/D3 | 日付様メタ値での誤ルーティング・誤抽出 / decoy ヘッダ誤認 | unit (adversarial) | T-A7 `parse_z004_layout_a_datelike_meta_first_line` | メタ行 1（管理No.）の値に日付様文字列を含む layout A fixture が従来 shape へ誤ルーティングされる、settlement_date が「日付」ラベル行の値にならない、または真のヘッダより前に置いた **decoy 行（5 フィールドだが第 2『コード』/第 5『金額』の位置アンカー不一致）** がヘッダ誤認されてデータ行の件数・行番号がずれる（round 2 N2: ラベル照合を外した mutant はこの decoy で確実に red になる） |
 | SPEC-Z4A-D6 | 空スロット skip 退行 | unit | T-A6 `parse_z004_layout_a_slot_dump_counts` | 全ゼロコード行（13/14 桁）が parsed_rows か parse_errors に混入する、または実データ行件数の assert が不一致 |
+| SPEC-Z4A-D1 | 『コード』条件の欠落（5 フィールドのみへの緩和） | unit (adversarial) | T-A8 `parse_z004_layout_a_five_field_meta_decoy` | 1 行目に日付様値を含み 2 行目が 5 フィールド非ヘッダ行（第 2 フィールドに『コード』なし）の layout A fixture が、従来 shape へ誤ルーティングされる（正: 従来判定 fail → layout A 走査 → 2 行目は D2 ヘッダ検査も fail → 後続の真のヘッダで正しく parse。『コード』条件を外した mutant はこの fixture で red） |
 | SPEC-Z4A-D1/D3 | 日付なしの誤受理 | unit (negative) | T-N1 `parse_z004_layout_a_no_date_fails` | メタ行群に日付パターンがない入力（ヘッダは検出される）が NoSettlementDate variant + 文言「精算日を抽出できません。ファイル形式を確認してください」で停止しない |
 | SPEC-Z4A-D2 | ヘッダ不在の誤受理 / 走査暴走 | unit (negative) | T-N2 `parse_z004_layout_a_no_header_fails` | ヘッダ検査を満たす行が先頭 20 行以内にない入力（21 行目ヘッダ配置 case を含む）が `NoSettlementDate` variant + 文言「ヘッダ行を検出できません。ファイル形式を確認してください」で停止しない。対で「ちょうど 20 行目ヘッダ配置」の成功 case が受理されない場合も red |
 | SPEC-Z4A-D1 | 二形状外の誤受理 | unit (negative) | T-N3 `parse_z004_unrecognized_shape_fails` | 二形状のどちらでもない構造（例: 2 列行のみのファイル）が部分 parse 結果を返す |
@@ -87,7 +88,7 @@ parser は純関数で自身の永続 state を持たない。取込み lifecycl
 
 ## Compatibility Checks
 
-- old schema/input: 従来 shape fixture → 既存 tests 凍結で結果不変を機械保証。凍結 BIZ fixtures の 3 形状（共有 builder「スキャニングコード/金額」/ 省略ラベル「額」〈gated Amendment 1 起源、5 フィールド検査で従来 route〉/ no-date negative〈layout A 走査経由で NoSettlementDate〉）は机上トレース済み、`cargo test` 全数 green が機械保証
+- old schema/input: 従来 shape fixture → 既存 tests 凍結で結果不変を機械保証。凍結 BIZ fixtures の 3 形状（共有 builder「スキャニングコード/金額」/ 省略ラベル「額」〈gated Amendment 1 起源、5 フィールド + 第 2『コード』の中間強度検査で従来 route〉/ no-date negative〈layout A 走査経由で NoSettlementDate〉）は机上トレース済み、`cargo test` 全数 green が機械保証
 - new schema/input: layout A fixture → T-A1〜T-A6
 - output order: parsed_rows / parse_errors の行順 = ファイル出現順（不変、T-A1 で assert）
 - optional field behavior: なし（ParseResult に optional field なし）
@@ -110,7 +111,8 @@ parser は純関数で自身の永続 state を持たない。取込み lifecycl
 ## Mutation-style Adequacy Questions
 
 - layout 検出分岐を反転（1 行目日付ありでも layout A 走査）したら → 既存従来 shape tests が red（1 行目日付行がヘッダ誤認され行ずれ）
-- 従来 shape 判定の 2 行目 5 フィールド検査を外し「1 行目日付のみ」に戻したら → T-A7 が red（日付様メタ値で従来 shape へ誤ルーティング、メタ行 2 は 2 フィールドのため検査ありなら layout A 側へ落ちる）
+- 従来 shape 判定の 2 行目検査を外し「1 行目日付のみ」に戻したら → T-A7 が red（日付様メタ値で従来 shape へ誤ルーティング、メタ行 2 は 2 フィールドのため検査ありなら layout A 側へ落ちる）
+- 従来 shape 判定の第 2 フィールド『コード』条件を外し 5 フィールドのみに緩めたら → T-A8 が red（5 フィールド非ヘッダ decoy で従来 shape へ誤ルーティング）
 - ヘッダ走査上限 20 を撤廃したら → T-N2 が red（上限超過入力が停止しない）
 - ヘッダ走査上限を 21 に緩めたら → T-N2 の「21 行目ヘッダ = 停止」case が red / 19 に狭めたら → 「20 行目ヘッダ = 受理」case が red
 - ヘッダ検査のラベル照合（位置アンカー込み）を外し field 数のみにしたら → T-A7 が red（decoy 5 フィールド行がヘッダ誤認され件数・行番号ずれ）
