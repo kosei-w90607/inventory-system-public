@@ -10,7 +10,7 @@ If a state-only commit materializes multiple phases, list the complete adjacent 
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: 8aa96a5
-- Amendments: none
+- Amendments: 8236176
 - Coordinator: Fable (main thread)
 - Writer: Codex
 - Plan Reviewer: Sonnet subagent（独立、Writer と別 context）
