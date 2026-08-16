@@ -6,8 +6,8 @@ Risk: R3
 
 ## Contracts Under Test
 
-- SPEC-Z4A-D1: 二形状受理（従来 shape = 1 行目日付 + 2 行目中間強度検査〈5 フィールド + 第 2 フィールド『コード』含有、gated Amendment 1・2〉/ layout A）、どちらでもない入力の致命的エラー安全停止
-- SPEC-Z4A-D2: layout A のヘッダ検査（5 フィールド + 位置アンカー: 第 2 フィールド『コード』・第 5 フィールド『金額』、先頭 20 行以内）とメタ読み飛ばし、未検出は `NoSettlementDate` variant・文言「ヘッダ行を検出できません。ファイル形式を確認してください」で停止
+- SPEC-Z4A-D1: 二形状受理（従来 shape = 1 行目日付 + 2 行目中間強度検査〈5 フィールド + 第 2 フィールドのコード label『コード』/半角『ｺｰﾄﾞ』含有、gated Amendment 1・2・4〉/ layout A）、どちらでもない入力の致命的エラー安全停止
+- SPEC-Z4A-D2: layout A のヘッダ検査（5 フィールド + 位置アンカー: 第 2 フィールドのコード label『コード』/半角『ｺｰﾄﾞ』・第 5 フィールド『金額』、先頭 20 行以内。実ヘッダ第 2 = 半角カナ『ｽｷｬﾆﾝｸﾞｺｰﾄﾞ』、gated Amendment 4）とメタ読み飛ばし、未検出は `NoSettlementDate` variant・文言「ヘッダ行を検出できません。ファイル形式を確認してください」で停止
 - SPEC-Z4A-D3: 精算日抽出は「日付」ラベル行優先 + 最初の日付パターン fallback（YYYY-MM-DD / YYYY/M/D 受理 → ゼロ埋め正規化）
 - SPEC-Z4A-D4: ParseResult 出力契約不変（line_no 物理行番号、total_data_lines 一般化定義）
 - SPEC-Z4A-D5: 8桁+EEEEEE の invalid_jan 行単位エラー維持（他行処理継続）
@@ -32,7 +32,7 @@ Risk: R3
 
 | Contract | Failure Mode | Test Type | Test Name | Would fail if... |
 |---|---|---|---|---|
-| SPEC-Z4A-D1/D2/D3 | layout A が parse できない | unit | T-A1 `parse_z004_layout_a_full_shape` | layout A fixture（メタ 6 行 + ヘッダ + データ）の parse が Err、または settlement_date / parsed_rows / parse_errors / total_data_lines / file_hash のいずれかが期待値と不一致 |
+| SPEC-Z4A-D1/D2/D3 | layout A が parse できない | unit | T-A1 `parse_z004_layout_a_full_shape` | 実形状 exact fixture（実メタ 6 ラベル 12byte padding + 空行 + 半角カナヘッダ + データ、gated Amendment 4）の parse が Err、または settlement_date / parsed_rows / parse_errors / total_data_lines / file_hash のいずれかが期待値と不一致 |
 | SPEC-Z4A-D3 | 日付抽出誤り | unit | T-A2 `parse_z004_layout_a_settlement_date_iso` | メタ日付行 `YYYY-MM-DD` が settlement_date に反映されない、または他のメタ行の数値を日付と誤認する |
 | SPEC-Z4A-D3 | ゼロ埋め欠落 | unit | T-A3 `parse_z004_layout_a_settlement_date_slash_padded` | メタ日付 `2026/8/5` が `2026-08-05` に正規化されない |
 | SPEC-Z4A-D5 | 8桁行の silent skip / 誤受理 | unit | T-A4 `parse_z004_layout_a_8digit_code_invalid_jan` | 8桁+EEEEEE 行が invalid_jan の ParseError にならない、または当該エラーで他行の処理が停止する |
@@ -113,6 +113,8 @@ parser は純関数で自身の永続 state を持たない。取込み lifecycl
 - layout 検出分岐を反転（1 行目日付ありでも layout A 走査）したら → 既存従来 shape tests が red（1 行目日付行がヘッダ誤認され行ずれ）
 - 従来 shape 判定の 2 行目検査を外し「1 行目日付のみ」に戻したら → T-A7 が red（日付様メタ値で従来 shape へ誤ルーティング、メタ行 2 は 2 フィールドのため検査ありなら layout A 側へ落ちる）
 - 従来 shape 判定の第 2 フィールド『コード』条件を外し 5 フィールドのみに緩めたら → T-A8 が red（5 フィールド非ヘッダ decoy で従来 shape へ誤ルーティング）
+- コード label 照合から半角『ｺｰﾄﾞ』受理を除去したら → T-A1 系（実形状 fixture、半角カナヘッダ）が red
+- コード label 照合から全角『コード』受理を除去したら → 全角 variant test（fullwidth_header_variant）と既存従来 shape tests が red
 - ヘッダ走査上限 20 を撤廃したら → T-N2 が red（上限超過入力が停止しない）
 - ヘッダ走査上限を 21 に緩めたら → T-N2 の「21 行目ヘッダ = 停止」case が red / 19 に狭めたら → 「20 行目ヘッダ = 受理」case が red
 - ヘッダ検査のラベル照合（位置アンカー込み）を外し field 数のみにしたら → T-A7 が red（decoy 5 フィールド行がヘッダ誤認され件数・行番号ずれ）

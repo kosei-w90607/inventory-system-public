@@ -321,15 +321,21 @@ fn extract_normalized_date(line: &str) -> Option<String> {
 }
 
 /// 従来 shape の2行目に対する中間強度検査。
+/// コード label は全角「コード」と半角カナ「ｺｰﾄﾞ」の両形を受理する
+/// （実ファイルのヘッダ第2フィールドは半角カナ「ｽｷｬﾆﾝｸﾞｺｰﾄﾞ」。SPEC-Z4A-D1/D2）。
+fn contains_code_label(field: &str) -> bool {
+    field.contains("コード") || field.contains("ｺｰﾄﾞ")
+}
+
 fn is_conventional_header_line(line: &str) -> bool {
     let fields = split_csv_fields(line);
-    fields.len() == 5 && fields[1].contains("コード")
+    fields.len() == 5 && contains_code_label(&fields[1])
 }
 
 /// layout A の5フィールド・位置アンカー付きヘッダ検査。
 fn is_layout_a_header_line(line: &str) -> bool {
     let fields = split_csv_fields(line);
-    fields.len() == 5 && fields[1].contains("コード") && fields[4].contains("金額")
+    fields.len() == 5 && contains_code_label(&fields[1]) && fields[4].contains("金額")
 }
 
 /// Z004のスキャニングコードをJANコード13桁に正規化する
@@ -721,7 +727,11 @@ mod tests {
 mod layout_a_tests {
     use super::*;
 
-    const LAYOUT_A_HEADER: &str = "\"メモリNo.\",\"コード\",\"名称\",\"個数\",\"金額\"";
+    // 実ファイル形状（2026-08-17 機械抽出）: CP932 12byte 固定幅 padding、第2フィールドは半角カナ
+    const LAYOUT_A_HEADER: &str =
+        "\"レコード    \",\"ｽｷｬﾆﾝｸﾞｺｰﾄﾞ \",\"キャラクター\",\"個数        \",\"金額        \"";
+    // 全角「コード」形（旧 synthetic 形）。アンカーの全角受理を独立に拘束するために保持
+    const LAYOUT_A_HEADER_FULLWIDTH: &str = "\"メモリNo.\",\"コード\",\"名称\",\"個数\",\"金額\"";
 
     fn encode_cp932(text: &str) -> Vec<u8> {
         let (encoded, _, _) = encoding_rs::SHIFT_JIS.encode(text);
@@ -736,14 +746,16 @@ mod layout_a_tests {
     }
 
     fn synthetic_layout_a_fixture() -> Vec<u8> {
+        // 実ファイル形状 exact（メタ6行の実ラベル + 7行目空行 + 8行目ヘッダ。値は synthetic）
         encode_cp932(&layout_a_text(
             &[
-                "\"管理No.\",\"SYNTH-0001\"",
-                "\"ファイル\",\"Z004_SYNTH\"",
-                "\"帳票\",\"PLU別売上\"",
-                "\"番号\",\"42\"",
-                "\"日付\",\"2026-08-15\"",
-                "\"時刻\",\"18:30\"",
+                "\"マシンNo.   \",\"0001\"",
+                "\"ファイル    \",\"Z004_SYNTH\"",
+                "\"モード      \",\"SYNTH\"",
+                "\"精算回数    \",\"0042\"",
+                "\"日付        \",\"2026-08-15\"",
+                "\"時刻        \",\"18:30\"",
+                "",
             ],
             &[
                 "\"1\",\"9999999999990E\",\"合成商品A\",\"2\",\"600\"",
@@ -776,18 +788,18 @@ mod layout_a_tests {
         assert_eq!(result.total_data_lines, 5);
         assert_eq!(
             result.file_hash,
-            "5b55afbc70c75322c70a2827c13abf847e3d861488d29e7eb37213e1b53bc4ad"
+            "fc73326f99ac4c2d15823460f86f97d20674d49ba45ae52c0ebf318444e36fe8"
         );
 
         let sale = &result.parsed_rows[0];
-        assert_eq!(sale.line_no, 8);
+        assert_eq!(sale.line_no, 9);
         assert_eq!(sale.normalized_jan, "9999999999990");
         assert_eq!(sale.name, "合成商品A");
         assert_eq!(sale.quantity, 2);
         assert_eq!(sale.amount, 600);
 
         let returned = &result.parsed_rows[1];
-        assert_eq!(returned.line_no, 9);
+        assert_eq!(returned.line_no, 10);
         assert_eq!(returned.normalized_jan, "8888888888880");
         assert_eq!(returned.name, "合成返品B");
         assert_eq!(returned.quantity, -1);
@@ -820,7 +832,7 @@ mod layout_a_tests {
 
         assert_eq!(result.parsed_rows.len(), 2, "他の正常行は処理を継続する");
         assert_eq!(result.parse_errors.len(), 1);
-        assert_eq!(result.parse_errors[0].line_no, 10);
+        assert_eq!(result.parse_errors[0].line_no, 11);
         assert_eq!(
             result.parse_errors[0].error_type,
             ParseErrorType::InvalidJan
@@ -859,6 +871,20 @@ mod layout_a_tests {
             let result = parse_z004(&raw).unwrap();
             assert_eq!(result.parsed_rows.len(), 1);
         }
+    }
+
+    #[test]
+    fn test_parse_z004_req401_layout_a_fullwidth_header_variant() {
+        // REQ-401 / SPEC-Z4A-D2: 全角「コード」ヘッダも受理する（アンカーの全角側を独立拘束）
+        let raw = encode_cp932(&format!(
+            "{}\r\n{}\r\n{}",
+            "\"日付\",\"2026-08-15\"",
+            LAYOUT_A_HEADER_FULLWIDTH,
+            "\"1\",\"9999999999990E\",\"合成商品\",\"1\",\"100\""
+        ));
+        let result = parse_z004(&raw).unwrap();
+        assert_eq!(result.settlement_date, "2026-08-15");
+        assert_eq!(result.parsed_rows.len(), 1);
     }
 
     #[test]
