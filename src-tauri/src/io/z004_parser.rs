@@ -15,13 +15,13 @@ use std::fmt;
 /// Z004パース成功結果（行単位エラーがあっても返る）
 #[derive(Debug)]
 pub struct ParseResult {
-    /// 精算日（YYYY-MM-DD、1行目から抽出）
+    /// 精算日（YYYY-MM-DD、入力 shape に応じたメタ行から抽出）
     pub settlement_date: String,
     /// 正常にパースできたデータ行
     pub parsed_rows: Vec<ParsedRow>,
     /// 行単位のパースエラー
     pub parse_errors: Vec<ParseError>,
-    /// 3行目以降の非空行でパースを試みた総数（Ok(Some)+Ok(None)+Err）
+    /// ヘッダ行より後の非空行でパースを試みた総数（Ok(Some)+Ok(None)+Err）
     pub total_data_lines: usize,
     /// SHA-256ハッシュ（raw bytes基準、hex小文字64文字。INV-6準拠）
     pub file_hash: String,
@@ -75,7 +75,7 @@ pub enum Z004ParseError {
     DecodeFailed(String),
     /// 2行未満（ヘッダ行すらない）
     NoDataLines(String),
-    /// 1行目から日付抽出不能
+    /// ヘッダまたは精算日を抽出不能
     NoSettlementDate(String),
 }
 
@@ -129,24 +129,57 @@ pub fn parse_z004(raw_bytes: &[u8]) -> Result<ParseResult, Z004ParseError> {
         ));
     }
 
-    // Step 6: 1行目からYYYY-MM-DD抽出
-    let date_re = regex::Regex::new(r"\d{4}-\d{2}-\d{2}").expect("日付パターンのコンパイル失敗");
-    let settlement_date = match date_re.find(lines[0]) {
-        Some(m) => m.as_str().to_string(),
-        None => {
-            return Err(Z004ParseError::NoSettlementDate(
-                "1行目から精算日（YYYY-MM-DD）を抽出できません".to_string(),
-            ));
-        }
+    // Step 6: 従来 shape と layout A を判定し、ヘッダ位置と精算日を確定
+    let conventional_date = extract_iso_date(lines[0]);
+    let is_conventional_shape =
+        conventional_date.is_some() && is_conventional_header_line(lines[1]);
+
+    let (header_index, settlement_date) = if is_conventional_shape {
+        (
+            1,
+            conventional_date.expect("従来 shape 判定済みの日付が存在する"),
+        )
+    } else {
+        const HEADER_SCAN_LIMIT: usize = 20;
+        let header_index = lines
+            .iter()
+            .take(HEADER_SCAN_LIMIT)
+            .position(|line| is_layout_a_header_line(line))
+            .ok_or_else(|| {
+                Z004ParseError::NoSettlementDate(
+                    "ヘッダ行を検出できません。ファイル形式を確認してください".to_string(),
+                )
+            })?;
+
+        let metadata = &lines[..header_index];
+        let labeled_date = metadata.iter().find_map(|line| {
+            let fields = split_csv_fields(line);
+            fields
+                .first()
+                .filter(|label| label.contains("日付"))
+                .and_then(|_| extract_normalized_date(line))
+        });
+        let fallback_date = || {
+            metadata
+                .iter()
+                .find_map(|line| extract_normalized_date(line))
+        };
+        let settlement_date = labeled_date.or_else(fallback_date).ok_or_else(|| {
+            Z004ParseError::NoSettlementDate(
+                "精算日を抽出できません。ファイル形式を確認してください".to_string(),
+            )
+        })?;
+
+        (header_index, settlement_date)
     };
 
-    // Step 7: 2行目スキップ
-    // Step 8: 3行目以降をパース
+    // Step 7: 検出したヘッダ行をスキップ
+    // Step 8: ヘッダ行より後をパース
     let mut parsed_rows = Vec::new();
     let mut parse_errors = Vec::new();
     let mut total_data_lines: usize = 0;
 
-    for (i, line) in lines.iter().enumerate().skip(2) {
+    for (i, line) in lines.iter().enumerate().skip(header_index + 1) {
         let line_no = i + 1; // 1始まり
 
         // 空行スキップ（カウントしない）
@@ -249,6 +282,60 @@ fn parse_data_line(line: &str, line_no: usize) -> Result<Option<ParsedRow>, Pars
         quantity,
         amount,
     }))
+}
+
+/// 従来 shape の1行目から `YYYY-MM-DD` を抽出する。
+fn extract_iso_date(line: &str) -> Option<String> {
+    let date_re = regex::Regex::new(r"\d{4}-\d{2}-\d{2}").expect("日付パターンのコンパイル失敗");
+    date_re
+        .find(line)
+        .map(|matched| matched.as_str().to_string())
+}
+
+/// layout A のメタ行から日付を抽出し、`YYYY-MM-DD` に正規化する。
+fn extract_normalized_date(line: &str) -> Option<String> {
+    let date_re = regex::Regex::new(
+        r"(?x)
+        (?P<year>\d{4})
+        (?:
+            -(?P<dash_month>\d{1,2})-(?P<dash_day>\d{1,2})
+          | /(?P<slash_month>\d{1,2})/(?P<slash_day>\d{1,2})
+        )",
+    )
+    .expect("日付パターンのコンパイル失敗");
+    let captures = date_re.captures(line)?;
+    let year = captures.name("year")?.as_str();
+    let month = captures
+        .name("dash_month")
+        .or_else(|| captures.name("slash_month"))?
+        .as_str()
+        .parse::<u8>()
+        .ok()?;
+    let day = captures
+        .name("dash_day")
+        .or_else(|| captures.name("slash_day"))?
+        .as_str()
+        .parse::<u8>()
+        .ok()?;
+    Some(format!("{year}-{month:02}-{day:02}"))
+}
+
+/// 従来 shape の2行目に対する中間強度検査。
+/// コード label は全角「コード」と半角カナ「ｺｰﾄﾞ」の両形を受理する
+/// （実ファイルのヘッダ第2フィールドは半角カナ「ｽｷｬﾆﾝｸﾞｺｰﾄﾞ」。SPEC-Z4A-D1/D2）。
+fn contains_code_label(field: &str) -> bool {
+    field.contains("コード") || field.contains("ｺｰﾄﾞ")
+}
+
+fn is_conventional_header_line(line: &str) -> bool {
+    let fields = split_csv_fields(line);
+    fields.len() == 5 && contains_code_label(&fields[1])
+}
+
+/// layout A の5フィールド・位置アンカー付きヘッダ検査。
+fn is_layout_a_header_line(line: &str) -> bool {
+    let fields = split_csv_fields(line);
+    fields.len() == 5 && contains_code_label(&fields[1]) && fields[4].contains("金額")
 }
 
 /// Z004のスキャニングコードをJANコード13桁に正規化する
@@ -633,5 +720,289 @@ mod tests {
         assert_eq!(fields[2], "商品名");
         assert_eq!(fields[3], "3");
         assert_eq!(fields[4], "1782");
+    }
+}
+
+#[cfg(test)]
+mod layout_a_tests {
+    use super::*;
+
+    // 実ファイル形状（2026-08-17 機械抽出）: CP932 12byte 固定幅 padding、第2フィールドは半角カナ
+    const LAYOUT_A_HEADER: &str =
+        "\"レコード    \",\"ｽｷｬﾆﾝｸﾞｺｰﾄﾞ \",\"キャラクター\",\"個数        \",\"金額        \"";
+    // 全角「コード」形（旧 synthetic 形）。アンカーの全角受理を独立に拘束するために保持
+    const LAYOUT_A_HEADER_FULLWIDTH: &str = "\"メモリNo.\",\"コード\",\"名称\",\"個数\",\"金額\"";
+
+    fn encode_cp932(text: &str) -> Vec<u8> {
+        let (encoded, _, _) = encoding_rs::SHIFT_JIS.encode(text);
+        encoded.to_vec()
+    }
+
+    fn layout_a_text(metadata: &[&str], data_lines: &[&str]) -> String {
+        let mut lines = metadata.to_vec();
+        lines.push(LAYOUT_A_HEADER);
+        lines.extend_from_slice(data_lines);
+        lines.join("\r\n")
+    }
+
+    fn synthetic_layout_a_fixture() -> Vec<u8> {
+        // 実ファイル形状 exact（メタ6行の実ラベル + 7行目空行 + 8行目ヘッダ。値は synthetic）
+        encode_cp932(&layout_a_text(
+            &[
+                "\"マシンNo.   \",\"0001\"",
+                "\"ファイル    \",\"Z004_SYNTH\"",
+                "\"モード      \",\"SYNTH\"",
+                "\"精算回数    \",\"0042\"",
+                "\"日付        \",\"2026-08-15\"",
+                "\"時刻        \",\"18:30\"",
+                "",
+            ],
+            &[
+                "\"1\",\"9999999999990E\",\"合成商品A\",\"2\",\"600\"",
+                "\"2\",\"8888888888880E\",\"合成返品B\",\"-1\",\"-250\"",
+                "\"3\",\"12345678EEEEEE\",\"合成独自C\",\"1\",\"100\"",
+                "\"4\",\"0000000000000\",\"空スロット13\",\"0\",\"0\"",
+                "\"5\",\"00000000000000\",\"空スロット14\",\"0\",\"0\"",
+            ],
+        ))
+    }
+
+    fn assert_no_settlement_date(error: Z004ParseError, expected_message: &str) {
+        match error {
+            Z004ParseError::NoSettlementDate(message) => {
+                assert_eq!(message, expected_message);
+            }
+            other => panic!("NoSettlementDate を期待しました: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn test_parse_z004_req401_layout_a_full_shape() {
+        // REQ-401 / SPEC-Z4A-D1/D2/D3/D4: layout A の完全形状と出力契約
+        let raw = synthetic_layout_a_fixture();
+        let result = parse_z004(&raw).unwrap();
+
+        assert_eq!(result.settlement_date, "2026-08-15");
+        assert_eq!(result.parsed_rows.len(), 2);
+        assert_eq!(result.parse_errors.len(), 1);
+        assert_eq!(result.total_data_lines, 5);
+        assert_eq!(
+            result.file_hash,
+            "fc73326f99ac4c2d15823460f86f97d20674d49ba45ae52c0ebf318444e36fe8"
+        );
+
+        let sale = &result.parsed_rows[0];
+        assert_eq!(sale.line_no, 9);
+        assert_eq!(sale.normalized_jan, "9999999999990");
+        assert_eq!(sale.name, "合成商品A");
+        assert_eq!(sale.quantity, 2);
+        assert_eq!(sale.amount, 600);
+
+        let returned = &result.parsed_rows[1];
+        assert_eq!(returned.line_no, 10);
+        assert_eq!(returned.normalized_jan, "8888888888880");
+        assert_eq!(returned.name, "合成返品B");
+        assert_eq!(returned.quantity, -1);
+        assert_eq!(returned.amount, -250);
+    }
+
+    #[test]
+    fn test_parse_z004_req401_layout_a_settlement_date_iso() {
+        // REQ-401 / SPEC-Z4A-D3: ISO 形式の日付ラベル値を採用する
+        let result = parse_z004(&synthetic_layout_a_fixture()).unwrap();
+        assert_eq!(result.settlement_date, "2026-08-15");
+    }
+
+    #[test]
+    fn test_parse_z004_req401_layout_a_settlement_date_slash_padded() {
+        // REQ-401 / SPEC-Z4A-D3: YYYY/M/D をゼロ埋めする
+        let raw = encode_cp932(&layout_a_text(
+            &["\"管理No.\",\"SYNTH-0002\"", "\"日付\",\"2026/8/5\""],
+            &["\"1\",\"9999999999990E\",\"合成商品\",\"1\",\"100\""],
+        ));
+
+        let result = parse_z004(&raw).unwrap();
+        assert_eq!(result.settlement_date, "2026-08-05");
+    }
+
+    #[test]
+    fn test_parse_z004_req401_layout_a_8digit_code_invalid_jan() {
+        // REQ-401 / SPEC-Z4A-D5: 8桁 + E パディングは行単位エラーで可視化する
+        let result = parse_z004(&synthetic_layout_a_fixture()).unwrap();
+
+        assert_eq!(result.parsed_rows.len(), 2, "他の正常行は処理を継続する");
+        assert_eq!(result.parse_errors.len(), 1);
+        assert_eq!(result.parse_errors[0].line_no, 11);
+        assert_eq!(
+            result.parse_errors[0].error_type,
+            ParseErrorType::InvalidJan
+        );
+        assert_eq!(
+            result.parse_errors[0].raw_name.as_deref(),
+            Some("合成独自C")
+        );
+    }
+
+    #[test]
+    fn test_parse_z004_req401_layout_a_meta_line_count_tolerance() {
+        // REQ-401 / SPEC-Z4A-D2: メタ行数を固定値にしない
+        for metadata in [
+            vec![
+                "\"管理No.\",\"SYNTH-5\"",
+                "\"ファイル\",\"Z004\"",
+                "\"帳票\",\"PLU別売上\"",
+                "\"日付\",\"2026-08-15\"",
+                "\"時刻\",\"18:30\"",
+            ],
+            vec![
+                "\"管理No.\",\"SYNTH-7\"",
+                "\"ファイル\",\"Z004\"",
+                "\"帳票\",\"PLU別売上\"",
+                "\"番号\",\"42\"",
+                "\"日付\",\"2026-08-15\"",
+                "\"時刻\",\"18:30\"",
+                "\"予備\",\"synthetic\"",
+            ],
+        ] {
+            let raw = encode_cp932(&layout_a_text(
+                &metadata,
+                &["\"1\",\"9999999999990E\",\"合成商品\",\"1\",\"100\""],
+            ));
+            let result = parse_z004(&raw).unwrap();
+            assert_eq!(result.parsed_rows.len(), 1);
+        }
+    }
+
+    #[test]
+    fn test_parse_z004_req401_layout_a_fullwidth_header_variant() {
+        // REQ-401 / SPEC-Z4A-D2: 全角「コード」ヘッダも受理する（アンカーの全角側を独立拘束）
+        let raw = encode_cp932(&format!(
+            "{}\r\n{}\r\n{}",
+            "\"日付\",\"2026-08-15\"",
+            LAYOUT_A_HEADER_FULLWIDTH,
+            "\"1\",\"9999999999990E\",\"合成商品\",\"1\",\"100\""
+        ));
+        let result = parse_z004(&raw).unwrap();
+        assert_eq!(result.settlement_date, "2026-08-15");
+        assert_eq!(result.parsed_rows.len(), 1);
+    }
+
+    #[test]
+    fn test_parse_z004_req401_layout_a_slot_dump_counts() {
+        // REQ-401 / SPEC-Z4A-D6: 全スロットダンプと全ゼロ skip
+        let mut data_lines = vec![
+            "\"1\",\"9999999999990E\",\"合成商品A\",\"3\",\"900\"".to_string(),
+            "\"2\",\"8888888888880E\",\"合成商品B\",\"1\",\"250\"".to_string(),
+        ];
+        data_lines.extend(
+            (3..=5_000).map(|slot| format!("\"{slot}\",\"00000000000000\",\"\",\"0\",\"0\"")),
+        );
+        let data_refs: Vec<&str> = data_lines.iter().map(String::as_str).collect();
+        let raw = encode_cp932(&layout_a_text(
+            &["\"管理No.\",\"SYNTH-5000\"", "\"日付\",\"2026-08-15\""],
+            &data_refs,
+        ));
+
+        let result = parse_z004(&raw).unwrap();
+        assert_eq!(result.total_data_lines, 5_000);
+        assert_eq!(result.parsed_rows.len(), 2);
+        assert_eq!(result.parse_errors.len(), 0);
+        assert_eq!(result.parsed_rows[0].quantity, 3);
+        assert_eq!(result.parsed_rows[1].amount, 250);
+    }
+
+    #[test]
+    fn test_parse_z004_req401_layout_a_datelike_meta_first_line() {
+        let raw = encode_cp932(&layout_a_text(
+            &[
+                "\"管理No.\",\"RUN-2026-01-02\"",
+                "\"コード\",\"decoy\",\"金額\",\"x\",\"not-anchor\"",
+                "\"帳票\",\"PLU別売上\"",
+                "\"日付\",\"2026/8/5\"",
+                "\"時刻\",\"18:30\"",
+            ],
+            &["\"1\",\"9999999999990E\",\"合成商品\",\"1\",\"100\""],
+        ));
+
+        let result = parse_z004(&raw).unwrap();
+        // SPEC-Z4A-D1: 日付様の先頭メタ値でも従来 shape へ誤ルーティングしない。
+        assert_eq!(result.parsed_rows.len(), 1);
+        // SPEC-Z4A-D3: 最初の一致ではなく「日付」ラベル行を優先する。
+        assert_eq!(result.settlement_date, "2026-08-05");
+        // SPEC-Z4A-D2: 誤位置のラベルを持つ decoy をヘッダと認識しない。
+        assert_eq!(result.parsed_rows[0].line_no, 7);
+        assert_eq!(result.total_data_lines, 1);
+    }
+
+    #[test]
+    fn test_parse_z004_req401_layout_a_five_field_meta_decoy() {
+        // REQ-401 / SPEC-Z4A-D1: 5フィールドだけの2行目を従来 shape と誤認しない
+        let raw = encode_cp932(&layout_a_text(
+            &[
+                "\"管理No.\",\"RUN-2026-01-02\"",
+                "\"decoy\",\"not-code\",\"x\",\"y\",\"金額\"",
+                "\"日付\",\"2026-08-15\"",
+            ],
+            &["\"1\",\"9999999999990E\",\"合成商品\",\"1\",\"100\""],
+        ));
+
+        let result = parse_z004(&raw).unwrap();
+        assert_eq!(result.settlement_date, "2026-08-15");
+        assert_eq!(result.parsed_rows.len(), 1);
+        assert_eq!(result.parsed_rows[0].line_no, 5);
+        assert_eq!(result.total_data_lines, 1);
+    }
+
+    #[test]
+    fn test_parse_z004_req401_layout_a_no_date_fails() {
+        // REQ-401 / SPEC-Z4A-D3: ヘッダがあっても日付なしは安全停止する
+        let raw = encode_cp932(&layout_a_text(
+            &["\"管理No.\",\"SYNTH-NO-DATE\"", "\"時刻\",\"18:30\""],
+            &["\"1\",\"9999999999990E\",\"合成商品\",\"1\",\"100\""],
+        ));
+
+        assert_no_settlement_date(
+            parse_z004(&raw).unwrap_err(),
+            "精算日を抽出できません。ファイル形式を確認してください",
+        );
+    }
+
+    #[test]
+    fn test_parse_z004_req401_layout_a_no_header_fails() {
+        // REQ-401 / SPEC-Z4A-D2: 20行目は受理、21行目は走査上限超過で停止する
+        let preamble_19: Vec<String> = (1..=19)
+            .map(|line| {
+                if line == 2 {
+                    "\"日付\",\"2026-08-15\"".to_string()
+                } else {
+                    format!("\"メタ{line}\",\"synthetic\"")
+                }
+            })
+            .collect();
+        let mut accepted_lines = preamble_19.clone();
+        accepted_lines.push(LAYOUT_A_HEADER.to_string());
+        accepted_lines.push("\"1\",\"9999999999990E\",\"合成商品\",\"1\",\"100\"".to_string());
+        let accepted = encode_cp932(&accepted_lines.join("\r\n"));
+        assert_eq!(parse_z004(&accepted).unwrap().parsed_rows.len(), 1);
+
+        let mut preamble_20 = preamble_19;
+        preamble_20.push("\"メタ20\",\"synthetic\"".to_string());
+        preamble_20.push(LAYOUT_A_HEADER.to_string());
+        let rejected = encode_cp932(&preamble_20.join("\r\n"));
+        assert_no_settlement_date(
+            parse_z004(&rejected).unwrap_err(),
+            "ヘッダ行を検出できません。ファイル形式を確認してください",
+        );
+    }
+
+    #[test]
+    fn test_parse_z004_req401_unrecognized_shape_fails() {
+        // REQ-401 / SPEC-Z4A-D1: 二形状外は部分結果を返さない
+        let raw =
+            encode_cp932("\"メタ\",\"synthetic\"\r\n\"別メタ\",\"value\"\r\n\"終端\",\"value\"");
+        assert_no_settlement_date(
+            parse_z004(&raw).unwrap_err(),
+            "ヘッダ行を検出できません。ファイル形式を確認してください",
+        );
     }
 }

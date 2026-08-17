@@ -2,7 +2,7 @@
 
 > **2026-06-30 field-check note**: 本書は既存実装の Z004 parser contract を記録する。現場確認では、現在の店舗日報主入力は `Z001`/`Z002`/`Z005` であり、`Z004` は PLU(商品) / 商品別トラックとして再評価する対象になった。REQ-401 の current SALES import を変更する場合は、本書を拡張するのではなく SALES redesign で `Z001`/`Z002`/`Z005` parser contract を別途定義する。
 >
-> **2026-08-01 evidence boundary**: 2026-07-06 issue #135 で、Z004 が `メモリNo. / コード / 名称 / 個数 / 金額` を持つCV17のPLU別売上レポートであり、代表販売1件が個数非ゼロ行へ出ることを確認済み。本書の現行runtime contractは1行目から日付を取る従来shapeのままで、CV17のSD取込み後 `EcrDatas` に残るメタ6行+headerのlayout Aは未対応で安全停止する。BIZ-03のsale_records作成・`pos_stock_sync`在庫増減・rollbackは実装済みであり、別R3の対象は二形状対応と店舗採取shapeでのend-to-end再検証。本changeは現行関数契約を変更しない。
+> **2026-08-01 evidence boundary（2026-08-17 実態同期）**: 2026-07-06 issue #135 で、Z004 が メモリNo. / コード / 名称 / 個数 / 金額 の列意味を持つCV17のPLU別売上レポートであり、代表販売1件が個数非ゼロ行へ出ることを確認済み（実ヘッダ表記は `レコード / ｽｷｬﾆﾝｸﾞｺｰﾄﾞ / キャラクター / 個数 / 金額`、第2フィールドは半角カナ。2026-08-17 実ファイル機械抽出）。IO-02 は、従来shapeに加えてCV17のSD取込み後 `EcrDatas` に残るメタ6行+headerのlayout Aを受理する。BIZ-03のsale_records作成・`pos_stock_sync`在庫増減・rollbackと `ParseResult` 契約は変更しない。店舗採取shapeでのend-to-end確認はL3境界に残る。
 
 ### 13.1 モジュール構成
 
@@ -24,10 +24,10 @@ IO層の新ディレクトリ。DB操作を伴わない純粋なファイルフ�
 
 Z004ファイルのパース成功時の結果。行単位エラーがあっても返る（致命的エラーでなければ）。
 
-- settlement_date: String（YYYY-MM-DD。1行目から抽出した精算日）
+- settlement_date: String（YYYY-MM-DD。従来shapeは1行目、layout Aはヘッダより前のメタ行群から抽出した精算日）
 - parsed_rows: Vec\<ParsedRow\>（正常にパースできたデータ行）
 - parse_errors: Vec\<ParseError\>（行単位のパースエラー）
-- total_data_lines: usize（改行正規化後、3行目以降の非空行でフィールド分割を試みた行の総数。Ok(Some)=正常行、Ok(None)=空スロット、Err=エラー行すべてカウント。空文字列のみの行は除外）
+- total_data_lines: usize（改行正規化後、検出したヘッダ行より後の非空行でフィールド分割を試みた行の総数。Ok(Some)=正常行、Ok(None)=空スロット、Err=エラー行すべてカウント。空文字列のみの行は除外。従来shapeではヘッダが2行目なので旧定義と実質同値。SPEC-Z4A-D4）
 - file_hash: String（SHA-256、生バイト列から算出、hex小文字64文字。INV-6準拠）
 
 #### ParsedRow構造体
@@ -69,7 +69,7 @@ enum ParseErrorType {
 enum Z004ParseError {
     DecodeFailed(String),       // CP932デコード失敗
     NoDataLines(String),        // 2行未満（ヘッダ行すらない）
-    NoSettlementDate(String),   // 1行目から日付パターン抽出不能
+    NoSettlementDate(String),   // ヘッダまたは精算日を抽出不能
 }
 ```
 
@@ -95,11 +95,15 @@ fn parse_z004(raw_bytes: &[u8]) -> Result<ParseResult, Z004ParseError>
    - `\u{0085}` → `\n` は独立して処理可能
 4. `\n` で行分割。空行は除去しない（行番号を保持するため）
 5. 2行未満 → Err(Z004ParseError::NoDataLines("データ行がありません。ファイル形式を確認してください"))
-6. 1行目: YYYY-MM-DD パターンを正規表現で抽出 → settlement_date
-   - パターン: `\d{4}-\d{2}-\d{2}`
-   - マッチなし → Err(Z004ParseError::NoSettlementDate("1行目から精算日（YYYY-MM-DD）を抽出できません"))
-7. 2行目: スキップ（カラムヘッダ行）
-8. 3行目以降: 各行について
+6. shape判定とヘッダ位置・settlement_dateの確定（SPEC-Z4A-D1〜D3）
+   - 従来shape: 1行目に `YYYY-MM-DD` があり、かつ2行目が中間強度検査（CSV分割後が5フィールドかつ第2フィールドに「コード」または半角カナ「ｺｰﾄﾞ」を含む。第5フィールドのラベル照合はしない）を満たす場合。settlement_dateは1行目の一致を現行どおり採用する
+   - layout A: 従来shapeの二重条件を満たさない場合、先頭20行以内から最初のヘッダ行を走査する。ヘッダ未検出 → Err(Z004ParseError::NoSettlementDate("ヘッダ行を検出できません。ファイル形式を確認してください"))
+   - layout Aヘッダ検査: CSV分割後が5フィールドで、第2フィールドに「コード」または半角カナ「ｺｰﾄﾞ」、第5フィールドに「金額」を含むこと（実ファイルのヘッダ第2フィールドは半角カナ「ｽｷｬﾆﾝｸﾞｺｰﾄﾞ」、2026-08-17 実ファイル機械抽出）。フィールド数だけでなく位置アンカー付きラベル照合を重ね、5フィールドの非ヘッダ行を排除する
+   - layout Aの精算日は、ヘッダより前のメタ行群で第1フィールドに「日付」を含む行を優先する。該当行に日付がない場合のみ、メタ行群の先頭から最初の日付パターンへfallbackする
+   - layout Aの日付は `YYYY-MM-DD` / `YYYY-M-D` / `YYYY/M/D`（dash / slash 両区切りとも月日1〜2桁）を受理し、`YYYY-MM-DD`へゼロ埋め正規化する。日付未検出 → Err(Z004ParseError::NoSettlementDate("精算日を抽出できません。ファイル形式を確認してください"))
+   - 二形状のどちらでもない入力は上記致命的エラーで安全停止し、部分結果を返さない
+7. 検出したヘッダ行をスキップ
+8. ヘッダ行より後: 各行について
    - 空行（trimして空文字列）→ スキップ（エラーにもカウントしない）
    - parse_data_line(line, line_no) を呼び出し
      - Ok(Some(row)) → parsed_rowsに追加
@@ -110,6 +114,13 @@ fn parse_z004(raw_bytes: &[u8]) -> Result<ParseResult, Z004ParseError>
 **入力例**:
 ```
 raw_bytes: CP932エンコードされたZ004ファイル
+  layout A:
+  1〜6行目: マシンNo. / ファイル / モード / 精算回数 / 日付 / 時刻のメタ行（2列、CP932 12byte固定幅のラベルpadding。2026-08-17 実ファイル機械抽出）
+  7行目: 空行（区切り）
+  8行目: "レコード    ","ｽｷｬﾆﾝｸﾞｺｰﾄﾞ ","キャラクター","個数        ","金額        "
+  9行目以降: 5フィールドの全スロットダンプ
+
+  従来shape:
   1行目: "精算日報 2026-03-21 ..."
   2行目: "No,コード,名称,個数,金額"
   3行目: "1","4976383262108","ﾊﾏﾅｶ ｱﾐｱﾐ極太",3,1782
@@ -134,8 +145,20 @@ Ok(ParseResult {
 **エラーハンドリング**:
 - CP932デコード失敗 → Z004ParseError::DecodeFailed（即リターン）
 - 2行未満 → Z004ParseError::NoDataLines（即リターン）
-- 日付抽出不能 → Z004ParseError::NoSettlementDate（即リターン）
+- 先頭20行以内にヘッダ未検出 → Z004ParseError::NoSettlementDate（文言: `ヘッダ行を検出できません。ファイル形式を確認してください`、即リターン）
+- メタ行群から日付抽出不能 → Z004ParseError::NoSettlementDate（文言: `精算日を抽出できません。ファイル形式を確認してください`、即リターン）
 - 行単位エラーはparse_errorsに蓄積し、他の行の処理は継続
+
+**二形状 amendment（SPEC-Z4A-D1〜D6）**:
+
+| ID | 契約 |
+|---|---|
+| SPEC-Z4A-D1 | 従来shapeとlayout Aを受理し、従来shapeは1行目日付 + 2行目中間強度検査（5フィールド + 第2フィールドに「コード」/半角「ｺｰﾄﾞ」含有、第5フィールドのラベル照合なし）の二重条件で判定する。二形状外は致命的エラーでfail-closedする |
+| SPEC-Z4A-D2 | layout Aのヘッダは5フィールド + 第2「コード」（半角カナ「ｺｰﾄﾞ」を含む）/第5「金額」の位置アンカーで検査し、先頭20行以内だけを走査する |
+| SPEC-Z4A-D3 | layout Aの精算日は「日付」ラベル行優先 + 最初の日付パターンfallbackとし、`YYYY-MM-DD` / `YYYY-M-D` / `YYYY/M/D`（月日1〜2桁）をゼロ埋め正規化する |
+| SPEC-Z4A-D4 | `ParseResult`系の型と意味論を変えず、line_noは物理行番号、total_data_linesはヘッダ後の試行行数とする |
+| SPEC-Z4A-D5 | `E`は14桁固定幅の右パディング。13桁JAN + Eは正規化し、8桁独自コード + EEEEEEはInvalidJanとして可視化する |
+| SPEC-Z4A-D6 | layout Aの全スロットダンプを既存BIZ-03上限内で受理し、全ゼロコード行を空スロットとしてskipする |
 
 ---
 
@@ -183,7 +206,7 @@ fn normalize_jan(raw: &str, line_no: usize) -> Result<Option<String>, String>
 1. 前後空白をtrim
 2. 全桁ゼロ判定: 全文字が '0' → Ok(None)
    - 13桁ゼロ `0000000000000` も14桁ゼロ `00000000000000` もOk(None)
-3. 14桁かつ末尾がASCIIアルファベット（a-z, A-Z）→ 末尾1文字を除去して13桁化
+3. 14桁かつ末尾がASCIIアルファベット（a-z, A-Z）→ 14桁固定幅の右パディング1文字を除去して13桁化
 4. 結果が13桁かつ全文字が数字 → Ok(Some(normalized))
 5. それ以外 → Err("行{line_no}: JANコード '{raw}' を正規化できません")
 
@@ -192,7 +215,8 @@ fn normalize_jan(raw: &str, line_no: usize) -> Result<Option<String>, String>
 - チェックデジット検証はしない（レジ出力をそのまま信頼。DB_DESIGN.md準拠）
 - 13桁未満は不正（Err）
 - 14桁超は不正（Err）
-- 14桁で末尾が数字の場合は不正（Err）。末尾アルファベット除去は末尾E等のレジ固有サフィックスへの対応
+- 14桁で末尾が数字の場合は不正（Err）。末尾アルファベットは識別子ではなく、コード欄を14桁固定幅にする右パディングとして除去する（SPEC-Z4A-D5）
+- 8桁独自コード + `EEEEEE` は右パディング除去後も13桁JANにならないためInvalidJan。silent skipせず行単位エラーとして可視化する
 
 **入力→出力例**:
 
@@ -219,6 +243,7 @@ fn normalize_jan(raw: &str, line_no: usize) -> Result<Option<String>, String>
 | 制御文字 | 改行正規化後は特別な処理なし | |
 | 金額・数量 | i32整数のみ。浮動小数は不正（InvalidNumber） | レジ精算値は常に整数 |
 | 入力上限 | 10,000行 / 20MB | IO-02では検査しない。BIZ-03でガードチェック |
+| layout A行数 | 全5,000スロット程度を受理 | 既存BIZ-03上限内。parser側に新規サイズガードは設けない（SPEC-Z4A-D6） |
 | 返品値 | quantity < 0, amount < 0 を許容 | Z004のレジ戻しはマイナス値で出力される |
 
 ---
@@ -229,7 +254,8 @@ fn normalize_jan(raw: &str, line_no: usize) -> Result<Option<String>, String>
 |--------|---|---------|---------|
 | CP932デコード失敗 | Z004ParseError::DecodeFailed | ファイル全体 | 即リターン（Result::Err） |
 | 2行未満 | Z004ParseError::NoDataLines | ファイル全体 | 即リターン（Result::Err） |
-| 日付抽出不能 | Z004ParseError::NoSettlementDate | ファイル全体 | 即リターン（Result::Err） |
+| ヘッダ未検出（先頭20行以内） | Z004ParseError::NoSettlementDate | ファイル全体 | 原因別文言で即リターン（Result::Err） |
+| 精算日抽出不能 | Z004ParseError::NoSettlementDate | ファイル全体 | 原因別文言で即リターン（Result::Err） |
 | フィールド数不正 | ParseError (InvalidFormat) | 1行のみ | parse_errorsに追加、他の行は処理継続 |
 | JAN正規化失敗 | ParseError (InvalidJan) | 1行のみ | parse_errorsに追加、他の行は処理継続 |
 | 数値変換失敗 | ParseError (InvalidNumber) | 1行のみ | parse_errorsに追加、他の行は処理継続 |
@@ -270,6 +296,6 @@ fn normalize_jan(raw: &str, line_no: usize) -> Result<Option<String>, String>
 |---------|------|------|
 | sha2 | file_hashの算出（SHA-256） | Cargo.toml に追加済み |
 | encoding_rs | CP932（Shift_JIS）デコード | 新規追加が必要。`SHIFT_JIS` デコーダを使用 |
-| regex | 1行目からのYYYY-MM-DD抽出 | 新規追加が必要 |
+| regex | 従来shapeの日付抽出、layout Aの日付2形式抽出・正規化 | 追加済み |
 
 **encoding_rsの選定理由**: Rustの標準ライブラリにはCP932デコードがない。encoding_rsはWHATWG Encoding Standardの実装であり、`SHIFT_JIS` ラベルでCP932互換のデコードが可能。strictモード（`decode_without_bom_handling` + エラーチェック）で使用する。
