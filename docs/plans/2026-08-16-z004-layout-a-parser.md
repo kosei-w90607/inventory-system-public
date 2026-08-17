@@ -6,19 +6,19 @@ Use the field definitions, enums, transition evidence, packet-selection rule, an
 
 If a state-only commit materializes multiple phases, list the complete adjacent forward sequence and the pre-existing evidence for every intermediate transition in an append-only review/evidence record. Recording compression never permits a gate skip.
 
-- Phase: local-verified
+- Phase: ready-hosted-final
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: 8aa96a5
-- Amendments: 8236176, 4efda0e
+- Amendments: 8236176, 4efda0e, a5f7af5, a9fd1db
 - Coordinator: Fable (main thread)
 - Writer: Codex
 - Plan Reviewer: Sonnet subagent（独立、Writer と別 context）
 - Final Reviewer: Sonnet subagent（独立、Writer と別 context）
-- Reviewed Content HEAD: pending
+- Reviewed Content HEAD: 19d3285
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
-- Human Gate: L3 実ファイル取込み確認（CSV-09/CSV-10 相当）/ Ready 承認 / merge
+- Human Gate: Ready トリガー（owner 承認済み 2026-08-18、介入 3 回目 / 予算 3 回）/ merge
 
 Transition narrative（append-only）:
 
@@ -30,6 +30,7 @@ Transition narrative（append-only）:
 - **backtrack 後の再前進（2026-08-17）**: gated Amendment 4 + 半角カナ是正の content commit に implementing → local-verified を同乗させる（PR #58 先例の正規手段、state-only slot 不使用）。evidence: 是正後 tree での L1 `local-ci.sh full` CLEAN（commit 直前に実行、candidate SHA と evidence 位置は PR body に記録）。以後の local-verified → independent-review → human-confirm → ready-hosted-final は、Final Review 再検証 CLOSED + owner L3 PASS + Ready 承認の evidence が揃った時点で単一 state-only commit の隣接 forward compression として materialize する（STATECAP 総数 3/3・post-impl 2/2 に適合する唯一の経路）。
 - state-only 遷移 commit で local-verified → independent-review → human-confirm を materialize する（隣接 forward の recording compression）。evidence: L1 full CLEAN（candidate a5f7af5、evidence は PR body）/ 独立 Final Reviewer engaged・Contract Audit 実施（local-verified → independent-review）/ Final Review CLOSED P1/P2 = 0（Review Response の round 1 + 統合再検証記録）+ Reviewed Content HEAD = a5f7af5 設定（independent-review → human-confirm）。
 - **STATECAP 是正の consolidation（2026-08-17、履歴統合の逸脱記録）**: 上記の implementing → local-verified を state-only 遷移 commit（旧 8450de5）として立てた記録方式は、STATECAP の非 sanctioned slot を消費し（総数 cap 3 / post-impl cap 2 に対し、以後の human-confirm + ready-hosted-final で両 cap 超過が必発の潜伏欠陥）、checker 実読で Coordinator が検出した。PR #64 先例（recording compression 統合是正）に従い、Draft 段階で旧 content commit 1c87b27 + 旧 state-only 8450de5 を単一 content commit へ統合し、implementing → local-verified はその content commit 同乗（PR #58 先例の正規手段）へ改めた。統合 commit には Final Review round 1 の P2 是正（drift sweep）と gated Amendment 3 も同乗する。L1 full は統合後 tree で再実行し、evidence は PR body を正とする。Plan Commit 8aa96a5 / Amendments 8236176, 4efda0e は不変（PK5 維持）。
+- **state-only 遷移 commit で local-verified → independent-review → human-confirm → ready-hosted-final を materialize する（2026-08-18、隣接 forward の recording compression、上記「backtrack 後の再前進」予告の実行）**。evidence: L1 full CLEAN / PASS（candidate 19d3285 = CSV-05/09/10 L3 完了記録 + Plans.md 進行行同期の docs-only content commit、evidence 位置は PR body）+ 独立 Final Reviewer engaged・Contract Audit 実施済み（local-verified → independent-review）/ Final Review CLOSED P1/P2 = 0（candidate 65ce4b5、Review Response 記録）+ docs-only delta の独立再検証 P1/P2 = 0（candidate 19d3285、Review Response 記録）+ Reviewed Content HEAD = 19d3285 設定（independent-review → human-confirm）/ owner L3 round 2 PASS（2026-08-18、CSV-05/09/10 消化、evidence = PR body / PR comment）+ owner Ready 承認（2026-08-18、介入 3 回目 / 予算 3 回）（human-confirm → ready-hosted-final）。Amendments へ a5f7af5（consolidation、Amendment 3 同乗）/ a9fd1db（Amendment 4 同乗）を追記。遷移後に本 state-only HEAD で L1 full を再実行し、PR body を全面 refresh してから owner が Ready をトリガーする。
 
 ## Owner Effort Budget
 
@@ -362,3 +363,9 @@ owner L3 round 1 = **FAIL（true positive、L3 gate の実効性実証）**。�
 - Amendment 4 の裁定: (a) D1/D2 のコード label 照合を全角『コード』+ 半角『ｺｰﾄﾞ』の両形受理へ拡張（共通 helper `contains_code_label`）。(b) primary fixture を実形状 exact（実メタラベル 12byte padding + 空行 + 半角ヘッダ）へ是正し、全角形は独立 test（fullwidth_header_variant）で拘束。(c) 23-io / plu-export の実形状記述を機械抽出結果で是正。(d) 実装は Coordinator/Writer 兼務で実施（相当規模 = anchor 1 helper + fixture、PR #75 の兼務先例。relay 予算 2/2 消化済みの budget 判断込み。独立 Final Review の再検証で writer 自己承認を回避）。
 - 検証: req401 filter 全 pass（新規 fullwidth variant 込み）+ **実ファイル直接投入の一時 test で parse 成功を確認**（精算日 = 採取日 2026-07-06 一致・total_data_lines 5,000・行単位エラー 10 件 = evidence 記録の 8 桁独自コード既存別商材 10 件と完全一致）後、一時 test は撤去済み。
 - 教訓（WER 候補）: L3 round 1 FAIL の真因は「実 evidence の転記誤りの上に synthetic fixture と契約を構築したこと」。実ファイル shape を契約化する change では、局所 shape 事実の機械抽出を Plan Gate 前の Contract Probe に含めるべきだった（本 change の Probe は既存 doc 引用で済ませ、実物との突合を L3 まで遅延させた）。
+
+### owner L3 round 2 PASS + delta 再検証 + Ready 承認（2026-08-18）
+
+- owner L3 round 2 = **PASS**（Windows native、店舗採取 Z004 layout A で CSV-05/06/07/09/10 全項目 PASS・blocker なし。evidence = PR #81 comment〈匿名化観測記録: 在庫増減・返品戻り・複数数量・日次/月次売上・inventory_movements〉）。L3 で判明した後続 UI 改善 6 項目は issue #83 へ起票（本 PR non-scope、既存 backlog との重複も同 issue に明記）。
+- L3 完了記録の docs-only content commit（plu-export CSV-05/09/10 状態行 + Plans.md 進行行同期、In-scope の Plan Gate round 1 F2 残置き分）で content candidate は 19d3285 へ更新。独立 Sonnet delta 再検証で **P1/P2 = 0（対象 diff）** — L3 evidence との事実突合 / packet 義務適合 / D-038 遵守 / 旧表記 sweep 残存 0 / issue #83 実在を確認。「PR body 未同期」の P1 指摘は、遷移表が定める Ready 前の PR body 全面 refresh（本遷移直後に実施）で解消する段取り済み事項と Coordinator 裁定。P3（PROJECT_HANDOFF 最終更新スタンプの陳腐化）は scope 外・owner へ backlog 提案として報告。
+- owner Ready 承認 = 2026-08-18（介入 3 回目 / 予算 3 回）。前節「Final Review 最終確認」の Reviewed Content HEAD = 65ce4b5 予定は、candidate 更新に伴い 19d3285 へ差し替えて設定する。
