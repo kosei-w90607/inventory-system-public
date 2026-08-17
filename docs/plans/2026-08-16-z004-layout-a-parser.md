@@ -18,7 +18,7 @@ If a state-only commit materializes multiple phases, list the complete adjacent 
 - Reviewed Content HEAD: 19d3285
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
-- Human Gate: Ready トリガー（owner 承認済み 2026-08-18、介入 3 回目 / 予算 3 回）/ merge
+- Human Gate: Ready トリガー（owner 承認済み 2026-08-18、介入 4 回目 / 予算 3 回・超過 1 明示記録）/ merge
 
 Transition narrative（append-only）:
 
@@ -31,6 +31,7 @@ Transition narrative（append-only）:
 - state-only 遷移 commit で local-verified → independent-review → human-confirm を materialize する（隣接 forward の recording compression）。evidence: L1 full CLEAN（candidate a5f7af5、evidence は PR body）/ 独立 Final Reviewer engaged・Contract Audit 実施（local-verified → independent-review）/ Final Review CLOSED P1/P2 = 0（Review Response の round 1 + 統合再検証記録）+ Reviewed Content HEAD = a5f7af5 設定（independent-review → human-confirm）。
 - **STATECAP 是正の consolidation（2026-08-17、履歴統合の逸脱記録）**: 上記の implementing → local-verified を state-only 遷移 commit（旧 8450de5）として立てた記録方式は、STATECAP の非 sanctioned slot を消費し（総数 cap 3 / post-impl cap 2 に対し、以後の human-confirm + ready-hosted-final で両 cap 超過が必発の潜伏欠陥）、checker 実読で Coordinator が検出した。PR #64 先例（recording compression 統合是正）に従い、Draft 段階で旧 content commit 1c87b27 + 旧 state-only 8450de5 を単一 content commit へ統合し、implementing → local-verified はその content commit 同乗（PR #58 先例の正規手段）へ改めた。統合 commit には Final Review round 1 の P2 是正（drift sweep）と gated Amendment 3 も同乗する。L1 full は統合後 tree で再実行し、evidence は PR body を正とする。Plan Commit 8aa96a5 / Amendments 8236176, 4efda0e は不変（PK5 維持）。
 - **state-only 遷移 commit で local-verified → independent-review → human-confirm → ready-hosted-final を materialize する（2026-08-18、隣接 forward の recording compression、上記「backtrack 後の再前進」予告の実行）**。evidence: L1 full CLEAN / PASS（candidate 19d3285 = CSV-05/09/10 L3 完了記録 + Plans.md 進行行同期の docs-only content commit、evidence 位置は PR body）+ 独立 Final Reviewer engaged・Contract Audit 実施済み（local-verified → independent-review）/ Final Review CLOSED P1/P2 = 0（candidate 65ce4b5、Review Response 記録）+ docs-only delta の独立再検証 P1/P2 = 0（candidate 19d3285、Review Response 記録）+ Reviewed Content HEAD = 19d3285 設定（independent-review → human-confirm）/ owner L3 round 2 PASS（2026-08-18、CSV-05/09/10 消化、evidence = PR body / PR comment）+ owner Ready 承認（2026-08-18、介入 3 回目 / 予算 3 回）（human-confirm → ready-hosted-final）。Amendments へ a5f7af5（consolidation、Amendment 3 同乗）/ a9fd1db（Amendment 4 同乗）を追記。遷移後に本 state-only HEAD で L1 full を再実行し、PR body を全面 refresh してから owner が Ready をトリガーする。
+- **計上是正（2026-08-18、owner 裁定）**: 直前 entry および Human Gate field の「介入 3 回目 / 予算 3 回」は Coordinator の計上誤り。D-055（decision point 単位計上）+ PR #74 先例（L3 round 個別計上・超過明示記録）に従い、正 = plan 承認(1) / L3 round 1(2) / L3 round 2(3) / Ready 承認(4) = **介入 4 回目 / 予算 3 回・超過 1**。超過分は L3 round 1 FAIL（true positive）連鎖起因の round 2。owner 裁定で超過明示記録を採用（承認自体は有効、誤りは計上数のみ）。本是正 commit は計上数値のみの tracking-record 修正（実装・設計 doc 非接触）であり、Reviewed Content HEAD = 19d3285 を維持する。
 
 ## Owner Effort Budget
 
@@ -368,4 +369,5 @@ owner L3 round 1 = **FAIL（true positive、L3 gate の実効性実証）**。�
 
 - owner L3 round 2 = **PASS**（Windows native、店舗採取 Z004 layout A で CSV-05/06/07/09/10 全項目 PASS・blocker なし。evidence = PR #81 comment〈匿名化観測記録: 在庫増減・返品戻り・複数数量・日次/月次売上・inventory_movements〉）。L3 で判明した後続 UI 改善 6 項目は issue #83 へ起票（本 PR non-scope、既存 backlog との重複も同 issue に明記）。
 - L3 完了記録の docs-only content commit（plu-export CSV-05/09/10 状態行 + Plans.md 進行行同期、In-scope の Plan Gate round 1 F2 残置き分）で content candidate は 19d3285 へ更新。独立 Sonnet delta 再検証で **P1/P2 = 0（対象 diff）** — L3 evidence との事実突合 / packet 義務適合 / D-038 遵守 / 旧表記 sweep 残存 0 / issue #83 実在を確認。「PR body 未同期」の P1 指摘は、遷移表が定める Ready 前の PR body 全面 refresh（本遷移直後に実施）で解消する段取り済み事項と Coordinator 裁定。P3（PROJECT_HANDOFF 最終更新スタンプの陳腐化）は scope 外・owner へ backlog 提案として報告。
-- owner Ready 承認 = 2026-08-18（介入 3 回目 / 予算 3 回）。前節「Final Review 最終確認」の Reviewed Content HEAD = 65ce4b5 予定は、candidate 更新に伴い 19d3285 へ差し替えて設定する。
+- owner Ready 承認 = 2026-08-18。前節「Final Review 最終確認」の Reviewed Content HEAD = 65ce4b5 予定は、candidate 更新に伴い 19d3285 へ差し替えて設定する。
+- **計上是正（2026-08-18、owner 裁定）**: Ready 承認依頼時の「介入 3 回目 / 予算 3 回」は計上誤りで、正 = **介入 4 回目 / 予算 3 回・超過 1**（plan 承認 1 / L3 round 1 = 2 / L3 round 2 = 3 / Ready 承認 = 4。D-055 + PR #74 先例）。超過分 = L3 round 2（round 1 FAIL true positive 連鎖起因）。owner 裁定により超過明示記録を採用。Transition narrative の同日付是正 entry 参照。
