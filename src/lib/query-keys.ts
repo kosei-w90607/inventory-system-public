@@ -13,6 +13,7 @@ export const queryKeys = {
   lowStock: (includeDiscontinued: boolean) =>
     ["products", "low-stock", { includeDiscontinued }] as const,
   pluDirty: () => ["plu-dirty"] as const,
+  pluSlotSummary: () => ["plu-slot-summary"] as const,
   csvImports: (page: number, perPage: number) =>
     ["csv-imports", "list", { page, perPage }] as const,
   // UI-07 CSV取込み画面: prefix helper。

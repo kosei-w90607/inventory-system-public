@@ -559,9 +559,15 @@ mod tests {
         let db_path = dir.path().join("seed-test.db");
         let mut conn = init_database(db_path.to_str().unwrap()).unwrap();
         run_seed(&mut conn, false).unwrap();
+        crate::db::system_repo::upsert_setting(
+            &conn,
+            "plu_register_snapshot_at",
+            "2026-08-18T00:00:00",
+        )
+        .unwrap();
 
         let result = prepare_plu_export(
-            &conn,
+            &mut conn,
             PluExportPrepareRequest {
                 mode: ExportMode::Full,
             },

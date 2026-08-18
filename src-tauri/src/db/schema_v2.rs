@@ -369,13 +369,13 @@ mod tests {
         let db_path = dir.path().join("test.db");
         let conn = init_database(db_path.to_str().unwrap()).unwrap();
 
-        // init_database は最新の v4 まで適用する
+        // init_database は最新の v5 まで適用する
         let max_version: i64 = conn
             .query_row("SELECT MAX(version) FROM schema_versions", [], |row| {
                 row.get(0)
             })
             .unwrap();
-        assert_eq!(max_version, 4);
+        assert_eq!(max_version, 5);
 
         // 4テーブルに idempotency_key カラムが存在する
         for table in &[
@@ -583,7 +583,7 @@ mod tests {
                 row.get(0)
             })
             .unwrap();
-        assert_eq!(v, 4);
+        assert_eq!(v, 5);
         drop(conn);
 
         // 2回目
@@ -593,12 +593,12 @@ mod tests {
                 row.get(0)
             })
             .unwrap();
-        assert_eq!(v, 4, "バージョンは変わらない");
+        assert_eq!(v, 5, "バージョンは変わらない");
 
         let count: i64 = conn
             .query_row("SELECT COUNT(*) FROM schema_versions", [], |row| row.get(0))
             .unwrap();
-        assert_eq!(count, 4, "v1+v2+v3+v4の4レコードのみ");
+        assert_eq!(count, 5, "v1+v2+v3+v4+v5の5レコードのみ");
     }
 
     /// foreign_keys=ON 復元テスト（成功経路）

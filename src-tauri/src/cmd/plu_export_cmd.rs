@@ -4,8 +4,11 @@
 
 use crate::biz::plu_export_service::{
     self, ExportMode, PluExcludedReason, PluExportConfirmRequest, PluExportPrepareRequest,
+    PluPreparedRow, PluRegisterSnapshotSummary,
 };
+use crate::cmd::CmdErrorKind;
 use crate::cmd::{AppState, CmdError};
+use crate::constants::CSV_IMPORT_FILE_SIZE_LIMIT;
 use base64::{engine::general_purpose, Engine as _};
 use tauri::State;
 
@@ -31,6 +34,7 @@ pub struct PluExportPrepareResponse {
     pub count: usize,
     /// PLUファイルに含めた商品コード一覧
     pub target_product_codes: Vec<String>,
+    pub prepared_rows: Vec<PluPreparedRow>,
     /// PLUファイルに含めなかった商品一覧
     pub excluded: Vec<PluExcludedProductResponse>,
     /// PLU上限超過警告（互換維持フィールド）
@@ -42,6 +46,7 @@ pub struct PluExcludedProductResponse {
     pub product_code: String,
     pub jan_code: Option<String>,
     pub name: String,
+    pub memory_no: Option<i64>,
     pub reason: String,
 }
 
@@ -79,12 +84,12 @@ pub fn prepare_plu_export(
     state: State<AppState>,
     mode: ExportMode,
 ) -> Result<PluExportPrepareResponse, CmdError> {
-    let conn = state
+    let mut conn = state
         .db
         .lock()
         .map_err(|error| CmdError::internal("DB接続エラー", error))?;
     let req = PluExportPrepareRequest { mode };
-    let result = plu_export_service::prepare_plu_export(&conn, req).map_err(CmdError::from)?;
+    let result = plu_export_service::prepare_plu_export(&mut conn, req).map_err(CmdError::from)?;
 
     Ok(PluExportPrepareResponse {
         bytes_base64: general_purpose::STANDARD.encode(&result.plu_output.bytes),
@@ -93,6 +98,7 @@ pub fn prepare_plu_export(
         encoding: result.plu_output.encoding.to_string(),
         count: result.count,
         target_product_codes: result.target_product_codes,
+        prepared_rows: result.prepared_rows,
         excluded: result
             .excluded
             .into_iter()
@@ -100,6 +106,7 @@ pub fn prepare_plu_export(
                 product_code: excluded.product_code,
                 jan_code: excluded.jan_code,
                 name: excluded.name,
+                memory_no: excluded.memory_no,
                 reason: excluded_reason_to_snake_case(&excluded.reason).to_string(),
             })
             .collect(),
@@ -115,12 +122,16 @@ pub fn prepare_plu_export(
 pub fn confirm_plu_export_saved(
     state: State<AppState>,
     product_codes: Vec<String>,
+    prepared_rows: Vec<PluPreparedRow>,
 ) -> Result<PluExportConfirmResponse, CmdError> {
     let mut conn = state
         .db
         .lock()
         .map_err(|error| CmdError::internal("DB接続エラー", error))?;
-    let req = PluExportConfirmRequest { product_codes };
+    let req = PluExportConfirmRequest {
+        product_codes,
+        prepared_rows,
+    };
     let result =
         plu_export_service::confirm_plu_export_saved(&mut conn, req).map_err(CmdError::from)?;
 
@@ -128,6 +139,39 @@ pub fn confirm_plu_export_saved(
         updated_count: result.updated_count,
         confirmed_at: result.confirmed_at,
     })
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn import_plu_register_snapshot(
+    state: State<AppState>,
+    file_bytes: Vec<u8>,
+) -> Result<PluRegisterSnapshotSummary, CmdError> {
+    if file_bytes.len() > CSV_IMPORT_FILE_SIZE_LIMIT {
+        return Err(CmdError {
+            kind: CmdErrorKind::Validation,
+            message: "ファイルサイズが上限(20MB)を超えています".to_string(),
+            field: None,
+            error_id: None,
+        });
+    }
+    let mut conn = state
+        .db
+        .lock()
+        .map_err(|error| CmdError::internal("DB接続エラー", error))?;
+    plu_export_service::import_plu_register_snapshot(&mut conn, &file_bytes).map_err(CmdError::from)
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn get_plu_slot_summary(
+    state: State<AppState>,
+) -> Result<PluRegisterSnapshotSummary, CmdError> {
+    let conn = state
+        .db
+        .lock()
+        .map_err(|error| CmdError::internal("DB接続エラー", error))?;
+    plu_export_service::get_plu_slot_summary(&conn).map_err(CmdError::from)
 }
 
 /// PLU書出しが必要な商品一覧を返す
@@ -167,5 +211,36 @@ fn excluded_reason_to_snake_case(reason: &PluExcludedReason) -> &'static str {
         PluExcludedReason::InvalidJanFormat => "invalid_jan_format",
         PluExcludedReason::InvalidCheckDigit => "invalid_check_digit",
         PluExcludedReason::GroupPriceMismatch => "group_price_mismatch",
+        PluExcludedReason::NoFreeSlot => "no_free_slot",
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::db::test_support::setup_test_db;
+    use std::collections::HashMap;
+    use std::sync::Mutex;
+    use tauri::Manager;
+
+    #[test]
+    fn test_import_plu_register_snapshot_req907_rejects_oversize_bytes() {
+        // REQ-907: A-N1b CMD boundary uses the shared 20MB guard.
+        let (_dir, conn) = setup_test_db();
+        let app = tauri::test::mock_builder()
+            .manage(AppState {
+                db: Mutex::new(conn),
+                preview_cache: Mutex::new(HashMap::new()),
+                daily_report_preview_cache: Mutex::new(HashMap::new()),
+            })
+            .build(tauri::test::mock_context(tauri::test::noop_assets()))
+            .unwrap();
+        let error = import_plu_register_snapshot(
+            app.state::<AppState>(),
+            vec![0; crate::constants::CSV_IMPORT_FILE_SIZE_LIMIT + 1],
+        )
+        .unwrap_err();
+        assert_eq!(error.kind, CmdErrorKind::Validation);
+        assert_eq!(error.message, "ファイルサイズが上限(20MB)を超えています");
     }
 }

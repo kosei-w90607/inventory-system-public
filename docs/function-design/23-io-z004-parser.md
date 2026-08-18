@@ -166,6 +166,10 @@ Ok(ParseResult {
 
 売上取込み用 `parse_z004` とは別に `parse_plu_register_snapshot(raw_bytes)` を公開する。この mode は layout A の preamble / ヘッダ検査と CP932 decode を再利用するが、売上列・精算日・JAN 妥当性を評価せず、ヘッダ後の **5,000 行**すべてを `PluRegisterSlot { memory_no, raw_code }` として返す。
 
+```rust
+pub fn parse_plu_register_snapshot(raw_bytes: &[u8]) -> Result<Vec<PluRegisterSlot>, Z004ParseError>
+```
+
 - memory_no は第1 field を整数として読み、重複・欠落・範囲外を許さない。
 - 14 桁コードが全ゼロなら `raw_code=None` とし、行自体は skip しない。
 - 13 桁数字 + 右端 `E` は padding を 1 文字だけ除いて 13 桁へ正規化する。

@@ -310,6 +310,11 @@ pub fn update_product(
     }
 
     product_repo::update_product(&tx, product_code, &updates)?;
+    if existing.product.plu_target && req.plu_target == Some(false) {
+        if let Some(jan_code) = existing.product.jan_code.as_deref() {
+            super::plu_export_service::release_plu_slot_for_jan(&tx, jan_code)?;
+        }
+    }
 
     // 6. 操作ログ
     // 変更前後をJSON記録（30-biz-product-service.md §4.4 ステップ6）
@@ -348,10 +353,16 @@ pub fn toggle_discontinue(conn: &mut DbConnection, product_code: &str) -> Result
 
     let updates = ProductUpdates {
         is_discontinued: Some(new_status),
-        plu_dirty: Some(true),
+        plu_dirty: new_status.then_some(true),
+        plu_target: new_status.then_some(false),
         ..Default::default()
     };
     product_repo::update_product(&tx, product_code, &updates)?;
+    if new_status {
+        if let Some(jan_code) = existing.product.jan_code.as_deref() {
+            super::plu_export_service::release_plu_slot_for_jan(&tx, jan_code)?;
+        }
+    }
 
     let action = if new_status { "廃番" } else { "復帰" };
     let log = NewOperationLog {
@@ -825,8 +836,11 @@ pub fn commit_import(
 
     for row in &valid_rows {
         if overwrite_set.contains(&row.product_code) {
+            let old_jan = product_repo::find_by_product_code(&tx, &row.product_code)?
+                .and_then(|existing| existing.product.jan_code);
             // UPDATE: ImportRow → ProductUpdates マッピング（R2-1 + R3-1修正）
             let updates = ProductUpdates {
+                jan_code: Some(row.jan_code.clone()),
                 name: Some(row.name.clone()),
                 department_id: Some(row.department_id),
                 selling_price: Some(row.selling_price),
@@ -845,6 +859,11 @@ pub fn commit_import(
             // #4 (P2): 戻り値チェック。対象が存在しない場合はスキップ
             let updated = product_repo::update_product(&tx, &row.product_code, &updates)?;
             if updated {
+                if old_jan != row.jan_code {
+                    if let Some(old_jan) = old_jan.as_deref() {
+                        super::plu_export_service::release_plu_slot_for_jan(&tx, old_jan)?;
+                    }
+                }
                 updated_count += 1;
             } else {
                 skipped_count += 1;

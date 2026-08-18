@@ -49,6 +49,7 @@ function makeStockDetail(overrides: Partial<StockDetail> = {}): StockDetail {
       updated_at: "2026-01-01T10:00:00",
       department_name: "ボタン",
       supplier_name: null,
+      plu_memory_no: null,
     },
     last_receiving_date: "2026-06-01",
     last_sale_date: "2026-06-20",

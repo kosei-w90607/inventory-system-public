@@ -30,6 +30,7 @@ export function makeMockProductWithRelations(
     updated_at: "2026-01-01T10:00:00",
     department_name: "毛糸",
     supplier_name: null,
+    plu_memory_no: null,
     ...overrides,
   };
 }

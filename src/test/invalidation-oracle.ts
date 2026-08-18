@@ -5,7 +5,7 @@ import { queryKeys } from "@/lib/query-keys";
 export type InvalidationKey = readonly unknown[];
 
 /**
- * D-052-C1〜C16 を test 側へ独立転記した oracle。
+ * D-052-C1〜C17 を test 側へ独立転記した oracle。
  * production の invalidation-contract.ts を参照してはならない。
  */
 export const d052InvalidationOracle = {
@@ -140,6 +140,7 @@ export const d052InvalidationOracle = {
     queryKeys.lowStock(false),
     queryKeys.stockInquiryRoot(),
   ],
+  pluRegisterSnapshot: () => [queryKeys.pluSlotSummary()],
 } satisfies Record<string, (...args: never[]) => InvalidationKey[]>;
 
 function stableKey(key: InvalidationKey): string {

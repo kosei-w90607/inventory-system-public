@@ -69,6 +69,38 @@ beforeEach(() => {
 });
 
 describe("ProductFormPage (UI-01b)", () => {
+  it("REQ-907 shows the assigned register memory number as read-only", async () => {
+    mockListDepartments.mockResolvedValue({
+      status: "ok",
+      data: [makeMockDepartment()],
+    });
+    mockListSuppliers.mockResolvedValue({ status: "ok", data: [] });
+    mockGetProduct.mockResolvedValue({
+      status: "ok",
+      data: makeMockProductWithRelations({ plu_memory_no: 217 }),
+    });
+
+    renderWithClient(
+      <ProductFormPage mode="edit" productCode="P-001" onNavigateToList={vi.fn()} />,
+    );
+    const memory = await screen.findByLabelText("レジメモリNo.");
+    expect(memory).toHaveValue("217");
+    expect(memory).toHaveAttribute("readonly");
+  });
+
+  it("REQ-907 shows unassigned for a product without a register slot", async () => {
+    mockListDepartments.mockResolvedValue({ status: "ok", data: [makeMockDepartment()] });
+    mockListSuppliers.mockResolvedValue({ status: "ok", data: [] });
+    mockGetProduct.mockResolvedValue({
+      status: "ok",
+      data: makeMockProductWithRelations({ plu_memory_no: null }),
+    });
+    renderWithClient(
+      <ProductFormPage mode="edit" productCode="P-001" onNavigateToList={vi.fn()} />,
+    );
+    expect(await screen.findByLabelText("レジメモリNo.")).toHaveValue("未割当");
+  });
+
   it("blocks create submit when JAN is blank and department has no code_prefix", async () => {
     const user = userEvent.setup();
     mockListDepartments.mockResolvedValue({

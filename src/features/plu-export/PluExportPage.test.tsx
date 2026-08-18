@@ -6,8 +6,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { commands } from "@/lib/bindings";
 import { d052InvalidationOracle, expectExactInvalidations } from "@/test/invalidation-oracle";
-import { save } from "@tauri-apps/plugin-dialog";
-import { writeFile } from "@tauri-apps/plugin-fs";
+import { open, save } from "@tauri-apps/plugin-dialog";
+import { readFile, writeFile } from "@tauri-apps/plugin-fs";
 import { PLU_EXPORT_PENDING_STORAGE_KEY, PluExportPage } from "./PluExportPage";
 
 vi.mock("@tanstack/react-router", () => ({
@@ -15,10 +15,12 @@ vi.mock("@tanstack/react-router", () => ({
 }));
 
 vi.mock("@tauri-apps/plugin-dialog", () => ({
+  open: vi.fn(),
   save: vi.fn(),
 }));
 
 vi.mock("@tauri-apps/plugin-fs", () => ({
+  readFile: vi.fn(),
   writeFile: vi.fn(),
 }));
 
@@ -31,13 +33,19 @@ vi.mock("@/lib/bindings", () => ({
     listPluDirty: vi.fn(),
     preparePluExport: vi.fn(),
     confirmPluExportSaved: vi.fn(),
+    importPluRegisterSnapshot: vi.fn(),
+    getPluSlotSummary: vi.fn(),
   },
 }));
 
 const mockListPluDirty = vi.mocked(commands.listPluDirty);
 const mockPreparePluExport = vi.mocked(commands.preparePluExport);
 const mockConfirmPluExportSaved = vi.mocked(commands.confirmPluExportSaved);
+const mockImportPluRegisterSnapshot = vi.mocked(commands.importPluRegisterSnapshot);
+const mockGetPluSlotSummary = vi.mocked(commands.getPluSlotSummary);
 const mockSave = vi.mocked(save);
+const mockOpen = vi.mocked(open);
+const mockReadFile = vi.mocked(readFile);
 const mockWriteFile = vi.mocked(writeFile);
 const mockScrollTo = vi.fn();
 
@@ -114,6 +122,7 @@ function mockDefaultCommands() {
       encoding: "CP932",
       count: 1,
       target_product_codes: ["PLU-001"],
+      prepared_rows: [{ memory_no: 217, row_kind: "product", target_product_codes: ["PLU-001"] }],
       excluded: [],
       over_limit_warning: false,
     },
@@ -121,6 +130,26 @@ function mockDefaultCommands() {
   mockConfirmPluExportSaved.mockResolvedValue({
     status: "ok",
     data: { updated_count: 1, confirmed_at: "2026-07-01T12:00:00" },
+  });
+  mockGetPluSlotSummary.mockResolvedValue({
+    status: "ok",
+    data: {
+      snapshot_at: "2026-08-18T12:00:00",
+      free_count: 4_780,
+      external_count: 1,
+      app_managed_count: 3,
+      conflict_count: 0,
+    },
+  });
+  mockImportPluRegisterSnapshot.mockResolvedValue({
+    status: "ok",
+    data: {
+      snapshot_at: "2026-08-18T12:00:00",
+      free_count: 4_780,
+      external_count: 1,
+      app_managed_count: 3,
+      conflict_count: 0,
+    },
   });
 }
 
@@ -275,7 +304,10 @@ describe("PluExportPage (UI-08 / REQ-402)", () => {
     await user.click(screen.getByRole("button", { name: "この書出しを未反映から外す" }));
 
     await waitFor(() => {
-      expect(mockConfirmPluExportSaved).toHaveBeenCalledWith(["PLU-001"]);
+      expect(mockConfirmPluExportSaved).toHaveBeenCalledWith(
+        ["PLU-001"],
+        [{ memory_no: 217, row_kind: "product", target_product_codes: ["PLU-001"] }],
+      );
     });
     expect(await screen.findByText("未反映から外しました")).toBeInTheDocument();
     expect(mockScrollTo).toHaveBeenCalledWith({ top: 0, behavior: "smooth" });
@@ -302,6 +334,7 @@ describe("PluExportPage (UI-08 / REQ-402)", () => {
       count: 1,
       encoding: "CP932",
       targetProductCodes: ["PLU-001"],
+      preparedRows: [{ memory_no: 217, row_kind: "product", target_product_codes: ["PLU-001"] }],
       overLimitWarning: false,
     });
   });
@@ -319,6 +352,7 @@ describe("PluExportPage (UI-08 / REQ-402)", () => {
         count: 1,
         encoding: "CP932",
         targetProductCodes: ["PLU-001"],
+        preparedRows: [{ memory_no: 217, row_kind: "product", target_product_codes: ["PLU-001"] }],
         overLimitWarning: false,
       }),
     );
@@ -337,7 +371,10 @@ describe("PluExportPage (UI-08 / REQ-402)", () => {
     );
 
     await waitFor(() => {
-      expect(mockConfirmPluExportSaved).toHaveBeenCalledWith(["PLU-001"]);
+      expect(mockConfirmPluExportSaved).toHaveBeenCalledWith(
+        ["PLU-001"],
+        [{ memory_no: 217, row_kind: "product", target_product_codes: ["PLU-001"] }],
+      );
     });
     expect(window.localStorage.getItem(PLU_EXPORT_PENDING_STORAGE_KEY)).toBeNull();
   });
@@ -355,6 +392,7 @@ describe("PluExportPage (UI-08 / REQ-402)", () => {
         count: 1,
         encoding: "CP932",
         targetProductCodes: ["PLU-001"],
+        preparedRows: [{ memory_no: 217, row_kind: "product", target_product_codes: ["PLU-001"] }],
         overLimitWarning: false,
       }),
     );
@@ -394,6 +432,7 @@ describe("PluExportPage (UI-08 / REQ-402)", () => {
         count: 1,
         encoding: "CP932",
         targetProductCodes: ["PLU-001"],
+        preparedRows: [{ memory_no: 217, row_kind: "product", target_product_codes: ["PLU-001"] }],
         overLimitWarning: false,
         bytes_base64: "QUJD",
         productName: "赤い毛糸",
@@ -445,33 +484,18 @@ describe("PluExportPage (UI-08 / REQ-402)", () => {
     });
   });
 
-  it("REQ-402 shows full export backup warning and rejects scanning PLU limit overflow", async () => {
+  it("REQ-907 shows Diff / Full import guidance and retires the Full-only warning", async () => {
     const user = userEvent.setup();
-    mockPreparePluExport.mockResolvedValue({
-      status: "error",
-      error: {
-        kind: "validation",
-        message: "スキャニングPLU上限の4,784件を超えています",
-        field: null,
-        error_id: null,
-      },
-    });
 
     renderWithClient(<PluExportPage />);
     await user.click(await screen.findByRole("button", { name: "全件" }));
-    await user.click(screen.getByRole("button", { name: "全件を書き出す" }));
-
+    expect(screen.getByText("Diff / Full ともレジへ投入できます")).toBeInTheDocument();
     expect(
-      await screen.findByText("全件書出し前にレジ側データのバックアップを確認してください"),
+      screen.getByText("メモリNo.を永続化する前に作成した全件ファイルは再投入しないでください。"),
     ).toBeInTheDocument();
-    expect(screen.getByText("スキャニングPLU上限の4,784件を超えています")).toBeInTheDocument();
     expect(
-      screen.getByText(/SR-S4000のPLU総枠5,000件から通常PLU使用枠を\s*除いた/),
-    ).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "もう一度準備する" })).toBeEnabled();
-    expect(mockSave).not.toHaveBeenCalled();
-    expect(mockWriteFile).not.toHaveBeenCalled();
-    expect(mockConfirmPluExportSaved).not.toHaveBeenCalled();
+      screen.queryByText(new RegExp(["全件書出し", "のファイルだけ"].join(""))),
+    ).not.toBeInTheDocument();
   });
 
   it("REQ-402 shows products excluded from PLU export with Japanese reasons", async () => {
@@ -485,17 +509,20 @@ describe("PluExportPage (UI-08 / REQ-402)", () => {
         encoding: "CP932",
         count: 1,
         target_product_codes: ["PLU-001"],
+        prepared_rows: [{ memory_no: 217, row_kind: "product", target_product_codes: ["PLU-001"] }],
         excluded: [
           {
             product_code: "NO-JAN-001",
             jan_code: null,
             name: "JANなし商品",
+            memory_no: null,
             reason: "missing_jan",
           },
           {
             product_code: "BAD-CD-001",
             jan_code: "4901234567890",
             name: "検査桁不正",
+            memory_no: null,
             reason: "invalid_check_digit",
           },
         ],
@@ -526,11 +553,13 @@ describe("PluExportPage (UI-08 / REQ-402)", () => {
         encoding: "CP932",
         count: 1,
         target_product_codes: ["PLU-001"],
+        prepared_rows: [{ memory_no: 217, row_kind: "product", target_product_codes: ["PLU-001"] }],
         excluded: [
           {
             product_code: "UNKNOWN-001",
             jan_code: "4901234567894",
             name: "未知理由",
+            memory_no: null,
             reason: "future_reason",
           },
         ],
@@ -557,11 +586,13 @@ describe("PluExportPage (UI-08 / REQ-402)", () => {
         encoding: "CP932",
         count: 1,
         target_product_codes: ["PLU-001"],
+        prepared_rows: [{ memory_no: 217, row_kind: "product", target_product_codes: ["PLU-001"] }],
         excluded: [
           {
             product_code: "NO-JAN-001",
             jan_code: null,
             name: "JANなし商品",
+            memory_no: null,
             reason: "missing_jan",
           },
         ],
@@ -621,6 +652,7 @@ describe("PluExportPage (UI-08 / REQ-402)", () => {
         count: 1,
         encoding: "CP932",
         targetProductCodes: ["PLU-001"],
+        preparedRows: [{ memory_no: 217, row_kind: "product", target_product_codes: ["PLU-001"] }],
         overLimitWarning: false,
       }),
     );
@@ -634,5 +666,52 @@ describe("PluExportPage (UI-08 / REQ-402)", () => {
         "PCツールに取り込めなかった場合は、未反映を外さずに全件を書き出し直して取り込んでください。",
       ),
     ).toBeInTheDocument();
+  });
+
+  it("REQ-907 imports FilePicker bytes and unlocks export after snapshot summary refresh", async () => {
+    // REQ-907: A-V1 bytes are passed without a path.
+    const user = userEvent.setup();
+    mockGetPluSlotSummary
+      .mockResolvedValueOnce({
+        status: "ok",
+        data: {
+          snapshot_at: null,
+          free_count: 0,
+          external_count: 0,
+          app_managed_count: 0,
+          conflict_count: 0,
+        },
+      })
+      .mockResolvedValue({
+        status: "ok",
+        data: {
+          snapshot_at: "2026-08-18T13:00:00",
+          free_count: 4_700,
+          external_count: 20,
+          app_managed_count: 64,
+          conflict_count: 1,
+        },
+      });
+    mockOpen.mockResolvedValue("/synthetic/Z004.csv");
+    mockReadFile.mockResolvedValue(new Uint8Array([1, 2, 3]));
+
+    const { queryClient } = renderWithClient(<PluExportPage />);
+    const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries");
+    expect(await screen.findByText("レジ設定の読込みが必要です")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "差分を書き出す" })).toBeDisabled();
+
+    await user.click(screen.getByRole("button", { name: "レジ登録状況のZ004を選ぶ" }));
+    await waitFor(() => {
+      expect(mockImportPluRegisterSnapshot).toHaveBeenCalledWith([1, 2, 3]);
+    });
+    await waitFor(() => {
+      expectExactInvalidations(
+        invalidateSpy.mock.calls,
+        d052InvalidationOracle.pluRegisterSnapshot(),
+      );
+    });
+    expect(await screen.findByText(/最終読込み日時:/)).toBeInTheDocument();
+    expect(screen.getByText("4,700 件")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "差分を書き出す" })).toBeEnabled();
   });
 });

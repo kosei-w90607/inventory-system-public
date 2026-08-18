@@ -161,4 +161,4 @@ fn bulk_set_plu_target(
 
 `ProductBulkFilter` は商品一覧の `q` / `department_id` / `is_discontinued` と同じ意味を持ち、page / per_page を持たない。response は `matched_count`, `updated_count`, `invalid_jan_skipped_count`, `discontinued_skipped_count` を返す。CMD は generated DTO を BIZ-01 へ渡し、1 transaction の所有権や slot 解放判定を持たない。
 
-`bulk_set_plu_target`、`plu_memory_no` を含む response、関連 enum / DTO は後続実装 B で `tauri-specta` 登録と `src/lib/bindings.ts` 再生成を行う。本 design-first PR は generated file を変更しない。
+`plu_memory_no` を含む response は実装 A で `tauri-specta` 登録と `src/lib/bindings.ts` 再生成を行う。`bulk_set_plu_target` と関連 enum / DTO は後続実装 B の責務とする。

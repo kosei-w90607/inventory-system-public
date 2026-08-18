@@ -32,7 +32,7 @@ function PluExportPage(): JSX.Element
 6. 保存キャンセルまたは保存失敗では `confirm_plu_export_saved` を呼ばず、未反映を残す
 7. 保存成功後は `target_product_codes`、保存先、件数、文字コード、保存日時を復帰用 `localStorage` に保存する。PLUファイル本文 (`bytes_base64`) は保存しない
 8. 画面再表示時に保存済み未確認の復帰状態があれば、ページ上部に `保存済みで未確認のPLU書出しがあります` を表示し、同じ exact product_code set で未反映解除できる導線を出す
-9. 利用者が保存済み扱いを確認した場合だけ `commands.confirmPluExportSaved({ product_codes })` を呼ぶ。復帰状態がある場合は復帰状態の `targetProductCodes` を使い、現在の差分一覧から再計算しない
+9. 利用者が保存済み扱いを確認した場合だけ `commands.confirmPluExportSaved({ product_codes, prepared_rows })` を呼ぶ。復帰状態がある場合は復帰状態の `targetProductCodes` / `preparedRows` を使い、現在の差分一覧から再計算しない
 10. confirm成功後に D-052-C14 の SSOT helper を適用し、復帰状態を削除して未反映解除結果を表示する
 
 ## 67.5 Design Decisions
@@ -88,7 +88,7 @@ function PluExportPage(): JSX.Element
 | `commands.getPluSlotSummary()` | なし | `snapshot_at`, free / external / app managed / conflict counts | snapshot 状態を above the fold に表示 |
 | `commands.importPluRegisterSnapshot({ fileBytes })` | Z004 の bytes（FilePicker `PickedFile.bytes` を `number[]` へ） | snapshot summary | FilePicker D-054 で選択（path は渡らない）。実コードは UI に一覧表示しない |
 | `commands.preparePluExport({ mode })` | `"diff"` / `"full"` | `bytes_base64`, `suggested_filename`, `content_type`, `encoding`, `count`, `target_product_codes`, `prepared_rows[memory_no]`, `excluded` | snapshot 未読込みは `register_snapshot_required`。`no_free_slot` を含む要修正は生成から除外。slot 予約は永続化する |
-| `commands.confirmPluExportSaved({ product_codes })` | prepare結果の `target_product_codes` | `updated_count`, `confirmed_at` | 保存済み確認。成功後は D-052-C14 の SSOT helper を適用 |
+| `commands.confirmPluExportSaved({ product_codes, prepared_rows })` | prepare結果の `target_product_codes` / `prepared_rows` | `updated_count`, `confirmed_at` | 保存済み確認。成功後は D-052-C14 の SSOT helper を適用 |
 
 `target_product_codes` はprepare時のexact setである。confirm時にUIが現在の差分一覧から再計算しない。
 
@@ -131,7 +131,7 @@ function PluExportPage(): JSX.Element
 - format validation note: `JANコードが未登録または不正な商品は、スキャニングPLU書出しに含められません。商品マスタで13桁JANを確認してください。`
 - excluded list title: `書出しに含めなかった商品（要修正）`
 - excluded reasons: `JAN未登録` / `JANが13桁ではありません` / `JANのチェックディジットが不正です` / `同じJANの商品で売価または税率が一致していません`
-- full-only import note: `PCツール（CV17）に取り込んでよいのは全件書出しのファイルだけです。差分書出しのファイルは取り込まないでください。`
+- import note: `Diff / Full ともレジへ投入できます。`
 - restored pending title: `保存済みで未確認のPLU書出しがあります`
 - discard button: `破棄して再書出し`
 

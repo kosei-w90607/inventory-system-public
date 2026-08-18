@@ -94,6 +94,10 @@ free slot 上で同一 eligible JAN が複数観測された場合は最小 memo
 
 初回 snapshot 未読込みの `prepare_plu_export` は `BizError::ValidationFailed`（reason=`register_snapshot_required`、文言「レジ設定の読込みが必要です」）で拒否する。二回目以降の読込みは任意だが、レジ側で手動登録した後は再読込みを推奨する。
 
+```rust
+pub fn get_plu_slot_summary(conn: &DbConnection) -> Result<PluRegisterSnapshotSummary, BizError>
+```
+
 ### 16.4 prepare_plu_export（BIZ-04-D4 / SPEC-PLS-D3、D5）
 
 ```rust
@@ -144,6 +148,10 @@ prepare が返した exact `memory_no` / product_code set を **1 transaction** 
 4. snapshot で同一 JAN の重複占有を検出し、その JAN の `reserved` / `active` slot があればそれ以外を、なければ最小 memory No. 以外を stale と判定（stale 側は `scanning_code` を保持したまま `release_pending`）
 
 同じ JAN を共有する `plu_target=1` / active 商品が残る場合は解放しない。未反映の `reserved` は直接 `free`、反映済みの `active` は `release_pending` とし、IO-04 の exact **11 field** clear 行を次回 Diff / Full に含める。廃番解除は `plu_target` を自動復帰させない。
+
+```rust
+pub fn release_plu_slot_for_jan(conn: &DbConnection, jan_code: &str) -> Result<(), BizError>
+```
 
 #### 16.6.1 list_plu_dirty
 

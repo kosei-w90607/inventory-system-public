@@ -298,6 +298,8 @@ pub fn export_specta_bindings() {
         // CMD-08: PLU書出し
         cmd::plu_export_cmd::prepare_plu_export,
         cmd::plu_export_cmd::confirm_plu_export_saved,
+        cmd::plu_export_cmd::import_plu_register_snapshot,
+        cmd::plu_export_cmd::get_plu_slot_summary,
         cmd::plu_export_cmd::list_plu_dirty,
         // CMD-09: 売上集計
         cmd::sales_cmd::get_daily_sales,
@@ -980,6 +982,8 @@ pub fn run() {
             // CMD-08: PLU書出し
             cmd::plu_export_cmd::prepare_plu_export,
             cmd::plu_export_cmd::confirm_plu_export_saved,
+            cmd::plu_export_cmd::import_plu_register_snapshot,
+            cmd::plu_export_cmd::get_plu_slot_summary,
             cmd::plu_export_cmd::list_plu_dirty,
             // CMD-09: 売上集計
             cmd::sales_cmd::get_daily_sales,
