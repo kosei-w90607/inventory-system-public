@@ -1,0 +1,349 @@
+# Plan Packet: PLU slot core 実装（実装 A）
+
+## Workflow State
+
+- Phase: plan-draft
+- Risk: R3
+- Execution Mode: fable-window
+- Plan Commit: pending
+- Amendments: none
+- Coordinator: Fable
+- Writer: Codex
+- Plan Reviewer: Sonnet
+- Final Reviewer: Sonnet
+- Reviewed Content HEAD: pending
+- Final Exact-HEAD Evidence: PR body
+- Hosted CI Requirement: required
+- Human Gate: owner plan approval / Windows native L3（`67-ui §67.12` が UI-08 実装 PR に必須と規定。実機 Z004 読込み・Diff 投入・clear 行の CV17 受理 + レジ側未設定化、店舗訪問と同期）/ human visual confirmation（UI-08 snapshot step + 要約、UI-01b レジメモリNo.）/ Ready / merge
+
+## Owner Effort Budget
+
+- 介入回数上限: 3
+- 実働時間上限: 60分（うち店舗での L3 実施 30 分程度を含む）
+- relay 往復上限: 2
+- Plan Review round 天井: 3（既定 hard cap）
+
+既定値と超過時の Coordinator 責務は `docs/DEV_WORKFLOW.md` `Owner Effort Budget` に従う。介入は decision point 単位で計上し、L3 round も個別に数える（想定 = plan approval / L3 round 1 の結果報告 / Ready 承認。L3 が 2 round になれば 4 回目として超過報告する）。本 plan-draft の Draft PR 作成は owner 介入を消費しない。
+承認依頼フォーマット: `この change での介入 N 回目 / 予算 M 回` + `承認すると利用者から見て何が完了するか1文`。
+
+## Consultation Relay
+
+- Review Order Artifact: none
+- Review Order Ref: none
+
+## Risk
+
+Risk: R3
+
+Reason:
+schema migration（v5、4,784 行事前投入）、新規 repository、IO-02 の新 mode、BIZ-04 の prepare / confirm の書換え、BIZ-01 の解放 trigger 3 種、IO-04 の行構成、Tauri command 2 本の新設と DTO 変更 + generated bindings、UI-08 の operator workflow、UI-01b の表示を同時に変更する。誤実装は memory No. の重複割当（レジ側の既存登録上書き）、レジ側の意図しない PLU 消去、書出しファイルの CV17 拒否につながるため R3 とする。会計系列（D-025 / D-071）には触れない。
+
+## Goal
+
+Goal Invariant:
+D-072 / SPEC-PLS-D1〜D5 + D7（UI-08 / UI-01b 部分）を backend・wire・UI・test に実装し、レジ登録状況スナップショット（Z004 全スロットダンプ）で空きを確定したうえで、JAN 単位に永続する memory No. を prepare 時に最小空きへ冪等予約し、confirm で active 化、対象外化・廃番化・JAN 変更で clear 行経由の解放へ回す。既存登録（external）と app 管理 slot を混同せず、Diff / Full とも CV17 へ投入できる書出しにする。
+
+### 最小完了条件
+
+- operator が UI-08 で Z004 を選んでレジ登録状況を読み込み、最終読込み日時と free / external / app managed / conflict の要約を見られる。未読込みのままでは書出しへ進めず、`レジ設定の読込みが必要です` の導線が出る。
+- prepare は対象 JAN ごとに最小 `free` memory No. を予約し、保存キャンセル・再 prepare でも同じ memory No. を返す。空きがなければその JAN だけ `no_free_slot`（`レジの空きスロットがありません`）で excluded になり、他は続行する。
+- confirm で `reserved → active`、`release_pending → free`、`plu_dirty=0` が 1 TX で確定し、リトライは冪等。
+- `plu_target 1→0` / 廃番化 / `jan_code` 変更で slot が解放され（`reserved` は直接 `free`、`active` は `release_pending`）、次回 Diff / Full に exact 11 field の clear 行が入る。
+- 商品詳細（UI-01b edit）で「レジメモリNo.」が読取り専用で見え、未割当は `未割当`。
+- Rust producer / `src/lib/bindings.ts` / frontend consumer が同一 commit で切り替わり、`90-traceability.md` に REQ-907 が載る。
+
+### 失敗定義
+
+- snapshot で観測した既存登録（external）を prepare が予約対象の空きとして使う、または `active × 別コード` conflict を app 側で上書きする。
+- 同一 JAN の再 prepare で別 memory No. を返す、または confirm 前の予約が消える。
+- clear 行が 11 field 形状（14 桁ゼロ / 名称空 / `\0` / 内税 / いいえ×4 / 無し / ノンリンク）から外れる、または `PLU_CLEAR_ROW_ENABLED=false` で `release_pending → free` が起きる。
+- 要修正判定中の JAN が持つ既存 slot を Full が壊す（clear 化 / 別 JAN へ再割当）。
+- migration v5 が既存 v4 DB で 4,784 行以外を投入する、または schema_versions を更新しない。
+- 既存 test の削除・skip による通過。
+
+### 非目的
+
+- bulk onboarding（SPEC-PLS-D6: CSV `PLU対象` 列 / `bulk_set_plu_target` / UI-01a badge・`plu` filter）は実装 B。
+- 売上取込みに占有更新を同乗させない。
+- 会計・在庫系列（Z001/Z002/Z005 / 日報）に slot 状態を流さない（SPEC-PLS-D8）。
+- plan-gate 前に実装 code を変更しない。
+
+Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
+
+## Scope
+
+- MNT-03 / DB: `src-tauri/src/db/schema_v5.rs`（新設）+ `db/migration.rs` `migrations()` へ v5 追加。DDL は `db-design/plu-tables.md §25` の完全形（memory_no CHECK / status 5 値 CHECK / `status <> 'free'` の partial UNIQUE / timestamp 列）、事前投入範囲は `SCANNING_PLU_MEMORY_START` と `PLU_EXPORT_LIMIT`（or `SCANNING_PLU_EXPORT_LIMIT`）から導出し magic number を増やさない。既存の migration test（version max/count = 4、table 一覧）を 5 / `plu_slots` 込みへ更新。
+- IO: `src-tauri/src/db/plu_slot_repo.rs`（新設、`db/mod.rs` 公開、`design_compliance_test.rs` の doc→module map 登録）— 全件 ordered read、JAN / status lookup、最小 `free` 予約、sticky 取得、snapshot / prepare / confirm / release の状態遷移を呼び出し側 TX 内で提供。
+- IO-02: `src-tauri/src/io/z004_parser.rs` に `parse_plu_register_snapshot(raw_bytes)`（`23-io §13.3.1`）を追加。layout A の preamble / header 検査と CP932 decode を再利用し、5,000 行の `(memory_no, raw_code)` を返す。全ゼロ = None、13 桁 + `E` は 13 桁へ、8 桁 + `E×6` は raw、行数不一致 / memory No. 欠落・重複 / header 未検出は fail-closed。
+- BIZ-04: `src-tauri/src/biz/plu_export_service.rs` — `import_plu_register_snapshot(conn, path)`（`33-biz §16.3` 照合表 12 行 + 重複 JAN → release_pending + `app_settings` 2 key + operation_log、1 TX）、`get_plu_slot_summary(conn)`、`prepare_plu_export` の書換え（`§16.4` 8 step: snapshot gate / eligible 判定 / D-028 dedup / sticky / 最小空き予約 / Diff・Full 行構成 / 要修正中 slot 維持・非出力 / memory_no 付き行）、`confirm_plu_export_saved` の拡張（`§16.5`: exact set 再検証、reserved→active、release_pending→free、冪等）、共通解放 service（`§16.6`）。`SCANNING_PLU_EXPORT_LIMIT` との件数比較を撤廃。`PLU_CLEAR_ROW_ENABLED` 定数を `src-tauri/src/constants.rs` に置き、行構成関数は flag を引数で受けて const は 1 箇所で配線（両 mode を test 可能にする）。
+- BIZ-01: `src-tauri/src/biz/product_service.rs` — `update_product` の `plu_target 1→0` と `jan_code` 変更、`toggle_discontinue` の廃番化（`plu_target=0` 同時設定、廃番解除は復帰しない）から共通解放 service を同一 TX で呼ぶ（`30-biz §4.4` step 4b / `§4.5`）。同一 JAN を共有する `plu_target=1` 未廃番商品が残れば解放しない。
+- IO-04: `src-tauri/src/io/plu_formatter.rs` — 行インデックス採番（`SCANNING_PLU_MEMORY_START + i`）を撤去し入力行の `memory_no` を 6 桁ゼロ埋めで出力、範囲外は reject、clear 行の exact 11 field 出力（`25-io §12.3`）。
+- CMD-08 / CMD-01 / wire: `import_plu_register_snapshot(path)` / `get_plu_slot_summary()`（`41-cmd §CMD-08-D4/D5`）の新設 + `lib.rs` の `collect_commands!` と `generate_handler!` 双方へ登録、prepare / confirm DTO へ `prepared_rows`（memory_no / row_kind / target_product_codes）と `no_free_slot` reason、`ProductResponse.plu_memory_no: Option<i64>`（`40-cmd §5.4` get_product、`20-io §` JAN LEFT JOIN）。`cargo run --bin generate_bindings` で `src/lib/bindings.ts` 再生成、同一 commit で consumer 切替。
+- UI-08: `src/features/plu-export/PluExportPage.tsx` — 「レジ登録状況を読み込む」step（共通 FilePicker D-054）+ 要約表示 above the fold + `register_snapshot_required` 導線 + D4/D5/D9 改訂文言 + `no_free_slot` 理由表示 + 旧 Full-only 注意文（`PluExportPage.tsx:589`）の撤去 / 旧 Full file 再投入禁止文言。既存の localStorage 復帰・確認ボタン配置・invalidation（`67-ui §67.7〜67.11`）は維持。
+- UI-01b: `src/features/products/*` edit form に「レジメモリNo.」read-only 表示（`51-ui` UI-01b-D19、未割当 = `未割当`）。
+- Source doc 追随（実装で判明した最小限）: `67-ui-plu-export.md §67.9` の full-only import note 行を撤去（UI-08-D9 と矛盾）、`40-cmd-product.md §5.4` 末尾の「`plu_memory_no` を含む response は後続実装 B」を実装 A へ訂正。他の source docs は PR #84 で正本化済み。
+- Tests: Test Design Matrix の A-S1〜A-S4 / A-N1〜A-N9c / A-V1 / A-P1〜A-P5 / A-R1〜A-R7 + A-R5b / A-E1〜A-E6 / A-U1 / A-W1〜A-W2 / A-G1 を実装。REQ-907（必要箇所は REQ-402 併記）を test comment に付与し、`cargo run --bin generate_traceability` で `90-traceability.md` を再生成する（hand edit 禁止）。
+
+## Non-scope
+
+- SPEC-PLS-D6 一式（CSV `PLU対象` 列、`bulk_set_plu_target`、`ProductBulkFilter`、UI-01a の三分バケット badge / `plu` search param / 一括対象化 UI）。実装 B。
+- 受入台本第2版（⑤）。
+- 売上取込み（Z004 sales mode）への占有更新同乗、日報 / 集計 / 在庫の変更。
+- 既存 migration v1〜v4 の変更、物理 DELETE、既存 row の変換。
+- CV17 / SR-S4000 側の挙動を code で推定する（clear 行受理は L3 で確認、fallback は定数）。
+- 新規 route / navigation。
+
+## Acceptance Criteria
+
+- `cargo test` で A-S1〜A-S4（migration v5: 既存 v4 DB へ適用して `plu_slots` 4,784 行 / CHECK / partial UNIQUE / schema_versions max=5）が通る。
+- A-N1〜A-N9c: 照合表 12 行 + 重複 JAN の各 case で before/after の `plu_slots` 行と `products.plu_dirty` を assert し、`active × 別コード` が上書きされない、`reserved × 別コード` が `external + reservation_dropped` になる、行数 ≠ 5,000 / header 未検出は zero write。
+- A-P1〜A-P5: 空き番号に穴がある fixture で最小空きを取る、再 prepare で同一 memory No.、`no_free_slot` は該当 JAN のみ excluded、同一 JAN 群の `target_product_codes` は全件。
+- A-R1〜A-R7 + A-R5b: trigger (i)(ii)(iii)(iv) の解放、reserved 直接 free、active → release_pending、confirm で free、再対象化の復帰、`PLU_CLEAR_ROW_ENABLED=false` で clear 行非出力 + `release_pending` 維持、clear 行の 11 field exact 比較（`ノンリンク` を含む）。
+- A-E1〜A-E6: `cargo test` の `plu_export_service` / `plu_formatter` tests で Full / Diff の行構成（external / free 非出力、release_pending の clear 行、要修正判定中 slot の維持・非出力）、memory No. 6 桁 `000217`、範囲外 216 / 5001 の reject（`Err`）を assert する。
+- A-V1 / A-U1（RTL）: UI-08 の snapshot step・要約・`レジ設定の読込みが必要です`・`レジの空きスロットがありません`・旧 Full-only 文言の不在、UI-01b の `レジメモリNo.` / `未割当`。
+- A-W1〜A-W2: `bindings.ts` に `importPluRegisterSnapshot` / `getPluSlotSummary` / `pluMemoryNo` / `preparedRows` が生成され、`scripts/local-ci.sh` の `generated-bindings-diff` と `traceability` が PASS。`90-traceability.md` に REQ-907 行が入る。
+- A-G1: `rg -n "全件書出しのファイルだけ|差分書出しのファイルは取り込まない|SCANNING_PLU_MEMORY_START \+ " src src-tauri/src docs --glob '!docs/archive/**'` が 0 hit。
+- L1 `scripts/local-ci.sh full` PASS、Windows native L3 で `67-ui §67.12` の checklist のうち本 PR 該当項目（snapshot / Diff・Full 投入 / clear 行受理 / レジ側未設定化）を owner が確認し結果を PR body に記録、hosted CI と exact-HEAD 三点一致。
+
+## Design Sources
+
+- Requirements / spec: `docs/spec/requirements.md` REQ-907（REQ-402 superseded 経緯）/ `docs/spec/requirements-coverage.md`
+- Architecture: `docs/architecture/{biz,cmd,io,ui}-task-specs.md` の SPEC-PLS 節
+- Function / command / DTO: `docs/function-design/33-biz-plu-export-service.md §16.2〜16.8`（BIZ-04-D3〜D6）/ `30-biz-product-service.md §4.4 4b / §4.5` / `23-io-z004-parser.md §13.3.1`（IO-02-D1）/ `25-io-plu-formatter.md §12.3` / `41-cmd-pos.md` CMD-08-D4/D5 + prepare/confirm DTO / `40-cmd-product.md §5.4` get_product / `20-io-product-repo.md` plu_memory_no JOIN
+- DB: `docs/db-design/plu-tables.md`（§25 plu_slots / app_settings key / 集計境界）/ `22-mnt-migration.md §13`（MNT-03-D9）
+- Screen / UI: `docs/function-design/67-ui-plu-export.md §67.4〜67.12`（UI-08-D1/D4/D5/D9/D11）/ `51-ui-product-form.md §7.1` UI-01b-D19 / `60-ui-common.md` FilePicker（D-054）
+- Decision log / ADR: `docs/decision-log.md` D-072（+ D-025 / D-028 / D-054）
+- 前便: `docs/archive/plans/2026-08-18-plu-slot-onboarding-design.md` と同 Matrix（A-* 予約の出所。durable 設計は上記 source docs が正本）
+
+## Required Design Artifacts
+
+| Area touched by upcoming work | Required source doc / artifact | Status: existing sufficient / updated in this PR / intentionally deferred |
+|---|---|---|
+| Backend function / command / repository / validation / error | 33-biz §16 / 30-biz §4.4・4.5 / plu-tables.md repo 責務 / 23-io §13.3.1 / 25-io §12.3 | existing sufficient（PR #84 正本化済み） |
+| Command / DTO / generated binding / wire shape | 41-cmd CMD-08-D4/D5 + DTO / 40-cmd §5.4 / cmd-task-specs | updated in this PR（40-cmd §5.4 末尾の A/B 割当 1 行のみ） |
+| DB / transaction / audit / rollback / migration | plu-tables.md §25 / 22-mnt §13 | existing sufficient |
+| Screen / UI / route state / Japanese wording | 67-ui §67.5・67.9・67.12 / 51-ui UI-01b-D19 | updated in this PR（67-ui §67.9 の stale full-only note 撤去のみ） |
+| CSV / TSV / report / import / export format | 25-io §12.3（clear 行 11 field）/ 23-io §13.3.1 | existing sufficient |
+| Durable decision / ADR | D-072 | existing sufficient（Revisit 条件は L3 結果で判定） |
+
+## Registration / Generation Obligations
+
+| 新規追加物 | 登録・生成義務 |
+|---|---|
+| Tauri command `import_plu_register_snapshot` / `get_plu_slot_summary` | `lib.rs` `collect_commands!` + `generate_handler!` 双方へ登録 / `#[tauri::command]` + `#[specta::specta]` / `cargo run --bin generate_bindings` → `src/lib/bindings.ts` 再生成（A-W1） |
+| DTO 変更（`PluPreparedRow` / `no_free_slot` / `ProductResponse.plu_memory_no`） | 同上 bindings 再生成 + consumer 同一 commit 切替（A-W1） |
+| 新 module `db/plu_slot_repo.rs` / `db/schema_v5.rs` | `db/mod.rs` 公開 / `src-tauri/tests/design_compliance_test.rs` `build_doc_to_modules_map()` へ `db-design/plu-tables.md` ↔ `db::plu_slot_repo` entry（design compliance の必須セクション充足は plu-tables.md 側で PR #84 済み、不足があれば本 PR で補う） |
+| migration v5 | `db/migration.rs` `migrations()` 登録 + 既存 version/table pin test 更新（A-S1） |
+| REQ-907 test 付与 | `cargo run --bin generate_traceability` で `90-traceability.md` 再生成、`--check` PASS（A-W2）。hand edit 禁止 |
+| route / navigation / operator 画面新設 | 該当なし（既存 `/products/plu-export` と `/products/$code/edit` 内の変更） |
+| Consultation Relay | 該当なし |
+
+## Design Intent Trace
+
+| Spec / requirement ID | Source design doc section | Decision ID | Why / rejected alternatives | Implementation target | Test target |
+|---|---|---|---|---|---|
+| REQ-907 / SPEC-PLS-D1 | plu-tables.md §25 / 22-mnt §13 | MNT-03-D9 | JAN 単位永続 + 事前投入で「空き = free 行」を DB で表現。products 列追加は JAN 共有群と slot 状態の分離ができず却下 | schema_v5 / migration.rs / plu_slot_repo | A-S1〜A-S4 |
+| REQ-907 / SPEC-PLS-D2 | 23-io §13.3.1 / 33-biz §16.3 / plu-tables.md app_settings | IO-02-D1 / BIZ-04-D3 | Z004 全スロットダンプ 1 本で占有確定（Q2 = A）。CV17 設定書出しは不採用 | z004_parser 占有 mode / import_plu_register_snapshot / get_plu_slot_summary | A-N1〜A-N9c / A-V1 |
+| REQ-907 / SPEC-PLS-D3 | 33-biz §16.4 | BIZ-04-D4 | prepare 時 idempotent 最小空き sticky。件数上限比較は実状態を表さないため撤廃 | prepare_plu_export / plu_slot_repo 予約 | A-P1〜A-P5 |
+| REQ-907 / SPEC-PLS-D4 | 33-biz §16.5・16.6 / 30-biz §4.4・4.5 / 25-io §12.3 | BIZ-04-D5 / BIZ-04-D6 / BIZ-01-D3 | clear 行 + confirm で free。受理未確認のため fallback 定数 1 箇所 | 共通解放 service / product_service / confirm / formatter / constants | A-R1〜A-R7 + A-R5b |
+| REQ-907 / SPEC-PLS-D5 | 33-biz §16.4 step 6-7 / 67-ui UI-08-D9 | UI-08-D9 | Diff / Full とも投入可。要修正判定中 slot は維持・非出力（Plan Gate 2 P1-3 起源） | prepare 行構成 / UI-08 文言 | A-E1〜A-E6 |
+| REQ-907 / SPEC-PLS-D7（A 部分） | 67-ui UI-08-D11 / 51-ui UI-01b-D19 / 40-cmd §5.4 / 20-io | UI-08-D11 / UI-01b-D19 / CMD-01-D3 | 占有要約と read-only メモリNo. の可視化。一覧 badge / filter は B | PluExportPage / product edit form / ProductResponse | A-V1 / A-U1 / A-W1 |
+| REQ-907 / SPEC-PLS-D9・D10 | requirements-coverage.md / decision-log D-072 | — | 実装 A で traceability test を付与、stale 語彙を残さない | test comment / 90-traceability / sweep | A-W2 / A-G1 |
+
+## Design Intent Audit
+
+- Source docs can answer what is being built and why without chat history or archived Plan Packets: yes（PR #84 で SPEC-PLS-D1〜D10 / D-072 / REQ-907 を正本化済み。本 packet は実装順序・test 具体化・L3 段取りだけを持つ）。
+- Plan-only durable decisions found and promoted to source docs / decision-log / ADR: (1) `plu_memory_no` response と UI-01b 表示の A/B 割当 → `40-cmd §5.4` を実装 A へ訂正 (2) 67-ui §67.9 の stale full-only note 撤去。いずれも本 PR で source doc へ反映。
+- Assumptions and constraints: CV17 が clear 行を受理しスロットを未設定へ戻す — L3 で確認。受理されなければ `PLU_CLEAR_ROW_ENABLED=false` へ切替（fallback、D-072 Revisit）。
+- Deferred design gaps, risk, and follow-up target: bulk onboarding（実装 B）/ 受入台本第2版 / snapshot 後の手動レジ登録は escape hatch（再読込み案内文言で扱う、`67-ui` UI-08-D11）。
+- Test Design Matrix can cite design decision IDs or source doc sections: yes（[Matrix](test-matrices/2026-08-18-plu-slot-core-implementation.md)）。
+- Absolute guarantee / escape hatch self-check completed, with every exception checked and compatibility stated: 「既存登録を空き扱いしない」は snapshot 時点の観測が前提。snapshot 後にレジ側で手動登録された slot は次回読込みまで検出できない（escape hatch、UI 文言で再読込みを案内）。conflict は app 側で上書きせず dirty 化して operator に示す（`33-biz §16.8`）。
+- 前便 WER 候補 3 点の消化: (1) 発注書の doc 節番号は本 packet 起草時に `rg -n "^## |^### "` で実在確認済み（22-mnt §13 / 33-biz §16.3〜16.6 / 23-io §13.3.1 / 25-io §12.3 / 67-ui §67.5・67.9・67.12 / 51-ui §7.1 / 40-cmd §5.4）(2) archive packet のローカル ID は引かず、正本 ID（MNT-03-D9 / BIZ-04-D3〜D6 / IO-02-D1 / UI-08-D9・D11 / UI-01b-D19 / D-028 / D-072）のみを使う (3) `90-traceability.md` 再生成を Scope / AC / Registration Obligations に明記。
+
+## Impact Review Lenses
+
+| Lens | Applicability / finding | Follow-up artifact |
+|---|---|---|
+| Adapter / core boundary | Z004 layout A parser の占有 mode は adapter（IO-02）に閉じ、authority 判定は BIZ-04。CV17 の受理は adapter 側 unknown で fallback 定数化 | 23-io §13.3.1 / 33-biz §16.5 |
+| Fact check / design decision split | 実機事実（clear 行受理 / Diff 投入 / 5,000 行ダンプ）は L3 で確認、設計判断は D-072 に固定済み | PR body L3 記録 |
+| Lifecycle / retry | prepare 冪等・confirm 冪等・snapshot 再読込み冪等。TX 失敗は zero write | A-P2 / A-R6 / A-N4 |
+| Operator workflow | UI-08 に snapshot step が先行、未読込みは gate。旧 Full-only 注意文撤去、旧 Full file 再投入禁止文言 | A-V1 / L3 |
+| Replacement path | 旧 Full file は再投入しない（memory No. 永続化前）。既存 register 登録は external として保護 | 67-ui UI-08-D9 |
+| Data safety / evidence | 実 Z004 / 実 PLU file は repo に入れない。fixture は synthetic 5,000 行。summary JSON に実コード・名称・価格を含めない | Data Safety |
+| Reporting / accounting semantics | 不変（SPEC-PLS-D8 / D-025 / D-071）。sales mode の `parse_z004` は変更しない | A-N 非回帰（`parse_z004` 既存 test 全通） |
+| Manual verification | Windows native L3 必須（`67-ui §67.12`）。店舗訪問と同期、L3 用の手順と fixture を Ready 依頼と同時に渡す | Human Gate Proposal |
+| 環境・再現性 | 新設の環境依存なし。Writer 完了条件に `cargo check --release`（release build blind spot 対策） | Test Plan |
+
+## Design Readiness
+
+- Existing design docs are sufficient because: PR #84 で SPEC-PLS-D1〜D10 を function-design / db-design / architecture / spec / decision-log に正本化し、Plan Gate 3 round + Final Review を通過している。
+- Source docs updated in this PR: `40-cmd-product.md §5.4` 末尾の A/B 割当 1 行、`67-ui-plu-export.md §67.9` の full-only import note 撤去。
+- Design gaps intentionally deferred: 実装 B（D6 / UI-01a）、CV17 受理の実機事実。
+- Durable decisions discovered in this plan and promoted to source docs: 上記 2 点（軽微）。
+
+Minimum design checks for business-app work:
+
+- Layer ownership (`UI -> CMD -> BIZ -> IO/MNT`): CMD は DTO 変換のみ、TX と状態遷移は BIZ-04 / BIZ-01、slot CRUD は `db::plu_slot_repo`、parser は IO-02、行出力は IO-04。BIZ-01 → BIZ-04 の共通解放 service 呼び出しは同層依存で `architecture_test` の層規則に抵触しない。
+- Backend function design: 33-biz §16.3〜16.6 / 30-biz §4.4・4.5。
+- Command / DTO / data contract: 41-cmd CMD-08-D4/D5、`PluPreparedRow` / `PluRegisterSnapshotSummary` / `ProductResponse.plu_memory_no`。
+- Persistence / transaction / audit impact: v5 migration、snapshot / prepare / confirm / release は 1 TX、operation_log に snapshot 要約。
+- Operator workflow / Japanese UI wording: 67-ui §67.9 の文言表（`レジ設定の読込みが必要です` / `レジの空きスロットがありません` / 旧 Full file 再投入禁止）、51-ui `レジメモリNo.` / `未割当`。
+- Error, empty, retry, and recovery behavior: 33-biz §16.8 / 67-ui §67.11。
+- Testability and traceability IDs: A-* ID + REQ-907 comment + traceability 再生成。
+
+## Contract Probe
+
+- 「Z004 全スロットダンプは 5,000 行 layout A で、既存登録は 14 桁 E 埋めコード、空きは全ゼロ」: PR #84 の Contract Probe で実 file を local 検分（5,000 行 / 非ゼロ 929）→ 成立。本 PR は同 shape の synthetic fixture で自動 test、実 file は L3。
+- 「clear 行（全ゼロコード / 名称空 / …）を CV17 が受理しスロットを未設定へ戻す」: 未検証。実験 = L3 で test PLU（レジ登録済みの test 用 JAN）を対象外化 → Diff 書出し → CV17 投入 → レジ側 slot 確認。結果に応じて `PLU_CLEAR_ROW_ENABLED` を決める（受理されなければ Ready 前に `false` へ切替、D-072 Revisit を decision-log に追記する gated amendment）。
+- 「clear 行の 単価 field `\0` の実体」: local-only レジ設定書出し（`~/Downloads/inventory-field-check/approved-readable/ｽｷｬﾆﾝｸﾞPLU(商品).txt`、構造のみ）の全ゼロ行 1 行を `iconv -f CP932 -t UTF-8 | xxd` で検分 -> 単価 field は byte `5c 30`（ASCII バックスラッシュ + `0` の 2 文字。NUL でも `0` 1 文字でもない）、行末は CRLF。A-R5b の exact oracle はこの 2 文字で固定する（実コード・名称は転記しない）。
+- 「migration v5 の 4,784 行事前投入は既存 v4 DB でも同一 TX で完了する」: A-S1 が既存 v4 fixture DB へ適用して検証（probe 不要、test で固定）。
+
+## Mechanical Implementation Inventory
+
+使用 command（plan-draft 実査。実装中は symbol で再検索する）:
+
+```text
+rg -n "SCANNING_PLU_MEMORY_START|SCANNING_PLU_EXPORT_LIMIT|PLU_EXPORT_LIMIT" src-tauri/src
+rg -n "全件書出しのファイルだけ|差分書出しのファイルは取り込まない|full-only" src docs --glob '!docs/archive/**'
+rg -n "plu_target|plu_dirty|toggle_discontinue|jan_code" src-tauri/src/biz/product_service.rs
+rg -n "fn migrations|version: 4|v1\+v2\+v3\+v4" src-tauri/src/db/migration.rs
+```
+
+| Change group | Current target | Planned result | Matrix |
+|---|---|---|---|
+| migration v5 | `db/migration.rs` `migrations()`（v1〜v4）、`schema_v4.rs`、pin test（max=4 / count=4 / table 一覧） | `schema_v5.rs` 追加、pin を 5 / `plu_slots` へ | A-S1〜A-S3 |
+| slot repository | なし | `db/plu_slot_repo.rs` 新設 + mod 公開 + compliance map | A-S4 |
+| IO-02 占有 mode | `z004_parser.rs` `parse_data_line` が `fields[0]`（メモリNo.）を読み捨て | `parse_plu_register_snapshot` 新設。`parse_z004` は不変 | A-N1b / A-N2〜A-N2c |
+| BIZ-04 snapshot / summary | なし | `import_plu_register_snapshot` / `get_plu_slot_summary` + app_settings + operation_log | A-N1〜A-N9c |
+| BIZ-04 prepare | `prepare_plu_export` の `count > SCANNING_PLU_EXPORT_LIMIT` 比較、memory No. 概念なし | snapshot gate / sticky 最小空き予約 / 行構成 / `NoFreeSlot` | A-P1〜A-P5 / A-E1〜A-E6 |
+| BIZ-04 confirm | `confirm_plu_export_saved` が dirty clear + exported_at + log | + reserved→active / release_pending→free / exact set 再検証 / 冪等 | A-R5 / A-R6 |
+| BIZ-01 trigger | `update_product`（`plu_target_enabled` のみ検知）/ `toggle_discontinue`（dirty のみ） | 1→0 / 廃番化 `plu_target=0` / JAN 変更で共通解放 service | A-R1〜A-R4 |
+| IO-04 formatter | `plu_formatter.rs` `SCANNING_PLU_MEMORY_START + i` 採番、clear 行なし | 入力 `memory_no` 6 桁 / 範囲外 reject / clear 行 11 field | A-R5b / A-E2 / A-E3 |
+| constants | `SCANNING_PLU_EXPORT_LIMIT` = 比較上限 | 範囲サイズ定数として維持 + `PLU_CLEAR_ROW_ENABLED` 追加 | A-R7 |
+| CMD / wire | `plu_export_cmd.rs` 3 command、`product_cmd.rs` `ProductResponse` | + 2 command、`prepared_rows`、`no_free_slot`、`plu_memory_no`、bindings 再生成 | A-W1 |
+| UI-08 | `PluExportPage.tsx`（Full-only 注意文 :589、mode 選択、dirty query） | snapshot step + 要約 + gate + 文言改訂 + 注意文撤去 | A-V1 |
+| UI-01b | product edit form | `レジメモリNo.` read-only | A-U1 |
+| docs 追随 | `67-ui §67.9:134` full-only note、`40-cmd §5.4` A/B 割当 | 撤去 / 訂正 | A-G1 |
+| traceability | `90-traceability.md` に REQ-907 なし | 再生成 | A-W2 |
+
+## Oracle Replacement Ledger
+
+| Existing test / oracle | Old expectation | New expectation | Replacement (not deletion) |
+|---|---|---|---|
+| `plu_export_service` tests の件数上限（`SCANNING_PLU_EXPORT_LIMIT` 超過 → ValidationFailed） | 4,785 件目で拒否 | 上限比較なし。空きが尽きた JAN のみ `NoFreeSlot` excluded | A-P4 へ置換 |
+| `plu_formatter` tests の memory No. = 217 + index | 先頭行 217、連番 | 入力 `memory_no` をそのまま 6 桁、範囲外 reject | A-E2 / A-E3 へ置換 |
+| UI-08 RTL の Full-only 注意文 assert（存在すれば） | 文言表示 | 不在 + 旧 Full file 再投入禁止文言 | A-V1 へ置換 |
+| migration pin test | max=4 / count=4 / 21 table | max=5 / count=5 / `plu_slots` 含む | A-S1 で更新 |
+| `prepare_plu_export` の snapshot 前提なし | 直ちに生成 | 未読込みは `register_snapshot_required` | 既存 prepare test は fixture に snapshot 済み状態を前置して維持 |
+
+## Contract Coverage Ledger
+
+| Design contract / decision ID | Implementation target | Automated test | L3 or non-scope |
+|---|---|---|---|
+| SPEC-PLS-D1 / MNT-03-D9（DDL / CHECK / partial UNIQUE / 4,784 行 / v5） | schema_v5 / migration.rs / plu_slot_repo | A-S1〜A-S4 | — |
+| SPEC-PLS-D2 / IO-02-D1（5,000 行 / 正規化 / fail-closed） | z004_parser 占有 mode | A-N1b / A-N2〜A-N2c | 実機 Z004 読込み（初回 + 再読込み）は L3 |
+| SPEC-PLS-D2 / BIZ-04-D3（照合表 12 行 + 重複 JAN + gate + app_settings + log） | import_plu_register_snapshot / get_plu_slot_summary | A-N1 / A-N3〜A-N9c | — |
+| SPEC-PLS-D3 / BIZ-04-D4（eligible / dedup / sticky / 最小空き / NoFreeSlot / 行構成 / 要修正中維持） | prepare_plu_export / plu_slot_repo | A-P1〜A-P5 / A-E1 / A-E6 | — |
+| SPEC-PLS-D4 / BIZ-04-D6 + BIZ-01-D3（trigger 4 種 / 共有 JAN 残存で非解放 / 廃番解除非復帰） | 共通解放 service / product_service | A-R1〜A-R4 / A-R6 | — |
+| SPEC-PLS-D4 / BIZ-04-D5（confirm exact set / active 化 / free 化 / 冪等） | confirm_plu_export_saved | A-R5 / A-R6 | — |
+| SPEC-PLS-D4 / IO-04 §12.3（clear 行 11 field / 6 桁 / 範囲外 reject） | plu_formatter | A-R5b / A-E2 / A-E3 | clear 行の CV17 受理 + レジ側未設定化は L3 |
+| SPEC-PLS-D4 fallback（`PLU_CLEAR_ROW_ENABLED`） | constants + 行構成関数 | A-R7 | L3 結果で値確定 |
+| SPEC-PLS-D5 / UI-08-D9（Diff・Full 投入可 / external・free 非出力 / release_pending clear） | prepare / UI-08 文言 | A-E1 / A-E4 / A-E5 / A-V1 | Diff 投入は L3 |
+| SPEC-PLS-D7 / UI-08-D11（snapshot step / 要約 / gate 導線） | PluExportPage | A-V1 | above the fold は L3 |
+| SPEC-PLS-D7 / UI-01b-D19 + CMD-01-D3（`plu_memory_no` read-only / 未割当） | ProductResponse / product_repo JOIN / edit form | A-U1 / A-W1 | — |
+| UI-08-D1 / D4 / D7 既存契約（confirm 分離 / キャンセルで予約維持 / localStorage 復帰） | PluExportPage 既存 | 既存 RTL 非回帰 + A-P2 | — |
+| CMD-08-D4 / D5 + wire | plu_export_cmd / lib.rs / bindings.ts | A-W1 | — |
+| SPEC-PLS-D8（集計不変） | 変更なし | `parse_z004` / sales 既存 test 非回帰 | — |
+| SPEC-PLS-D9 / D10（REQ-907 traceability / stale 語彙 0） | test comment / 90-traceability / sweep | A-W2 / A-G1 | — |
+| D-028 三分バケット / 同一 JAN dedup（既存） | prepare | 既存 test 維持 + A-P5 | — |
+
+## Test Plan
+
+Test Design Matrix: [test-matrices/2026-08-18-plu-slot-core-implementation.md](test-matrices/2026-08-18-plu-slot-core-implementation.md)
+
+- targeted tests: A-S / A-N / A-P / A-R / A-E（Rust unit + repo integration）、A-V1 / A-U1（RTL）、A-W1〜A-W2（generated 差分 0 + traceability）。
+- negative tests: 行数 ≠ 5,000 / header 未検出 / memory No. 重複 / 範囲外 memory No. / snapshot 未読込み prepare / confirm の set 不一致 / NoFreeSlot。
+- compatibility checks: 既存 v4 DB への v5 適用、`parse_z004` sales mode 不変、confirm の exact set 契約不変、`list_plu_dirty` / PluNotificationBar 不変。
+- data safety checks: fixture は synthetic のみ、summary JSON に実コード等なし、物理 DELETE なし。
+- main wiring/integration checks: FilePicker → `import_plu_register_snapshot` → BIZ-04 TX → `plu_slots` + `app_settings` → `get_plu_slot_summary` → UI 要約 → invalidation（A-V1）。
+- mutation adequacy: Matrix の Mutation-style Adequacy Questions に列挙した mutant を Writer が実注入して kill を確認し、Final Reviewer が clean tree で Matrix どおりに独立再現する（kill 主張の写しは不可）。
+- Human Gate に L3 を含むため Writer 完了条件に `cargo check --release` を含める（CI gate ではない）。
+
+## Boundary / Wire Contract
+
+- producer: Rust `cmd/plu_export_cmd.rs`（`import_plu_register_snapshot(path: String) -> PluRegisterSnapshotSummary`、`get_plu_slot_summary() -> PluRegisterSnapshotSummary`、`prepare_plu_export` response に `prepared_rows: Vec<PluPreparedRow>` と excluded reason `no_free_slot`）、`cmd/product_cmd.rs` `ProductResponse.plu_memory_no: Option<i64>`。
+- consumer: `src/features/plu-export/*`、`src/features/products/*` edit form。
+- wire type: specta 生成 TS（`snapshotAt: string | null`、`freeCount` 等 number、`preparedRows[].rowKind: "product" | "clear"`、`pluMemoryNo: number | null`）。
+- internal type: `PluSlotStatus` 5 値 enum、`memory_no: i64`（DB INTEGER）。
+- precision/range: memory_no 217..5000（DB CHECK + formatter reject）、count は usize → number。
+- round-trip path: DB `plu_slots` → BIZ summary → CMD DTO → bindings → UI。書出し側は `plu_slots.memory_no` → `PluPreparedRow` → IO-04 6 桁文字列。
+- invalid input: 5,000 行以外 / header 未検出 → `ImportError`（CMD で `CmdError` 変換、UI は既存 error alert）、範囲外 memory_no は formatter reject。
+- compatibility: 既存 `prepare_plu_export` / `confirm_plu_export_saved` / `list_plu_dirty` の command 名と既存 field は維持し追加のみ。bindings は同一 commit で切替。
+
+## Human Gate Proposal
+
+Confirmed facts:
+
+- `67-ui §67.12` は UI-08 実装 PR に Windows native L3 と外部手順確認を必須と規定しており、本 PR の unknown（clear 行受理 / レジ側未設定化 / Diff 投入 / 実機 Z004 読込み）は native + 実機でしか観測できない。
+- L3 は CV17 PC と SR-S4000 のある店舗でしか実施できないため、店舗訪問の予定と同期する必要がある。訪問まで PR は Draft のまま待機し、その間の main drift は Ready 前に rebase + L1 再取得で吸収する。
+
+Coordinator 提案:
+
+- 採用: Windows native L3 = required（source doc 規定）。実施項目 = (1) 実 Z004 ダンプの読込みと要約の妥当性（既存 929 + test PLU が external / app managed に正しく分かれる）(2) test PLU の JAN を対象化 → Diff 書出し → CV17 投入 → レジ scan-call で確認 (3) 同 test PLU を対象外化 → Diff 書出し（clear 行入り）→ CV17 投入 → レジ側 slot が未設定に戻るか (4) 再度 Z004 ダンプ → 再読込みで `release_pending → free` になるか (5) Full 書出しの CV17 投入。手順書と synthetic 事前確認 fixture は Ready 依頼と同時に渡す（既知 graceful stop は disposition を PR body に記録）。
+- clear 行が受理されない、またはスロットが未設定へ戻らない場合: `PLU_CLEAR_ROW_ENABLED=false` へ切替（gated amendment、decision-log D-072 Revisit 追記）→ Final Review delta → Ready。
+- 不採用 alternative: L3 を受入台本第2版（⑤）へ後送りして merge。source doc 規定に反し、受理されない clear 行が operator の書出しを丸ごと CV17 拒否させる runtime risk を merge 後に残すため不採用。ただし店舗訪問が大きく遅れる場合は、実装 B の packet 起草・実装を本 branch の上に stack して runway を止めない（owner 判断、介入には数えない）。
+- 残る Human Gate = owner plan approval / L3（結果報告）/ human visual confirmation（L3 と同時実施可）/ Ready / merge。
+
+## Review Focus
+
+- 照合表 12 行 + 重複 JAN の分岐が `33-biz §16.3` と一致し、`active × 別コード` と `reserved × 別コード` が app 側上書きにならないこと（mutation A-N8 / A-N8b）。
+- 最小空きが「穴」を取ること（末尾追加ではない）と sticky 再利用（A-P1 / A-P2）。
+- clear 行の 11 field exact 形状と `PLU_CLEAR_ROW_ENABLED` の両 mode（A-R5b / A-R7）。
+- 要修正判定中 slot を Full が壊さないこと（A-E6）。
+- BIZ-01 trigger が同一 TX で呼ばれ、共有 JAN 残存で解放しないこと（A-R1〜A-R4）。
+- migration v5 が既存 v4 DB で 4,784 行 exact、magic number を導入していないこと（A-S1〜A-S3）。
+- bindings / traceability の generated 差分 0（A-W1 / A-W2）と stale 語彙 sweep 0（A-G1）。
+- 既存 test の削除・skip がないこと。Oracle Replacement Ledger の各行が置換であること。
+
+## Spec Contract
+
+Contract ID: SPEC-PLS-D1〜D5、D7（A 部分）、D9、D10（正本 = 上記 Design Sources。本 packet では再定義しない）
+
+- SPEC-PLS-D1: `plu_slots`（memory_no PK CHECK 217..5000 / scanning_code / status 5 値 / partial UNIQUE）を migration v5 で作り 4,784 行を free で事前投入する。Test: A-S1〜A-S4。
+- SPEC-PLS-D2: `parse_plu_register_snapshot` は 5,000 行の `(memory_no, raw_code)` を返し fail-closed。`import_plu_register_snapshot` は照合表どおりに 1 TX で遷移し、初回未読込みの prepare は `register_snapshot_required`。Test: A-N1〜A-N9c / A-V1。
+- SPEC-PLS-D3: prepare は eligible JAN に最小 free を sticky 予約し、空きなしは `no_free_slot` で当該 JAN のみ excluded。件数上限比較は行わない。Test: A-P1〜A-P5。
+- SPEC-PLS-D4: (i)(ii)(iii)(iv) で解放、reserved→free / active→release_pending、clear 行 11 field、confirm で free、`PLU_CLEAR_ROW_ENABLED=false` で no-reuse。Test: A-R1〜A-R7 + A-R5b。
+- SPEC-PLS-D5: Full = app 管理 slot 全体 + release_pending clear、Diff = dirty + release_pending clear、external / free 非出力、要修正判定中 slot は維持・非出力。Test: A-E1〜A-E6。
+- SPEC-PLS-D7（A）: UI-08 snapshot step / 要約 / gate 導線、UI-01b `レジメモリNo.` read-only。Test: A-V1 / A-U1。
+- SPEC-PLS-D9 / D10: REQ-907 traceability、stale 語彙 0。Test: A-W2 / A-G1。
+
+## Trace Matrix
+
+| Spec ID | Plan Step | Test | Review Focus | Evidence |
+|---|---|---|---|---|
+| SPEC-PLS-D1 | migration v5 + repo | A-S1〜A-S4 | 4,784 exact / magic number なし | cargo test |
+| SPEC-PLS-D2 | parser mode + snapshot service + UI step | A-N1〜A-N9c / A-V1 | 照合表一致 / 上書き禁止 | cargo test + RTL + L3 |
+| SPEC-PLS-D3 | prepare 書換え | A-P1〜A-P5 | 最小空き / sticky / NoFreeSlot | cargo test |
+| SPEC-PLS-D4 | trigger + confirm + formatter + fallback | A-R1〜A-R7 + A-R5b | 11 field / 両 mode | cargo test + L3 |
+| SPEC-PLS-D5 | 行構成 + UI 文言 | A-E1〜A-E6 | 要修正中維持 | cargo test + RTL + L3 |
+| SPEC-PLS-D7 | UI-08 / UI-01b / DTO | A-V1 / A-U1 / A-W1 | 文言 / read-only | RTL + bindings diff |
+| SPEC-PLS-D9 / D10 | traceability / sweep | A-W2 / A-G1 | generated 差分 0 | local-ci |
+
+## Data Safety
+
+- 実 Z004 ダンプ、実 PLU 書出し `.txt`、店舗の商品データは commit しない（fixture は synthetic 5,000 行のみ、コードは test 用 JAN）。
+- `app_settings.plu_register_snapshot_summary` は件数のみ（実コード・名称・価格を含めない）。
+- local-only paths: `.local/`、L1 evidence log。
+- L3 記録は匿名化して PR body に残す（CV17 エラー文言・列差異）。物理 DELETE は行わない。
+
+## Implementation Results
+
+Fill after implementation.
+
+Do not transcribe exact-HEAD SHA or test counts here (D-035/D-038 Evidence Ownership). Record a qualitative summary and the PR link only.
+
+## Review Response
+
+- Findings Freeze: not yet frozen; post-freeze exceptions: none.
+
+Fill after review.
