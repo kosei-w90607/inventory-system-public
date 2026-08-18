@@ -15,7 +15,7 @@ R3。schema migration、新規 repository、IO-02 新 mode、BIZ-04 prepare / co
 - SPEC-PLS-D4 / BIZ-04-D5・D6 / BIZ-01-D3: confirm exact set + active 化 + free 化 + 冪等、trigger 4 種、共有 JAN 残存で非解放、廃番解除非復帰（`33-biz §16.5・16.6`、`30-biz §4.4・4.5`）
 - SPEC-PLS-D4 / IO-04: clear 行 11 field exact、memory No. 6 桁、範囲外 reject（`25-io §12.3`）、`PLU_CLEAR_ROW_ENABLED` 両 mode
 - SPEC-PLS-D5 / UI-08-D9: Diff・Full 投入可文言、external / free 非出力
-- SPEC-PLS-D7 / UI-08-D11 / UI-01b-D19 / CMD-01-D3: snapshot step + 要約 + gate 導線、`レジメモリNo.` read-only / `未割当`、`ProductResponse.plu_memory_no`
+- SPEC-PLS-D7 / UI-08-D11 / UI-01b-D19 / CMD-01-D3: snapshot step + 要約 + gate 導線、`レジメモリNo.` read-only / `未割当`、`ProductWithRelations.plu_memory_no`
 - SPEC-PLS-D9 / D10: REQ-907 traceability、stale 語彙 0
 
 ## Failure Modes
@@ -84,7 +84,7 @@ R3。schema migration、新規 repository、IO-02 新 mode、BIZ-04 prepare / co
 | A-W1 | D7 wire | generated | `generate_bindings` 後 diff 0、`bindings.ts` に `importPluRegisterSnapshot` / `getPluSlotSummary` / `pluMemoryNo` / `preparedRows`、`confirmPluExportSaved` の入力が `{ product_codes, prepared_rows }` | local-ci `generated-bindings-diff` |
 | A-W2 | D9 traceability | generated | `generate_traceability --check` PASS、`90-traceability.md` に REQ-907 行 | local-ci `traceability` |
 | A-W3 | design compliance | Rust integration | `cargo test --test design_compliance_test` unexpected 0（新規 pub fn は 33-biz §16.3・16.6 / 23-io §13.3.1 / 20-io plu_slot_repo 一覧の fenced signature と一致、`schema_v5` は `pub(crate)`、allowlist 追加なし） | test PASS + allowlist diff 0 |
-| A-G1 | D10 sweep | rg | `rg -n "全件書出しのファイルだけ|差分書出しのファイルは取り込まない|SCANNING_PLU_MEMORY_START \+ " src src-tauri/src docs --glob '!docs/archive/**'` = 0 | 0 hit |
+| A-G1 | D10 sweep | rg | `rg -n "全件書出しのファイルだけ|差分書出しのファイルは取り込まない|SCANNING_PLU_MEMORY_START \+ " src src-tauri/src docs --glob '!docs/archive/**' --glob '!docs/plans/**'` = 0 | 0 hit |
 
 ## Oracle Replacement Map
 

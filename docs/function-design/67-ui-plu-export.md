@@ -26,7 +26,7 @@ function PluExportPage(): JSX.Element
 
 1. `commands.listPluDirty()` で差分対象を取得し、件数と一覧を表示する
 2. 利用者がDiffまたはFullを選ぶ
-3. `getPluSlotSummary` を読み、snapshot 未読込みなら共通 FilePicker（D-054）で Z004 を選ぶ「レジ登録状況を読み込む」step を先に表示する。`importPluRegisterSnapshot({ fileBytes })` 後は最終読込み日時と占有要約を above the fold に表示する
+3. `getPluSlotSummary` を読み、snapshot 未読込みなら共通 FilePicker（D-054）で Z004 を選ぶ「レジ登録状況を読み込む」step を先に表示する。`importPluRegisterSnapshot({ fileBytes })` 成功後は D-052-C17 の SSOT helper を適用し、最終読込み日時と占有要約を above the fold に表示する
 4. `commands.preparePluExport({ mode })` を呼び、`bytes_base64`、memory No. 付き prepared rows、`target_product_codes`、`excluded`（要修正一覧）を受け取る。`excluded` が空でなければ理由付き一覧を表示し、商品マスタ修正へ誘導する
 5. native save dialogで保存先を選び、CP932 PLUファイルバイト列を書き込む
 6. 保存キャンセルまたは保存失敗では `confirm_plu_export_saved` を呼ばず、未反映を残す
@@ -86,7 +86,7 @@ function PluExportPage(): JSX.Element
 |---|---|---|---|
 | `commands.listPluDirty()` | none | `ProductResponse[]` | 差分対象一覧（`plu_target=1` かつ `plu_dirty=1`、D-028）。0件は空状態でエラーではない |
 | `commands.getPluSlotSummary()` | なし | `snapshot_at`, free / external / app managed / conflict counts | snapshot 状態を above the fold に表示 |
-| `commands.importPluRegisterSnapshot({ fileBytes })` | Z004 の bytes（FilePicker `PickedFile.bytes` を `number[]` へ） | snapshot summary | FilePicker D-054 で選択（path は渡らない）。実コードは UI に一覧表示しない |
+| `commands.importPluRegisterSnapshot({ fileBytes })` | Z004 の bytes（FilePicker `PickedFile.bytes` を `number[]` へ） | snapshot summary | FilePicker D-054 で選択（path は渡らない）。実コードは UI に一覧表示しない。成功後は D-052-C17 の SSOT helper を適用 |
 | `commands.preparePluExport({ mode })` | `"diff"` / `"full"` | `bytes_base64`, `suggested_filename`, `content_type`, `encoding`, `count`, `target_product_codes`, `prepared_rows[memory_no]`, `excluded` | snapshot 未読込みは `register_snapshot_required`。`no_free_slot` を含む要修正は生成から除外。slot 予約は永続化する |
 | `commands.confirmPluExportSaved({ product_codes, prepared_rows })` | prepare結果の `target_product_codes` / `prepared_rows` | `updated_count`, `confirmed_at` | 保存済み確認。成功後は D-052-C14 の SSOT helper を適用 |
 

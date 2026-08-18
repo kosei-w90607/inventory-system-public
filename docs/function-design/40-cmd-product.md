@@ -145,7 +145,7 @@ fn list_suppliers(state: State<AppState>) -> Result<Vec<Supplier>, CmdError>
 
 #### get_product コマンド
 
-**処理ステップ**: product_repo::find_by_product_code()を呼ぶ。None → CmdError { kind: CmdErrorKind::NotFound }。`ProductResponse` に JAN 結合した読取り専用 `plu_memory_no: Option<i64>` を含める（**CMD-01-D3 / SPEC-PLS-D7**）。
+**処理ステップ**: product_repo::find_by_product_code()を呼ぶ。None → CmdError { kind: CmdErrorKind::NotFound }。応答型 `ProductWithRelations`（[20-io](20-io-product-repo.md) の JOIN 結果。`41-cmd` の `ProductResponse` は PLU dirty 一覧用の別型）に JAN 結合した読取り専用 `plu_memory_no: Option<i64>` を含める（**CMD-01-D3 / SPEC-PLS-D7**）。
 
 #### bulk_set_plu_target コマンド（CMD-01-D4 / SPEC-PLS-D6）
 
