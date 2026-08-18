@@ -6,7 +6,7 @@
 
 ```
 src-tauri/src/
-  business/
+  biz/
     plu_export_service.rs
 ```
 
@@ -132,7 +132,7 @@ prepare が返した exact `memory_no` / product_code set を **1 transaction** 
 
 初期定数は `PLU_CLEAR_ROW_ENABLED=true` とする。clear 行が CV17 / SR-S4000 で受理されないことが L3 で判明した場合は、この一箇所を `false` に切り替えて clear 行を出力せず、`release_pending -> free` を禁止する（fallback no-reuse、D-072 revisit）。
 
-### 16.6 slot 解放 trigger（BIZ-04-D5 / SPEC-PLS-D4）
+### 16.6 slot 解放 trigger（BIZ-04-D6 / SPEC-PLS-D4）
 
 次の契機は BIZ-01 から共通の解放 service を呼ぶ。
 

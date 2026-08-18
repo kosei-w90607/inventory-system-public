@@ -28,12 +28,12 @@ function PluExportPage(): JSX.Element
 2. 利用者がDiffまたはFullを選ぶ
 3. `getPluSlotSummary` を読み、snapshot 未読込みなら共通 FilePicker（D-054）で Z004 を選ぶ「レジ登録状況を読み込む」step を先に表示する。`importPluRegisterSnapshot({ path })` 後は最終読込み日時と占有要約を above the fold に表示する
 4. `commands.preparePluExport({ mode })` を呼び、`bytes_base64`、memory No. 付き prepared rows、`target_product_codes`、`excluded`（要修正一覧）を受け取る。`excluded` が空でなければ理由付き一覧を表示し、商品マスタ修正へ誘導する
-4. native save dialogで保存先を選び、CP932 PLUファイルバイト列を書き込む
-5. 保存キャンセルまたは保存失敗では `confirm_plu_export_saved` を呼ばず、未反映を残す
-6. 保存成功後は `target_product_codes`、保存先、件数、文字コード、保存日時を復帰用 `localStorage` に保存する。PLUファイル本文 (`bytes_base64`) は保存しない
-7. 画面再表示時に保存済み未確認の復帰状態があれば、ページ上部に `保存済みで未確認のPLU書出しがあります` を表示し、同じ exact product_code set で未反映解除できる導線を出す
-8. 利用者が保存済み扱いを確認した場合だけ `commands.confirmPluExportSaved({ product_codes })` を呼ぶ。復帰状態がある場合は復帰状態の `targetProductCodes` を使い、現在の差分一覧から再計算しない
-9. confirm成功後に D-052-C14 の SSOT helper を適用し、復帰状態を削除して未反映解除結果を表示する
+5. native save dialogで保存先を選び、CP932 PLUファイルバイト列を書き込む
+6. 保存キャンセルまたは保存失敗では `confirm_plu_export_saved` を呼ばず、未反映を残す
+7. 保存成功後は `target_product_codes`、保存先、件数、文字コード、保存日時を復帰用 `localStorage` に保存する。PLUファイル本文 (`bytes_base64`) は保存しない
+8. 画面再表示時に保存済み未確認の復帰状態があれば、ページ上部に `保存済みで未確認のPLU書出しがあります` を表示し、同じ exact product_code set で未反映解除できる導線を出す
+9. 利用者が保存済み扱いを確認した場合だけ `commands.confirmPluExportSaved({ product_codes })` を呼ぶ。復帰状態がある場合は復帰状態の `targetProductCodes` を使い、現在の差分一覧から再計算しない
+10. confirm成功後に D-052-C14 の SSOT helper を適用し、復帰状態を削除して未反映解除結果を表示する
 
 ## 67.5 Design Decisions
 

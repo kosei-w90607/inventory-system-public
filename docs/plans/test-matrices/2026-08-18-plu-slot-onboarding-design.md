@@ -38,7 +38,7 @@ Risk: R3
 
 | Contract | Failure Mode | Test Type | Test Name | Would fail if... |
 |---|---|---|---|---|
-| SPEC-PLS-D1 [本 design-first PR] | table / 一意性が docs にない | CLI/contract review | M-D1: `db-design/plu-tables.md` に `memory_no` CHECK 217..5000 / status 5 値 / partial UNIQUE anchor、22-mnt §12 に migration v5、DB_DESIGN 索引 | schema 契約が packet だけに残る |
+| SPEC-PLS-D1 [本 design-first PR] | table / 一意性が docs にない | CLI/contract review | M-D1: `db-design/plu-tables.md` に `memory_no` CHECK 217..5000 / status 5 値 / partial UNIQUE anchor、22-mnt §13 に migration v5、DB_DESIGN 索引 | schema 契約が packet だけに残る |
 | SPEC-PLS-D2 [本 design-first PR] | 照合規則が部分的 | CLI/contract review | M-D2: 33-biz に レジ空/有 × 5 status の照合表 + `register_snapshot_required` anchor、23-io に Z004 全スロット占有読み取り mode（5,000 行必須 / raw code）、67-ui に読込み step | 組合せ欠落 or 初回 gate 未記載 |
 | SPEC-PLS-D3 [本 design-first PR] | 再採番が残る | CLI/negative rg | M-D3: `rg -n "行インデックス|scanning_plu_memory_start \+ " docs/function-design/25-io-plu-formatter.md docs/function-design/33-biz-plu-export-service.md` の active hit 0、`最小空き` / `no_free_slot` anchor present | 採番規則が旧のまま |
 | SPEC-PLS-D4 [本 design-first PR] | 解放 / fallback 未定義 | CLI/contract review | M-D4: 33-biz に trigger 3 種（plu_target off / toggle_discontinue / jan_code 変更）+ clear 行形状 + fallback 定数 anchor、30-biz toggle_discontinue に `plu_target=0` | いずれかの trigger または fallback 欠落 |

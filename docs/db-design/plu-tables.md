@@ -27,7 +27,7 @@ SR-S4000 のスキャニング PLU 領域について、レジで観測した占
 
 ### migration v5
 
-migration v5 は table と partial UNIQUE index を作り、memory No. 217〜5000 の **4,784 行**を `status='free'`, `scanning_code=NULL` で事前投入する。実装と migration map 登録は後続実装 A の義務であり、本 design-first PR は schema を変更しない（**MNT-03-D5 / SPEC-PLS-D1**）。
+migration v5 は table と partial UNIQUE index を作り、memory No. 217〜5000 の **4,784 行**を `status='free'`, `scanning_code=NULL` で事前投入する。実装と migration map 登録は後続実装 A の義務であり、本 design-first PR は schema を変更しない（**MNT-03-D9 / SPEC-PLS-D1**）。
 
 ### products との結合
 

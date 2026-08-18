@@ -118,7 +118,7 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 |---|---|---|
 | Backend function / command / repository / validation / error | 33-biz（BIZ-04 slot 割当 / 解放 / 予約 TX）、23-io（IO-02 全スロット占有読み取り mode）、25-io（clear 行）、20-io（slot repo 依存）、30-biz（bulk 対象化 / discontinue 連動 / CSV 列）、40-cmd / 41-cmd | intentionally deferred to plan-approved 後の次発注 |
 | Command / DTO / generated binding / wire shape | 41-cmd §17 新 command 3 + prepare / confirm DTO 変更、40-cmd bulk command + Boundary / Wire Contract | packet で契約確定、source は intentionally deferred |
-| DB / transaction / audit / rollback / migration | `db-design/plu-tables.md` 新設（`plu_slots`）、DB_DESIGN.md §D-2 改訂 + 索引、22-mnt-migration §12 migration v5 | packet で契約確定、source は intentionally deferred |
+| DB / transaction / audit / rollback / migration | `db-design/plu-tables.md` 新設（`plu_slots`）、DB_DESIGN.md §D-2 改訂 + 索引、22-mnt-migration §13 migration v5 | packet で契約確定、source は intentionally deferred |
 | Screen / UI / route state / Japanese wording | 67-ui（レジ登録状況読込み step、占有要約、D9 改訂、文言）、50-ui（移行状態 filter / 一括操作）、51-ui（メモリNo. 表示）、60-ui（`PLU対象` 列） | packet で文言確定、source は intentionally deferred |
 | CSV / TSV / report / import / export format | 25-io §12 に書出し行構成（割当 memory No. / clear 行）、23-io に Z004 占有読み取り mode の受理条件 | packet で契約確定、source は intentionally deferred |
 | Durable decision / ADR | candidate D-072（slot authority 分割 / discontinue 連動 / Diff 投入可） | next amendment で `docs/decision-log.md` 新 ID として起案 |
@@ -134,7 +134,7 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 | REQ coverage 追加 | candidate REQ-907 を `requirements.md` / `requirements-coverage.md` に追加。test 追加後の `cargo run --bin generate_traceability` は実装 PR |
 | route 新設 | なし（既存 `/products/plu-export` / `/products` / `/products/import` の内部拡張） |
 | operator 画面新設 | なし。navigation / routeTree 生成義務なし |
-| migration | 実装 A で `schema_v5.rs` + `migration.rs` registry 追加、22-mnt-migration §12 に v5 節 |
+| migration | 実装 A で `schema_v5.rs` + `migration.rs` registry 追加、22-mnt-migration §13 に v5 節 |
 
 ## Design Decisions / Amendment Contract
 
@@ -236,7 +236,7 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 
 | Spec / requirement ID | Source design doc section | Decision ID | Why / rejected alternatives | Implementation target | Test target |
 |---|---|---|---|---|---|
-| REQ-402 / REQ-907 | plu-tables.md（新）/ 22-mnt §12 / DB_DESIGN D-2 | SPEC-PLS-D1 | 再採番と product 列方式は既存登録・JAN 共有を表せない | schema_v5 / plu_slot_repo | Matrix A-S1〜A-S4 |
+| REQ-402 / REQ-907 | plu-tables.md（新）/ 22-mnt §13 / DB_DESIGN D-2 | SPEC-PLS-D1 | 再採番と product 列方式は既存登録・JAN 共有を表せない | schema_v5 / plu_slot_repo | Matrix A-S1〜A-S4 |
 | REQ-907 | 23-io §（IO-02 全スロット占有読み取り mode）/ 33-biz §16（snapshot）/ 67-ui | SPEC-PLS-D2 | 既存登録を空き扱いしない公開設計前提。占有ソースは Z004（Q2 = A） | io::z004_parser 占有 mode / BIZ-04 / UI-08 step | Matrix A-N1〜A-N9c |
 | REQ-402 | 33-biz §16.3 / 25-io §12.3 / 67-ui UI-08-D1 | SPEC-PLS-D3 | 商品保存時 / confirm 時割当は順序・責務で不利 | prepare TX / formatter 入力 | Matrix A-P1〜A-P5 |
 | REQ-402 | 33-biz §16.4 / 30-biz toggle_discontinue / 51-ui | SPEC-PLS-D4 | 解放即 free は stale JAN 上書き順序が不定 | release trigger / clear 行 / confirm | Matrix A-R1〜A-R7 + A-R5b |
@@ -444,12 +444,22 @@ If R3 review-only sub-agent is skipped, record an explicit line beginning with `
 - plan-gate -> plan-approved の evidence: 独立 Plan Reviewer 3 round（round 3 P1 0 / P2 2 は表記整合のみで是正適用済み、P1/P2 = 0）、owner plan approval（上記 owner 裁定）、Plan Commit = plan-first commit 6466ad0（本 branch の全 content commit の祖先）。
 - plan-approved -> implementing の evidence: 本 design-first PR の implementation = source docs amendment（Codex Writer 発注）であり、plan-first commit が先行済み。隣接 2 遷移を 1 state-only commit で圧縮記録（DEV_WORKFLOW 圧縮規則の canonical 例）。
 
+### Final Review（2026-08-18、独立 Sonnet Final Reviewer fresh context、content candidate 34ce1a6 + generated delta 9df9d83、P1 1 / P2 3 / P3 2 → OPEN → 是正）
+
+- Ledger 10/10 行、SPEC-PLS-D2 照合表 12 セル、Q2 = A 整合、Mechanical Impact Inventory 4 sweep、scope 規律、doc-check / design_compliance exit 0 を独立確認。
+- P1 `MNT-03-D5` の ID 衝突（PR #77 SPEC-SFV-D1 と重複）: 採用、`MNT-03-D9` へ（22-mnt / plu-tables）。
+- P2 22-mnt §12/§13 renumbering の stale 参照（decision-log D-048 / Plans.md）: 採用（是正方向は逆転）— 履歴記録を書き換えず legacy path を §12 に戻し migration v5 を §13 へ、71-mnt を復帰、packet / Matrix の v5 参照を §13 へ。
+- P2 `BIZ-04-D5` 重複: 採用、§16.6 を `BIZ-04-D6` へ。P2 33-biz §16.1 の `business/` 誤記: 採用、`biz/` へ復帰。
+- P3 67-ui §67.4 の番号重複 / coverage 理由文の REQ-907 明記: 両方採用。
+- Writer 仮決め（CSV 不正値 = preview 行 error / 53-ui 不変）は packet 委任範囲内で承認。是正 delta は docs-only のため fresh context の delta 再検証で P1/P2 = 0 を確認してから human-confirm 遷移する。
+
 ### Writer 報告（2026-08-18、Codex）
 
 - SPEC-PLS-D1〜D10、D-072、REQ-907、owner Q1〜Q5（Q2=A）を source docs へ昇格した。実装・schema・generated file・archive・実店舗 data は変更していない。
 - M-D1〜M-D10 は全行 PASS。M-D3 / M-D5 の negative rg は対象 source 0 hit（rg exit 1 = match なし）。Mechanical Impact Inventory は archive 除外と hit ごとの改訂 / 明示除外を記録した。
 - provisional: `PLU対象` の `1` / `0` / 空欄以外は、暗黙の 0 扱いではなく preview 行 error とした。入力 typo を silent に対象外化しないため。
 - provisional: 22-mnt の user 指定 §12 を migration v5 に割り当て、既存 legacy path を §13 へ移した。live cross-reference の 71-mnt を §13 へ追随し、Plans / decision-log の過去時点参照は履歴として維持した。
+  - Coordinator 裁定（Final Review P2 起源、2026-08-18）: 発注書の「§12」指定は Coordinator の誤り（§12 = 既存 legacy path）。decision-log D-048 / Plans.md の live 参照を保つため renumbering を戻し、legacy path = §12 / migration v5 = §13 に確定。71-mnt の参照も §12 へ復帰。
 - `docs/function-design/53-ui-home.md` は `PluNotificationBar` の責務不変を確認し、差分を作らなかった。
 - Review-only skipped because: 本 design-first PR の独立 Final Reviewer は packet で Sonnet に固定され、Writer 自己レビューで代替せず Final Review 待ちへ渡すため。
 - Findings Freeze: not yet frozen; independent Final Review pending.
