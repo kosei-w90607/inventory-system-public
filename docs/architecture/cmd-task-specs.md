@@ -82,7 +82,7 @@ CMD層は薄いラッパーのため、各コマンドの仕様は「どのBIZ�
 
 | コマンド名 | 入力 | 呼び出すBIZ | 出力 |
 |-----------|------|-----------|------|
-| import_plu_register_snapshot | path | BIZ-04 | PluRegisterSnapshotSummary（snapshot_at, free / external / app managed / conflict counts） |
+| import_plu_register_snapshot | file_bytes（FilePicker D-054 の bytes） | BIZ-04 | PluRegisterSnapshotSummary（snapshot_at, free / external / app managed / conflict counts） |
 | get_plu_slot_summary | なし | BIZ-04 | PluRegisterSnapshotSummary |
 | prepare_plu_export | ExportMode（'full' / 'diff'） | BIZ-04 | PluExportPreparedResult（tsv_output, count, target_product_codes, prepared_rows[memory_no], excluded〈no_free_slot含む〉） |
 | confirm_plu_export_saved | product_codes[], prepared_rows[memory_no] | BIZ-04 | PluExportConfirmResult（updated_count, confirmed_at） |

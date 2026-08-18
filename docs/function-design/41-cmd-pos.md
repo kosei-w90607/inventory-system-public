@@ -557,11 +557,11 @@ struct PluExportConfirmResponse {
 #[specta::specta]
 fn import_plu_register_snapshot(
     state: State<AppState>,
-    path: String,
+    file_bytes: Vec<u8>,
 ) -> Result<PluRegisterSnapshotSummaryResponse, CmdError>
 ```
 
-共通 FilePicker（D-054）が選んだ Z004 path を受け、BIZ-04 の snapshot 取込みを呼ぶ。path / 実コードを response や operation log に複製せず、`snapshot_at`, `free_count`, `external_count`, `app_managed_count`, `conflict_count` の要約だけを返す。
+共通 FilePicker（D-054）が返す Z004 の bytes（`PickedFile.bytes`、wire は `fileBytes: number[]`）を受け、`CSV_IMPORT_FILE_SIZE_LIMIT` 超過は `parse_and_validate_csv` と同じ Validation error で止め、BIZ-04 の snapshot 取込みを呼ぶ。path は受け取らない（D-054 は path を公開しない。設計時の `path: String` は gated amendment で改訂、2026-08-18）。実コードを response や operation log に複製せず、`snapshot_at`, `free_count`, `external_count`, `app_managed_count`, `conflict_count` の要約だけを返す。
 
 #### get_plu_slot_summary（CMD-08-D5 / SPEC-PLS-D2、D7）
 

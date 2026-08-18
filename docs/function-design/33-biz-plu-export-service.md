@@ -67,9 +67,11 @@ struct PluRegisterSnapshotSummary {
 ```rust
 fn import_plu_register_snapshot(
     conn: &mut DbConnection,
-    path: &Path,
+    raw_bytes: &[u8],
 ) -> Result<PluRegisterSnapshotSummary, BizError>
 ```
+
+入力は共通 FilePicker（D-054）が返す `PickedFile.bytes` を CMD-08 経由で受け取った file bytes とする。BIZ-04 は path を扱わない（既存の CSV 取込み / 日報取込みと同型。設計 PR #84 の `path` 入力は D-054 の出力契約と接続できないため gated amendment で bytes へ改訂、2026-08-18）。
 
 IO-02 の全スロット占有読取り mode が返す `(memory_no, raw_code)` を、**1 transaction** で `plu_slots` と照合する。途中失敗時は slot、app_settings、operation_logs をまとめて rollback する。
 

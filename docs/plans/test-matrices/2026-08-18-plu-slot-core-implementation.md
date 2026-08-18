@@ -77,7 +77,7 @@ R3。schema migration、新規 repository、IO-02 新 mode、BIZ-04 prepare / co
 | A-E4 | D5 Diff 構成 | Rust integration | Diff = plu_dirty=1 の product 行 + 全 release_pending clear 行 | rows |
 | A-E5 | D5 UI 文言 | RTL | UI-08 に「Diff / Full とも投入可」系文言と旧 Full file 再投入禁止文言、旧 Full-only 注意文は不在 | text |
 | A-E6 | D5 要修正中維持 | Rust integration | active slot を持つ JAN を check digit 不正にして Full / Diff → 行 0（product / clear とも）、slot 不変、excluded に理由付き | rows / 行 / excluded |
-| A-V1 | D7 UI-08 | RTL | FilePicker → `importPluRegisterSnapshot` 呼出し → 要約表示（日時 + 4 件数）→ 未読込み時の `レジ設定の読込みが必要です` と書出し無効化 → 読込み後の有効化 → invalidation → `no_free_slot` 理由表示 `レジの空きスロットがありません`。既存 localStorage 復帰・confirm 導線 test は不変 | text / call / query |
+| A-V1 | D7 UI-08 | RTL | FilePicker `onSelect` の `bytes` → `importPluRegisterSnapshot({ fileBytes })` 呼出し（path を渡さない）→ 要約表示（日時 + 4 件数）→ 未読込み時の `レジ設定の読込みが必要です` と書出し無効化 → 読込み後の有効化 → invalidation → `no_free_slot` 理由表示 `レジの空きスロットがありません`。既存 localStorage 復帰・confirm 導線 test は不変 | text / call / query |
 | A-U1 | D7 UI-01b | RTL | edit form に `レジメモリNo.` read-only、値あり / `未割当` | text / readonly 属性 |
 | A-W1 | D7 wire | generated | `generate_bindings` 後 diff 0、`bindings.ts` に `importPluRegisterSnapshot` / `getPluSlotSummary` / `pluMemoryNo` / `preparedRows`、`confirmPluExportSaved` の入力が `{ product_codes, prepared_rows }` | local-ci `generated-bindings-diff` |
 | A-W2 | D9 traceability | generated | `generate_traceability --check` PASS、`90-traceability.md` に REQ-907 行 | local-ci `traceability` |
@@ -152,7 +152,7 @@ R3。schema migration、新規 repository、IO-02 新 mode、BIZ-04 prepare / co
 
 ## Main Wiring / Integration Checks
 
-- FilePicker → `import_plu_register_snapshot` → CMD → BIZ-04 TX → `plu_slots` + `app_settings` + operation_log → `get_plu_slot_summary` → UI 要約 → query invalidation（A-V1 + A-N9c）
+- FilePicker `PickedFile.bytes` → `import_plu_register_snapshot(file_bytes)` → CMD → BIZ-04 TX → `plu_slots` + `app_settings` + operation_log → `get_plu_slot_summary` → UI 要約 → query invalidation（A-V1 + A-N9c）
 - product edit → `get_product` → `plu_memory_no` → UI-01b 表示（A-U1 + A-W1）
 - prepare → `PluPreparedRow` → formatter → TSV bytes → confirm exact set（A-P3 / A-R5）
 - `lib.rs` `collect_commands!` と `generate_handler!` の双方に 2 command（A-W1、片方欠落は bindings diff または実行時 error で検出）
