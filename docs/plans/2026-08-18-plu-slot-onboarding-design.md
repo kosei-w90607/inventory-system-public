@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: implementing
+- Phase: human-confirm
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: 6466ad0
@@ -11,10 +11,10 @@
 - Writer: Codex
 - Plan Reviewer: Sonnet
 - Final Reviewer: Sonnet
-- Reviewed Content HEAD: pending
+- Reviewed Content HEAD: 745b2b6
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
-- Human Gate: Ready / merge（owner plan approval は 2026-08-18 に Q1〜Q5 裁定込みで完了）。Windows native L3 は docs-only design-first PR ではなし
+- Human Gate: Ready 承認（介入 2 回目）/ merge（owner plan approval は 2026-08-18 に Q1〜Q5 裁定込みで完了）。Windows native L3 は docs-only design-first PR ではなし
 
 ## Owner Effort Budget
 
@@ -452,6 +452,12 @@ If R3 review-only sub-agent is skipped, record an explicit line beginning with `
 - P2 `BIZ-04-D5` 重複: 採用、§16.6 を `BIZ-04-D6` へ。P2 33-biz §16.1 の `business/` 誤記: 採用、`biz/` へ復帰。
 - P3 67-ui §67.4 の番号重複 / coverage 理由文の REQ-907 明記: 両方採用。
 - Writer 仮決め（CSV 不正値 = preview 行 error / 53-ui 不変）は packet 委任範囲内で承認。是正 delta は docs-only のため fresh context の delta 再検証で P1/P2 = 0 を確認してから human-confirm 遷移する。
+
+### 遷移記録（2026-08-18、state-only 遷移 implementing -> local-verified -> independent-review -> human-confirm）
+
+- implementing -> local-verified: content candidate 745b2b6 の L1 `local-ci.sh full` CLEAN（RESULT=PASS、evidence path は PR #84 body）。
+- local-verified -> independent-review: 独立 Sonnet Final Reviewer（fresh context）が Contract Audit を実施（Ledger 10/10、照合表 12 セル、Mechanical Impact Inventory sweep 再実行）。
+- independent-review -> human-confirm: Final Review P1 1 / P2 3 / P3 2 を全件裁定・是正（745b2b6）し、fresh context の delta 再検証で P1/P2 = 0。`Reviewed Content HEAD` = 745b2b6。隣接 3 遷移を 1 state-only commit で圧縮記録（post-implementation state-only 2 本目 / cap 3）。
 
 ### Writer 報告（2026-08-18、Codex）
 
