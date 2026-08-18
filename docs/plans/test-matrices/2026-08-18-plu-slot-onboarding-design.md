@@ -50,6 +50,19 @@ Risk: R3
 | SPEC-PLS-D10 [本 design-first PR] | durable decision 未昇格 | CLI/contract review | M-D10: `decision-log.md` に D-072（authority 分割 / JAN 単位予約 / 廃番連動 / Diff 投入可 / Revisit）、25-io line 3 / 5 の暫定注記が D-072 参照へ改訂 | decision-log 追加なし or 暫定注記残存 |
 | Q1〜Q5 [本 design-first PR] | 裁定未記録 | packet review | M-Q: packet の Owner 裁定事項表に owner 判断と日付が追記され、不採用代替が Review Response に残る | 裁定なしで plan-approved |
 
+### M-D1〜M-D10 実行結果（2026-08-18、source amendment）
+
+- **M-D1 PASS** — `rg -n "plu_slots|memory_no|partial UNIQUE|migration v5" docs/db-design/plu-tables.md docs/function-design/22-mnt-migration.md docs/DB_DESIGN.md` → exit 0。範囲 / status / partial UNIQUE / v5 / DB index を確認。
+- **M-D2 PASS** — `rg -n "register_snapshot_required|全スロット占有|5,000|raw_code|UI-08-D11|レジ登録状況" docs/function-design/33-biz-plu-export-service.md docs/function-design/23-io-z004-parser.md docs/function-design/67-ui-plu-export.md` → exit 0。照合 grid、初回 gate、Z004 mode、UI step を確認。
+- **M-D3 PASS** — negative `rg -n "行インデックス|scanning_plu_memory_start \+ " docs/function-design/25-io-plu-formatter.md docs/function-design/33-biz-plu-export-service.md` → exit 1 / 0 hit。positive `rg -n "最小.*free|NoFreeSlot|no_free_slot|最小空き" ...` → exit 0。
+- **M-D4 PASS** — `rg -n "plu_target.*1.*0|廃番化|jan_code.*変更|PLU_CLEAR_ROW_ENABLED|11 field" docs/function-design/33-biz-plu-export-service.md docs/function-design/30-biz-product-service.md docs/function-design/25-io-plu-formatter.md` → exit 0。release trigger、exact clear、no-reuse fallback を確認。
+- **M-D5 PASS** — `rg -n "Full.*のみ|全件.*のみ|Diff.*点検用途|Full-only" docs/function-design/67-ui-plu-export.md docs/function-design/33-biz-plu-export-service.md docs/DB_DESIGN.md docs/architecture/biz-task-specs.md` → exit 1 / 0 hit。UI-08-D9 は Diff / Full 投入可へ改訂済み。
+- **M-D6 PASS** — `rg -n "PLU対象|bulk_set_plu_target|filter.*全件|件数.*dialog|invalid_jan" docs/function-design/30-biz-product-service.md docs/function-design/40-cmd-product.md docs/function-design/50-ui-product-list.md` → exit 0。CSV / filter 全件の両経路を確認。
+- **M-D7 PASS** — `rg -n "対象外|未反映|反映済み|plu_target=0|plu_dirty=1|plu_dirty=0|plu_memory_no|plu.*search param|占有要約" docs/function-design/50-ui-product-list.md docs/function-design/51-ui-product-form.md docs/function-design/67-ui-plu-export.md` → exit 0。
+- **M-D8 PASS** — `rg -n "売上.*在庫.*会計|売上、在庫、会計|D-025" docs/function-design/33-biz-plu-export-service.md docs/db-design/plu-tables.md` → exit 0。集計非影響を確認。
+- **M-D9 PASS** — `rg -n "REQ-907|REQ-402" docs/spec/requirements.md docs/spec/requirements-coverage.md` → exit 0。REQ-907 `current` と REQ-402 理由を確認。
+- **M-D10 PASS** — `rg -n "D-072|authority|JAN 単位|廃番化|Diff / Full|Revisit" docs/decision-log.md docs/function-design/25-io-plu-formatter.md` → exit 0。D-072 の四点 / revisit と formatter 注記を確認。
+
 ## State Lifecycle Matrix
 
 | State（plu_slots.status） | Event | Next | Side effect | Test（予約） |

@@ -10,6 +10,7 @@ src-tauri/src/
     schema_v2.rs  -- 冪等性カラム追加（4テーブル再作成）
     schema_v3.rs  -- PLU対象フラグ追加
     schema_v4.rs  -- 日報取込みテーブル追加
+    schema_v5.rs  -- PLU slot 永続割当テーブル追加
 ```
 
 ### 3.2 migrate
@@ -165,11 +166,23 @@ COMMIT
 
 **PRAGMA foreign_keys の扱い**: v4 は PRAGMA foreign_keys を変更しない。既存テーブルの DROP / RENAME を伴わないため、v2 のような OFF / foreign_key_check / ON 復元保証は不要。外部キー制約は接続側の通常設定に従い、migration SQL 内では daily_report_imports / departments への参照を定義するだけに留める。
 
-## 12. MNT-03 追加: legacy path 移行（migrate_legacy_db）
+## 12. MNT-03 追加: migration v5（plu_slots）
+
+**MNT-03-D5 / SPEC-PLS-D1**: migration v5 を schema_versions に追加する。実装と migration map 登録は後続実装 A の義務であり、本 design-first PR では schema を変更しない。
+
+**手順**:
+
+1. `plu_slots` を [db-design/plu-tables.md](../db-design/plu-tables.md) の完全 DDL（memory_no の 217..5000 CHECK、status の 5 値 CHECK、timestamp 列）で作成する。
+2. `status <> 'free'` を条件とする `scanning_code` partial UNIQUE index を作成する。
+3. memory No. 217〜5000 の **4,784 行**を `free` として事前投入する。範囲は既存の開始番号・範囲サイズ定数から導出し、重複した magic number を実装へ増やさない。
+4. row count、範囲端、既定 status を同一 transaction 内で検証し、失敗時は §3.2 / MNT-03-D1 に従って rollback する。
+5. schema_versions に v5 を記録して commit する。v3 の `plu_target` backfill と v4 の日報 table は変更しない。
+
+## 13. MNT-03 追加: legacy path 移行（migrate_legacy_db）
 
 旧実装が相対パス `inventory.db`（CWD）を使っていたため、起動時に CWD の旧 DB を `app_data_dir` 配下へ移行するフォールバック。従来この契約はコードコメント（PR #25 起源の「3ファイルセット」）にしか存在しなかったため、本節を正本とする（2026-07 監査 P3b-1 / P8b-3 起源）。
 
-### 12.1 シグネチャ
+### 13.1 シグネチャ
 
 ```
 fn migrate_legacy_db(
@@ -180,7 +193,7 @@ fn migrate_legacy_db(
 
 戻り値: `Ok(true)` = 移行実行、`Ok(false)` = 移行不要（旧 DB 無し or 新 DB 既存）。シグネチャは現行と同一（`std::io::Error` に SQLite エラーを `std::io::Error::other` 相当で包む実装差し替えは可、実装 PR で決める）。
 
-### 12.2 処理ステップ
+### 13.2 処理ステップ
 
 1. `new_dir/inventory.db` の存在を確認。**既存なら `Ok(false)`**（この判定に旧 DB 側の情報は不要）。存在確認の metadata error はステップ 2 と同じく「無い」に潰さず `Err` として返す
 2. 旧 DB の存在を確認する。**存在判定は metadata error を「無い」に潰さない**（`try_exists` 相当。error は `Err` として返す）。旧 DB が確実に無い → `Ok(false)`
@@ -205,13 +218,13 @@ fn migrate_legacy_db(
 - Why: 部分状態が最終名で残ると、次回起動の「新 DB 既存 → skip」判定が部分 DB を正当な移行結果として確定してしまう（P3b-1 の恒久 skip 経路）。一時ファイルの削除自体が失敗した場合は `.migrating` のまま残り、最終名判定に影響しない
 - Rejected alternatives: 最終名へ直接生成 + 失敗時削除（削除自体の失敗で部分 DB が最終名に残る窓が閉じない）
 
-### 12.3 エラーハンドリング
+### 13.3 エラーハンドリング
 
 - 旧 DB open 失敗 / VACUUM INTO 失敗 / publish/link 失敗 → 一時ファイルを削除（削除失敗は `tracing::warn!` 記録）して `Err`
 - publish/link 成功後の staging unlink 失敗も `Err`（fail-closed）を返す。最終名は完成済み snapshot のため保持し、次回起動は「新 DB 既存 → 移行 skip」で通常起動する
 - `Err` 時の呼び出し元（lib.rs）の挙動は **MNT-03-D4** に従う
 
-### 12.4 lib.rs 起動契約（MNT-03-D4）
+### 13.4 lib.rs 起動契約（MNT-03-D4）
 
 - 決定: lib.rs setup hook は `migrate_legacy_db` の `Err` で起動を中止する（fail-closed）。中止時は operator へ可視のエラーダイアログで「旧データは無事であること・アプリ再起動で再試行されること・繰り返し失敗する場合の連絡誘導」を表示し、**表示完了（または表示不能の確定）後にのみ**終了する。詳細は診断ログに記録する
 - **表示機構の制約（PR #14 Codex P2-2）**: `tauri_plugin_dialog` の `blocking_show` は公式 API doc が「main thread context で使用してはならない」と明記しており（vendored source lib.rs:355-356 で確認済み）、setup hook（main thread）での同期表示を機構として指定しない。**実装 PR1 確定形**: Windows は専用 worker thread で Win32 `MessageBoxW` を表示し、setup thread が `join` で表示完了を待ってから `Err` を返す。Contract Probe の native pre-window 表示で可視性を確認済み。thread panic / API 表示不能時も診断ログを残して fail-closed 起動中止を維持する（`blocking_show` worker は main-thread dispatch との相互待ち、callback は pre-window 可視化不能のため不採用）
@@ -241,7 +254,7 @@ operator 文言の固定部は次のとおりで、いずれも末尾に改行�
 - Rejected alternatives: `tauri_plugin_dialog` の同期表示（上記 main-thread 制約）/ 診断ログ初期化前のログ再試行（filesystem 失敗を再帰させる）/ `.run()` の panic 維持（release で不可視）/ L3 hook から handler を直接呼ぶ低忠実度 simulation（実 `.run()` Err 後の process 状態を検証できない）
 - 見直し契機: 非 Windows の配布対象化、起動失敗の自動回復・リトライ、または pre-window dialog 機構自体を置換するとき
 
-### 12.5 テスト方針（実装 PR1 の完了条件、P8b-3）
+### 13.5 テスト方針（実装 PR1 の完了条件、P8b-3）
 
 fixture / 注入の必須条件は 71 §71.10「fixture / 注入の必須条件」に従う（実 WAL fixture は `wal_autocheckpoint=0` または作成側接続の保持 + 実行前の WAL frame 存在 assert、ファイル操作失敗は注入可能な file-ops 抽象で決定論的に起こす。clean close は WAL を checkpoint・削除するため「書いて閉じただけ」の fixture は WAL を持たない — PR #14 Codex P2-4）。
 

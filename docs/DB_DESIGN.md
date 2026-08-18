@@ -1,7 +1,7 @@
 # 在庫管理システム テーブル定義書
 
-> **最終更新**: 2026-07-03 / D-028 JANなし商品のPLU対象扱い（products.plu_target、migration v3）を追加
-> **テーブル数**: 24テーブル（マスタ3 + トランザクション8 + POS連携7 + 在庫追跡2 + 棚卸し2 + システム2）
+> **最終更新**: 2026-08-18 / D-072 PLU slot 永続割当（plu_slots、migration v5）を追加
+> **テーブル数**: 25テーブル（マスタ3 + トランザクション8 + POS連携8 + 在庫追跡2 + 棚卸し2 + システム2）
 
 ---
 
@@ -27,6 +27,7 @@
 | 12d | daily_report_payment_lines | POS連携 | REQ-401, 501, 502 | 取引キー・支払集計行（Z002由来） |
 | 12e | daily_report_department_lines | POS連携 | REQ-401, 501, 502 | 部門別売上集計行（Z005由来） |
 | 13 | sale_records | POS連携 | REQ-401, 501, 502 | 売上レコード（自動＋手動の統合） |
+| 13a | plu_slots | POS連携 | REQ-402, 907 | スキャニング PLU のレジ占有・永続予約 |
 | 14 | inventory_movements | 在庫追跡 | REQ-303 | 在庫変動履歴（全ての在庫増減の記録） |
 | 15 | price_history | 在庫追跡 | REQ-102 | 価格変更履歴 |
 | 16 | stocktakes | 棚卸し | REQ-205 | 棚卸しヘッダ |
@@ -43,6 +44,7 @@
 | グループ | ファイル | テーブル |
 |---------|---------|---------|
 | マスタ | [db-design/master-tables.md](db-design/master-tables.md) | products, departments, suppliers |
+| PLU slot | [db-design/plu-tables.md](db-design/plu-tables.md) | plu_slots、PLU snapshot 用 app_settings key |
 | トランザクション | [db-design/transaction-tables.md](db-design/transaction-tables.md) | receiving_records/items, return_records/items, manual_sales/items, disposal_records/items |
 | POS連携 | [db-design/pos-tables.md](db-design/pos-tables.md) | csv_imports, csv_import_errors, daily_report_imports, daily_report_summary_lines, daily_report_payment_lines, daily_report_department_lines, B-1/B-2パース仕様, sale_records |
 | 在庫追跡・棚卸し・システム | [db-design/tracking-system-tables.md](db-design/tracking-system-tables.md) | inventory_movements, price_history, stocktakes/items, operation_logs, app_settings |
@@ -157,10 +159,10 @@ jan_codeとfile_hash以外に、以下のインデックスを初期設定する
 - **プレビュー必須**: 取込み前に先頭数行を必ずプレビュー画面で表示。CP932デコードが成功しても文字化けしている場合は利用者が目視で気づける
 - **デコード失敗時**: 「ファイルの文字コードが判別できません。Excelで保存し直してください」とエラー表示
 
-### D-2: PLU書出し→レジ反映の検知手段（2026-03-29 確定 / 2026-07-01 D-027 更新 / 2026-07-03 D-028 更新）
+### D-2: PLU書出し→レジ反映の検知手段（2026-03-29 確定 / 2026-08-18 D-072 更新）
 - **plu_dirty / plu_exported_at の更新タイミング**: PLUファイル生成だけでは更新しない。UI-08で保存先を選び、PLUファイル保存後に利用者が「この書出しを未反映から外す」と明示確認した時点で、生成時の対象商品だけを `plu_dirty=0` にし、`plu_exported_at` に現在日時を記録する。
 - **plu_dirty の意味の限定（D-028）**: `plu_dirty` は `plu_target=1`（スキャニングPLU書出し対象）の商品についてのみ「レジ未反映」を意味する。`plu_target=0` の商品は `plu_dirty` の値にかかわらず PLU書出し抽出と UI-00 PLU未反映通知の対象外（抽出・通知クエリが `plu_target=1` 条件を持つ）。詳細は [db-design/master-tables.md](db-design/master-tables.md) plu_target 設計意図と decision-log D-028 を参照。
-- **PCツール投入失敗時の再書出し（D-028 更新）**: `prepare_plu_export` でPLUファイルを生成しても `plu_dirty` は残る。CV17 取込み失敗時の回復は、確認前後を問わず保存済み Full ファイルの再投入または Full モードでの再書出しで行う（CV17 へ投入してよいのは Full 書出しファイルのみ = UI-08-D9）。Diff モードは未反映内容の確認用であり、Diff ファイルを CV17 へ投入しない。
+- **永続 slot と再書出し（D-072 / SPEC-PLS-D1、D5）**: memory No. は `plu_slots` に JAN 単位で永続割当し、書出しごとに再採番しない。Diff / Full はどちらも CV17 へ投入できる。Full は app 管理 slot 全体（対象行 + 解放 clear 行）、Diff は未反映対象 + 解放 clear 行を出力する。投入失敗時は保存済みファイルの再投入、または Diff / Full の再書出しで回復する。外部登録と free slot は出力しない。
 - **レジ反映の確認**: レジ側にAPIがないため検知不可能。`plu_exported_at` は「アプリ側でPLUファイルを保存済みにした日時」であり、PCツール受理やレジ反映の証明ではない。
 - **画面上の注意表示**: UI-08の完了画面に「アプリで確認できるのはPLUファイル保存まで。PCツールへの取込み、SDカード書出し、レジ読込みは手動確認が必要」と常時表示する。
 

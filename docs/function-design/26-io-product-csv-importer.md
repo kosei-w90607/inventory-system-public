@@ -83,6 +83,12 @@ fn parse_product_csv(bytes: &[u8]) -> Result<ImportParseResult, String>
    - ImportParseResult { headers, rows, parse_errors } を返す
    - rows が 0件でもエラーではない（全行がエラーまたは空の場合。BIZ-01側で判断）
 
+**IO-03-D1 / SPEC-PLS-D6 — 任意列 `PLU対象`**:
+
+- header に `PLU対象` があれば他 field と同じく raw string として `ParsedRow.fields` に保持する。header がなくても parse error にしない
+- `1` / `0` / 空欄の意味付け、新規 / 更新行の適用差、JAN eligibility と warning は BIZ-01 が判断する
+- IO-03 は unknown value を bool へ強制変換せず raw 値を渡し、行 error 化の判断を BIZ-01 に委ねる
+
 **エラーハンドリング**:
 - 空ファイル → Err("ファイルが空です")
 - デコード失敗 → Err("ファイルの文字コードが判別できません。Excelで保存し直してください")
@@ -147,3 +153,4 @@ Ok(ImportParseResult {
 |------|-----|------|
 | 2026-04-12 | PR #19 | 初版作成（IO-03 parse_product_csv 設計） |
 | 2026-04-13 | PR #22 | ParsedRow 構造体導入。rows を `Vec<HashMap>` → `Vec<ParsedRow>` に変更し、元CSV行番号を保持 |
+| 2026-08-18 | PR #84 | IO-03-D1 / SPEC-PLS-D6: 任意列 `PLU対象` の parse 境界を追加 |

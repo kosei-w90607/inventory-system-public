@@ -70,6 +70,7 @@ fn search_products(conn: &DbConnection, query: &ProductSearchQuery) -> Result<Pa
 - keyword: Option<String>（商品名、product_code、jan_codeの部分一致）
 - department_id: Option<i64>
 - is_discontinued: Option<bool>（Noneなら全件、Some(false)なら現行品のみ）
+- plu: Option<PluMigrationFilter>（All / Target / Pending / Synced / Excluded。UI search param `plu` から BIZ-01 が変換）
 - sort_key: SortKey（Name / ProductCode / StockQuantity / SellingPrice）
 - sort_order: SortOrder（Asc / Desc）
 - page: u32（1始まり）
@@ -81,10 +82,15 @@ fn search_products(conn: &DbConnection, query: &ProductSearchQuery) -> Result<Pa
    - keywordがSome → `(p.name LIKE '%keyword%' OR p.product_code LIKE '%keyword%' OR p.jan_code LIKE '%keyword%')`
    - department_idがSome → `p.department_id = ?`
    - is_discontinuedがSome → `p.is_discontinued = ?`
+   - plu が Target → `p.plu_target=1`、Pending → `p.plu_target=1 AND p.plu_dirty=1`、Synced → `p.plu_target=1 AND p.plu_dirty=0`、Excluded → `p.plu_target=0`。All は条件を加えない
 2. COUNT(*) でtotal_countを取得
 3. ORDER BY句の構築（sort_key + sort_order）
 4. LIMIT clamped_per_page OFFSET (page - 1) * clamped_per_page で取得
 5. PaginatedResult { items, total_count, page, per_page: clamped_per_page } を返す
+
+`ProductWithRelations` には `plu_slots` を JAN で LEFT JOIN した読取り専用 `plu_memory_no` を追加する。対象 status は `reserved` / `active` / `release_pending` とし、product_code を slot identity に使わない（**IO-01-D4 / SPEC-PLS-D1、D7**）。
+
+一括 PLU 対象更新では、同じ keyword / department / discontinued 条件をページングなしで返す `find_products_for_bulk_plu_target(conn, filter)` を使う。BIZ-01 が 1 transaction 内で eligibility 判定、slot 解放、product 更新を行えるよう、repo は SQL 抽出・更新だけを担当する（SPEC-PLS-D6）。
 
 **エラーハンドリング**:
 - SQL実行失敗 → DbError::QueryFailed(詳細)

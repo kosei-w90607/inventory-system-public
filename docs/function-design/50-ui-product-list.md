@@ -25,6 +25,8 @@
 | REQ-103 / UI-01a | UI-01a-D7 | 部門フィルタ候補は `list_departments` CMD で departments 全件を取得する。 | `search_products` の現在ページから候補を派生すると、検索条件・ページング・廃番状態で候補が欠ける。既存 IO `product_repo::list_departments` を BIZ/CMD 経由で公開する設計を採用する。 |
 | REQ-103 / UI-01a | UI-01a-D8 | 廃番状態は専用「状態」列を持たず、廃番商品のみ商品名セル内に `廃番` text badge を出し、行を `text-muted-foreground` にする。「表示中」badge は出さない。 | 表示中が大多数の一覧で全行に状態 badge を出すと密度が上がり、注目すべき廃番が埋もれる。色だけで符号化しない（[design-system/00-foundations.md §業務ステータスの視認性](../design-system/00-foundations.md)）ため text badge を併用する。部門列は維持し、L3 で密度過多なら次候補とする。 |
 | REQ-103 / UI-01a | UI-01a-D9 | 検索欄を在庫照会と同型の live 型へ統一する（`debounceMs=200` / `type="search"` + native clear / 外付け Label・検索ボタン非表示 / `aria-label="商品検索"` 維持）。 | Why = commit 型維持の業務理由が owner 調査で確認できず、共通化時の既存挙動温存だった。live 型でも HID スキャナの Enter 即時確定・IME 変換確定 Enter の誤発火防止・条件変更時の `page` reset は維持される。Rejected = commit 型の維持（画面間の操作一貫性を損なう理由が説明できない）（owner L3 判断 2026-08-03、gated amendment）。 |
+| REQ-907 / SPEC-PLS-D7 | UI-01a-D10 | PLU 移行 badge は `plu_target=0 -> 対象外`、`plu_target=1 && plu_dirty=1 -> 未反映`、`plu_target=1 && plu_dirty=0 -> 反映済み` の 3 語彙で導出し、`plu=all|target|pending|synced|excluded` を URL search param に持つ。 | operator が段階移行を商品単位で追跡できる。badge は text / icon を併用し、色だけで状態を符号化しない。 |
+| REQ-907 / SPEC-PLS-D6 | UI-01a-D11 | 現在の q / dept / discontinued filter に一致する全件を「PLU 対象にする / 対象から外す」で更新する。実行前に件数付き dialog、実行後に更新 / JAN 不備 skip / 廃番 skip の結果を表示する。 | page 内だけの更新は filter 全件という operator の期待とずれる。BIZ-01 の 1 TX command に判断を集約する。 |
 
 ## 50.3 画面構成
 
@@ -48,12 +50,13 @@ src/features/products/components/ProductPagination.tsx
 | `q` | string | `""` | trim 後に空なら `keyword = null`、非空なら `keyword = q` |
 | `dept` | number or absent | absent | absent なら `department_id = null` |
 | `discontinued` | `active` / `all` / `discontinued` | `active` | `active -> false`, `all -> null`, `discontinued -> true` |
+| `plu` | `all` / `target` / `pending` / `synced` / `excluded` | `all` | 同名の `PluMigrationFilter`。無効値は `all` へ正規化 |
 | `sort` | `product_code` / `name` / `stock_quantity` / `selling_price` | `product_code` | `product_code -> ProductCode`, `name -> Name`, `stock_quantity -> StockQuantity`, `selling_price -> SellingPrice` |
 | `dir` | `asc` / `desc` | `asc` | `asc -> Asc`, `desc -> Desc` |
 | `page` | number >= 1 | `1` | `page` |
 | `perPage` | `50` / `100` / `200` | `50` | `per_page` |
 
-検索語、部門、廃番モード、並替え、`perPage` が変わったときは `page=1` に戻す。ページ移動だけは現在の検索条件を維持する。
+検索語、部門、廃番モード、PLU 移行 filter、並替え、`perPage` が変わったときは `page=1` に戻す。ページ移動だけは現在の検索条件を維持する。
 
 `q` は live 型（[59-ui-shared-patterns.md](59-ui-shared-patterns.md) §59.1 SearchBar、`debounceMs=200`）で、入力から 200ms 後に search param へ反映する。Enter は debounce を待たず即時反映し（trim なし）、IME 変換確定中の Enter は `event.isComposing` で除外して検索確定と取り違えない。CMD 呼び出し直前の `keyword` 変換でのみ trim する（UI-01a-D9、2026-08-03 owner L3 判断、gated amendment）。
 
@@ -87,6 +90,7 @@ per_page: number  // 上限 200。UI は 50 / 100 / 200 のみ送信し、200 �
 - テーブル列は 商品コード、商品名、部門、売価、在庫数、操作導線を基本にする。廃番状態は専用列を持たず、商品名セル内に表す（UI-01a-D8）。
 - 商品コードと商品名は並べて見せ、商品コード単独で利用者判断を強制しない。
 - 廃番状態は色だけで表さず、廃番商品のみ商品名セル内に `廃番` text badge を出し、行を muted 表示にする。「表示中」badge は出さない（UI-01a-D8）。
+- PLU 移行状態は `対象外` / `未反映` / `反映済み` の text badge と補助 icon で示す。filter 一致全件の一括操作は件数付き確認 dialog を通し、結果件数を page 上部 Alert に表示する（UI-01a-D10、D11）。
 - 行クリックは商品修正へ遷移する。新規登録ボタンは商品登録へ遷移する。正確な UI-01b route は UI-01b Design Phase で確定し、UI-01a 実装時は `navigation.ts` と UI-01b 設計に合わせる。
 
 ## 50.7 Loading / Empty / Error
@@ -109,6 +113,8 @@ UI-01a 実装時は、以下を trace ID 付きで検証する。
 - UI-01a-D7: 部門候補は `listDepartments` 由来で全件表示され、現在ページの検索結果から欠落しない。
 - UI-01a-D8: 専用「状態」列がなく、廃番商品のみ商品名セル内に `廃番` text badge が出て行が muted になる。「表示中」badge は出ない。
 - UI-01a-D9: 検索欄が live 型（`debounceMs=200`）で動作し、Enter は debounce を待たず即時反映、IME 変換確定中の Enter は発火しない。`q` の変更・クリアで `page` が既定へ戻る。外付け Label・検索ボタンは表示されない。
+- UI-01a-D10: 3 語彙の導出式、`plu` URL 復元、色以外の符号が一致する。
+- UI-01a-D11: page 外も含む filter 全件の件数確認と、更新 / JAN 不備 skip / 廃番 skip の結果を表示する。
 
 ## 50.9 Deferred
 

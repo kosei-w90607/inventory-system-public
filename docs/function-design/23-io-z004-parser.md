@@ -162,6 +162,21 @@ Ok(ParseResult {
 
 ---
 
+### 13.3.1 IO-02 全スロット占有読取り mode（IO-02-D1 / SPEC-PLS-D2）
+
+売上取込み用 `parse_z004` とは別に `parse_plu_register_snapshot(raw_bytes)` を公開する。この mode は layout A の preamble / ヘッダ検査と CP932 decode を再利用するが、売上列・精算日・JAN 妥当性を評価せず、ヘッダ後の **5,000 行**すべてを `PluRegisterSlot { memory_no, raw_code }` として返す。
+
+- memory_no は第1 field を整数として読み、重複・欠落・範囲外を許さない。
+- 14 桁コードが全ゼロなら `raw_code=None` とし、行自体は skip しない。
+- 13 桁数字 + 右端 `E` は padding を 1 文字だけ除いて 13 桁へ正規化する。
+- **8 桁コード + `E`×6 は 14 桁 raw のまま返す**。JAN error にせず、BIZ-04 が `external` として扱える観測値を保存する。
+- 上記以外の非空コードは trim や JAN 補正をせず raw のまま返し、authority 判定を BIZ-04 に委ねる。
+- データ行数が **5,000** でない、memory No. が欠落・重複する、または layout A header を検出できない場合は `ImportError` として fail-closed し、部分結果を返さない。
+
+この mode は occupancy snapshot 専用であり、`ParsedRow`、`sale_records`、`inventory_movements`、日報集計へ入力しない（SPEC-PLS-D8）。
+
+---
+
 ### 13.4 parse_data_line（内部関数）
 
 **関数要求**: Z004の1データ行をパースし、ParsedRowに変換する。空スロット行はOk(None)で返す

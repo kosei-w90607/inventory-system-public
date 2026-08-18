@@ -13,10 +13,11 @@ CMD層は薄いラッパーのため、各コマンドの仕様は「どのBIZ�
 | create_product | ProductCreateRequest（name, department_id, selling_price, cost_price, tax_rate, stock_unit, initial_stock, jan_code?, maker_code?, supplier_id?, pos_stock_sync） | BIZ-01 商品新規登録 | ProductCreateResult（product_code, success） |
 | update_product | ProductUpdateRequest（product_code, 変更フィールド群） | BIZ-01 商品修正 | Result（success, warnings[]） |
 | toggle_discontinue | product_code | BIZ-01 廃番切替 | Result（success, new_status） |
-| search_products | SearchQuery（keyword, department_id?, is_discontinued?, sort, page, per_page） | BIZ-01 商品検索 | ProductList（items[], total_count） |
-| get_product | product_code | BIZ-01 商品取得 | Product（全フィールド＋部門名＋取引先名） |
+| search_products | SearchQuery（keyword, department_id?, is_discontinued?, plu?, sort, page, per_page） | BIZ-01 商品検索 | ProductList（items[], total_count、plu_memory_no） |
+| get_product | product_code | BIZ-01 商品取得 | Product（全フィールド＋部門名＋取引先名＋plu_memory_no） |
 | preview_import | FileBytes | BIZ-01 一括インポート前半 | ImportPreview（valid_rows[], error_rows[], duplicate_rows[]） |
 | commit_import | ImportCommitRequest（valid_rows[], overwrite_codes[]） | BIZ-01 一括インポート後半 | ImportResult（created, updated, skipped, errors） |
+| bulk_set_plu_target | ProductBulkFilter（q, department_id?, is_discontinued?）, plu_target | BIZ-01 filter 全件 PLU 対象更新 | BulkPluTargetResult（matched, updated, invalid_jan_skipped, discontinued_skipped） |
 
 ### CMD-02: 入庫コマンド群
 
@@ -81,8 +82,10 @@ CMD層は薄いラッパーのため、各コマンドの仕様は「どのBIZ�
 
 | コマンド名 | 入力 | 呼び出すBIZ | 出力 |
 |-----------|------|-----------|------|
-| prepare_plu_export | ExportMode（'full' / 'diff'） | BIZ-04 | PluExportPreparedResult（tsv_output, count, target_product_codes, excluded=要修正一覧, over_limit_warning。D-028） |
-| confirm_plu_export_saved | product_codes[] | BIZ-04 | PluExportConfirmResult（updated_count, confirmed_at） |
+| import_plu_register_snapshot | path | BIZ-04 | PluRegisterSnapshotSummary（snapshot_at, free / external / app managed / conflict counts） |
+| get_plu_slot_summary | なし | BIZ-04 | PluRegisterSnapshotSummary |
+| prepare_plu_export | ExportMode（'full' / 'diff'） | BIZ-04 | PluExportPreparedResult（tsv_output, count, target_product_codes, prepared_rows[memory_no], excluded〈no_free_slot含む〉） |
+| confirm_plu_export_saved | product_codes[], prepared_rows[memory_no] | BIZ-04 | PluExportConfirmResult（updated_count, confirmed_at） |
 | list_plu_dirty | なし | BIZ-04経由 | Vec\<ProductResponse\>（plu_target=1 かつ plu_dirty=1 の商品一覧。D-028） |
 
 ### CMD-09: 売上集計コマンド群

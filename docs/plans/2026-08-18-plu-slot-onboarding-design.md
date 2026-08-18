@@ -249,10 +249,10 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 
 ## Design Intent Audit
 
-- Source docs can answer what/why without chat history: **現時点では No**。current docs は再採番（25-io §12.3）と Full-only ガード（UI-08-D9）を正本化している。next amendment で SPEC-PLS-D1〜D10 と candidate D-072 を昇格するまで implementation forbidden。
-- Plan-only durable decisions found and promoted: candidate D-072 / REQ-907 を特定済み。promotion は本発注では禁止されているため次 amendment の mandatory target。
+- Source docs can answer what/why without chat history: **Yes**。schema / migration、Z004 snapshot、照合 grid、予約・解放、Diff / Full 行構成、CSV / bulk onboarding、移行状態語彙、command / DTO、operator 文言を source docs へ昇格した。
+- Plan-only durable decisions found and promoted: D-072 を accepted decision として `decision-log.md`、REQ-907 を `requirements.md` / coverage ledger の `current` 行へ昇格した。
 - Assumptions and constraints: CV17 import はメモリNo. キーの部分更新（ECRCV17.pdf p.71-73 の読み、D-6）。Z004 全スロットダンプは 5,000 行 / 14 桁 E padding コード（Contract Probe で構造確認、占有ソース）。CV17 設定書出しは 11 列 / 4,784 行 / 217 始まり（Contract Probe、clear 行形状の根拠）。clear 行のレジ側効果は未確認（D4 fallback で吸収）。スキャニング枠は出荷時固定 217〜5000。
-- Deferred design gaps: source-doc amendment、Q1〜Q5 の owner 裁定、Plan Reviewer review、売上取込みへの占有更新同乗（Non-scope 記録）。いずれも implementation 前 blocker または記録済み follow-up。
+- Deferred design gaps: clear 行のレジ側効果は後続実装 A の Windows native L3、売上取込みへの占有更新同乗は Non-scope。source-doc amendment、Q1〜Q5、Plan Review は完了済み。
 - Test Design Matrix can cite decisions: Yes。別紙が SPEC-PLS-D1〜D10 を root にする。
 - Absolute guarantee self-check: 「既存登録を上書きしない」は最終スナップショット以降にレジ側で手動登録された slot を保護できない escape hatch がある → UI-08 の再読込み推奨文言と、書出し直前の最終読込み日時表示で明示し、絶対保証と表現しない。「1 JAN = 1 スロット」は snapshot 採用時の重複 stale（release_pending）を経て収束する。
 
@@ -272,12 +272,12 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 
 ## Design Readiness
 
-State: **not ready for implementation; ready for Plan Review of this design-first draft**。
+State: **ready**（source amendment 完了、独立 Final Review 待ち）。
 
-- Existing design docs are sufficient because: 現行挙動 / code mapping / schema / CV17 profile の調査元としては sufficient。ただし desired behavior（永続割当・解放・snapshot・bulk）は未設計または stale。
-- Source docs updated in this PR: 本発注時点では none（明示 non-scope）。
-- Design gaps intentionally deferred: SPEC-PLS-D1〜D10 の source promotion と D-072 / REQ-907 起案を plan-approved 後の次発注へ defer。clear 行の実機効果は実装 A の L3。
-- Durable decisions discovered: candidate D-072。next amendment で decision-log に追加しない限り本 design-first PR は完了扱いにしない。
+- Existing design docs are sufficient because: `plu_slots` / migration v5、IO-02 occupancy mode、BIZ-04 state machine、IO-04 product / clear rows、BIZ-01 CSV / bulk、CMD / UI wire と operator flow が SPEC-PLS-D1〜D10 を source 単独で実装可能な粒度で定義する。
+- Source docs updated in this PR: `db-design/plu-tables.md`、`DB_DESIGN.md`、22 / 23 / 25 / 26 / 20 / 30 / 33 / 40 / 41 / 50 / 51 / 60 / 67 function design、BIZ / CMD / IO / UI task specs、requirements / coverage、decision-log、公開検証前提・project-memory。UI-00 / `PluNotificationBar` は不変を確認した。
+- Design gaps intentionally deferred: clear 行受理と release_pending 解放は後続実装 A の L3。Rust / frontend / schema / generated bindings / traceability は実装 A / B。
+- Durable decisions discovered: D-072 accepted、REQ-907 current。
 
 Minimum design checks:
 
@@ -380,9 +380,29 @@ Contract ID: SPEC-PLS-2026-08-18
 
 ## Implementation Results
 
-Fill after implementation.
+SPEC-PLS-D1〜D10、owner 裁定 Q1〜Q5（Q2=A）を durable source docs へ昇格した。PLU slot の schema / lifecycle、Z004 occupancy snapshot、永続予約・解放、Diff / Full、CSV / filter 全件 bulk onboarding、operator UI / DTO、D-072、REQ-907 を正本化し、実装・generated outputs・実店舗データは変更していない。
 
-Do not transcribe exact-HEAD SHA or test counts here (D-035/D-038 Evidence Ownership). Record a qualitative summary and the PR link only.
+PR: [#84](https://github.com/kosei-w90607/inventory-system-public/pull/84)
+
+## Mechanical Impact Inventory
+
+### 使用 command
+
+```bash
+rg -n "行インデックス|scanning_plu_memory_start \+ |SCANNING_PLU_MEMORY_START \+ " docs/ --glob '!docs/archive/**'
+rg -n "Full.*のみ|全件.*のみ|Diff.*点検用途|Full-only|Full 書出しファイルのみ" docs/ src/ --glob '!docs/archive/**'
+rg -n "SCANNING_PLU_EXPORT_LIMIT|4,?784" docs/ --glob '!docs/archive/**'
+rg -n "レジ設定|設定書出し" docs/plans/2026-08-18-plu-slot-onboarding-design.md
+```
+
+| Sweep | 改訂 | 明示除外 / 最終結果 |
+|---|---|---|
+| 再採番 | 25-io の active source hit 1 件を入力 `memory_no` へ改訂 | source target 0 hit。packet / Matrix の問題記述・negative test・Probe 4 hit は evidence として維持 |
+| 旧投入ガード | 25 / 33 / 67 / DB_DESIGN / biz-task-specs / FUNCTION_DESIGN / 公開検証 checklist の stale hit 9 件を改訂 | M-D5 対象 4 docs は 0 hit。packet / Matrix は契約・negative test、D-028 / Plans は履歴、`src/lib/bindings.ts` と 20 / 58 / 73 / component catalog は別意味または generated のため明示除外 |
+| 固定件数比較 | 33-biz、67-ui、biz-task-specs の件数上限比較 12 hit を slot 範囲 / `no_free_slot` へ改訂 | 4,784 は migration v5 の範囲サイズ、Contract Probe、既存 field evidence としてのみ維持。`PROJECT_HANDOFF` は PR #122 の実装 snapshot であり本 PR の source contract ではないため明示除外 |
+| Q2=A 残存語彙 | 占有 source を Z004 全スロットダンプへ統一 | 却下した設定書出し案、clear 行形状の根拠、Contract Probe / data-safety 記述のみを判断 evidence として維持。command 名・目的文の一般語は占有 source を意味しない |
+
+`src/**` の唯一の sweep hit は generated binding 内の unrelated `全件` comment で、実装 PR 予約にも該当しない。`src-tauri/**` は本 PR の Non-scope のため変更していない。
 
 ## Review Response
 
@@ -423,3 +443,13 @@ If R3 review-only sub-agent is skipped, record an explicit line beginning with `
 
 - plan-gate -> plan-approved の evidence: 独立 Plan Reviewer 3 round（round 3 P1 0 / P2 2 は表記整合のみで是正適用済み、P1/P2 = 0）、owner plan approval（上記 owner 裁定）、Plan Commit = plan-first commit 6466ad0（本 branch の全 content commit の祖先）。
 - plan-approved -> implementing の evidence: 本 design-first PR の implementation = source docs amendment（Codex Writer 発注）であり、plan-first commit が先行済み。隣接 2 遷移を 1 state-only commit で圧縮記録（DEV_WORKFLOW 圧縮規則の canonical 例）。
+
+### Writer 報告（2026-08-18、Codex）
+
+- SPEC-PLS-D1〜D10、D-072、REQ-907、owner Q1〜Q5（Q2=A）を source docs へ昇格した。実装・schema・generated file・archive・実店舗 data は変更していない。
+- M-D1〜M-D10 は全行 PASS。M-D3 / M-D5 の negative rg は対象 source 0 hit（rg exit 1 = match なし）。Mechanical Impact Inventory は archive 除外と hit ごとの改訂 / 明示除外を記録した。
+- provisional: `PLU対象` の `1` / `0` / 空欄以外は、暗黙の 0 扱いではなく preview 行 error とした。入力 typo を silent に対象外化しないため。
+- provisional: 22-mnt の user 指定 §12 を migration v5 に割り当て、既存 legacy path を §13 へ移した。live cross-reference の 71-mnt を §13 へ追随し、Plans / decision-log の過去時点参照は履歴として維持した。
+- `docs/function-design/53-ui-home.md` は `PluNotificationBar` の責務不変を確認し、差分を作らなかった。
+- Review-only skipped because: 本 design-first PR の独立 Final Reviewer は packet で Sonnet に固定され、Writer 自己レビューで代替せず Final Review 待ちへ渡すため。
+- Findings Freeze: not yet frozen; independent Final Review pending.

@@ -2,7 +2,7 @@
 
 > **CV17 1.1.1 adapter profile（2026-07-03 field gate反映）**: 2026-04-08 オンライン調査の CV17 Ver.2.0.1 前提（10列TSV / 1始まり / product_code fallback）は、現場 CV17 1.1.1 の `スキャニングPLU(商品)` 取込みで受理されなかった。2026-07-02 field gate では、CV17 1.1.1 export template 由来の11列ヘッダ、`.txt` 拡張子、JAN/EAN互換のスキャニングコードが必要であることを確認した。2026-07-03 field gate では、この形状の `.txt` を `CV17 TXT import -> PC tool SD settings write -> SR-S4000 設定読み -> barcode/register behavior confirmation` の流れで反映できることを確認した。PLU総枠5000は通常PLUとスキャニングPLUで共有され、スキャニングPLU開始番号は通常PLUの件数 + 1 で決まる。2026-07-03 に SR-S4000 本体取扱説明書で仕様確認済み: 総枠 5,000 = 通常PLU 216 + スキャニングPLU 4,784 の工場出荷時配分であり、開始 217 は出荷時固定の境界（配分変更の設定は取説に見当たらない）。設定UIには広げず、コード側 profile として memory No. `217..=5000` を保持する。以下は SR-S4000 / CV17 1.1.1 用の現行 adapter profile とする。
 >
-> **既知制約（D-028 / 2026-07-03）**: 本フォーマッターは書出しのたびに 217 から連番を再採番する。CV17 の import はメモリNo. キーの部分更新（`ECRCV17.pdf` p.71-73）のため、Diff 書出しファイルを CV17 に import すると既存スロットの別商品を上書きする。CV17 へ投入してよいのは Full 書出しファイルのみ（UI-08-D9）。商品↔メモリNo. の永続割当は PLUスロット永続割当の設計（Plans.md backlog）で扱う。
+> **D-072（2026-08-18）**: memory No. は `plu_slots` に JAN 単位で永続割当し、入力行が保持する。Diff / Full とも CV17 へ投入でき、外部登録と free slot は出力しない（IO-04-D2〜D4 / SPEC-PLS-D3〜D5）。
 
 ### 12.1 モジュール構成
 
@@ -16,6 +16,8 @@ src-tauri/src/
 ### 12.2 型定義
 
 **PluExportRow構造体**（BIZ-04から渡される行データ。33-biz-plu-export-service.md で定義）:
+- memory_no: i64（`plu_slots` 由来）
+- row_kind: PluExportRowKind（`Product` / `Clear`）
 - product_code: String
 - jan_code: Option\<String\>
 - name: String
@@ -60,8 +62,8 @@ fn generate_plu_tsv(rows: &[PluExportRow]) -> Result<PluFileOutput, PluFormatErr
    ```
    `メモリーNo.` / `スキャニングコード` は CV17 1.1.1 で拒否されたため使わない。`入力桁制限` は必須列として出力し、値は field gate で観測した `無し` とする。
 
-2. **各行のデータ変換**（rowsの順序を保持、スキャニングPLU memory range の連番）:
-   a. **メモリNo.** = scanning_plu_memory_start + 行インデックス。SR-S4000 はPLU総枠5000を通常PLUとスキャニングPLUで共有するため、scanning_plu_memory_start = 通常PLUの件数 + 1。工場出荷時配分（取説確認済み: 通常PLU 216）により217
+2. **各行のデータ変換**（rowsの順序を保持）:
+   a. **メモリNo.** = 入力行の `memory_no`（`plu_slots` 由来）を 6 桁ゼロ埋めする。217..5000 の範囲外は拒否し、生成順から番号を導出しない（IO-04-D2 / SPEC-PLS-D3）。
    b. **ｽｷｬﾆﾝｸﾞｺｰﾄﾞ** = jan_code（product_code へ fallback しない）
       - jan_code は13桁数字かつJAN/EAN-13チェックディジット有効であること
       - JANなし、13桁以外、チェックディジット不正は出力不可
@@ -70,6 +72,12 @@ fn generate_plu_tsv(rows: &[PluExportRow]) -> Result<PluFileOutput, PluFormatErr
    e. **課税方式** = 税区分マッピング（12.5参照）
    f. **固定列**: 単品売り=`はい`、負単価=`いいえ`、品番PLU=`いいえ`、ゼロ単価=`いいえ`、入力桁制限=`無し`
    g. **部門リンク** = department_name
+
+   `row_kind=Clear` は **11 field** を次の exact shape で出力する（IO-04-D3 / SPEC-PLS-D4）。
+   ```
+   {memory_no 6桁}\t00000000000000\t\t\0\t税1(内税)\tいいえ\tいいえ\tいいえ\tいいえ\t無し\tノンリンク
+   ```
+   `external` / `free` slot は入力行として受け付けず、IO-04 からも出力しない（IO-04-D4 / SPEC-PLS-D5）。
 
 3. **タブ区切りPLUファイル組み立て**:
    - 各フィールドをタブ（`\t`）で結合
@@ -104,7 +112,7 @@ fn generate_plu_tsv(rows: &[PluExportRow]) -> Result<PluFileOutput, PluFormatErr
 **出力例**（CP932バイト列をUTF-8表記した場合）:
 ```
 メモリNo.\tｽｷｬﾆﾝｸﾞｺｰﾄﾞ\t名称\t単価\t課税方式\t単品売り\t負単価\t品番PLU\tゼロ単価\t入力桁制限\t部門リンク\r\n
-217\t4976383262108\tﾊﾏﾅｶ ｱﾐｱﾐ極太 c\t648\t税1(内税)\tはい\tいいえ\tいいえ\tいいえ\t無し\t毛糸\r\n
+000217\t4976383262108\tﾊﾏﾅｶ ｱﾐｱﾐ極太 c\t648\t税1(内税)\tはい\tいいえ\tいいえ\tいいえ\t無し\t毛糸\r\n
 ```
 
 **エラーハンドリング**:
