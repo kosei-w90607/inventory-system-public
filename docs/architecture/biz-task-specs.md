@@ -360,7 +360,7 @@
 
 **処理構造**:
 1. `import_plu_register_snapshot` は IO-02 の `(memory_no, raw_code)` を 1 TX で 5 status と照合し、日時・占有要約を保存する。初回未読込みは prepare を `register_snapshot_required` で拒否する
-2. prepare は sticky slot を再利用し、未割当 JAN に最小 `free` を `reserved` として 1 TX で予約する。空きなしは該当 JAN だけ要修正へ送る
+2. prepare は sticky slot を再利用し、同一コードの `external` slot があればそれを `active` として採用し、それ以外の未割当 JAN に最小 `free` を `reserved` として 1 TX で予約する。空きなしは該当 JAN だけ要修正へ送る
 3. Diff は dirty 対象 + 全 release_pending clear、Full は app 管理 reserved / active + 全 release_pending clear。external / free と要修正中の既存 slot は出力しない
 4. confirm は exact memory No. を再検証し、reserved→active、release_pending→free、対象商品を反映済みにする
 5. `plu_target` 1→0、廃番化、JAN 変更、snapshot 重複は共通解放 trigger。reserved は free、active は release_pending

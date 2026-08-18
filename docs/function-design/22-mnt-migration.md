@@ -268,7 +268,7 @@ fixture / 注入の必須条件は 71 §71.10「fixture / 注入の必須条件�
 **手順**:
 
 1. `plu_slots` を [db-design/plu-tables.md](../db-design/plu-tables.md) の完全 DDL（memory_no の 217..5000 CHECK、status の 5 値 CHECK、timestamp 列）で作成する。
-2. `status <> 'free'` を条件とする `scanning_code` partial UNIQUE index を作成する。
+2. `status IN ('external','reserved','active')` を条件とする `scanning_code` partial UNIQUE index を作成する（`release_pending` は対象外。[db-design/plu-tables.md](../db-design/plu-tables.md) §25 の gated amendment 2）。
 3. memory No. 217〜5000 の **4,784 行**を `free` として事前投入する。範囲は既存の開始番号・範囲サイズ定数から導出し、重複した magic number を実装へ増やさない。
 4. row count、範囲端、既定 status を同一 transaction 内で検証し、失敗時は §3.2 / MNT-03-D1 に従って rollback する。
 5. schema_versions に v5 を記録して commit する。v3 の `plu_target` backfill と v4 の日報 table は変更しない。

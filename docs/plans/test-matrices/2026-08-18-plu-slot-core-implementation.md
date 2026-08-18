@@ -36,7 +36,7 @@ R3。schema migration、新規 repository、IO-02 新 mode、BIZ-04 prepare / co
 |---|---|---|---|---|
 | A-S1 | D1 migration v5 | Rust integration | `db/migration.rs` tests: 既存 v4 fixture DB へ `run_migrations` → `plu_slots` 行数 = 4,784、`MIN/MAX(memory_no)` = 217 / 5000、全 status = free、schema_versions max=5 count=5、既存 pin test 更新 | 直値 4,784 / 217 / 5000 を test 側に独立転記（production 定数から導出しない） |
 | A-S2 | D1 CHECK | Rust unit | memory_no 216 / 5001、status `'unknown'` の INSERT が CHECK 違反 | `DbError` |
-| A-S3 | D1 partial UNIQUE | Rust unit | 同一 scanning_code を `active` × 2 → 違反、`free` × 2（NULL）は許容、`external` + `active` 同一コードは違反 | 違反 / 成功 |
+| A-S3 | D1 partial UNIQUE | Rust unit | 同一 scanning_code を `active` × 2 → 違反、`external` + `active` / `external` + `reserved` 同一コードは違反、`free` × 2（NULL）は許容、`active` + `release_pending` / `release_pending` × 2 / `external` + `release_pending` 同一コードは許容（index 対象 = external / reserved / active） | 違反 / 成功 |
 | A-S4 | D1 repo | Rust unit | `plu_slot_repo`: ordered 全件 / JAN lookup / 最小 free 取得（穴あり fixture）/ 状態遷移 update / TX 内 rollback で無変化 | 期待 memory_no と行 |
 | A-N1 | D2 gate | Rust unit | snapshot 未読込みで `prepare_plu_export` → `ValidationFailed(register_snapshot_required)`、write 0 | error kind + DB before/after 同値 |
 | A-N1b | D2 parser fail-closed | Rust unit | 4,999 行 / 5,001 行 / header 未検出 / memory_no 重複 / 欠落 / 範囲外 → `ImportError`、部分結果なし | error + Vec 不返却 |
@@ -44,7 +44,8 @@ R3。schema migration、新規 repository、IO-02 新 mode、BIZ-04 prepare / co
 | A-N2b | D2 parser sales 不変 | Rust unit | 同 fixture を `parse_z004` に通した既存 test が全通、`ParsedRow` 型不変 | 既存 test |
 | A-N2c | D2 parser 非 JAN raw | Rust unit | 上記以外の非空コード（例 12 桁 + `EE`）は trim / 補正せず raw | raw 一致 |
 | A-N3 | D2 free × occupied 採用 | Rust integration | free slot に eligible 未割当 JAN と一致するコード → active（activated_at）、products.plu_dirty 不変 | 行 status |
-| A-N3b | D2 重複 JAN | Rust integration | free 2 slot に同一 eligible JAN → 最小のみ active、他は release_pending | 行 status |
+| A-N3b | D2 重複 JAN | Rust integration | free 2 slot に同一 eligible JAN → 最小のみ active、他は release_pending（scanning_code 保持、TX commit 成功） | 行 status + scanning_code |
+| A-N3c | D2 app 管理 JAN の重複観測 | Rust integration | reserved（レジ空）/ active を持つ JAN と同一コードを別 free slot で観測 → その slot は release_pending（scanning_code 保持）、app 管理 slot の memory No. / status は不変、external にならない | 行 status |
 | A-N4 | D2 空 × free/external | Rust integration | free 維持 / external → free + scanning_code NULL | 行 |
 | A-N4b | D2 空 × reserved | Rust integration | reserved 維持（reserved_at 不変） | 行 |
 | A-N5 | D2 同一 × external | Rust integration | external 維持 | 行 |
@@ -61,6 +62,7 @@ R3。schema migration、新規 repository、IO-02 新 mode、BIZ-04 prepare / co
 | A-P1 | D3 最小空き | Rust integration | free = {300, 217, 5000, 401} の穴あり fixture で新規 JAN → 217、次 → 300 | memory_no |
 | A-P2 | D3 sticky | Rust integration | 同 mode / 別 mode で再 prepare → 同一 memory_no、reserved 行数不変 | memory_no / 行数 |
 | A-P3 | D3 confirm active 化 | Rust integration | prepare → confirm → reserved→active、plu_dirty=0、plu_exported_at | 行 + products |
+| A-P3b | D3 external 採用 | Rust integration | snapshot で external になったコードの JAN を後から plu_target=1 → prepare は新規 free を予約せず同 slot を active（activated_at）に採用、product 行の memory_no = その slot、free 行数不変。DbError にならない | 行 + rows |
 | A-P4 | D3 NoFreeSlot | Rust integration | free 0 の fixture で 2 JAN → 両方 `NoFreeSlot` excluded、既存 active 行は出力継続、error にならない | excluded reason + rows |
 | A-P5 | D3 JAN 群 | Rust integration | 同一 JAN 3 商品 → 1 slot、`target_product_codes` 3 件、価格不一致は既存 `group_price_mismatch` | rows / codes |
 | A-R1 | D4 trigger (i) | Rust integration | `update_product` plu_target 1→0: reserved → free（直接）/ active → release_pending。同 JAN の他商品が plu_target=1 未廃番なら不変 | 行 |
@@ -69,7 +71,7 @@ R3。schema migration、新規 repository、IO-02 新 mode、BIZ-04 prepare / co
 | A-R4 | D4 trigger (iv) | Rust integration | = A-N3b（snapshot 重複）で release_pending | 行 |
 | A-R5 | D4 confirm free 化 | Rust integration | release_pending の clear 行を含む confirm → free + scanning_code NULL + released_at；set 不一致（別 memory_no / 別 product_code）は reject + 無変化；同一 set 再 confirm は冪等 | 行 / error |
 | A-R5b | D4 clear 行形状 | Rust unit | formatter: clear 行 = `000217\t00000000000000\t\t\\0\t税1(内税)\tいいえ\tいいえ\tいいえ\tいいえ\t無し\tノンリンク` + CRLF の exact 11 field を `25-io §12.3` の定義文から独立転記して完全一致。単価 field は ASCII 2 文字 `\` (0x5C) + `0` (0x30)（packet Contract Probe で実 file byte 検分済み）、NUL や `0` 1 文字は不可 | 文字列 exact |
-| A-R6 | D4 再対象化 | Rust integration | release_pending の JAN を plu_target=1 に戻して prepare → active（activated_at あり）または reserved に復帰、clear 行は出ない | 行 / rows |
+| A-R6 | D4 再対象化 | Rust integration | release_pending の JAN を plu_target=1 に戻して prepare → active（activated_at あり）または reserved に復帰、clear 行は出ない；同一 JAN の release_pending 2 行なら最小 memory_no のみ復帰し残り 1 行は release_pending のまま clear 行に出る | 行 / rows |
 | A-R7 | D4 fallback | Rust unit | 行構成関数に `clear_row_enabled=false` → clear 行 0、confirm 経路で release_pending 維持（free 化なし）；`true` は A-R5 どおり。const の配線箇所が 1 つ | rows / 行 |
 | A-E1 | D5 Full 構成 | Rust integration | Full = reserved/active の product 行 + release_pending clear 行、memory_no 昇順、external / free 0 行 | rows |
 | A-E2 | D5 memory No. 6 桁 | Rust unit | 217 → `000217`、5000 → `005000` | 文字列 |
@@ -102,7 +104,7 @@ R3。schema migration、新規 repository、IO-02 新 mode、BIZ-04 prepare / co
 | plu_slot reserved | prepare | 保存待ち | confirm → active | plu_target 0 → free 直接 | snapshot 同一 → active / 別 → external + dropped / 空 → 維持 | 再 prepare sticky | 予約は永続 | confirm set 不一致 reject | 同 set 冪等 | A-P2 / A-N6 / A-N6b・A-N8b / A-R1 |
 | plu_slot active | confirm | — | 維持 | trigger で release_pending | snapshot 空 → missing + dirty / 別 → conflict + dirty | 再対象化で維持 | 永続 | 上書き禁止 | — | A-P3 / A-N6b / A-N8 / A-R1 |
 | plu_slot release_pending | trigger | clear 行出力待ち | confirm → free（enabled 時） | 再対象化 → active/reserved 復帰 | snapshot 空 → free / 別 → external | Diff/Full 毎に clear 行 | 永続 | fallback=false で維持 | 冪等 | A-R5 / A-R6 / A-R7 / A-N9 |
-| plu_slot external | snapshot | — | 維持 | snapshot 空 → free | 別コードで更新 | prepare は触らない | 永続 | — | — | A-N4 / A-N5 / A-N5b / A-N8c |
+| plu_slot external | snapshot | — | 維持 | snapshot 空 → free | 別コードで更新 | prepare は同一 JAN 対象化時のみ active へ採用、他は触らない | 永続 | — | — | A-N4 / A-N5 / A-N5b / A-N8c / A-P3b |
 | snapshot summary（app_settings） | 未読込み = null / 0 | 読込み TX | 日時 + 件数 | 次回読込みで上書き | UI query invalidation | 画面再訪で再取得 | 永続 | TX 失敗で無変化 | 再読込み | A-N9c / A-V1 |
 | UI-08 gate | 未読込み → 書出し無効 | FilePicker | 有効化 | — | 要約 refetch | 再訪でも summary で判定 | localStorage 復帰は既存どおり | ImportError alert | 再選択 | A-V1 |
 | implementation workflow | plan-draft | Plan Gate | plan-approved 後のみ code | content candidate で L1 | review で Ledger 再検証 | finding は implementing へ | exact HEAD 再検証 | design gap は design へ | gated amendment 後 re-review | packet Workflow State |
@@ -182,7 +184,9 @@ Writer は下記 mutant を実注入して各 test の kill を確認し、Final
 | formatter を index 採番に戻す | A-E2 / A-P1（memory_no 不一致） |
 | 範囲外 memory_no を許容 | A-E3 |
 | v5 投入行数を 4,783 / 4,785 に | A-S1（直値 oracle） |
-| partial UNIQUE の `status <> 'free'` 条件を外す | A-S3（free × 2 が違反になる） |
+| partial UNIQUE の対象を `status <> 'free'` に戻す / 外す | A-S3（active + release_pending が違反になる / free × 2 が違反になる） |
+| prepare の external 採用を新規 free 予約に置換 | A-P3b（UNIQUE 違反 or free 行数減） |
+| 重複観測（A-N3c）を external にする | A-N3c（status 不一致 or UNIQUE 違反で TX 失敗） |
 | `parse_plu_register_snapshot` の 5,000 行検査を外す | A-N1b |
 | 8 桁 + E×6 を JAN error に | A-N2 |
 
