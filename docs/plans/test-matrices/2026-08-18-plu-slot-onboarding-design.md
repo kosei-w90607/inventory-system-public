@@ -57,8 +57,9 @@ Risk: R3
 | free | prepare で JAN に割当 | reserved | reserved_at | A-P1 |
 | free | snapshot: レジ有（外部コード） | external | scanning_code = 観測値 | A-N2 |
 | free | snapshot: レジ有（app JAN 未割当） | active | adopted 報告 | A-N3 |
-| free | snapshot: レジ有（既に採用済み app JAN の重複） | release_pending | 重複 stale として解放対象 | A-N3b |
+| free | snapshot: レジ有（既に採用済み app JAN の重複） | release_pending | 重複 stale として解放対象（D4 trigger (iv)） | A-N3b |
 | external | snapshot: レジ空 | free | — | A-N4 |
+| external | snapshot: レジ有 同一コード | external | 維持（定常状態） | A-N5b |
 | external | snapshot: レジ有 別コード | external | コード更新 | A-N5 |
 | reserved | confirm（書出しに含む） | active | activated_at | A-P3 |
 | reserved | snapshot: レジ空 | reserved | 維持（未書込み） | A-N6b |
@@ -68,12 +69,13 @@ Risk: R3
 | reserved | 保存失敗 / キャンセル → 再 prepare | reserved（同番号） | 変化なし | A-P2 |
 | active | 解放 trigger（JAN に対象 product が残らない） | release_pending | released_at | A-R2〜R4 |
 | active | snapshot: レジ空 | active | missing 報告 + plu_dirty=1 | A-N7 |
+| active | snapshot: レジ有 同一コード | active | 維持 | A-N8c |
 | active | snapshot: レジ有 別コード | active | conflicts 報告 + plu_dirty=1 | A-N8 |
 | release_pending | 書出し（clear 行）→ confirm | free | 再利用可 | A-R5 |
 | release_pending | snapshot: レジ空 | free | 解放確認 | A-N9 |
 | release_pending | snapshot: レジ有 同一コード | release_pending | 維持（clear 行待ち） | A-N9b |
 | release_pending | snapshot: レジ有 別コード | external | 解放済み扱い、clear 行不要 | A-N9c |
-| release_pending | 再対象化 | 解放前状態（active / reserved） | plu_dirty=1（D-3） | A-R6 |
+| release_pending | 再対象化 | 解放前状態（active / reserved） | plu_dirty=1（2026-07-03 packet 内 ID D-3） | A-R6 |
 | release_pending | fallback no-reuse 有効 | release_pending（固定） | clear 行を出さない | A-R7 |
 
 ## Adjacent Pattern Audit
@@ -93,6 +95,7 @@ Risk: R3
 - bulk ON で JAN なし / 8 桁 / 廃番 → skip 件数、`plu_target` 不変（B-L3〜L4）。
 - CSV `PLU対象` に `1` / `0` / 空 以外 → preview 警告、`0` 扱い or 行 error（source docs で確定、B-C3）。
 - clear 行 fallback 有効時に release_pending が free へ遷移しない（A-R7）。
+- 要修正判定中（同一 JAN 群の売価 / 税率不一致）で既に `active` の JAN → Full / Diff とも商品行・clear 行を出さず slot 維持、excluded 一覧に理由（A-E6）。
 
 ## Boundary Checks
 
@@ -100,6 +103,7 @@ Risk: R3
 - 216 以下 / 5001 以上の行を含む snapshot は `ImportError`（A-N1b）。
 - 14 桁固定幅コード（13 桁 + space、8 桁 + space×6）と 13 桁生コードの両方を正規化（A-N2b）。
 - 全ゼロ 14 桁 = 空スロット、名称空でも判定は code のみ（A-N2c）。
+- clear 行の 11 field 形状 exact（14 桁ゼロ / 名称空 / `\0` / `税1(内税)` / `いいえ`×4 / `無し` / `ノンリンク`）と memory No. 6 桁ゼロ埋め（A-R5b）。
 
 ## Compatibility Checks
 
@@ -137,8 +141,8 @@ Risk: R3
 - A-S1〜A-S4: migration v5 / plu_slots CHECK・partial UNIQUE / 事前投入 4,784 行 / repo CRUD。
 - A-N1〜A-N9c: snapshot 未読込み gate、parse error、照合 全組合せ（State Lifecycle Matrix の snapshot 行 = レジ空 / 有 × 5 status、重複 JAN と reserved 予約破棄を含む）、summary 件数、app_settings 保存、operation_logs。
 - A-P1〜A-P5: 最小空き予約、sticky 再 prepare、confirm active 化、no_free_slot、JAN 共有。
-- A-R1〜A-R7: reserved 直 free、trigger 3 種、clear 行形状 exact、confirm free、再対象化復帰、fallback no-reuse。
-- A-E1〜A-E5: Full / Diff 行構成、memory_no 6 桁、外部登録非出力、DTO / bindings 再生成、UI-08 文言（D4/D5/D9 改訂）。
+- A-R1〜A-R7 + A-R5b: reserved 直 free、trigger 3 種 + snapshot 重複 (iv)、clear 行形状 exact（A-R5b）、confirm free、再対象化復帰、fallback no-reuse。
+- A-E1〜A-E6: Full / Diff 行構成、memory_no 6 桁、外部登録非出力、DTO / bindings 再生成、UI-08 文言（D4/D5/D9 改訂）、要修正判定中 slot の維持・非出力（A-E6）。
 - A-V1: UI-08 読込み step / 占有要約 / snapshot_required 導線（RTL）。
 - L3（実装 A）: 実機 CV17 設定書出しの読込み、Diff 投入、clear 行受理とレジ側未設定化。
 
