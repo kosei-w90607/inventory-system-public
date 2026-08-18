@@ -6,7 +6,7 @@
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: fade732
-- Amendments: c76fdbd
+- Amendments: c76fdbd, ebf4a31
 - Coordinator: Fable
 - Writer: Codex
 - Plan Reviewer: Sonnet
@@ -381,7 +381,7 @@ Do not transcribe exact-HEAD SHA or test counts here (D-035/D-038 Evidence Owner
 - Coordinator 監査で追加検出した同一 index 上の接続不能 2 件（A では解消せず、承認済み設計の未定義箇所。設計意味の**拡張**として裁定、owner が異議あれば本 commit を revert）: (iii) snapshot 時に `external` になったコードの JAN を後から `plu_target=1` にすると、`§16.4` step 5 が新規 `free` を `reserved` にし `external` + `reserved` 同一コードで UNIQUE 違反 → prepare 全体が DbError（実装 B の bulk onboarding と本 PR の L3 手順「snapshot → test PLU 対象化 → Diff」で踏む経路）。裁定 = prepare が同一コードの `external` slot を `active`（activated_at）として採用し新規予約しない（レジ既存登録の app 管理への移行、`plu_target=1` は operator の app 管理宣言、archive 設計 163 行の導線と整合）。Matrix A-P3b。(v) `reserved` / `active` を持つ JAN と同一コードを別 `free` slot で観測すると照合表が `external` にし `external` + `active` 同一コードで UNIQUE 違反 → snapshot 全体が DbError。裁定 = 重複 stale として `release_pending`（app 管理 slot の memory No. 維持、`§16.6 (4)` を「reserved / active があればそれ以外、なければ最小以外」へ精緻化。初回 snapshot の重複解消と同じ「1 JAN = 1 slot、重複は clear」の原則）。Matrix A-N3c。照合表は 12 行を維持し row 7（occupied × free）の分岐を拡張。
 - 変更 file: `db-design/plu-tables.md §25`（UNIQUE 条件 / JOIN tie-break / 遷移表 3 行追加・2 行追記）、`22-mnt §13` step 2、`33-biz §16.3` row 7 + 重複 JAN 段落 / `§16.4` step 4・5 / `§16.6 (4)`、`20-io` JOIN 文、`biz-task-specs` BIZ-04 処理構造 2、packet Scope（MNT-03 / BIZ-04）/ Contract Probe（実 Z004 の distinct 集計）、matrix A-S3 / A-N3b / A-N3c 新設 / A-P3b 新設 / A-R6 / lifecycle external 行 / mutation 3 行。
 - WER 候補: 設計 PR の Plan Gate は「DB 制約と状態遷移表の全遷移の両立」を機械的に突合していない。次 R3 の Plan Review 観点に「UNIQUE / CHECK の各制約について、遷移表・照合表の全行が保存可能か（制約 × 遷移の総当たり）」を追加する。
-- Writer は同 HEAD から再開可（実装・commit 未着手のため backtrack 不要）。amendment commit = pending（Workflow State `Amendments` に記録）。
+- Writer は同 HEAD から再開可（実装・commit 未着手のため backtrack 不要）。amendment commit = `ebf4a31`（Workflow State `Amendments` に記録）。
 
 ### owner plan approval / 遷移記録（2026-08-18）
 
