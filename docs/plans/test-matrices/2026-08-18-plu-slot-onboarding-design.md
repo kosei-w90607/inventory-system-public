@@ -7,7 +7,7 @@ Risk: R3
 ## Contracts Under Test
 
 - SPEC-PLS-D1: `plu_slots` table / JAN 単位 identity / 範囲・一意性
-- SPEC-PLS-D2: レジ設定スナップショット読込みと照合規則 / 初回 gate
+- SPEC-PLS-D2: レジ登録状況スナップショット（Z004 全スロットダンプ）読込みと照合規則 / 初回 gate
 - SPEC-PLS-D3: prepare 時の冪等予約（最小空き番号、sticky、no_free_slot）
 - SPEC-PLS-D4: 解放 trigger / clear 行 / confirm で free / fallback no-reuse
 - SPEC-PLS-D5: Full / Diff 行構成と Diff 投入ガード改訂
@@ -39,7 +39,7 @@ Risk: R3
 | Contract | Failure Mode | Test Type | Test Name | Would fail if... |
 |---|---|---|---|---|
 | SPEC-PLS-D1 [本 design-first PR] | table / 一意性が docs にない | CLI/contract review | M-D1: `db-design/plu-tables.md` に `memory_no` CHECK 217..5000 / status 5 値 / partial UNIQUE anchor、22-mnt §12 に migration v5、DB_DESIGN 索引 | schema 契約が packet だけに残る |
-| SPEC-PLS-D2 [本 design-first PR] | 照合規則が部分的 | CLI/contract review | M-D2: 33-biz に レジ空/有 × 5 status の照合表 + `register_snapshot_required` anchor、25-io に 11 列読込み profile、67-ui に読込み step | 組合せ欠落 or 初回 gate 未記載 |
+| SPEC-PLS-D2 [本 design-first PR] | 照合規則が部分的 | CLI/contract review | M-D2: 33-biz に レジ空/有 × 5 status の照合表 + `register_snapshot_required` anchor、23-io に Z004 全スロット占有読み取り mode（5,000 行必須 / raw code）、67-ui に読込み step | 組合せ欠落 or 初回 gate 未記載 |
 | SPEC-PLS-D3 [本 design-first PR] | 再採番が残る | CLI/negative rg | M-D3: `rg -n "行インデックス|scanning_plu_memory_start \+ " docs/function-design/25-io-plu-formatter.md docs/function-design/33-biz-plu-export-service.md` の active hit 0、`最小空き` / `no_free_slot` anchor present | 採番規則が旧のまま |
 | SPEC-PLS-D4 [本 design-first PR] | 解放 / fallback 未定義 | CLI/contract review | M-D4: 33-biz に trigger 3 種（plu_target off / toggle_discontinue / jan_code 変更）+ clear 行形状 + fallback 定数 anchor、30-biz toggle_discontinue に `plu_target=0` | いずれかの trigger または fallback 欠落 |
 | SPEC-PLS-D5 [本 design-first PR] | Full-only 語彙が残る | CLI/negative rg | M-D5: `rg -n "Full.*のみ|全件.*のみ|Diff.*点検用途|Full-only" docs/function-design/67-ui-plu-export.md docs/function-design/33-biz-plu-export-service.md docs/DB_DESIGN.md docs/architecture/biz-task-specs.md` の active hit 0（archive 除外）、UI-08-D9 が改訂文言 | stale ガード語彙が active docs に残る |
@@ -90,7 +90,7 @@ Risk: R3
 ## Negative Paths
 
 - snapshot 未読込みで prepare → `ValidationFailed(register_snapshot_required)`、slot 不変（A-N1）。
-- 11 列ヘッダ不一致 / memory No. 範囲外 / 行数 ≠ 4,784 → `ImportError`、TX rollback、slot 不変（A-N1b）。
+- Z004 ヘッダ不一致 / memory No. 範囲外 / データ行数 ≠ 5,000（従来 shape）→ `ImportError`、TX rollback、slot 不変（A-N1b）。
 - 空き 0 で新 JAN を prepare → 要修正 `no_free_slot`、他 JAN の生成は続行（A-P4）。
 - 同一 JAN が別 product 2 件（グループコード）→ 1 スロット、`target_product_codes` は 2 件（A-P5）。
 - bulk ON で JAN なし / 8 桁 / 廃番 → skip 件数、`plu_target` 不変（B-L3〜L4）。
@@ -102,7 +102,7 @@ Risk: R3
 
 - memory_no 217 と 5000 の両端で予約 / 照合が動く（A-S2）。
 - 216 以下 / 5001 以上の行を含む snapshot は `ImportError`（A-N1b）。
-- 14 桁固定幅コード（13 桁 + space、8 桁 + space×6）と 13 桁生コードの両方を正規化（A-N2b）。
+- 14 桁固定幅コード（13 桁 + `E`、8 桁 + `E`×6、全ゼロ）を正規化し、8 桁コードは raw のまま external に使う（A-N2b）。
 - 全ゼロ 14 桁 = 空スロット、名称空でも判定は code のみ（A-N2c）。
 - clear 行の 11 field 形状 exact（14 桁ゼロ / 名称空 / `\0` / `税1(内税)` / `いいえ`×4 / `無し` / `ノンリンク`）と memory No. 6 桁ゼロ埋め（A-R5b）。
 
@@ -115,7 +115,7 @@ Risk: R3
 
 ## Data Safety Checks
 
-- 実レジ設定 file / 実コードを fixture にしない。synthetic 11 列 fixture は Probe の構造（行数 / 列 / 空スロット形状）のみ再現。
+- 実 Z004 / 実レジ設定 file / 実コードを fixture にしない。synthetic Z004（5,000 行）/ 11 列 fixture は Probe の構造（行数 / 列 / 空スロット形状）のみ再現。
 - Probe 記録は件数 / 範囲 / 形状のみ。packet / PR body に実値を転記しない。
 - 物理 DELETE / schema 破壊変更なし。
 
@@ -145,7 +145,7 @@ Risk: R3
 - A-R1〜A-R7 + A-R5b: reserved 直 free、trigger 3 種 + snapshot 重複 (iv)、clear 行形状 exact（A-R5b）、confirm free、再対象化復帰、fallback no-reuse。
 - A-E1〜A-E6: Full / Diff 行構成、memory_no 6 桁、外部登録非出力、DTO / bindings 再生成、UI-08 文言（D4/D5/D9 改訂）、要修正判定中 slot の維持・非出力（A-E6）。
 - A-V1: UI-08 読込み step / 占有要約 / snapshot_required 導線（RTL）。
-- L3（実装 A）: 実機 CV17 設定書出しの読込み、Diff 投入、clear 行受理とレジ側未設定化。
+- L3（実装 A）: 実機 Z004 の占有読込み（初回 + 再読込み）、Diff 投入、clear 行受理とレジ側未設定化。
 
 実装 B（bulk onboarding）:
 

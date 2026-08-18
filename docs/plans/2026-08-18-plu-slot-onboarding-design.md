@@ -72,8 +72,8 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 本 design-first PR の将来 amendment scope（plan-approved 後の次発注で source docs へ昇格）:
 
 - candidate D-072 と SPEC-PLS-D1〜D10 を durable source docs へ昇格する（25-io / 33-biz / 20-io / 30-biz / 40-cmd / 41-cmd / 50-ui / 51-ui / 60-ui / 67-ui / DB_DESIGN + db-design 新 file / 22-mnt-migration / architecture task specs / spec requirements + coverage / decision-log）。
-- `plu_slots` table（migration v5）と slot 状態遷移、レジ設定スナップショット読込みの照合規則、prepare 時の冪等予約、confirm 時の active 化、解放（clear 行）とその確認、Full / Diff の行構成を契約化する。
-- 新規 command（レジ設定読込み / スロット要約 / 一括 PLU 対象化）と既存 command（prepare / confirm）の DTO 変更を wire contract として確定する。
+- `plu_slots` table（migration v5）と slot 状態遷移、レジ登録状況スナップショット（Z004）読込みの照合規則、prepare 時の冪等予約、confirm 時の active 化、解放（clear 行）とその確認、Full / Diff の行構成を契約化する。
+- 新規 command（レジ登録状況読込み / スロット要約 / 一括 PLU 対象化）と既存 command（prepare / confirm）の DTO 変更を wire contract として確定する。
 - 商品一括インポート（REQ-104）の任意列 `PLU対象`、商品一覧の一括 PLU 対象化と移行状態 filter / 表示、商品詳細のメモリNo. 表示、UI-08 のレジ設定読込み step と占有要約表示を契約化する。
 - UI-08-D9（Full-only 投入ガード）を「Diff / Full とも投入可」へ改訂し、D-028 の暫定ガード語彙の stale target を全列挙する。
 - 後続実装 PR の分割（実装 A = slot core、実装 B = bulk onboarding）と各 PR の Ledger 予約を Test Design Matrix に記録する。
@@ -89,7 +89,7 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 - `src-tauri/**`、`src/**`、`src/lib/bindings.ts` の変更。
 - 実レジ設定ファイル（`ｽｷｬﾆﾝｸﾞPLU(商品).txt`）、実 Z004、実店舗コード・名称・単価の commit。Contract Probe は構造・件数のみ記録する。
 - CV17 が clear 行（空スロット形状）の取込みで実際にスロットを未設定へ戻すかの実機確認（実装 A の L3 項目として予約。SPEC-PLS-D4 に fallback を定義）。
-- Z004 取込み時のスロット照合（Z004 全スロットダンプと `plu_slots` の突合警告）。follow-up として `Plans.md` backlog に記録する。
+- Z004 **売上取込み**（BIZ-03）の中で占有を自動更新すること（本 packet の読込みは UI-08 の明示操作。売上取込みへの同乗は要望が出たら別 packet）。CV17「レジスターの設定」書出し .txt の読込み対応（owner 裁定 2026-08-18 Q2 = A により不採用。レジ側単価とアプリ売価の突合など別要求が出た時に別 packet）。
 - 通常 PLU 枠（1〜216）、部門マスタ、価格履歴の変更。
 - archive packet / matrix の歴史的記録の書換え。
 
@@ -106,21 +106,21 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 
 - Requirements / spec: `docs/spec/requirements.md` REQ-104 / REQ-402（+ candidate REQ-907）、`docs/spec/requirements-coverage.md` REQ-402 行（現 `superseded`）
 - Architecture: `docs/ARCHITECTURE.md` POS Adapter Boundary、`docs/architecture/io-task-specs.md` IO-03 / IO-04、`biz-task-specs.md` BIZ-01 / BIZ-04、`cmd-task-specs.md` CMD-01 / CMD-08、`ui-task-specs.md` UI-01a / UI-01b / UI-01c / UI-08
-- Function / command / DTO: `docs/function-design/25-io-plu-formatter.md` §12（line 3 / 5 の暫定注記、§12.3 `generate_plu_tsv` 内の採番規則）、`33-biz-plu-export-service.md` §16.2〜16.8、`20-io-product-repo.md` §2.3 `_for_plu` 系、`30-biz-product-service.md` §4.8 / §4.9（line 349 の plu_target 導出）/ `toggle_discontinue`、`26-io-product-csv-importer.md` §18、`40-cmd-product.md`、`41-cmd-pos.md` §17.6（CMD-08）、`50-ui-product-list.md` §50.4〜50.6、`51-ui-product-form.md` UI-01b-D18、`53-ui-home.md` PluNotificationBar、`60-ui-product-import.md` §60.1 / §60.4 / §60.5、`67-ui-plu-export.md` §67.5 UI-08-D1〜D10 / §67.7 / §67.8 / §67.9
+- Function / command / DTO: `docs/function-design/23-io-z004-parser.md`（IO-02 layout A 受理、全スロット占有読み取り mode の追加先）、`25-io-plu-formatter.md` §12（line 3 / 5 の暫定注記、§12.3 `generate_plu_tsv` 内の採番規則）、`33-biz-plu-export-service.md` §16.2〜16.8、`20-io-product-repo.md` §2.3 `_for_plu` 系、`30-biz-product-service.md` §4.8 / §4.9（line 349 の plu_target 導出）/ `toggle_discontinue`、`26-io-product-csv-importer.md` §18、`40-cmd-product.md`、`41-cmd-pos.md` §17.6（CMD-08）、`50-ui-product-list.md` §50.4〜50.6、`51-ui-product-form.md` UI-01b-D18、`53-ui-home.md` PluNotificationBar、`60-ui-product-import.md` §60.1 / §60.4 / §60.5、`67-ui-plu-export.md` §67.5 UI-08-D1〜D10 / §67.7 / §67.8 / §67.9
 - DB: `docs/DB_DESIGN.md` §D-2、`docs/db-design/master-tables.md` products（plu_target / plu_dirty / plu_exported_at）、`docs/function-design/22-mnt-migration.md` §10〜§11（migration v3 / v4 の様式）、`src-tauri/src/db/schema_v4.rs` / `migration.rs`（実査のみ）
 - Screen / UI: `docs/SCREEN_DESIGN.md`、`docs/design-system/01-decision-rules.md`、`02-component-catalog.md`（⑭ FilePicker、EmptyState、Alert）
-- Decision log / ADR: `docs/decision-log.md` D-023 / D-027 / D-028 / D-054（レジ設定読込みの file 選択は共通 FilePicker を使う）/ D-070 / D-071、candidate D-072
+- Decision log / ADR: `docs/decision-log.md` D-023 / D-027 / D-028 / D-054（レジ登録状況読込みの file 選択は共通 FilePicker を使う）/ D-070 / D-071、candidate D-072
 - Field / adapter facts: `docs/plu-export-and-real-csv-verification.md` 「店舗運用から導いた公開設計前提」「Z004 の実構造」、`docs/project-memory.md` POS Facts（CV17 11 列 profile、2026-08-01 owner rollout intent = PLU への gradual migration）、`docs/archive/plans/2026-07-03-post-ui08-janless-plu-target-design.md` §Adapter Facts / D-6 / Deferred、GitHub issue #76（R-F-01 初日優先商品群）
 
 ## Required Design Artifacts
 
 | Area touched by upcoming work | Required source doc / artifact | Status |
 |---|---|---|
-| Backend function / command / repository / validation / error | 33-biz（BIZ-04 slot 割当 / 解放 / 予約 TX）、25-io（レジ設定 parser、clear 行）、20-io（slot repo 依存）、30-biz（bulk 対象化 / discontinue 連動 / CSV 列）、40-cmd / 41-cmd | intentionally deferred to plan-approved 後の次発注 |
+| Backend function / command / repository / validation / error | 33-biz（BIZ-04 slot 割当 / 解放 / 予約 TX）、23-io（IO-02 全スロット占有読み取り mode）、25-io（clear 行）、20-io（slot repo 依存）、30-biz（bulk 対象化 / discontinue 連動 / CSV 列）、40-cmd / 41-cmd | intentionally deferred to plan-approved 後の次発注 |
 | Command / DTO / generated binding / wire shape | 41-cmd §17 新 command 3 + prepare / confirm DTO 変更、40-cmd bulk command + Boundary / Wire Contract | packet で契約確定、source は intentionally deferred |
 | DB / transaction / audit / rollback / migration | `db-design/plu-tables.md` 新設（`plu_slots`）、DB_DESIGN.md §D-2 改訂 + 索引、22-mnt-migration §12 migration v5 | packet で契約確定、source は intentionally deferred |
-| Screen / UI / route state / Japanese wording | 67-ui（レジ設定読込み step、占有要約、D9 改訂、文言）、50-ui（移行状態 filter / 一括操作）、51-ui（メモリNo. 表示）、60-ui（`PLU対象` 列） | packet で文言確定、source は intentionally deferred |
-| CSV / TSV / report / import / export format | 25-io §12 に書出し行構成（割当 memory No. / clear 行）と読込み profile（同一 11 列） | packet で契約確定、source は intentionally deferred |
+| Screen / UI / route state / Japanese wording | 67-ui（レジ登録状況読込み step、占有要約、D9 改訂、文言）、50-ui（移行状態 filter / 一括操作）、51-ui（メモリNo. 表示）、60-ui（`PLU対象` 列） | packet で文言確定、source は intentionally deferred |
+| CSV / TSV / report / import / export format | 25-io §12 に書出し行構成（割当 memory No. / clear 行）、23-io に Z004 占有読み取り mode の受理条件 | packet で契約確定、source は intentionally deferred |
 | Durable decision / ADR | candidate D-072（slot authority 分割 / discontinue 連動 / Diff 投入可） | next amendment で `docs/decision-log.md` 新 ID として起案 |
 | Requirements | candidate REQ-907（開発拡張）+ coverage 行 | next amendment で起案、traceability 再生成は実装 PR |
 
@@ -129,7 +129,7 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 | 新規追加物 | 登録・生成義務 |
 |---|---|
 | Tauri command（`import_plu_register_snapshot` / `get_plu_slot_summary` / `bulk_set_plu_target`） | 実装 PR で `lib.rs` の specta `collect_commands` 登録 + `#[tauri::command]` / `#[specta::specta]` の対 + `cargo run --bin generate_bindings` 再生成。本 design-first PR では 41-cmd / 40-cmd の command 契約と Ledger 行のみ |
-| function-design doc 新設 | 新設は `docs/db-design/plu-tables.md` のみ（function-design は既存 25 / 33 / 30 / 40 / 41 / 50 / 51 / 60 / 67 の改訂）。25-io に新 module `io::plu_register_snapshot` を持たせる場合は実装 PR で `design_compliance_test.rs` の map entry を追加 |
+| function-design doc 新設 | 新設は `docs/db-design/plu-tables.md` のみ（function-design は既存 25 / 33 / 30 / 40 / 41 / 50 / 51 / 60 / 67 の改訂）。占有読み取りは既存 `io::z004_parser`（23-io、map 登録済み）へ mode 追加のため map 変更なし |
 | source / workflow doc 新設・改名 | `db-design/plu-tables.md` を `DB_DESIGN.md` の索引へ登録 |
 | REQ coverage 追加 | candidate REQ-907 を `requirements.md` / `requirements-coverage.md` に追加。test 追加後の `cargo run --bin generate_traceability` は実装 PR |
 | route 新設 | なし（既存 `/products/plu-export` / `/products` / `/products/import` の内部拡張） |
@@ -149,9 +149,9 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 - 割当 key を product_id ではなく JAN にする理由: レジ側 identity がスキャニングコードであり、グループコード商品（同一 JAN 複数 product）は 1 スロットを共有する。
 - 却下: products への `plu_memory_no` 列追加方式（既存登録 / 空きを表せない。JAN 共有 product 間の整合が取れない）; 書出しごとの再採番（現行、D-6 の事故経路）。
 
-### SPEC-PLS-D2 — レジ設定スナップショット読込み（既存登録を空き扱いしない）
+### SPEC-PLS-D2 — レジ登録状況スナップショット読込み（Z004 全スロットダンプ、既存登録を空き扱いしない）
 
-- 入力 = CV17「レジスターの設定」スキャニング PLU 書出し `.txt`（IO-04 が書くのと同じ 11 列 / tab / CP932 / CRLF profile。Contract Probe 参照: メモリNo. は 6 桁ゼロ埋め、コード欄は 14 桁固定幅・右 space padding、空スロットは 14 桁ゼロ + 名称空 + `\0` + `税1(内税)` + `いいえ`×4 + `無し` + `ノンリンク`）。新 IO 関数（`io::plu_register_snapshot`、25-io §12 に節追加）は 11 列ヘッダ検査・行 parse・コード正規化（trim / 全ゼロ = 空）のみ行い、業務判断は BIZ-04。
+- 入力 = **Z004 全スロットダンプ**（layout A: メタ 6 行 + 空行 + ヘッダ `レコード / ｽｷｬﾆﾝｸﾞｺｰﾄﾞ / キャラクター / 個数 / 金額` + データ 5,000 行、コード欄は 14 桁固定幅・右 `E` padding、全ゼロ = 未設定。`docs/plu-export-and-real-csv-verification.md`「Z004 の実構造」+ Contract Probe 参照）。operator が毎日採取・取込みしている file をそのまま使い、CV17 側の追加操作を要求しない（owner 裁定 2026-08-18 Q2 = A）。IO-02（23-io `z004_parser`）に**全スロット占有読み取り mode**を追加する: layout A の preamble / ヘッダ検査を再利用し、売上取込みと違って JAN 検証・空スロット skip・売上列を行わず `(memory_no, raw_code)` を 5,000 行そのまま返す（8 桁 + `E`×6 の既存別商材も raw のまま = external 判定に使う）。行数 5,000 未満（従来 shape）は占有読込み不可として `ImportError`。業務判断は BIZ-04。
 - BIZ-04 `import_plu_register_snapshot` は 1 TX で 217〜5000 の各行を照合し、結果 summary（`free` / `external` / `app_managed` 件数、`adopted` / `released_confirmed` / `reservation_dropped` / `conflicts` / `missing_on_register` の一覧）を返す。照合規則（レジ側コード × app 側 status）:
   - レジ空 × app `free` / `external` → `free`（既存登録が消えていれば空きへ戻す）
   - レジ空 × app `reserved` → 維持（未書込み）
@@ -166,7 +166,7 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
   - レジ有 × app `external` と異なるコード → `external` のままコード更新
 - 読込み日時と summary は `app_settings`（`plu_register_snapshot_at` / `plu_register_snapshot_summary`）へ保存し operation_logs に記録する。UI-08 は最終読込み日時と占有要約（空き / 既存登録 / アプリ管理）を常時表示する。
 - 初回 gate: スナップショット未読込みの状態で `prepare_plu_export` を呼ぶと `BizError::ValidationFailed`（理由 `register_snapshot_required`、UI 文言「レジ設定の読込みが必要です」+ 手順導線）。「既存登録を一律に空き扱いしない」（`plu-export-and-real-csv-verification.md` 公開設計前提）の実装形。2 回目以降の再読込みは任意（推奨タイミング = レジ側で手動登録を行った後）。
-- 却下: Z004 全スロットダンプを占有ソースにする案（売上取込みと slot 管理が結合し、単価等の設定列を持たない）。follow-up として Z004 取込み時の照合**警告**のみ backlog に記録。
+- 却下: CV17「レジスターの設定」スキャニング PLU 書出し `.txt`（11 列）を占有ソースにする案（Plan Gate 時点の当初推奨。owner 裁定 2026-08-18 Q2 = A で不採用: 照合規則が使うのはスロットごとのコード有無 / 値だけで、設定書出し固有の列〈単価 / 課税方式等〉は使わない。owner に CV17 の書出し操作を都度求める負担だけが増える）。売上取込み（BIZ-03）への占有更新同乗は Non-scope に記録。
 
 ### SPEC-PLS-D3 — 割当は prepare 時の冪等予約、最小空き番号
 
@@ -203,7 +203,7 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 - 移行状態は products の既存 2 flag から導出する固定語彙: `対象外`（`plu_target=0`）/ `未反映`（`plu_target=1` かつ `plu_dirty=1`）/ `反映済み`（`plu_target=1` かつ `plu_dirty=0`）。schema 追加なし。
 - UI-01a: 一覧に移行状態 badge（色のみの符号化禁止 = 文字 label 併記）と URL filter `plu`（`all|target|pending|synced|excluded`、既存 §50.4 の search param 規約と §50.8 の範囲外回復に従う）。
 - UI-01b（詳細 / 編集）: app 管理スロットがあれば「レジメモリNo.」を読み取り専用で表示（`plu_slots` 参照。DTO 追加は Boundary / Wire Contract）。
-- UI-08: レジ設定の最終読込み日時 + 占有要約（空き / 既存登録 / アプリ管理 / 解放待ち）を上部に常設（UI-08-D10 の above-the-fold 方針を継承）。PluNotificationBar（UI-00）は変更なし。
+- UI-08: レジ登録状況の最終読込み日時 + 占有要約（空き / 既存登録 / アプリ管理 / 解放待ち）を上部に常設（UI-08-D10 の above-the-fold 方針を継承）。PluNotificationBar（UI-00）は変更なし。
 - 却下: 反映済みを `plu_exported_at` の有無で判定（1→0→1 の再対象化で stale になる）。
 
 ### SPEC-PLS-D8 — 混在期間の会計・在庫意味論（Z-03）
@@ -214,12 +214,12 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 
 ### SPEC-PLS-D9 — REQ / coverage / traceability
 
-- candidate REQ-907（開発拡張）「PLU メモリNo. を商品（JAN）単位で永続割当し、レジ設定スナップショットとの照合で既存登録を保護できること」を `requirements.md` に追加し、coverage 行を `current` で起票。REQ-402 coverage の `superseded` 理由文に「メモリNo. 採番規則は REQ-907 で永続割当へ置換」を追記。REQ-104 の設計書に `PLU対象` 列を追記。
+- candidate REQ-907（開発拡張）「PLU メモリNo. を商品（JAN）単位で永続割当し、レジ登録状況スナップショット（Z004）との照合で既存登録を保護できること」を `requirements.md` に追加し、coverage 行を `current` で起票。REQ-402 coverage の `superseded` 理由文に「メモリNo. 採番規則は REQ-907 で永続割当へ置換」を追記。REQ-104 の設計書に `PLU対象` 列を追記。
 - 実装 PR で test に REQ-907 / REQ-402 / REQ-104 を付与し `generate_traceability` を再生成する（design-first PR では生成物を触らない）。
 
 ### SPEC-PLS-D10 — durable decision と stale vocabulary closure
 
-- candidate D-072: (1) スキャニング PLU 領域の authority 分割 — app 管理スロットは app、既存登録はレジ、空きの判定はレジ設定スナップショット必須 (2) 割当は JAN 単位の永続予約・最小空き番号・解放は clear 行 + confirm (3) 廃番化は `plu_target=0` を伴う (4) Diff / Full とも CV17 投入可（D-028 の Full-only 暫定ガードを supersede）。Revisit: 空きスロット枯渇の兆候（要修正 `no_free_slot` の発生）、または CV17 が clear 行を受理しないことが L3 で判明したとき。
+- candidate D-072: (1) スキャニング PLU 領域の authority 分割 — app 管理スロットは app、既存登録はレジ、空きの判定はレジ登録状況スナップショット（Z004 全スロットダンプ）必須 (2) 割当は JAN 単位の永続予約・最小空き番号・解放は clear 行 + confirm (3) 廃番化は `plu_target=0` を伴う (4) Diff / Full とも CV17 投入可（D-028 の Full-only 暫定ガードを supersede）。Revisit: 空きスロット枯渇の兆候（要修正 `no_free_slot` の発生）、または CV17 が clear 行を受理しないことが L3 で判明したとき。
 - 25-io line 3 / 5、33-biz §16.3（line 119 の Full-only 回復注記）/ §16.6、67-ui UI-08-D9、DB_DESIGN §D-2、biz-task-specs BIZ-04 の「再採番」「Full のみ投入」語彙は次発注で全 hit を改訂し、archive は書き換えない。
 
 ## Owner 裁定事項（Plan Gate 前に確定）
@@ -227,7 +227,7 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 | ID | 論点 | 推奨 | 代替と tradeoff |
 |---|---|---|---|
 | Q1 | 実装 PR の分割 | design-first（本 PR）→ 実装 A（D1〜D5 + D7 の UI-08 / 詳細表示 + D9/D10）→ 実装 B（D6 + D7 の一覧 filter / 一括操作） | 単一実装 PR: レビュー対象が schema + IO + BIZ + CMD + UI 3 画面に及び rally 天井 3 に収まりにくい。D-070 の「R3 4〜5 本」見積りは本便で 6〜7 本へ超過する見込み（Revisit 条件該当、配布時期との衝突有無は owner 判断） |
-| Q2 | 占有スナップショットの入力 | CV17「レジスターの設定」書出し `.txt`（11 列、Probe 済み。owner が CV17 で 1 回書き出す） | Z004 全スロットダンプ: 追加操作不要だが設定列を持たず売上取込みと結合する。両対応は scope 増 |
+| Q2 | 占有スナップショットの入力 | **owner 裁定 2026-08-18 = A: Z004 全スロットダンプ**（追加操作ゼロ、IO-02 layout A parse を再利用、Probe で 5,000 行 / 14 桁 / 非ゼロ 929 を実測） | 当初推奨だった CV17「レジスターの設定」書出し .txt は照合に不要な列しか増やさず操作負担が増えるため不採用。両対応は scope 増 |
 | Q3 | 廃番化で `plu_target=0` を自動設定 | する（D4） | しない: 廃番商品が PLU 対象に残り要修正 / 解放が operator 手作業になる |
 | Q4 | 一括対象化の経路 | (a) CSV 列 + (b) 一覧一括の両方（実装 B） | (a) のみ: 実装最小だが operator が CSV を再作成する必要。(b) のみ: 初回 onboarding の CSV 作成時に対象を指定できない |
 | Q5 | Diff 投入ガードの撤廃 | 撤廃（D5）。永続割当が前提条件 | 維持: 永続割当後も Full 一本運用。毎回全件を CV17 へ流す負担 |
@@ -237,7 +237,7 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 | Spec / requirement ID | Source design doc section | Decision ID | Why / rejected alternatives | Implementation target | Test target |
 |---|---|---|---|---|---|
 | REQ-402 / REQ-907 | plu-tables.md（新）/ 22-mnt §12 / DB_DESIGN D-2 | SPEC-PLS-D1 | 再採番と product 列方式は既存登録・JAN 共有を表せない | schema_v5 / plu_slot_repo | Matrix A-S1〜A-S4 |
-| REQ-907 | 25-io §12（parser 節）/ 33-biz §16（snapshot）/ 67-ui | SPEC-PLS-D2 | 既存登録を空き扱いしない公開設計前提 | io::plu_register_snapshot / BIZ-04 / UI-08 step | Matrix A-N1〜A-N9c |
+| REQ-907 | 23-io §（IO-02 全スロット占有読み取り mode）/ 33-biz §16（snapshot）/ 67-ui | SPEC-PLS-D2 | 既存登録を空き扱いしない公開設計前提。占有ソースは Z004（Q2 = A） | io::z004_parser 占有 mode / BIZ-04 / UI-08 step | Matrix A-N1〜A-N9c |
 | REQ-402 | 33-biz §16.3 / 25-io §12.3 / 67-ui UI-08-D1 | SPEC-PLS-D3 | 商品保存時 / confirm 時割当は順序・責務で不利 | prepare TX / formatter 入力 | Matrix A-P1〜A-P5 |
 | REQ-402 | 33-biz §16.4 / 30-biz toggle_discontinue / 51-ui | SPEC-PLS-D4 | 解放即 free は stale JAN 上書き順序が不定 | release trigger / clear 行 / confirm | Matrix A-R1〜A-R7 + A-R5b |
 | REQ-402 | 25-io §12.3 / 33-biz §16.3 / 67-ui UI-08-D4/D5/D9 | SPEC-PLS-D5 | Full 一本化は operator 負担 | formatter / UI 文言 | Matrix A-E1〜A-E5 |
@@ -251,8 +251,8 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 
 - Source docs can answer what/why without chat history: **現時点では No**。current docs は再採番（25-io §12.3）と Full-only ガード（UI-08-D9）を正本化している。next amendment で SPEC-PLS-D1〜D10 と candidate D-072 を昇格するまで implementation forbidden。
 - Plan-only durable decisions found and promoted: candidate D-072 / REQ-907 を特定済み。promotion は本発注では禁止されているため次 amendment の mandatory target。
-- Assumptions and constraints: CV17 import はメモリNo. キーの部分更新（ECRCV17.pdf p.71-73 の読み、D-6）。レジ設定書出しは 11 列 / 4,784 行 / 217 始まり（Contract Probe で構造確認）。clear 行のレジ側効果は未確認（D4 fallback で吸収）。スキャニング枠は出荷時固定 217〜5000。
-- Deferred design gaps: source-doc amendment、Q1〜Q5 の owner 裁定、Plan Reviewer review、Z004 取込み時のスロット照合警告（backlog）。いずれも implementation 前 blocker または記録済み follow-up。
+- Assumptions and constraints: CV17 import はメモリNo. キーの部分更新（ECRCV17.pdf p.71-73 の読み、D-6）。Z004 全スロットダンプは 5,000 行 / 14 桁 E padding コード（Contract Probe で構造確認、占有ソース）。CV17 設定書出しは 11 列 / 4,784 行 / 217 始まり（Contract Probe、clear 行形状の根拠）。clear 行のレジ側効果は未確認（D4 fallback で吸収）。スキャニング枠は出荷時固定 217〜5000。
+- Deferred design gaps: source-doc amendment、Q1〜Q5 の owner 裁定、Plan Reviewer review、売上取込みへの占有更新同乗（Non-scope 記録）。いずれも implementation 前 blocker または記録済み follow-up。
 - Test Design Matrix can cite decisions: Yes。別紙が SPEC-PLS-D1〜D10 を root にする。
 - Absolute guarantee self-check: 「既存登録を上書きしない」は最終スナップショット以降にレジ側で手動登録された slot を保護できない escape hatch がある → UI-08 の再読込み推奨文言と、書出し直前の最終読込み日時表示で明示し、絶対保証と表現しない。「1 JAN = 1 スロット」は snapshot 採用時の重複 stale（release_pending）を経て収束する。
 
@@ -260,10 +260,10 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 
 | Lens | Applicability / finding | Follow-up artifact |
 |---|---|---|
-| Adapter / core boundary | 11 列 profile、6 桁ゼロ埋め、14 桁固定幅コード、空スロット形状、217〜5000 は CASIO adapter fact（25-io）。JAN 単位永続割当・authority 分割・状態遷移は app core（33-biz / plu-tables / D-072） | 25-io / 33-biz / D-072 |
+| Adapter / core boundary | Z004 layout A の 5,000 行ダンプ・14 桁 E padding（23-io）、書出し 11 列 profile・6 桁ゼロ埋め・空スロット形状（25-io）、217〜5000 は CASIO adapter fact。JAN 単位永続割当・authority 分割・状態遷移は app core（33-biz / plu-tables / D-072） | 25-io / 33-biz / D-072 |
 | Fact check / design decision split | 観測 fact = Probe の構造 / 件数、CV17 部分更新（取説）。決定 = 最小空き番号、release_pending、廃番連動、Diff 投入可 | Contract Probe / D-072 |
 | Lifecycle / retry | 予約 → 書出し → 保存失敗 / キャンセル（reserved 維持、UI-08-D4）→ confirm → active → 解放 → clear → free → 再利用。再 prepare は冪等。snapshot 再読込みは冪等（同一 file で結果不変） | 33-biz + Matrix A-P / A-R / A-N |
-| Operator workflow | 初回: CV17 設定書出し → app 読込み → 商品一括 PLU 対象化 → Full 書出し → CV17 取込み → SD → レジ → 書出し済み確認。以後: 差分 → Diff 書出し。廃番 / 解除は次回 Diff で clear | 67-ui / 50-ui / 受入台本第2版（⑤） |
+| Operator workflow | 初回: 直近の Z004（`EcrDatas`）を「レジの登録状況を読み込む」で読込み → 商品一括 PLU 対象化 → Full 書出し → CV17 取込み → SD → レジ → 書出し済み確認。以後: 差分 → Diff 書出し。廃番 / 解除は次回 Diff で clear | 67-ui / 50-ui / 受入台本第2版（⑤） |
 | Replacement path | レジ機種変更時は 25-io の profile と 217〜5000 範囲定数を差し替え、`plu_slots` の意味と BIZ-04 契約は残る | D-072 Revisit / ARCHITECTURE |
 | Data safety / evidence | Probe は構造・件数のみ記録。実コード・名称・単価・レジ設定 file は commit しない。実装 fixture は synthetic | Data Safety |
 | Reporting / accounting semantics | 会計契約不変（D8）。slot 状態は在庫・売上に影響しない | D8 |
@@ -293,6 +293,7 @@ Minimum design checks:
 
 - public-writer environment: `pwd` -> `/home/kosei/Projects/inventory-system-public`; `git rev-parse --short origin/main` -> `4eecd71`; `git status --short --branch` -> `## agent/plu-slot-onboarding-design`（plan-first commit 前は path entries なし）。
 - レジ設定書出し profile（local-only `~/Downloads/inventory-field-check/approved-readable/ｽｷｬﾆﾝｸﾞPLU(商品).txt`、2026-07-03 採取、構造のみ）: `iconv -f CP932 -t UTF-8 | wc -l` -> `4785`（header 1 + data 4,784）; 全行 tab 11 field; header = `メモリNo.|ｽｷｬﾆﾝｸﾞｺｰﾄﾞ|名称|単価|課税方式|単品売り|負単価|品番PLU|ゼロ単価|入力桁制限|部門リンク`; メモリNo. は 6 桁ゼロ埋めで data 範囲 `000217..005000`; コード非ゼロ行 933（`000217..001149`、= 既存 929 + 検証用 4）、コード欄長 14 が 932 行（13 桁 + space 1 / 8 桁 + space 6）、13 が 1 行; コード全ゼロ行 3,851 は全て `名称 空 / \0 / 税1(内税) / いいえ / いいえ / いいえ / いいえ / 無し / ノンリンク` の同一形状 -> D2 の入力 profile と D4 の clear 行形状の根拠。実コード・名称・単価は転記しない。
+- Z004 全スロットダンプ（local-only `~/Downloads/inventory-field-check/approved-readable/Z004_01 _0001.CSV`、2026-06-30 採取、構造のみ）: `iconv -f CP932 -t UTF-8 | wc -l` -> `5008`（メタ 6 + 空行 1 + ヘッダ 1 + データ 5,000）; データ行のコード欄は全 5,000 行が長さ 14; 非ゼロコード 929 行（設定書出しの 933 との差 4 = その後追加した検証用 PLU、採取時期差で整合）-> D2 の占有ソースとして十分（Q2 = A の根拠）。
 - CV17 部分更新前提: `docs/archive/plans/2026-07-03-post-ui08-janless-plu-target-design.md` §Adapter Facts（ECRCV17.pdf p.71-73「一番左側には、メモリーNo.を記述」「インポートしたい列だけを、設定することができます」）-> 記載スロットのみ更新（未記載不変は推論、D4 の安全性論拠はこの推論に依存しない）。
 - schema premise: `rg -n "plu_memory|plu_slot|memory_no" src-tauri/src/db docs/db-design` -> hit なし（新 table 名の衝突なし、migration v5 が必要）。
 - 現行採番: `rg -n "scanning_plu_memory_start|SCANNING_PLU_MEMORY_START" src-tauri/src/io/plu_formatter.rs src-tauri/src/constants.rs` -> formatter が行インデックス採番、定数 217 / 4784 は constants.rs（改訂対象の実在確認）。
@@ -302,7 +303,7 @@ Minimum design checks:
 | Design contract / decision ID | Implementation target | Automated test | L3 or non-scope |
 |---|---|---|---|
 | SPEC-PLS-D1 | schema_v5 / plu_slot_repo / plu-tables.md | A-S1〜A-S4（実装 A） | — |
-| SPEC-PLS-D2 | io::plu_register_snapshot / BIZ-04 snapshot / UI-08 step / app_settings | A-N1〜A-N9c / A-V1（実装 A） | 実機 CV17 設定書出しの再読込みは L3（実装 A） |
+| SPEC-PLS-D2 | io::z004_parser 占有 mode / BIZ-04 snapshot / UI-08 step / app_settings | A-N1〜A-N9c / A-V1（実装 A） | 実機 Z004 の読込み（初回 + 再読込み）は L3（実装 A） |
 | SPEC-PLS-D3 | prepare TX 予約 / formatter 入力 / no_free_slot | A-P1〜A-P5（実装 A） | — |
 | SPEC-PLS-D4 | release trigger（product_service / bulk / snapshot 重複）/ clear 行 / confirm free / fallback 定数 | A-R1〜A-R7 + A-R5b（実装 A） | clear 行の CV17 受理 + レジ未設定化は L3（実装 A） |
 | SPEC-PLS-D5 | formatter 行構成 / UI-08 文言 D4/D5/D9 / 要修正 slot 維持 | A-E1〜A-E6（実装 A） | Diff 投入の実機確認は L3（実装 A） |
@@ -330,8 +331,8 @@ Test Design Matrix: [2026-08-18-plu-slot-onboarding-design.md](test-matrices/202
 - wire type: 件数は non-negative integer、memory_no は 217〜5000 の integer、status は closed enum、filter は UI-01a §50.4 の既存 search param DTO と同型。
 - internal type: `plu_slots` 行 / 状態遷移は BIZ 内部。レジ観測コード（external）は wire へ露出しない（summary 件数のみ）。
 - precision/range: memory_no 範囲外・重複は DB CHECK / partial UNIQUE で拒否。money 列は書出し file 側のみ（既存 IO-04 契約）。
-- round-trip path: CV17 `.txt` -> IO parser -> BIZ 照合 -> plu_slots -> prepare 予約 -> IO-04 書出し（memory_no 付き）-> CV17 import。書出し file の memory No. は 6 桁ゼロ埋めで CV17 設定書出しと同型。
-- invalid input: 11 列ヘッダ不一致 / 範囲外 memory No. / 行数不整合 → `ImportError`（TX 全 rollback、slot 不変）。snapshot 未読込みでの prepare → `ValidationFailed(register_snapshot_required)`。bulk の filter 不正 → `ValidationFailed`。
+- round-trip path: Z004（`EcrDatas`）-> IO-02 占有 mode -> BIZ 照合 -> plu_slots -> prepare 予約 -> IO-04 書出し（memory_no 付き）-> CV17 import。書出し file の memory No. は 6 桁ゼロ埋めで CV17 設定書出しと同型。
+- invalid input: Z004 ヘッダ不一致 / 範囲外 memory No. / データ行数 ≠ 5,000 → `ImportError`（TX 全 rollback、slot 不変）。snapshot 未読込みでの prepare → `ValidationFailed(register_snapshot_required)`。bulk の filter 不正 → `ValidationFailed`。
 - compatibility: 既存 prepare / confirm の引数は維持し戻り値へ field 追加（generated TS は再生成）。DB は additive（新 table + app_settings key）。旧 Full 書出し file（再採番）は再投入しない旨を UI-08 回復文言で明示（D5）。
 
 ## Review Focus
@@ -373,9 +374,9 @@ Contract ID: SPEC-PLS-2026-08-18
 
 - Commit してはいけないもの: 実レジ設定 file、実 Z004、実スキャニングコード / 商品名 / 単価、店舗名 / 端末情報、DB、backup、secret。
 - local-only paths: `~/Downloads/inventory-field-check/**`、`.local/**`、Tauri app data、CI evidence logs。
-- synthetic-only paths: 後続実装の Rust fixture（11 列 synthetic `.txt`、空スロット形状は Probe の構造のみ再現）/ frontend mock。
+- synthetic-only paths: 後続実装の Rust fixture（Z004 layout A 5,000 行 synthetic、書出し 11 列 synthetic、空スロット形状は Probe の構造のみ再現）/ frontend mock。
 - generated outputs: `src/lib/bindings.ts` / `90-traceability.md` は後続実装で generator から再生成し、hand edit しない。
-- source-derived data: 本 packet は構造・件数（4,784 / 933 / 3,851 / 11 列 / 範囲）だけを記録し、実値を複製しない。
+- source-derived data: 本 packet は構造・件数（設定書出し 4,784 / 933 / 3,851 / 11 列、Z004 5,000 / 929 / 14 桁、範囲）だけを記録し、実値を複製しない。
 
 ## Implementation Results
 
@@ -412,3 +413,8 @@ If R3 review-only sub-agent is skipped, record an explicit line beginning with `
 - P2-1 Design Intent Trace の test 範囲表記が Ledger と不整合（A-N9c / A-R5b 未反映）: 採用、追随。
 - P2-2 `free` × レジ空の no-op 行が Matrix に無い: 採用、A-N4b 追加。
 - 是正はいずれも表記整合のみで契約変更を伴わないため、Plan Review round 天井 3 に従い再 round は起こさず、Coordinator が是正適用を確認して Plan Gate 収束（P1/P2 = 0）とする。owner plan approval（Q1〜Q5 裁定込み）待ち。
+
+### owner 裁定（2026-08-18、PR #84 Human Gate の plan approval）
+
+- Q1 = 推奨（design-first → 実装 A → 実装 B）/ **Q2 = A（Z004 全スロットダンプ）** / Q3 = 推奨（廃番化で plu_target=0）/ Q4 = 推奨（CSV 列 + 一覧一括）/ Q5 = 推奨（Diff 投入ガード撤廃）。
+- Q2 の切替は入力ソースの差替えのみで照合規則・状態機械は不変。Plan Review 天井 3 到達のため再 round は起こさず、Coordinator が差替え箇所（SPEC-PLS-D2 / Q2 行 / Trace / Ledger / Wire / Probe / Matrix）を rg で全 sweep して plan-approved へ進む。CV17 設定書出しの読込み対応は将来義務ではなく、別要求が出た時の別 packet（Non-scope に記録）。
