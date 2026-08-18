@@ -106,11 +106,11 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 
 - Requirements / spec: `docs/spec/requirements.md` REQ-104 / REQ-402（+ candidate REQ-907）、`docs/spec/requirements-coverage.md` REQ-402 行（現 `superseded`）
 - Architecture: `docs/ARCHITECTURE.md` POS Adapter Boundary、`docs/architecture/io-task-specs.md` IO-03 / IO-04、`biz-task-specs.md` BIZ-01 / BIZ-04、`cmd-task-specs.md` CMD-01 / CMD-08、`ui-task-specs.md` UI-01a / UI-01b / UI-01c / UI-08
-- Function / command / DTO: `docs/function-design/25-io-plu-formatter.md` §12（line 3 / 5 の暫定注記、§12.3 採番規則）、`33-biz-plu-export-service.md` §16.2〜16.8、`20-io-product-repo.md` §2.3 `_for_plu` 系、`30-biz-product-service.md` §4.8 / §4.9（line 349 の plu_target 導出）/ `toggle_discontinue`、`26-io-product-csv-importer.md` §18、`40-cmd-product.md`、`41-cmd-pos.md` §17.5〜17.6、`50-ui-product-list.md` §50.4〜50.6、`51-ui-product-form.md` UI-01b-D18、`53-ui-home.md` PluNotificationBar、`60-ui-product-import.md` §60.1 / §60.4、`67-ui-plu-export.md` §67.5 UI-08-D1〜D10 / §67.7 / §67.8 / §67.9
+- Function / command / DTO: `docs/function-design/25-io-plu-formatter.md` §12（line 3 / 5 の暫定注記、§12.3 `generate_plu_tsv` 内の採番規則）、`33-biz-plu-export-service.md` §16.2〜16.8、`20-io-product-repo.md` §2.3 `_for_plu` 系、`30-biz-product-service.md` §4.8 / §4.9（line 349 の plu_target 導出）/ `toggle_discontinue`、`26-io-product-csv-importer.md` §18、`40-cmd-product.md`、`41-cmd-pos.md` §17.6（CMD-08）、`50-ui-product-list.md` §50.4〜50.6、`51-ui-product-form.md` UI-01b-D18、`53-ui-home.md` PluNotificationBar、`60-ui-product-import.md` §60.1 / §60.4 / §60.5、`67-ui-plu-export.md` §67.5 UI-08-D1〜D10 / §67.7 / §67.8 / §67.9
 - DB: `docs/DB_DESIGN.md` §D-2、`docs/db-design/master-tables.md` products（plu_target / plu_dirty / plu_exported_at）、`docs/function-design/22-mnt-migration.md` §10〜§11（migration v3 / v4 の様式）、`src-tauri/src/db/schema_v4.rs` / `migration.rs`（実査のみ）
 - Screen / UI: `docs/SCREEN_DESIGN.md`、`docs/design-system/01-decision-rules.md`、`02-component-catalog.md`（⑭ FilePicker、EmptyState、Alert）
-- Decision log / ADR: `docs/decision-log.md` D-023 / D-027 / D-028 / D-054 / D-070 / D-071、candidate D-072
-- Field / adapter facts: `docs/plu-export-and-real-csv-verification.md` 「店舗運用から導いた公開設計前提」「Z004 の実構造」、`docs/project-memory.md` POS Facts（CV17 11 列 profile / 段階移行 intent）、`docs/archive/plans/2026-07-03-post-ui08-janless-plu-target-design.md` §Adapter Facts / D-6 / Deferred、GitHub issue #76（R-F-01 初日優先商品群）
+- Decision log / ADR: `docs/decision-log.md` D-023 / D-027 / D-028 / D-054（レジ設定読込みの file 選択は共通 FilePicker を使う）/ D-070 / D-071、candidate D-072
+- Field / adapter facts: `docs/plu-export-and-real-csv-verification.md` 「店舗運用から導いた公開設計前提」「Z004 の実構造」、`docs/project-memory.md` POS Facts（CV17 11 列 profile、2026-08-01 owner rollout intent = PLU への gradual migration）、`docs/archive/plans/2026-07-03-post-ui08-janless-plu-target-design.md` §Adapter Facts / D-6 / Deferred、GitHub issue #76（R-F-01 初日優先商品群）
 
 ## Required Design Artifacts
 
@@ -145,21 +145,23 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 ### SPEC-PLS-D1 — スロット identity は JAN、割当は `plu_slots` table に永続
 
 - 新 table `plu_slots`（migration v5、`docs/db-design/plu-tables.md`）: `memory_no INTEGER PRIMARY KEY CHECK (217 <= memory_no AND memory_no <= 5000)`、`scanning_code TEXT`（app 管理 = 13 桁 JAN、既存登録 = レジ観測コードそのまま、free = NULL）、`status TEXT NOT NULL CHECK IN ('free','external','reserved','active','release_pending')`、`reserved_at` / `activated_at` / `released_at` / `updated_at`。migration v5 で 217〜5000 の 4,784 行を `free` で事前投入する（範囲は SCANNING_PLU_MEMORY_START / SCANNING_PLU_EXPORT_LIMIT の既存定数から導く）。
-- 一意性: `scanning_code` は `status <> 'free'` の行の中で一意（partial UNIQUE index）。1 JAN = 1 スロット。products との対応は `products.jan_code = plu_slots.scanning_code` で、D-028 D-4 の同一 JAN dedup（グループコード商品）と整合する。
+- 一意性: `scanning_code` は `status <> 'free'` の行の中で一意（partial UNIQUE index）。1 JAN = 1 スロット。products との対応は `products.jan_code = plu_slots.scanning_code` で、D-028 の同一 JAN dedup（グループコード商品。33-biz §16.3 step 4、2026-07-03 packet 内 ID D-4）と整合する。
 - 割当 key を product_id ではなく JAN にする理由: レジ側 identity がスキャニングコードであり、グループコード商品（同一 JAN 複数 product）は 1 スロットを共有する。
 - 却下: products への `plu_memory_no` 列追加方式（既存登録 / 空きを表せない。JAN 共有 product 間の整合が取れない）; 書出しごとの再採番（現行、D-6 の事故経路）。
 
 ### SPEC-PLS-D2 — レジ設定スナップショット読込み（既存登録を空き扱いしない）
 
 - 入力 = CV17「レジスターの設定」スキャニング PLU 書出し `.txt`（IO-04 が書くのと同じ 11 列 / tab / CP932 / CRLF profile。Contract Probe 参照: メモリNo. は 6 桁ゼロ埋め、コード欄は 14 桁固定幅・右 space padding、空スロットは 14 桁ゼロ + 名称空 + `\0` + `税1(内税)` + `いいえ`×4 + `無し` + `ノンリンク`）。新 IO 関数（`io::plu_register_snapshot`、25-io §12 に節追加）は 11 列ヘッダ検査・行 parse・コード正規化（trim / 全ゼロ = 空）のみ行い、業務判断は BIZ-04。
-- BIZ-04 `import_plu_register_snapshot` は 1 TX で 217〜5000 の各行を照合し、結果 summary（`free` / `external` / `app_managed` 件数、`adopted` / `released_confirmed` / `conflicts` / `missing_on_register` の一覧）を返す。照合規則（レジ側コード × app 側 status）:
+- BIZ-04 `import_plu_register_snapshot` は 1 TX で 217〜5000 の各行を照合し、結果 summary（`free` / `external` / `app_managed` 件数、`adopted` / `released_confirmed` / `reservation_dropped` / `conflicts` / `missing_on_register` の一覧）を返す。照合規則（レジ側コード × app 側 status）:
   - レジ空 × app `free` / `external` → `free`（既存登録が消えていれば空きへ戻す）
   - レジ空 × app `reserved` → 維持（未書込み）
   - レジ空 × app `active` → `active` 維持 + `missing_on_register` として報告 + 該当 JAN の product を `plu_dirty=1`（次回書出しで再書込み）
   - レジ空 × app `release_pending` → `free`（解放確認）
   - レジ有 × app 同一コード（reserved / active / release_pending） → `reserved` は `active` へ昇格、他は維持
   - レジ有 × app `free` → コードが 13 桁 JAN で、`plu_target=1` かつ未廃番の product に一致し、その JAN が未割当 → `active` として採用（adopted、同 JAN 複数スロットは最小 memory_no を採用し残りは app 管理 `release_pending` = 重複 stale として解放対象）; それ以外 → `external`
-  - レジ有 × app 管理スロットと異なるコード → `conflicts` として報告。app 割当は維持し、該当 JAN の product を `plu_dirty=1`（app 管理スロットは app が authority、次回書出しで上書き）
+  - レジ有 × `reserved` と異なるコード → 予約を破棄して `external`（観測コード）にする。`reserved` はレジへ未書込みのため、その間にレジ側で行われた登録が正であり app は上書きしない。当該 JAN は次回 prepare で改めて最小空き番号へ予約される（`reservation_dropped` として報告）
+  - レジ有 × `active` と異なるコード → `conflicts` として報告。app 割当は維持し、該当 JAN の product を `plu_dirty=1`（app が書き込んだスロットは app が authority、次回書出しで上書き。operator が手動登録を残したい場合は UI-01b で `plu_target` を外し解放する導線を文言で示す）
+  - レジ有 × `release_pending` と異なるコード → `external`（レジ側で既に別登録に置き換わっているため clear 行不要、解放済み扱い）
   - レジ有 × app `external` と異なるコード → `external` のままコード更新
 - 読込み日時と summary は `app_settings`（`plu_register_snapshot_at` / `plu_register_snapshot_summary`）へ保存し operation_logs に記録する。UI-08 は最終読込み日時と占有要約（空き / 既存登録 / アプリ管理）を常時表示する。
 - 初回 gate: スナップショット未読込みの状態で `prepare_plu_export` を呼ぶと `BizError::ValidationFailed`（理由 `register_snapshot_required`、UI 文言「レジ設定の読込みが必要です」+ 手順導線）。「既存登録を一律に空き扱いしない」（`plu-export-and-real-csv-verification.md` 公開設計前提）の実装形。2 回目以降の再読込みは任意（推奨タイミング = レジ側で手動登録を行った後）。
@@ -167,14 +169,14 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 
 ### SPEC-PLS-D3 — 割当は prepare 時の冪等予約、最小空き番号
 
-- `prepare_plu_export`（Full / Diff）は三分バケット + D-4 dedup 後の PLU 対象 JAN のうち app 管理スロットを持たないものへ、`free` の最小 memory_no を `reserved` として割り当て、同一 TX で永続化する。同じ JAN は何度 prepare しても同じスロット（sticky）。UI-08-D1「prepare は DB を変えない」は「prepare は products（`plu_dirty` / `plu_exported_at`）を変えない。`plu_slots` の予約は冪等に永続化する」へ改訂する。
+- `prepare_plu_export`（Full / Diff）は三分バケット + D-028 同一 JAN dedup 後の PLU 対象 JAN のうち app 管理スロットを持たないものへ、`free` の最小 memory_no を `reserved` として割り当て、同一 TX で永続化する。同じ JAN は何度 prepare しても同じスロット（sticky）。UI-08-D1「prepare は DB を変えない」は「prepare は products（`plu_dirty` / `plu_exported_at`）を変えない。`plu_slots` の予約は冪等に永続化する」へ改訂する。
 - 空きが尽きた JAN は生成から除外し「要修正」バケットに理由 `no_free_slot`（文言「レジの空きスロットがありません」）で返す。SCANNING_PLU_EXPORT_LIMIT（4,784）による件数比較は撤廃し、定数は範囲サイズ（migration v5 の行数）としてのみ残す。
 - `release_pending` の JAN が再び PLU 対象になった場合（plu_target 0→1 / 廃番解除後の再設定）は同じスロットで解放前の状態へ戻す（`activated_at` があれば `active`、なければ `reserved`）。D-3 により product 側は `plu_dirty=1` になるので再書出しされる。
 - 却下: 商品保存（BIZ-01）時の割当（スナップショット前に商品が一括登録される onboarding 順序と衝突し、割当責務が BIZ-01 / BIZ-04 に分散する）; confirm 時の割当（confirm 前に書出しファイルへ memory No. が必要）。
 
 ### SPEC-PLS-D4 — 解放は release_pending → clear 行書出し → confirm で free
 
-- 解放 trigger: (i) `plu_target` 1→0（商品編集 / 一括 OFF）、(ii) `toggle_discontinue` で廃番化 — **廃番化時は `plu_target=0` を自動設定**（D-028 §Deferred の未決を解消。廃番 = 全部売れて販売終了、master-tables 廃番特価フロー）、(iii) `jan_code` 変更。いずれも、その JAN に `plu_target=1` かつ未廃番の product が 1 件も残らなくなった時点で slot を `release_pending` にする。`reserved`（一度も confirm されていない）なら直接 `free`。廃番解除は `plu_target` を自動復帰しない（operator が UI-01b で再設定）。
+- 解放 trigger: (i) `plu_target` 1→0（商品編集 / 一括 OFF）、(ii) `toggle_discontinue` で廃番化 — **廃番化時は `plu_target=0` を自動設定**（2026-07-03 packet §Deferred の未決を解消。廃番 = 全部売れて販売終了、master-tables 廃番特価フロー）、(iii) `jan_code` 変更。いずれも、その JAN に `plu_target=1` かつ未廃番の product が 1 件も残らなくなった時点で slot を `release_pending` にする。`reserved`（一度も confirm されていない）なら直接 `free`。廃番解除は `plu_target` を自動復帰しない（operator が UI-01b で再設定）。
 - clear 行: Full / Diff の書出しファイルは app 管理 `release_pending` スロットについて、Contract Probe で観測した空スロット形状（14 桁ゼロコード / 名称空 / `\0` / `税1(内税)` / `いいえ`×4 / `無し` / `ノンリンク`）の 1 行を当該 memory No. で出力する。`confirm_plu_export_saved` は書出しに含めた `release_pending` を `free` にし再利用可能にする。
 - 安全性: CV17 import はメモリNo. キーの部分更新のため、clear 行が万一レジ側で未設定に戻らなくても、free 後の再利用書込みは同スロットを上書きし data corruption を起こさない。残る影響は「stale 商品が clear 前にスキャン可能」に限られる。
 - 未検証前提と fallback: 「clear 行を CV17 が受理しスロットを未設定へ戻す」は実機未確認。実装 A の L3 で確認し、受理されない場合は clear 行を書出しから外し `release_pending → free` を禁止（no-reuse。空き 3,851 枠に対し想定 churn では実用上十分、D-072 Revisit）へ切り替える。切替は BIZ-04 の定数 1 箇所で行い、両モードを test する。
@@ -184,7 +186,7 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 
 - Full = 全 app 管理スロット（`reserved` / `active` = 商品行、`release_pending` = clear 行）を memory_no 昇順で出力。既存登録 / 空きスロットは出力しない（`外部登録を上書きしない`）。
 - Diff = `plu_dirty=1` の PLU 対象 JAN の商品行 + 全 `release_pending` の clear 行。
-- 両モードとも memory No. は `plu_slots` から取り、行インデックスによる採番は廃止する（25-io §12.3 改訂）。D-4 dedup の `target_product_codes` 全メンバー規則、`count ≠ target_product_codes.len()` 注記は維持。
+- 両モードとも memory No. は `plu_slots` から取り、行インデックスによる採番は廃止する（25-io §12.3 改訂）。D-028 同一 JAN dedup の `target_product_codes` 全メンバー規則、`count ≠ target_product_codes.len()` 注記は維持。
 - UI-08-D9「CV17 へ投入してよいのは Full のみ」は撤廃し「Diff / Full とも投入可。Full はレジ側 app 管理スロット全体の再同期、Diff は未反映分 + 解放分」へ改訂。UI-08-D5 の Full バックアップ Alert は維持。UI-08-D4 の回復文言「保存済み Full の再投入または Full 再書出し」は「保存済みファイルの再投入、または Diff / Full の再書出し」へ改訂。67-ui §67.9 / §67.12 と 33-biz / DB_DESIGN D-2 / biz-task-specs の同語彙 stale target は次発注の Mechanical Impact Inventory で全列挙する（`rg -n "Full.*のみ|全件.*のみ|Diff.*点検用途|Full-only" docs/ src/`）。
 - 却下: Diff を廃止して Full 一本化（毎回 4,000 行規模の全件を CV17 へ流すのは operator 負担 / 取込み時間で不利）。
 
@@ -198,14 +200,14 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 ### SPEC-PLS-D7 — 移行状態の可視化
 
 - 移行状態は products の既存 2 flag から導出する固定語彙: `対象外`（`plu_target=0`）/ `未反映`（`plu_target=1` かつ `plu_dirty=1`）/ `反映済み`（`plu_target=1` かつ `plu_dirty=0`）。schema 追加なし。
-- UI-01a: 一覧に移行状態 badge（色のみの符号化禁止 = 文字 label 併記）と URL filter `plu`（`all|target|pending|synced|excluded`、既存 §50.4 の search param 規約に従う）。
+- UI-01a: 一覧に移行状態 badge（色のみの符号化禁止 = 文字 label 併記）と URL filter `plu`（`all|target|pending|synced|excluded`、既存 §50.4 の search param 規約と §50.8 の範囲外回復に従う）。
 - UI-01b（詳細 / 編集）: app 管理スロットがあれば「レジメモリNo.」を読み取り専用で表示（`plu_slots` 参照。DTO 追加は Boundary / Wire Contract）。
 - UI-08: レジ設定の最終読込み日時 + 占有要約（空き / 既存登録 / アプリ管理 / 解放待ち）を上部に常設（UI-08-D10 の above-the-fold 方針を継承）。PluNotificationBar（UI-00）は変更なし。
 - 却下: 反映済みを `plu_exported_at` の有無で判定（1→0→1 の再対象化で stale になる）。
 
 ### SPEC-PLS-D8 — 混在期間の会計・在庫意味論（Z-03）
 
-- 部門キー販売（未移行 / JAN なし①④）と PLU 販売（移行済み）が同日に混在しても、公式日報系列（Z001/Z002/Z005）と商品別系列（Z004）は D-025 / D-071 どおり別系列のままで横加算しない。本 packet は会計契約を変更しない。
+- 部門キー販売（未移行 / JAN なし①④）と PLU 販売（移行済み）が同日に混在しても、公式日報系列（Z001/Z002/Z005）と商品別系列（Z004）は D-025 どおり別系列のままで横加算しない（D-071 は各系列**内**の同日 active import 合算を定める別契約で、系列間の分離には関与しない）。本 packet は会計契約を変更しない。
 - 移行済み商品を部門キーで打つと Z004 に載らず在庫が減らない（master-tables 廃番特価フローの既知問題と同型）。app 側の防御は D7 の状態可視化と受入台本第2版（runway ⑤）の店頭手順（移行済み商品はスキャン）に置き、自動検知は非目的。
 - 却下: 部門別集計と商品別集計の突合による自動検知（REQ-403 deferred と重複、別責務）。
 
@@ -217,7 +219,7 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 ### SPEC-PLS-D10 — durable decision と stale vocabulary closure
 
 - candidate D-072: (1) スキャニング PLU 領域の authority 分割 — app 管理スロットは app、既存登録はレジ、空きの判定はレジ設定スナップショット必須 (2) 割当は JAN 単位の永続予約・最小空き番号・解放は clear 行 + confirm (3) 廃番化は `plu_target=0` を伴う (4) Diff / Full とも CV17 投入可（D-028 の Full-only 暫定ガードを supersede）。Revisit: 空きスロット枯渇の兆候（要修正 `no_free_slot` の発生）、または CV17 が clear 行を受理しないことが L3 で判明したとき。
-- 25-io line 3 / 5、33-biz §16.6、67-ui UI-08-D9、DB_DESIGN §D-2、biz-task-specs BIZ-04 の「再採番」「Full のみ投入」語彙は次発注で全 hit を改訂し、archive は書き換えない。
+- 25-io line 3 / 5、33-biz §16.3（line 119 の Full-only 回復注記）/ §16.6、67-ui UI-08-D9、DB_DESIGN §D-2、biz-task-specs BIZ-04 の「再採番」「Full のみ投入」語彙は次発注で全 hit を改訂し、archive は書き換えない。
 
 ## Owner 裁定事項（Plan Gate 前に確定）
 
@@ -240,7 +242,7 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 | REQ-402 | 25-io §12.3 / 33-biz §16.3 / 67-ui UI-08-D4/D5/D9 | SPEC-PLS-D5 | Full 一本化は operator 負担 | formatter / UI 文言 | Matrix A-E1〜A-E5 |
 | REQ-104 / REQ-402 | 30-biz §4.8-4.9 / 26-io / 60-ui / 50-ui / 40-cmd | SPEC-PLS-D6 | page 内選択・ID 配列は規模に合わない | CSV 列 / bulk command / UI-01a 操作 | Matrix B-C1〜B-C4 / B-L1〜B-L6 |
 | REQ-402 | 50-ui §50.4-50.6 / 51-ui / 67-ui | SPEC-PLS-D7 | plu_exported_at 判定は再対象化で stale | 一覧 badge/filter / 詳細 / UI-08 要約 | Matrix B-V1〜B-V4 / A-V1 |
-| REQ-401 / REQ-402 | plu-export-and-real-csv-verification / D-025 / D-071 | SPEC-PLS-D8 | 自動突合は REQ-403 と重複 | docs のみ | Matrix M-D8 |
+| REQ-401 / REQ-402 | plu-export-and-real-csv-verification / D-025 | SPEC-PLS-D8 | 自動突合は REQ-403 と重複 | docs のみ | Matrix M-D8 |
 | REQ-907 / REQ-402 / REQ-104 | requirements / coverage | SPEC-PLS-D9 | — | spec docs / traceability | Matrix M-D9 |
 | 横断 | decision-log / 25 / 33 / 67 / DB_DESIGN | SPEC-PLS-D10 / candidate D-072 | 再採番・Full-only 語彙の再導入防止 | source docs sweep | Matrix M-D10 |
 
@@ -316,7 +318,7 @@ Test Design Matrix: [2026-08-18-plu-slot-onboarding-design.md](test-matrices/202
 
 - targeted tests: 本 PR は docs anchor / sweep 検証（M-D*）。後続の Rust repo / BIZ / IO / CMD + RTL / hook tests は A-* / B-* として予約。
 - negative tests: snapshot 未読込み gate、conflicts / missing_on_register、no_free_slot、release_pending の再対象化、clear 行 fallback、bulk ON の JAN 不備 skip、CSV `PLU対象` 不正値。
-- compatibility checks: 既存 confirm 契約（exact set / plu_exported_at）、D-4 dedup、PluNotificationBar 不変、既存 UI-08 state machine、migration v4 → v5 の順序と v3 backfill 不変。
+- compatibility checks: 既存 confirm 契約（exact set / plu_exported_at）、D-028 同一 JAN dedup、PluNotificationBar 不変、既存 UI-08 state machine、migration v4 → v5 の順序と v3 backfill 不変。
 - data safety checks: synthetic fixtures only、実レジ設定 file / コード / 単価を commit しない、物理 DELETE なし。
 - main wiring / integration checks: FilePicker → generated command → CMD → BIZ-04 snapshot TX → plu_slots；prepare → 予約 TX → formatter memory_no；bulk → BIZ-01 → plu_dirty / release → D-052 invalidation。
 
@@ -385,3 +387,12 @@ Do not transcribe exact-HEAD SHA or test counts here (D-035/D-038 Evidence Owner
 Fill after review.
 If R3 review-only sub-agent is skipped, record an explicit line beginning with `Review-only skipped because:` and the reason.
 - Findings Freeze: not yet frozen; post-freeze exceptions: none.
+
+### Plan Gate round 1（2026-08-18、Sonnet Plan Reviewer、P1 2 / P2 3 / P3 2 → REVISE）
+
+- P1-1「D-4 dedup」引用: 採用（是正）。反論付き — D-4 は 2026-07-03 packet 内ローカル ID として実在するが、DB_DESIGN の D-4（在庫少閾値）と衝突する曖昧引用のため、全 5 site を「D-028 同一 JAN dedup（33-biz §16.3 step 4）」へ改訂。
+- P1-2 `reserved` × レジ有別コードの app 上書き: 採用。`reserved` はレジ未書込みのため予約破棄 → `external` + `reservation_dropped` 報告 + 次回 prepare で再予約へ改訂（SPEC-PLS-D2）。`active` は app authority 維持、`release_pending` × 別コードは `external`（解放済み扱い）を追加。
+- P2-1 State Lifecycle Matrix の欠落遷移: 採用。A-N3b / A-N6b / A-N8b / A-N9b / A-N9c を追加し照合の全組合せを表に固定。
+- P2-2 D-071 の誤引用: 採用。SPEC-PLS-D8 と Trace は D-025 単独引用へ、D-071 は系列内合算契約である旨を明記。
+- P2-3 project-memory 「段階移行」: 反論（`docs/project-memory.md` 2026-08-01 rollout intent 行は英文で実在）。wording を実文言に合わせて是正のみ。
+- P3 節番号 6 件 / D-054 根拠: 全て採用（§12.3 `generate_plu_tsv` 内、41-cmd §17.6、50-ui §50.8、60-ui §60.5、33-biz §16.3 line 119、2026-07-03 packet §Deferred、D-054 = 共通 FilePicker）。

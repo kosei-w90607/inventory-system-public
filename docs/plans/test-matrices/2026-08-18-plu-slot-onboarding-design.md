@@ -45,7 +45,7 @@ Risk: R3
 | SPEC-PLS-D5 [本 design-first PR] | Full-only 語彙が残る | CLI/negative rg | M-D5: `rg -n "Full.*のみ|全件.*のみ|Diff.*点検用途|Full-only" docs/function-design/67-ui-plu-export.md docs/function-design/33-biz-plu-export-service.md docs/DB_DESIGN.md docs/architecture/biz-task-specs.md` の active hit 0（archive 除外）、UI-08-D9 が改訂文言 | stale ガード語彙が active docs に残る |
 | SPEC-PLS-D6 [本 design-first PR] | bulk 経路が片方のみ / page 内 | CLI/contract review | M-D6: 30-biz §4.8-4.9 に `PLU対象` 列規則、40-cmd に `bulk_set_plu_target(filter, plu_target)`、50-ui に filter 一致全件 + 確認 dialog + skip 結果 anchor | (a)/(b) 欠落 or `全件` 明記なし |
 | SPEC-PLS-D7 [本 design-first PR] | 語彙 / 判定式が曖昧 | CLI/contract review | M-D7: 50-ui に `対象外 / 未反映 / 反映済み` と導出式（plu_target × plu_dirty）+ `plu` search param、51-ui に メモリNo. 読み取り専用、67-ui に占有要約 | 語彙不一致 or plu_exported_at 判定 |
-| SPEC-PLS-D8 [本 design-first PR] | 会計契約が変わる | CLI/contract review | M-D8: 33-biz / plu-tables に「売上・在庫・会計集計へ影響しない」anchor、D-025 / D-071 参照 | 横加算や series 統合の記述 |
+| SPEC-PLS-D8 [本 design-first PR] | 会計契約が変わる | CLI/contract review | M-D8: 33-biz / plu-tables に「売上・在庫・会計集計へ影響しない」anchor、D-025 参照（D-071 は系列内合算のみ） | 横加算や series 統合の記述 |
 | SPEC-PLS-D9 [本 design-first PR] | REQ 未起票 | CLI/contract review | M-D9: `requirements.md` に REQ-907 行、`requirements-coverage.md` に REQ-907 `current` 行 + REQ-402 理由文追記 | REQ 追加なし |
 | SPEC-PLS-D10 [本 design-first PR] | durable decision 未昇格 | CLI/contract review | M-D10: `decision-log.md` に D-072（authority 分割 / JAN 単位予約 / 廃番連動 / Diff 投入可 / Revisit）、25-io line 3 / 5 の暫定注記が D-072 参照へ改訂 | decision-log 追加なし or 暫定注記残存 |
 | Q1〜Q5 [本 design-first PR] | 裁定未記録 | packet review | M-Q: packet の Owner 裁定事項表に owner 判断と日付が追記され、不採用代替が Review Response に残る | 裁定なしで plan-approved |
@@ -57,10 +57,13 @@ Risk: R3
 | free | prepare で JAN に割当 | reserved | reserved_at | A-P1 |
 | free | snapshot: レジ有（外部コード） | external | scanning_code = 観測値 | A-N2 |
 | free | snapshot: レジ有（app JAN 未割当） | active | adopted 報告 | A-N3 |
+| free | snapshot: レジ有（既に採用済み app JAN の重複） | release_pending | 重複 stale として解放対象 | A-N3b |
 | external | snapshot: レジ空 | free | — | A-N4 |
 | external | snapshot: レジ有 別コード | external | コード更新 | A-N5 |
 | reserved | confirm（書出しに含む） | active | activated_at | A-P3 |
+| reserved | snapshot: レジ空 | reserved | 維持（未書込み） | A-N6b |
 | reserved | snapshot: レジ有 同一コード | active | 昇格 | A-N6 |
+| reserved | snapshot: レジ有 別コード | external | 予約破棄 + reservation_dropped 報告、次回 prepare で再予約 | A-N8b |
 | reserved | 解放 trigger | free | released_at（レジ未書込み） | A-R1 |
 | reserved | 保存失敗 / キャンセル → 再 prepare | reserved（同番号） | 変化なし | A-P2 |
 | active | 解放 trigger（JAN に対象 product が残らない） | release_pending | released_at | A-R2〜R4 |
@@ -68,16 +71,18 @@ Risk: R3
 | active | snapshot: レジ有 別コード | active | conflicts 報告 + plu_dirty=1 | A-N8 |
 | release_pending | 書出し（clear 行）→ confirm | free | 再利用可 | A-R5 |
 | release_pending | snapshot: レジ空 | free | 解放確認 | A-N9 |
+| release_pending | snapshot: レジ有 同一コード | release_pending | 維持（clear 行待ち） | A-N9b |
+| release_pending | snapshot: レジ有 別コード | external | 解放済み扱い、clear 行不要 | A-N9c |
 | release_pending | 再対象化 | 解放前状態（active / reserved） | plu_dirty=1（D-3） | A-R6 |
 | release_pending | fallback no-reuse 有効 | release_pending（固定） | clear 行を出さない | A-R7 |
 
 ## Adjacent Pattern Audit
 
 - 既存 confirm 契約（exact product_code set、`plu_dirty=false` / `plu_exported_at=now`）は維持し、slot の reserved→active / release_pending→free を同 TX に追加する（33-biz §16.4）。
-- D-4 dedup（`target_product_codes` に群全体）と 1 JAN = 1 スロットは同じ key で整合。dedup 代表の入替えでスロットは動かない。
+- D-028 同一 JAN dedup（`target_product_codes` に群全体）と 1 JAN = 1 スロットは同じ key で整合。dedup 代表の入替えでスロットは動かない。
 - UI-08 state machine（§67.7）の `saved` / `confirmed` は変更せず、`prepare` 前に `snapshot_required` 分岐を足す。
 - 商品一覧の URL state（§50.4）へ `plu` param を追加する際、既存 `q` / `dept` / `discontinued` / sort / page の規約（既定値省略、範囲外回復）に従う。
-- 商品一括インポート preview（§60.4）の警告行表示に `PLU対象` 不備を載せる際、既存の必須列欠落 `ImportError` とは区別する（任意列のため error にしない）。
+- 商品一括インポート preview（§60.5 表示 / 操作、DTO は §60.4）の警告行表示に `PLU対象` 不備を載せる際、既存の必須列欠落 `ImportError` とは区別する（任意列のため error にしない）。
 
 ## Negative Paths
 
@@ -119,6 +124,7 @@ Risk: R3
 
 - 最小空き番号の選択を「最大 + 1」に変えたら A-P1 が落ちるか（既存登録の間の空きを使う case を持つか）。
 - 照合規則の「レジ有 × active × 別コード」を silent 上書きに変えたら A-N8 が落ちるか（conflicts 件数と plu_dirty の両方を assert）。
+- 「レジ有 × reserved × 別コード」を active と同じ app 上書きに変えたら A-N8b が落ちるか（external 化と次回 prepare の別番号予約を assert）。
 - confirm で release_pending → free を外したら A-R5 が落ちるか。
 - clear 行の形状 1 field（`ノンリンク`）を変えたら A-R5b が落ちるか（形状 exact assert）。
 - bulk ON の skip 条件から「廃番」を外したら B-L4 が落ちるか。
@@ -129,7 +135,7 @@ Risk: R3
 実装 A（slot core）:
 
 - A-S1〜A-S4: migration v5 / plu_slots CHECK・partial UNIQUE / 事前投入 4,784 行 / repo CRUD。
-- A-N1〜A-N9: snapshot 未読込み gate、parse error、照合 9 組合せ（State Lifecycle Matrix 参照）、summary 件数、app_settings 保存、operation_logs。
+- A-N1〜A-N9c: snapshot 未読込み gate、parse error、照合 全組合せ（State Lifecycle Matrix の snapshot 行 = レジ空 / 有 × 5 status、重複 JAN と reserved 予約破棄を含む）、summary 件数、app_settings 保存、operation_logs。
 - A-P1〜A-P5: 最小空き予約、sticky 再 prepare、confirm active 化、no_free_slot、JAN 共有。
 - A-R1〜A-R7: reserved 直 free、trigger 3 種、clear 行形状 exact、confirm free、再対象化復帰、fallback no-reuse。
 - A-E1〜A-E5: Full / Diff 行構成、memory_no 6 桁、外部登録非出力、DTO / bindings 再生成、UI-08 文言（D4/D5/D9 改訂）。
