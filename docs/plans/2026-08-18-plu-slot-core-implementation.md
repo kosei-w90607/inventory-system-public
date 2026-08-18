@@ -6,7 +6,7 @@
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: fade732
-- Amendments: none
+- Amendments: c76fdbd
 - Coordinator: Fable
 - Writer: Codex
 - Plan Reviewer: Sonnet
@@ -370,7 +370,7 @@ Do not transcribe exact-HEAD SHA or test counts here (D-035/D-038 Evidence Owner
 - 選択肢: A = FilePicker に path 出力を追加（D-054 の path 非公開契約を壊し drag&drop と非整合）/ B = command・BIZ を bytes 入力へ（既存取込み command と同型、FilePicker 不変）/ C = FilePicker 迂回（D-054 違反）。裁定 = **B**。
 - 変更: `33-biz §16.3` signature `raw_bytes: &[u8]` + 入力説明、`41-cmd` CMD-08-D4 `file_bytes: Vec<u8>` + size limit、`67-ui §67.8` `{ fileBytes }`、`cmd-task-specs` 入力欄、packet Scope / Boundary / Contract Probe、matrix A-V1 / Main Wiring。設計意味（照合・遷移・文言）は不変。
 - WER 候補: 設計 PR の Plan Gate 2 round + Final Review が「command 入力 shape と共通 component の出力契約の接続」を見ていない。次 R3 の Plan Review 観点に「新 command の入力は呼出し側 component の出力契約と型で接続できるか」を追加する。
-- Writer は同 HEAD から再開可（実装・commit 未着手のため backtrack 不要）。
+- Writer は同 HEAD から再開可（実装・commit 未着手のため backtrack 不要）。amendment commit = `c76fdbd`（Workflow State `Amendments` に記録）。
 
 ### owner plan approval / 遷移記録（2026-08-18）
 
