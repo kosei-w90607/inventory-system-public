@@ -394,7 +394,7 @@ Do not transcribe exact-HEAD SHA or test counts here (D-035/D-038 Evidence Owner
 ### gated amendment 3（2026-08-19、Final Review 起源）
 
 - 事象: (1) AC A-G1 の sweep command が packet / matrix 自身（command 記載と旧状態説明）を hit し、字義どおりには成立しない（実装・source docs 側は 0 hit）(2) packet / matrix の `ProductResponse.plu_memory_no` 表記が実 wire 型と不一致。
-- 是正: A-G1 command（AC / Inventory / matrix A-G1）に `--glob '!docs/plans/**'` を追加、`ProductResponse` → `ProductWithRelations`（get_product 応答）へ packet 5 箇所 + matrix 1 箇所を同期。設計意味は不変。
+- 是正: A-G1 command（AC / matrix A-G1 の 2 箇所。Mechanical Implementation Inventory 節の command は plan-draft 時の別系統調査用で A-G1 の assertion ではなく対象外）に `--glob '!docs/plans/**'` を追加、`ProductResponse` → `ProductWithRelations`（get_product 応答）へ packet 5 箇所 + matrix 1 箇所を同期。設計意味は不変。
 - amendment commit = `56e5fda`（Workflow State `Amendments` に記録）。
 
 ### owner plan approval / 遷移記録（2026-08-18）
