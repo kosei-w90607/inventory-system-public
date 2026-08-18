@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: plan-gate
+- Phase: implementing
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: fade732
@@ -14,7 +14,7 @@
 - Reviewed Content HEAD: pending
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
-- Human Gate: owner plan approval / Windows native L3（`67-ui §67.12` が UI-08 実装 PR に必須と規定。実機 Z004 読込み・Diff 投入・clear 行の CV17 受理 + レジ側未設定化、店舗訪問と同期）/ human visual confirmation（UI-08 snapshot step + 要約、UI-01b レジメモリNo.）/ Ready / merge
+- Human Gate: Windows native L3（`67-ui §67.12` が UI-08 実装 PR に必須と規定。実機 Z004 読込み・Diff 投入・clear 行の CV17 受理 + レジ側未設定化、店舗訪問と同期）/ human visual confirmation（UI-08 snapshot step + 要約、UI-01b レジメモリNo.）/ Ready / merge（owner plan approval は 2026-08-18 に完了、介入 1 回目）
 
 ## Owner Effort Budget
 
@@ -362,3 +362,9 @@ Do not transcribe exact-HEAD SHA or test counts here (D-035/D-038 Evidence Owner
 - round 1 の P1（design compliance 義務）/ P2（`67-ui §67.8`）/ P3（引用）はいずれも closed。extractor は fenced block を言語タグ不問で走査し `pub` 任意の `fn name(` regex で検出することを `design_compliance_test.rs` 実読で確認、`20-io` は mapped 済み doc、`schema_v3` / `v4` の `pub(crate)` 先例も一致。他の新規 pub fn の未文書化なし。
 - delta 起因の regression なし（Workflow State 13 field、AC の evidence token 維持）。
 - Verdict: P1/P2 = 0（`91a026a` 時点）。Plan Gate 収束、owner plan approval へ。
+
+### owner plan approval / 遷移記録（2026-08-18）
+
+- owner plan approval（介入 1 回目 / 予算 3 回、owner 発言 `承認するよ`）。Coordinator 裁定（UI-01b 表示を A に含める / Windows native L3 を merge 前必須 / 予算）に異論なし。
+- state-only 遷移（append-only、STATECAP forward 1 本目）: `plan-gate -> plan-approved -> implementing`。plan-approved の evidence = Plan Gate round 2 P1/P2 = 0（`91a026a`）+ owner approval。implementing の evidence = Plan Commit `fade732` 確定済み、Codex 発注書は本遷移後に提示。
+- 以後の予定: Codex 実装 → L1 full → 独立 Sonnet Final Review → state-only 2 本目（`local-verified -> independent-review -> human-confirm`）→ L3 + visual → Ready 承認 → state-only 3 本目（`ready-hosted-final`）。
