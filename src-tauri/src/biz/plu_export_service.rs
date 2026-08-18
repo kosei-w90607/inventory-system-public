@@ -1679,6 +1679,23 @@ mod tests {
         for mode in [ExportMode::Full, ExportMode::Diff] {
             let result = prepare_plu_export(&mut conn, PluExportPrepareRequest { mode }).unwrap();
             assert!(!result.prepared_rows.iter().any(|row| row.memory_no == 217));
+            assert_eq!(
+                result
+                    .prepared_rows
+                    .iter()
+                    .filter(|row| row.row_kind == PluPreparedRowKind::Clear)
+                    .count(),
+                0
+            );
+            assert_eq!(
+                result
+                    .prepared_rows
+                    .iter()
+                    .filter(|row| row.row_kind == PluPreparedRowKind::Product)
+                    .map(|row| row.memory_no)
+                    .collect::<Vec<_>>(),
+                vec![218]
+            );
             assert!(result.excluded.iter().any(|item| {
                 item.product_code == "INVALID-SLOT"
                     && item.reason == PluExcludedReason::InvalidCheckDigit

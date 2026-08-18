@@ -1160,14 +1160,12 @@ mod plu_register_snapshot_tests {
     #[test]
     fn test_parse_plu_register_snapshot_req907_rejects_incomplete_snapshot() {
         // REQ-907: A-N1b
-        assert!(matches!(
-            parse_plu_register_snapshot(&snapshot_bytes(4_999, None)),
-            Err(Z004ParseError::ImportError(_))
-        ));
-        assert!(matches!(
-            parse_plu_register_snapshot(&snapshot_bytes(5_001, None)),
-            Err(Z004ParseError::ImportError(_))
-        ));
+        for row_count in [4_999, 5_001] {
+            let error = parse_plu_register_snapshot(&snapshot_bytes(row_count, None)).unwrap_err();
+            assert!(
+                matches!(error, Z004ParseError::ImportError(ref message) if message.contains("PLUスロット行数"))
+            );
+        }
         assert!(matches!(
             parse_plu_register_snapshot(b"meta\r\nwrong-header\r\n"),
             Err(Z004ParseError::ImportError(_))
