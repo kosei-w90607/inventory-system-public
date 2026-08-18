@@ -2,10 +2,10 @@
 
 ## Workflow State
 
-- Phase: plan-gate
+- Phase: implementing
 - Risk: R3
 - Execution Mode: fable-window
-- Plan Commit: pending
+- Plan Commit: 6466ad0
 - Amendments: none
 - Coordinator: Fable
 - Writer: Codex
@@ -14,7 +14,7 @@
 - Reviewed Content HEAD: pending
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
-- Human Gate: owner plan approval（owner 裁定事項 Q1〜Q5 を含む）/ Ready / merge。Windows native L3 は docs-only design-first PR ではなし
+- Human Gate: Ready / merge（owner plan approval は 2026-08-18 に Q1〜Q5 裁定込みで完了）。Windows native L3 は docs-only design-first PR ではなし
 
 ## Owner Effort Budget
 
@@ -418,3 +418,8 @@ If R3 review-only sub-agent is skipped, record an explicit line beginning with `
 
 - Q1 = 推奨（design-first → 実装 A → 実装 B）/ **Q2 = A（Z004 全スロットダンプ）** / Q3 = 推奨（廃番化で plu_target=0）/ Q4 = 推奨（CSV 列 + 一覧一括）/ Q5 = 推奨（Diff 投入ガード撤廃）。
 - Q2 の切替は入力ソースの差替えのみで照合規則・状態機械は不変。Plan Review 天井 3 到達のため再 round は起こさず、Coordinator が差替え箇所（SPEC-PLS-D2 / Q2 行 / Trace / Ledger / Wire / Probe / Matrix）を rg で全 sweep して plan-approved へ進む。CV17 設定書出しの読込み対応は将来義務ではなく、別要求が出た時の別 packet（Non-scope に記録）。
+
+### 遷移記録（2026-08-18、state-only 遷移 plan-gate -> plan-approved -> implementing）
+
+- plan-gate -> plan-approved の evidence: 独立 Plan Reviewer 3 round（round 3 P1 0 / P2 2 は表記整合のみで是正適用済み、P1/P2 = 0）、owner plan approval（上記 owner 裁定）、Plan Commit = plan-first commit 6466ad0（本 branch の全 content commit の祖先）。
+- plan-approved -> implementing の evidence: 本 design-first PR の implementation = source docs amendment（Codex Writer 発注）であり、plan-first commit が先行済み。隣接 2 遷移を 1 state-only commit で圧縮記録（DEV_WORKFLOW 圧縮規則の canonical 例）。
