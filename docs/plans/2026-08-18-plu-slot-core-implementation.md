@@ -356,3 +356,9 @@ Do not transcribe exact-HEAD SHA or test counts here (D-035/D-038 Evidence Owner
 - P3 1 件: Design Sources の Architecture 引用が `cmd-task-specs.md` / `ui-task-specs.md` に SPEC-PLS ラベルが無い点で過大（`rg -n "SPEC-PLS"` 0 hit）→ 表現を精緻化。
 - Checked but OK: Ledger 完全性 / 照合表 12 行の 1:1 / A・B 境界（Q1 裁定と整合）/ Matrix の oracle 独立・穴あり fixture・A-R5b exact / 13 field / 層規則 / 全 § anchor 実在 / Inventory の code 現況主張。
 - Workflow State: Phase plan-gate、Plan Commit `fade732`。round 2 で fresh delta 再検証。
+
+### Plan Gate round 2（2026-08-18、同 reviewer による fresh delta 再検証）
+
+- round 1 の P1（design compliance 義務）/ P2（`67-ui §67.8`）/ P3（引用）はいずれも closed。extractor は fenced block を言語タグ不問で走査し `pub` 任意の `fn name(` regex で検出することを `design_compliance_test.rs` 実読で確認、`20-io` は mapped 済み doc、`schema_v3` / `v4` の `pub(crate)` 先例も一致。他の新規 pub fn の未文書化なし。
+- delta 起因の regression なし（Workflow State 13 field、AC の evidence token 維持）。
+- Verdict: P1/P2 = 0（`91a026a` 時点）。Plan Gate 収束、owner plan approval へ。
