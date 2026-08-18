@@ -79,8 +79,9 @@ R3。schema migration、新規 repository、IO-02 新 mode、BIZ-04 prepare / co
 | A-E6 | D5 要修正中維持 | Rust integration | active slot を持つ JAN を check digit 不正にして Full / Diff → 行 0（product / clear とも）、slot 不変、excluded に理由付き | rows / 行 / excluded |
 | A-V1 | D7 UI-08 | RTL | FilePicker → `importPluRegisterSnapshot` 呼出し → 要約表示（日時 + 4 件数）→ 未読込み時の `レジ設定の読込みが必要です` と書出し無効化 → 読込み後の有効化 → invalidation → `no_free_slot` 理由表示 `レジの空きスロットがありません`。既存 localStorage 復帰・confirm 導線 test は不変 | text / call / query |
 | A-U1 | D7 UI-01b | RTL | edit form に `レジメモリNo.` read-only、値あり / `未割当` | text / readonly 属性 |
-| A-W1 | D7 wire | generated | `generate_bindings` 後 diff 0、`bindings.ts` に `importPluRegisterSnapshot` / `getPluSlotSummary` / `pluMemoryNo` / `preparedRows` | local-ci `generated-bindings-diff` |
+| A-W1 | D7 wire | generated | `generate_bindings` 後 diff 0、`bindings.ts` に `importPluRegisterSnapshot` / `getPluSlotSummary` / `pluMemoryNo` / `preparedRows`、`confirmPluExportSaved` の入力が `{ product_codes, prepared_rows }` | local-ci `generated-bindings-diff` |
 | A-W2 | D9 traceability | generated | `generate_traceability --check` PASS、`90-traceability.md` に REQ-907 行 | local-ci `traceability` |
+| A-W3 | design compliance | Rust integration | `cargo test --test design_compliance_test` unexpected 0（新規 pub fn は 33-biz §16.3・16.6 / 23-io §13.3.1 / 20-io plu_slot_repo 一覧の fenced signature と一致、`schema_v5` は `pub(crate)`、allowlist 追加なし） | test PASS + allowlist diff 0 |
 | A-G1 | D10 sweep | rg | `rg -n "全件書出しのファイルだけ|差分書出しのファイルは取り込まない|SCANNING_PLU_MEMORY_START \+ " src src-tauri/src docs --glob '!docs/archive/**'` = 0 | 0 hit |
 
 ## Oracle Replacement Map

@@ -2,10 +2,10 @@
 
 ## Workflow State
 
-- Phase: plan-draft
+- Phase: plan-gate
 - Risk: R3
 - Execution Mode: fable-window
-- Plan Commit: pending
+- Plan Commit: fade732
 - Amendments: none
 - Coordinator: Fable
 - Writer: Codex
@@ -81,8 +81,8 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 - CMD-08 / CMD-01 / wire: `import_plu_register_snapshot(path)` / `get_plu_slot_summary()`（`41-cmd §CMD-08-D4/D5`）の新設 + `lib.rs` の `collect_commands!` と `generate_handler!` 双方へ登録、prepare / confirm DTO へ `prepared_rows`（memory_no / row_kind / target_product_codes）と `no_free_slot` reason、`ProductResponse.plu_memory_no: Option<i64>`（`40-cmd §5.4` get_product、`20-io §` JAN LEFT JOIN）。`cargo run --bin generate_bindings` で `src/lib/bindings.ts` 再生成、同一 commit で consumer 切替。
 - UI-08: `src/features/plu-export/PluExportPage.tsx` — 「レジ登録状況を読み込む」step（共通 FilePicker D-054）+ 要約表示 above the fold + `register_snapshot_required` 導線 + D4/D5/D9 改訂文言 + `no_free_slot` 理由表示 + 旧 Full-only 注意文（`PluExportPage.tsx:589`）の撤去 / 旧 Full file 再投入禁止文言。既存の localStorage 復帰・確認ボタン配置・invalidation（`67-ui §67.7〜67.11`）は維持。
 - UI-01b: `src/features/products/*` edit form に「レジメモリNo.」read-only 表示（`51-ui` UI-01b-D19、未割当 = `未割当`）。
-- Source doc 追随（実装で判明した最小限）: `67-ui-plu-export.md §67.9` の full-only import note 行を撤去（UI-08-D9 と矛盾）、`40-cmd-product.md §5.4` 末尾の「`plu_memory_no` を含む response は後続実装 B」を実装 A へ訂正。他の source docs は PR #84 で正本化済み。
-- Tests: Test Design Matrix の A-S1〜A-S4 / A-N1〜A-N9c / A-V1 / A-P1〜A-P5 / A-R1〜A-R7 + A-R5b / A-E1〜A-E6 / A-U1 / A-W1〜A-W2 / A-G1 を実装。REQ-907（必要箇所は REQ-402 併記）を test comment に付与し、`cargo run --bin generate_traceability` で `90-traceability.md` を再生成する（hand edit 禁止）。
+- Source doc 追随（実装で判明した最小限、design_compliance の fenced signature 契約を含む）: (1) `67-ui-plu-export.md §67.9` の full-only import note 行を撤去（UI-08-D9 と矛盾）(2) `40-cmd-product.md §5.4` 末尾の「`plu_memory_no` を含む response は後続実装 B」を実装 A へ訂正 (3) `67-ui-plu-export.md §67.8` の `confirmPluExportSaved` 行を `41-cmd` の `{ product_codes, prepared_rows }` に同期 (4) `design_compliance_test` が pub fn を function-design doc の fenced code block から検出する規約に合わせ、`33-biz §16.3` に `fn get_plu_slot_summary(...)`、`§16.6` に共通解放 service の `fn` signature、`23-io §13.3.1` に `fn parse_plu_register_snapshot(...)` の fenced block を追加し、`20-io-product-repo.md` に `db::plu_slot_repo` の pub fn signature 一覧 subsection を新設する（fn 名は Writer が確定、doc と code を一致させる）。他の source docs は PR #84 で正本化済み。
+- Tests: Test Design Matrix の A-S1〜A-S4 / A-N1〜A-N9c / A-V1 / A-P1〜A-P5 / A-R1〜A-R7 + A-R5b / A-E1〜A-E6 / A-U1 / A-W1〜A-W3 / A-G1 を実装。REQ-907（必要箇所は REQ-402 併記）を test comment に付与し、`cargo run --bin generate_traceability` で `90-traceability.md` を再生成する（hand edit 禁止）。
 
 ## Non-scope
 
@@ -101,14 +101,14 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 - A-R1〜A-R7 + A-R5b: trigger (i)(ii)(iii)(iv) の解放、reserved 直接 free、active → release_pending、confirm で free、再対象化の復帰、`PLU_CLEAR_ROW_ENABLED=false` で clear 行非出力 + `release_pending` 維持、clear 行の 11 field exact 比較（`ノンリンク` を含む）。
 - A-E1〜A-E6: `cargo test` の `plu_export_service` / `plu_formatter` tests で Full / Diff の行構成（external / free 非出力、release_pending の clear 行、要修正判定中 slot の維持・非出力）、memory No. 6 桁 `000217`、範囲外 216 / 5001 の reject（`Err`）を assert する。
 - A-V1 / A-U1（RTL）: UI-08 の snapshot step・要約・`レジ設定の読込みが必要です`・`レジの空きスロットがありません`・旧 Full-only 文言の不在、UI-01b の `レジメモリNo.` / `未割当`。
-- A-W1〜A-W2: `bindings.ts` に `importPluRegisterSnapshot` / `getPluSlotSummary` / `pluMemoryNo` / `preparedRows` が生成され、`scripts/local-ci.sh` の `generated-bindings-diff` と `traceability` が PASS。`90-traceability.md` に REQ-907 行が入る。
+- A-W1〜A-W3: `bindings.ts` に `importPluRegisterSnapshot` / `getPluSlotSummary` / `pluMemoryNo` / `preparedRows` が生成され `confirmPluExportSaved` が `{ product_codes, prepared_rows }` を受け、`scripts/local-ci.sh` の `generated-bindings-diff` と `traceability` が PASS。`90-traceability.md` に REQ-907 行が入る。`cargo test --test design_compliance_test` が unexpected 0 で PASS。
 - A-G1: `rg -n "全件書出しのファイルだけ|差分書出しのファイルは取り込まない|SCANNING_PLU_MEMORY_START \+ " src src-tauri/src docs --glob '!docs/archive/**'` が 0 hit。
 - L1 `scripts/local-ci.sh full` PASS、Windows native L3 で `67-ui §67.12` の checklist のうち本 PR 該当項目（snapshot / Diff・Full 投入 / clear 行受理 / レジ側未設定化）を owner が確認し結果を PR body に記録、hosted CI と exact-HEAD 三点一致。
 
 ## Design Sources
 
 - Requirements / spec: `docs/spec/requirements.md` REQ-907（REQ-402 superseded 経緯）/ `docs/spec/requirements-coverage.md`
-- Architecture: `docs/architecture/{biz,cmd,io,ui}-task-specs.md` の SPEC-PLS 節
+- Architecture: `docs/architecture/biz-task-specs.md` / `io-task-specs.md` の SPEC-PLS 節、`cmd-task-specs.md` の CMD-08 / get_product 行、`ui-task-specs.md` の UI-08 / UI-01b PLU 節（後 2 者は SPEC-PLS ラベルなしで内容のみ）
 - Function / command / DTO: `docs/function-design/33-biz-plu-export-service.md §16.2〜16.8`（BIZ-04-D3〜D6）/ `30-biz-product-service.md §4.4 4b / §4.5` / `23-io-z004-parser.md §13.3.1`（IO-02-D1）/ `25-io-plu-formatter.md §12.3` / `41-cmd-pos.md` CMD-08-D4/D5 + prepare/confirm DTO / `40-cmd-product.md §5.4` get_product / `20-io-product-repo.md` plu_memory_no JOIN
 - DB: `docs/db-design/plu-tables.md`（§25 plu_slots / app_settings key / 集計境界）/ `22-mnt-migration.md §13`（MNT-03-D9）
 - Screen / UI: `docs/function-design/67-ui-plu-export.md §67.4〜67.12`（UI-08-D1/D4/D5/D9/D11）/ `51-ui-product-form.md §7.1` UI-01b-D19 / `60-ui-common.md` FilePicker（D-054）
@@ -119,8 +119,8 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 
 | Area touched by upcoming work | Required source doc / artifact | Status: existing sufficient / updated in this PR / intentionally deferred |
 |---|---|---|
-| Backend function / command / repository / validation / error | 33-biz §16 / 30-biz §4.4・4.5 / plu-tables.md repo 責務 / 23-io §13.3.1 / 25-io §12.3 | existing sufficient（PR #84 正本化済み） |
-| Command / DTO / generated binding / wire shape | 41-cmd CMD-08-D4/D5 + DTO / 40-cmd §5.4 / cmd-task-specs | updated in this PR（40-cmd §5.4 末尾の A/B 割当 1 行のみ） |
+| Backend function / command / repository / validation / error | 33-biz §16 / 30-biz §4.4・4.5 / plu-tables.md repo 責務 / 23-io §13.3.1 / 25-io §12.3 / 20-io | updated in this PR（fenced signature 追加のみ: 33-biz §16.3 summary・§16.6 解放 service、23-io §13.3.1 parser、20-io plu_slot_repo 一覧。設計内容は不変） |
+| Command / DTO / generated binding / wire shape | 41-cmd CMD-08-D4/D5 + DTO / 40-cmd §5.4 / 67-ui §67.8 / cmd-task-specs | updated in this PR（40-cmd §5.4 末尾の A/B 割当 1 行、67-ui §67.8 confirm 行の `prepared_rows` 同期） |
 | DB / transaction / audit / rollback / migration | plu-tables.md §25 / 22-mnt §13 | existing sufficient |
 | Screen / UI / route state / Japanese wording | 67-ui §67.5・67.9・67.12 / 51-ui UI-01b-D19 | updated in this PR（67-ui §67.9 の stale full-only note 撤去のみ） |
 | CSV / TSV / report / import / export format | 25-io §12.3（clear 行 11 field）/ 23-io §13.3.1 | existing sufficient |
@@ -130,9 +130,10 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 
 | 新規追加物 | 登録・生成義務 |
 |---|---|
-| Tauri command `import_plu_register_snapshot` / `get_plu_slot_summary` | `lib.rs` `collect_commands!` + `generate_handler!` 双方へ登録 / `#[tauri::command]` + `#[specta::specta]` / `cargo run --bin generate_bindings` → `src/lib/bindings.ts` 再生成（A-W1） |
+| Tauri command `import_plu_register_snapshot` / `get_plu_slot_summary` | `lib.rs` `collect_commands!` + `generate_handler!` 双方へ登録 / `#[tauri::command]` + `#[specta::specta]` / `cargo run --bin generate_bindings` → `src/lib/bindings.ts` 再生成（A-W1）。cmd の fenced signature は `41-cmd` に既存 |
+| 新規 pub fn（BIZ-04 `get_plu_slot_summary` / 共通解放 service、IO-02 `parse_plu_register_snapshot`） | 上記 Scope (4) の fenced signature を該当 function-design doc へ追加（`design_compliance_test` PASS = A-W3） |
 | DTO 変更（`PluPreparedRow` / `no_free_slot` / `ProductResponse.plu_memory_no`） | 同上 bindings 再生成 + consumer 同一 commit 切替（A-W1） |
-| 新 module `db/plu_slot_repo.rs` / `db/schema_v5.rs` | `db/mod.rs` 公開 / `src-tauri/tests/design_compliance_test.rs` `build_doc_to_modules_map()` へ `db-design/plu-tables.md` ↔ `db::plu_slot_repo` entry（design compliance の必須セクション充足は plu-tables.md 側で PR #84 済み、不足があれば本 PR で補う） |
+| 新 module `db/plu_slot_repo.rs` / `db/schema_v5.rs` | `db/mod.rs` 公開。`design_compliance_test.rs` は `docs/function-design/*.md` のみ走査し（`DESIGN_DOCS_DIR`）、src 全 module の `pub fn` が mapped doc の fenced code block に無ければ fail する。よって (a) `20-io-product-repo.md` に `db::plu_slot_repo` の pub fn signature 一覧 subsection を追加し `build_doc_to_modules_map()` の `"20-io-product-repo.md"` vec へ `db::plu_slot_repo` を追加 (b) `schema_v5.rs` の関数は v3 / v4 と同じ `pub(crate)`（検出対象外）(c) `KNOWN_ALLOWLIST` 追加は原則禁止（理由コメント付きの例外のみ、Final Review で正当性を審査） |
 | migration v5 | `db/migration.rs` `migrations()` 登録 + 既存 version/table pin test 更新（A-S1） |
 | REQ-907 test 付与 | `cargo run --bin generate_traceability` で `90-traceability.md` 再生成、`--check` PASS（A-W2）。hand edit 禁止 |
 | route / navigation / operator 画面新設 | 該当なし（既存 `/products/plu-export` と `/products/$code/edit` 内の変更） |
@@ -153,7 +154,7 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 ## Design Intent Audit
 
 - Source docs can answer what is being built and why without chat history or archived Plan Packets: yes（PR #84 で SPEC-PLS-D1〜D10 / D-072 / REQ-907 を正本化済み。本 packet は実装順序・test 具体化・L3 段取りだけを持つ）。
-- Plan-only durable decisions found and promoted to source docs / decision-log / ADR: (1) `plu_memory_no` response と UI-01b 表示の A/B 割当 → `40-cmd §5.4` を実装 A へ訂正 (2) 67-ui §67.9 の stale full-only note 撤去。いずれも本 PR で source doc へ反映。
+- Plan-only durable decisions found and promoted to source docs / decision-log / ADR: (1) `plu_memory_no` response と UI-01b 表示の A/B 割当 → `40-cmd §5.4` を実装 A へ訂正 (2) 67-ui §67.9 の stale full-only note 撤去 (3) 67-ui §67.8 confirm 行の `prepared_rows` 同期 (4) 新規 pub fn の fenced signature（design compliance 規約）。いずれも本 PR で source doc へ反映。
 - Assumptions and constraints: CV17 が clear 行を受理しスロットを未設定へ戻す — L3 で確認。受理されなければ `PLU_CLEAR_ROW_ENABLED=false` へ切替（fallback、D-072 Revisit）。
 - Deferred design gaps, risk, and follow-up target: bulk onboarding（実装 B）/ 受入台本第2版 / snapshot 後の手動レジ登録は escape hatch（再読込み案内文言で扱う、`67-ui` UI-08-D11）。
 - Test Design Matrix can cite design decision IDs or source doc sections: yes（[Matrix](test-matrices/2026-08-18-plu-slot-core-implementation.md)）。
@@ -177,7 +178,7 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 ## Design Readiness
 
 - Existing design docs are sufficient because: PR #84 で SPEC-PLS-D1〜D10 を function-design / db-design / architecture / spec / decision-log に正本化し、Plan Gate 3 round + Final Review を通過している。
-- Source docs updated in this PR: `40-cmd-product.md §5.4` 末尾の A/B 割当 1 行、`67-ui-plu-export.md §67.9` の full-only import note 撤去。
+- Source docs updated in this PR: `40-cmd-product.md §5.4` 末尾の A/B 割当 1 行、`67-ui-plu-export.md §67.9` の full-only import note 撤去、`67-ui §67.8` confirm 行の `prepared_rows` 同期、design compliance 用の fenced signature 追加（33-biz §16.3・16.6 / 23-io §13.3.1 / 20-io plu_slot_repo 一覧）。
 - Design gaps intentionally deferred: 実装 B（D6 / UI-01a）、CV17 受理の実機事実。
 - Durable decisions discovered in this plan and promoted to source docs: 上記 2 点（軽微）。
 
@@ -255,6 +256,8 @@ rg -n "fn migrations|version: 4|v1\+v2\+v3\+v4" src-tauri/src/db/migration.rs
 | CMD-08-D4 / D5 + wire | plu_export_cmd / lib.rs / bindings.ts | A-W1 | — |
 | SPEC-PLS-D8（集計不変） | 変更なし | `parse_z004` / sales 既存 test 非回帰 | — |
 | SPEC-PLS-D9 / D10（REQ-907 traceability / stale 語彙 0） | test comment / 90-traceability / sweep | A-W2 / A-G1 | — |
+| design compliance（新規 pub fn の fenced signature / module map） | 20-io 新 subsection + map、33-biz §16.3・16.6、23-io §13.3.1 | A-W3（`design_compliance_test` unexpected 0） | — |
+| 41-cmd confirm 入力 `{ product_codes, prepared_rows }` / 67-ui §67.8 同期 | plu_export_cmd / PluExportPage / 67-ui §67.8 | A-W1 / A-R5 | — |
 | D-028 三分バケット / 同一 JAN dedup（既存） | prepare | 既存 test 維持 + A-P5 | — |
 
 ## Test Plan
@@ -271,7 +274,7 @@ Test Design Matrix: [test-matrices/2026-08-18-plu-slot-core-implementation.md](t
 
 ## Boundary / Wire Contract
 
-- producer: Rust `cmd/plu_export_cmd.rs`（`import_plu_register_snapshot(path: String) -> PluRegisterSnapshotSummary`、`get_plu_slot_summary() -> PluRegisterSnapshotSummary`、`prepare_plu_export` response に `prepared_rows: Vec<PluPreparedRow>` と excluded reason `no_free_slot`）、`cmd/product_cmd.rs` `ProductResponse.plu_memory_no: Option<i64>`。
+- producer: Rust `cmd/plu_export_cmd.rs`（`import_plu_register_snapshot(path: String) -> PluRegisterSnapshotSummary`、`get_plu_slot_summary() -> PluRegisterSnapshotSummary`、`prepare_plu_export` response に `prepared_rows: Vec<PluPreparedRow>` と excluded reason `no_free_slot`、`confirm_plu_export_saved(product_codes, prepared_rows)` の 2 入力（`41-cmd`）、`cmd/product_cmd.rs` `ProductResponse.plu_memory_no: Option<i64>`。
 - consumer: `src/features/plu-export/*`、`src/features/products/*` edit form。
 - wire type: specta 生成 TS（`snapshotAt: string | null`、`freeCount` 等 number、`preparedRows[].rowKind: "product" | "clear"`、`pluMemoryNo: number | null`）。
 - internal type: `PluSlotStatus` 5 値 enum、`memory_no: i64`（DB INTEGER）。
@@ -346,4 +349,10 @@ Do not transcribe exact-HEAD SHA or test counts here (D-035/D-038 Evidence Owner
 
 - Findings Freeze: not yet frozen; post-freeze exceptions: none.
 
-Fill after review.
+### Plan Gate round 1（2026-08-18、独立 Sonnet Plan Reviewer）
+
+- P1 1 件: Registration Obligations の `db-design/plu-tables.md` ↔ `db::plu_slot_repo` map entry は `design_compliance_test` が `docs/function-design/*.md` のみ走査するため無効（Coordinator も同時に自己検出）。実読で追加確認: `get_plu_slot_summary` / 共通解放 service / `parse_plu_register_snapshot` / `plu_slot_repo` の pub fn は function-design doc に fenced signature が無く、そのままでは unexpected 0 の assertion で fail する。是正 = Registration Obligations 行を書換え（20-io 一覧 subsection + map、schema_v5 は `pub(crate)`、allowlist 原則禁止）、Scope (4) に fenced signature 追加を明記、Ledger 行 + A-W3 追加。Reviewer 提案の allowlist 化は不採用（設計書更新が望ましいと test 自身が規定、既存 v3/v4 は `pub(crate)` で回避している精度に合わせる）。
+- P2 1 件: `67-ui §67.8` の `confirmPluExportSaved({ product_codes })` が `41-cmd` の 2 入力（`prepared_rows` 追加）と不一致 → 実読確認、Scope (3) / Required Design Artifacts / Ledger / Boundary へ追加。
+- P3 1 件: Design Sources の Architecture 引用が `cmd-task-specs.md` / `ui-task-specs.md` に SPEC-PLS ラベルが無い点で過大（`rg -n "SPEC-PLS"` 0 hit）→ 表現を精緻化。
+- Checked but OK: Ledger 完全性 / 照合表 12 行の 1:1 / A・B 境界（Q1 裁定と整合）/ Matrix の oracle 独立・穴あり fixture・A-R5b exact / 13 field / 層規則 / 全 § anchor 実在 / Inventory の code 現況主張。
+- Workflow State: Phase plan-gate、Plan Commit `fade732`。round 2 で fresh delta 再検証。
