@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: implementing
+- Phase: human-confirm
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: fade732
@@ -11,7 +11,7 @@
 - Writer: Codex
 - Plan Reviewer: Sonnet
 - Final Reviewer: Sonnet
-- Reviewed Content HEAD: pending
+- Reviewed Content HEAD: f30d9ff
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
 - Human Gate: Windows native L3（`67-ui §67.12` が UI-08 実装 PR に必須と規定。実機 Z004 読込み・Diff 投入・clear 行の CV17 受理 + レジ側未設定化、店舗訪問と同期）/ human visual confirmation（UI-08 snapshot step + 要約、UI-01b レジメモリNo.）/ Ready / merge（owner plan approval は 2026-08-18 に完了、介入 1 回目）
@@ -402,3 +402,12 @@ Do not transcribe exact-HEAD SHA or test counts here (D-035/D-038 Evidence Owner
 - owner plan approval（介入 1 回目 / 予算 3 回、owner 発言 `承認するよ`）。Coordinator 裁定（UI-01b 表示を A に含める / Windows native L3 を merge 前必須 / 予算）に異論なし。
 - state-only 遷移（append-only、STATECAP forward 1 本目）: `plan-gate -> plan-approved -> implementing`。plan-approved の evidence = Plan Gate round 2 P1/P2 = 0（`91a026a`）+ owner approval。implementing の evidence = Plan Commit `fade732` 確定済み、Codex 発注書は本遷移後に提示。
 - 以後の予定: Codex 実装 → L1 full → 独立 Sonnet Final Review → state-only 2 本目（`local-verified -> independent-review -> human-confirm`）→ L3 + visual → Ready 承認 → state-only 3 本目（`ready-hosted-final`）。
+
+### 実装完了 / 遷移記録（2026-08-19）
+
+- state-only 遷移（append-only、STATECAP forward 2 本目、post-implementation 1 本目）: `implementing -> local-verified -> independent-review -> human-confirm`。
+- local-verified の evidence = content candidate `f30d9ff` に対する L1 `scripts/local-ci.sh full` RESULT=PASS / END_TREE_STATE=CLEAN / MERGE_EVIDENCE_VALID=true（evidence log は PR body に記録。Writer content `69a93df` 時点の L1 PASS もあり、以後は docs-only）。
+- independent-review の evidence = 独立 Sonnet Final Review round 1（P1 0 / P2 1 / P3 3、mutation 12/12 独立 KILLED）+ fresh delta 再検証（`1c9571a`、P1/P2 = 0）+ narrative 1 行 delta の ack（`f30d9ff`、verdict 維持）。
+- human-confirm の evidence = findings 裁定済み（P2 / P3 accept 是正 = `56e5fda`、P3 2 件 follow-up routing）、Reviewed Content HEAD = `f30d9ff`。
+- 残る Human Gate = Windows native L3（`67-ui §67.12` 該当項目、店舗訪問と同期。手順書と synthetic fixture は Coordinator が owner へ提示済み）/ human visual confirmation（L3 と同時）/ Ready 承認 / merge。L3 で clear 行が受理されない場合は `PLU_CLEAR_ROW_ENABLED=false` の gated amendment + Final Review delta を経て Ready。
+- Owner Effort Budget 実績（2026-08-19 時点）: 介入 1/3（plan approval）、relay 往復 3/2（初回発注 / amendment 1 再開 / amendment 2 再開。超過は Coordinator の設計監査不足に起因、Writer 往復はこれ以上増やさない）、STATECAP forward 2/3。
