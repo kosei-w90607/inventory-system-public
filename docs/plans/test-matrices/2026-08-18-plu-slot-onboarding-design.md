@@ -55,6 +55,7 @@ Risk: R3
 | State（plu_slots.status） | Event | Next | Side effect | Test（予約） |
 |---|---|---|---|---|
 | free | prepare で JAN に割当 | reserved | reserved_at | A-P1 |
+| free | snapshot: レジ空 | free | 変化なし（no-op） | A-N4b |
 | free | snapshot: レジ有（外部コード） | external | scanning_code = 観測値 | A-N2 |
 | free | snapshot: レジ有（app JAN 未割当） | active | adopted 報告 | A-N3 |
 | free | snapshot: レジ有（既に採用済み app JAN の重複） | release_pending | 重複 stale として解放対象（D4 trigger (iv)） | A-N3b |

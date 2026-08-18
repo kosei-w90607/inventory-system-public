@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: plan-draft
+- Phase: plan-gate
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: pending
@@ -237,9 +237,9 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 | Spec / requirement ID | Source design doc section | Decision ID | Why / rejected alternatives | Implementation target | Test target |
 |---|---|---|---|---|---|
 | REQ-402 / REQ-907 | plu-tables.md（新）/ 22-mnt §12 / DB_DESIGN D-2 | SPEC-PLS-D1 | 再採番と product 列方式は既存登録・JAN 共有を表せない | schema_v5 / plu_slot_repo | Matrix A-S1〜A-S4 |
-| REQ-907 | 25-io §12（parser 節）/ 33-biz §16（snapshot）/ 67-ui | SPEC-PLS-D2 | 既存登録を空き扱いしない公開設計前提 | io::plu_register_snapshot / BIZ-04 / UI-08 step | Matrix A-N1〜A-N9 |
+| REQ-907 | 25-io §12（parser 節）/ 33-biz §16（snapshot）/ 67-ui | SPEC-PLS-D2 | 既存登録を空き扱いしない公開設計前提 | io::plu_register_snapshot / BIZ-04 / UI-08 step | Matrix A-N1〜A-N9c |
 | REQ-402 | 33-biz §16.3 / 25-io §12.3 / 67-ui UI-08-D1 | SPEC-PLS-D3 | 商品保存時 / confirm 時割当は順序・責務で不利 | prepare TX / formatter 入力 | Matrix A-P1〜A-P5 |
-| REQ-402 | 33-biz §16.4 / 30-biz toggle_discontinue / 51-ui | SPEC-PLS-D4 | 解放即 free は stale JAN 上書き順序が不定 | release trigger / clear 行 / confirm | Matrix A-R1〜A-R7 |
+| REQ-402 | 33-biz §16.4 / 30-biz toggle_discontinue / 51-ui | SPEC-PLS-D4 | 解放即 free は stale JAN 上書き順序が不定 | release trigger / clear 行 / confirm | Matrix A-R1〜A-R7 + A-R5b |
 | REQ-402 | 25-io §12.3 / 33-biz §16.3 / 67-ui UI-08-D4/D5/D9 | SPEC-PLS-D5 | Full 一本化は operator 負担 | formatter / UI 文言 | Matrix A-E1〜A-E5 |
 | REQ-104 / REQ-402 | 30-biz §4.8-4.9 / 26-io / 60-ui / 50-ui / 40-cmd | SPEC-PLS-D6 | page 内選択・ID 配列は規模に合わない | CSV 列 / bulk command / UI-01a 操作 | Matrix B-C1〜B-C4 / B-L1〜B-L6 |
 | REQ-402 | 50-ui §50.4-50.6 / 51-ui / 67-ui | SPEC-PLS-D7 | plu_exported_at 判定は再対象化で stale | 一覧 badge/filter / 詳細 / UI-08 要約 | Matrix B-V1〜B-V4 / A-V1 |
@@ -405,3 +405,10 @@ If R3 review-only sub-agent is skipped, record an explicit line beginning with `
 - P1-3 Full の全 app 管理スロット出力 × 三分バケット「要修正」の衝突: 採用（実質的な仕様欠落）。要修正判定中の JAN が持つ slot は維持・非出力・excluded 一覧へ（UI-08-D8 優先）を SPEC-PLS-D5 に追記、Matrix A-E6。
 - P2 `active` × レジ有同一コードの Test ID 欠落: 採用。A-N8c 追加。
 - P3 A-R5b の定義欠落 / D4 第 4 trigger（snapshot 重複）: 両方採用。
+
+### Plan Gate round 3（2026-08-18、Sonnet Plan Reviewer fresh context、P1 0 / P2 2 / P3 0 → APPROVE）
+
+- round 2 の全 disposition の適用、照合 grid の全セル閉包、cb9fc89 diff の引用、P1 sweep（D3 × 67-ui §67.8.1 / D4 × 廃番特価 / D6 × 30-biz §4.9 / Workflow State enum / Q1〜Q5）を独立確認、P1 なし。
+- P2-1 Design Intent Trace の test 範囲表記が Ledger と不整合（A-N9c / A-R5b 未反映）: 採用、追随。
+- P2-2 `free` × レジ空の no-op 行が Matrix に無い: 採用、A-N4b 追加。
+- 是正はいずれも表記整合のみで契約変更を伴わないため、Plan Review round 天井 3 に従い再 round は起こさず、Coordinator が是正適用を確認して Plan Gate 収束（P1/P2 = 0）とする。owner plan approval（Q1〜Q5 裁定込み）待ち。
