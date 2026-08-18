@@ -53,6 +53,7 @@ Keep it factual and stable.
 - Multiple `jan_code` matches resolve by `ORDER BY product_code ASC`
 - `pos_stock_sync` is an explicit business flag
 - `plu_dirty` and `plu_exported_at` track app-side PLU sync state; `plu_exported_at` is not proof of PC-tool acceptance or register reflection
+- D-072 / REQ-907 settles PLU gradual onboarding: free-slot authority is the Z004 full-slot snapshot, allocation is sticky by JAN with a persistent memory No., and both Diff and Full are importable after slot persistence.
 - PLU export real-device confirmation and Z004 field-layout enablement belong to one go-live verification flow, while `Z001`/`Z002`/`Z005` remain the official daily-report aggregate track; checklist source: `docs/plu-export-and-real-csv-verification.md`
 - POS adapter boundary is a settled architecture constraint (`D-023`): CASIO `Z001`/`Z002`/`Z004`/`Z005`, CV17, SD-card, and PC tool details are adapter facts unless a source design doc explicitly promotes a concept to the app core.
 - REQ-401 daily report redesign is a settled design direction (`D-025`): `Z001`/`Z002`/`Z005` create app-internal daily report aggregates, while `Z004` remains item-level product-sales/inventory track after PLU verification. Daily reports must not be expanded into fake `sale_records` or `inventory_movements`.

@@ -7,7 +7,7 @@
 
 ### BIZ-01: 商品管理ロジック
 
-**タスク要求**: 商品マスタの登録・修正・廃番管理・独自コード発番・売価変更履歴記録・一括インポートの業務ロジックを提供する
+**タスク要求**: 商品マスタの登録・修正・廃番管理・独自コード発番・売価変更履歴記録・一括インポート・filter 全件 PLU 対象更新の業務ロジックを提供する
 
 **理由**: 商品マスタはシステムの中心であり、入出庫・CSV取込み・棚卸し・売上レポートの全てがproductsテーブルを参照する。商品データの整合性を保つルールをBIZ層に集約することで、CMD層やUI層から直接DB操作する事故を防ぐ
 
@@ -17,14 +17,15 @@
 - 商品登録: product_code（JANまたは自動発番）, name, department_id, selling_price, cost_price, tax_rate, stock_unit, 初期在庫数, jan_code（任意）, maker_code（任意）, supplier_id（任意）
 - 商品修正: product_code（変更不可）, 変更対象フィールド群
 - 廃番切替: product_code, is_discontinued
-- 一括インポート: CSVファイルバイト列
+- 一括インポート: CSVファイルバイト列（任意列 `PLU対象`）
+- PLU 一括更新: 商品一覧 filter と plu_target
 
 出力データ:
 - 登録結果: 生成されたproduct_code（独自コード発番時）、成功/失敗
 - 検索結果: 商品一覧（ページング対応）、在庫数・売価・原価含む
 - 一括インポート結果: プレビューデータ（正常行/エラー行/重複行）、取込み結果サマリ
 
-内部で扱うテーブル: products, departments, suppliers, price_history, inventory_movements, stocktake_items, operation_logs
+内部で扱うテーブル: products, departments, suppliers, price_history, inventory_movements, stocktake_items, plu_slots, operation_logs
 
 **【処理構造】**
 
@@ -56,7 +57,7 @@
 **廃番切替:**
 1. product_codeで既存商品を取得
 2. is_discontinuedを反転
-3. plu_dirty=1にセット（レジのPLUからも除外/復帰が必要）
+3. 廃番化は `plu_target=0` と slot 解放 trigger を伴う。復帰は `plu_target` を自動で戻さない
 4. operation_logsに記録（operation_type='product_discontinue'）
 
 **独自コード発番:**
@@ -76,6 +77,11 @@
 6. トランザクション内で正常行＋上書き対象行をINSERT/UPDATE
 7. 各商品について初期在庫ありならinventory_movementsにINSERT
 8. operation_logsに記録
+
+**PLU 対象一括更新 / CSV 任意列（BIZ-01-D4 / SPEC-PLS-D6）:**
+- `PLU対象` は `1` / `0` / 空欄。新規行の列なし / 空欄は既存導出、更新行は明示値がある場合だけ適用する。不正 JAN の `1` は warning + `0`
+- filter 一致全件を 1 transaction で更新する。ON は有効 JAN・未廃番だけ、OFF は全件。1→0 / JAN 変更 / 廃番化は BIZ-04 の slot 解放を呼ぶ
+- operation_logs に filter 要約と更新 / skip 件数を残す
 
 **【制御構造】**
 - 独自コード発番はトランザクション内でnext_seqのread→increment→writeを行い排他制御（SQLiteの暗黙ロックで十分）
@@ -348,51 +354,22 @@
 
 ### BIZ-04: PLU書出しロジック
 
-**タスク要求**: 商品マスタからカシオPCツール用のPLU登録TSVを生成し、保存済み確認後にアプリ側のPLU未反映状態を更新する
+**タスク要求**: Z004 全スロットダンプからレジ占有を読込み、JAN 単位の memory No. を永続予約し、CV17 用 product / clear 行を生成・確認する（D-072 / REQ-907）。
 
-**理由**: レジでバーコードスキャン販売するには、商品をPLUとしてレジに登録する必要がある。商品マスタの情報をレジが読み込める形式に変換して書き出す機能
+**データ構造**: `plu_slots`、products、snapshot 用 app_settings、operation_logs。prepare / confirm は exact product_code set と `memory_no` を受け渡す。要修正理由に `no_free_slot` を含む。
 
-**【データ構造】**
+**処理構造**:
+1. `import_plu_register_snapshot` は IO-02 の `(memory_no, raw_code)` を 1 TX で 5 status と照合し、日時・占有要約を保存する。初回未読込みは prepare を `register_snapshot_required` で拒否する
+2. prepare は sticky slot を再利用し、未割当 JAN に最小 `free` を `reserved` として 1 TX で予約する。空きなしは該当 JAN だけ要修正へ送る
+3. Diff は dirty 対象 + 全 release_pending clear、Full は app 管理 reserved / active + 全 release_pending clear。external / free と要修正中の既存 slot は出力しない
+4. confirm は exact memory No. を再検証し、reserved→active、release_pending→free、対象商品を反映済みにする
+5. `plu_target` 1→0、廃番化、JAN 変更、snapshot 重複は共通解放 trigger。reserved は free、active は release_pending
 
-入力データ:
-- 書出し準備: 書出しモード 'full'（全件=plu_target=1 かつ is_discontinued=0）/ 'diff'（差分=plu_target=1 かつ plu_dirty=1）
-- 書出し済み確認: prepare時に返した対象 product_code[]
-
-出力データ:
-- TSVファイルバイト列（IO-04が生成）
-- 書出しサマリ: 書出し行数、対象 product_code[]（同一JAN dedup 群の全メンバーを含む）、要修正リスト（JAN不備・同一JAN価格不一致の商品と理由）、上限チェック結果
-- 確認結果: 更新件数、確認日時
-
-内部で扱うテーブル: products, operation_logs
-
-**【処理構造】**
-
-**prepare_plu_export:**
-1. 書出し対象の抽出（D-028 三分バケット。plu_target=0 の「対象外」は抽出しない）
-   - full: plu_target=1 かつ is_discontinued=0 の商品
-   - diff: plu_target=1 かつ plu_dirty=1 の商品のみ
-2. 要修正分離: JAN不備（未登録 / 13桁でない / チェックディジット不正）の商品を生成から除外し、理由付きリストで返す（生成はブロックしない）
-3. 同一JAN dedup: グループコード商品は売価・税率が全一致なら代表1行に集約、不一致なら群全体を要修正リストへ
-4. スキャニングPLU上限チェック: dedup 後の生成行数が4,784件（工場出荷時配分: 総枠5,000 - 通常PLU216）を超える場合 → エラー
-5. 対象商品のリストをIO-04に渡してTSV生成
-6. TSVファイル、行数、対象 product_code[]（dedup 群の全メンバー）、要修正リスト、上限警告を返す
-7. この時点では `plu_dirty` / `plu_exported_at` を更新しない
-
-**confirm_plu_export_saved:**
-1. product_code[] が空、重複ありならvalidation error（件数上限比較は行わない。dedup 群展開により書出し行数を正当に超え得るため = D-028）
-2. トランザクション内で実行
-   - 対象商品の存在を再確認する。存在しない商品があれば全体を失敗させ、部分更新しない
-   - 対象商品の `plu_dirty=0`, `plu_exported_at=現在日時` に更新する
-3. COMMIT
-4. TX外で operation_logs に記録（operation_type='plu_export', detail_jsonに件数）
-5. 更新件数と確認日時を返す
-
-**【制御構造】**
-- `prepare_plu_export` はTSV生成のみでDB状態を変更しない。TSV生成に失敗した場合も `plu_dirty` は変更されない
-- `confirm_plu_export_saved` は、利用者が保存後に明示確認した exact product_code[] だけを更新する
-- PCツール投入失敗時は `plu_dirty` が残っているため、Full 再書出しで同じ内容を含めて再投入できる（Diff 書出しは未反映確認用で CV17 へは投入しない = UI-08-D9）
-- アプリはPCツール受理やレジ反映を検知しない。`plu_exported_at` はアプリ側の書出し済み確認日時に限定する
-- CV17 へ投入してよいのは Full 書出しファイルのみ（D-028 / UI-08-D9: CV17 import はメモリNo. キーの部分更新であり、毎回217始まりで再採番する現行書出しでは Diff ファイル投入が既存スロットを上書きするため）
+**制御構造**:
+- snapshot / prepare / confirm / 解放は各 1 transaction。途中失敗は slot と product を部分更新しない
+- Diff / Full とも CV17 へ投入できる。失敗時は保存済み file の再投入、またはどちらかの mode で再書出しする
+- clear 行が拒否された場合は release_pending slot を再利用しない。D-072 の revisit condition とする
+- slot 状態を売上・在庫・会計集計へ混ぜない
 
 ---
 

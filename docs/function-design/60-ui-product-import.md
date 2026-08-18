@@ -33,6 +33,7 @@
 | REQ-104 / UI-01c | UI-01c-D13 | Windows native L3 は owner 目視確認を必須にする。確認対象は FilePicker（native dialog + 任意 drop、D-054/UI-01c-D14）、エラー行と重複行の区別、上書き確認、日本語文言、結果サマリ、商品一覧への戻り導線。 | 新規 operator-facing screen であり、CSV 作業は初期導入時に失敗影響が大きい。CI / unit test だけでは視認性と操作の分かりやすさを判断できない。 |
 | REQ-104 / UI-01c | UI-01c-D14 | ファイル選択を共通 FilePicker（native dialog + 任意 drop、D-054）へ移行し、UI-01c-D3 の plain input 方式を supersede する。`dragDropEnabled: false` は drop 維持のため据え置き。 | D3 の却下理由（plugin-dialog 未導入・scope 増）は foundation PR（2026-06-26）と日報 PR #125 の path-based 実証で解消済み。WebView2 白画面バグの再発面を picker 一箇所へ集約する。 |
 | REQ-104 / limit | UI-01c-D15 | 商品 import は CMD 早期拒否 + BIZ（`preview_import`）安全網の**二重**で `CSV_IMPORT_FILE_SIZE_LIMIT`（constants.rs）超過を validation error で拒否する（D-054）。 | UI だけが拒否する未仕様上限は直接 IPC で bypass 可能。売上 / 日報が持つ CMD 早期拒否 + BIZ 安全網の既存二重防御パターン（ARCHITECTURE resource-safety 例外）と同型に揃える。 |
+| REQ-104 / SPEC-PLS-D6 | UI-01c-D16 | 任意列 `PLU対象` を preview に表示し、`1` / `0` / 空欄の意味を説明する。`1` だが JAN が不正な行は warning + 実適用値 `対象外` を同じ行に表示する。 | CSV を commit する前に operator が自動補正と更新対象を確認できる。warning を色だけで表さない。 |
 
 ## 60.2 Component / Route 構成
 
@@ -144,6 +145,7 @@ UI-01c 実装 PR では以下を generated binding に出す。
 - UI-01c-D11: result で `created_count` / `updated_count` / `skipped_count` と次の導線が表示される。
 - UI-01c-D12: committing 中は操作が disabled になり、cancel 可能に見せない。
 - UI-01c-D13: Windows native L3 で FilePicker（native dialog + 任意 drop）、エラー・重複の見分け、上書き確認、結果導線を確認する。
+- UI-01c-D16: `PLU対象` の 1 / 0 / 空欄と、不正 JAN の warning + 対象外補正が preview で読める。
 
 ## 60.10 変更履歴
 

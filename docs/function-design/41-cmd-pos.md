@@ -421,7 +421,7 @@ read-only command であり、preview キャッシュ・idempotency・operation 
 
 #### prepare_plu_export
 
-**関数要求**: CV17 1.1.1向けPLUタブ区切りテキストを生成して返す。フロントエンドが保存先を選び、保存する。DB状態は変更しない
+**関数要求**: CV17 1.1.1向けPLUタブ区切りテキストを生成して返す。フロントエンドが保存先を選び、保存する。prepare は slot 予約を 1 transaction で永続化するが、商品を反映済みにはしない（CMD-08-D3 / SPEC-PLS-D3〜D5）
 
 **シグネチャ（Tauriコマンド）**:
 ```
@@ -447,8 +447,14 @@ struct PluExportPrepareResponse {
     encoding: String,                // PluFileOutput.encoding
     count: usize,                    // 書出し行数（dedup 後）
     target_product_codes: Vec<String>,  // confirm対象。dedup 群の全メンバーを含むため count と長さが一致しないことがある（D-028）
+    prepared_rows: Vec<PluPreparedRowResponse>, // memory_no、row_kind、exact product set
     excluded: Vec<PluExcludedProductResponse>,  // 要修正一覧（D-028）
-    over_limit_warning: bool,
+}
+
+struct PluPreparedRowResponse {
+    memory_no: i64,
+    row_kind: PluPreparedRowKind, // product | clear（generated enum）
+    target_product_codes: Vec<String>,
 }
 
 // 要修正一覧の1件（BIZ-04のPluExcludedProductをフロントエンド向けに変換）
@@ -456,7 +462,8 @@ struct PluExcludedProductResponse {
     product_code: String,
     jan_code: Option<String>,
     name: String,
-    reason: String,  // "missing_jan" | "invalid_jan_format" | "invalid_check_digit" | "group_price_mismatch"
+    memory_no: Option<i64>, // 既存 slot がある要修正行だけ Some。slot は維持し非出力
+    reason: String,  // "missing_jan" | "invalid_jan_format" | "invalid_check_digit" | "group_price_mismatch" | "no_free_slot"
                      // BIZのPluExcludedReason列挙型をsnake_case文字列で表現。日本語文言への変換はUI側（67-ui excluded reasons 参照）
 }
 ```
@@ -468,8 +475,8 @@ struct PluExcludedProductResponse {
    - その他 → CmdError { kind: "validation", message: "書出しモードは 'full' または 'diff' を指定してください", field: Some("mode") }
 2. state.db.lock() でDB接続を取得
 3. PluExportPrepareRequest { mode: export_mode } を構築
-4. biz::plu_export_service::prepare_plu_export(&conn, req) を呼ぶ
-   - スキャニングPLU上限超過と生成行0件のみBIZのValidationFailedとして返る。JAN不備（未登録 / 13桁以外 / チェックディジット不正）と同一JAN価格不一致は BizError にならず、PluExportPreparedResult.excluded（要修正リスト）として Ok で返る（D-028。excluded の DTO は本ファイル出力型 / JSON 例に反映済み。bindings 再生成は R3 実装 PR）
+4. biz::plu_export_service::prepare_plu_export(&mut conn, req) を呼ぶ（slot 予約 TX を BIZ-04 が所有）
+   - snapshot 未読込みは `register_snapshot_required`。JAN不備、同一JAN価格不一致、空きなしは BizError にならず `excluded`（要修正リスト）として Ok で返る。固定件数との比較は行わない
 5. Ok → PluExportPreparedResult を PluExportPrepareResponse に変換（bytes → base64エンコード）して返す
 6. Err(BizError) → CmdError に変換して返す
 
@@ -494,7 +501,7 @@ struct PluExcludedProductResponse {
   "excluded": [
     { "product_code": "BT-0012", "jan_code": null, "name": "JANなし商品", "reason": "missing_jan" }
   ],
-  "over_limit_warning": false
+    "prepared_rows": []
 }
 ```
 ※ bytes_base64 はCP932バイト列のbase64エンコード。フロントエンド側でbase64デコードし、native save dialogで選んだ保存先に書き込む。CV17 1.1.1 の import dialog では `.txt` を既定拡張子として扱う。
@@ -511,12 +518,14 @@ struct PluExcludedProductResponse {
 fn confirm_plu_export_saved(
     state: State<AppState>,
     product_codes: Vec<String>,
+    prepared_rows: Vec<PluPreparedRowResponse>,
 ) -> Result<PluExportConfirmResponse, CmdError>
 ```
 
 **入力型**:
 ```
 product_codes: Vec<String>   // prepare_plu_exportが返したtarget_product_codes
+prepared_rows: Vec<PluPreparedRowResponse> // prepare が返した exact memory_no / row_kind / product set
 ```
 
 **出力型**:
@@ -529,7 +538,7 @@ struct PluExportConfirmResponse {
 
 **処理ステップ**:
 1. state.db.lock() でDB接続を取得
-2. PluExportConfirmRequest { product_codes } を構築
+2. PluExportConfirmRequest { product_codes, prepared_rows } を構築
 3. biz::plu_export_service::confirm_plu_export_saved(&mut conn, req) を呼ぶ
 4. Ok → PluExportConfirmResponse に変換して返す
 5. Err(BizError) → CmdError に変換して返す
@@ -537,7 +546,34 @@ struct PluExportConfirmResponse {
 **設計判断 — confirmを別コマンドにする理由**:
 - `prepare_plu_export` はファイル生成だけであり、保存キャンセル、保存失敗、PCツール投入失敗を回復できるように `plu_dirty` を残す
 - `confirm_plu_export_saved` は利用者が保存済み扱いにすると明示した後だけ呼ぶ
-- product_codes はprepare結果の exact set とし、prepare後に別商品がdirtyになっても巻き込まない
+- product_codes と memory_no は prepare 結果の exact set とし、prepare後に別商品・別 slot が変化しても巻き込まない
+
+---
+
+#### import_plu_register_snapshot（CMD-08-D4 / SPEC-PLS-D2）
+
+```rust
+#[tauri::command]
+#[specta::specta]
+fn import_plu_register_snapshot(
+    state: State<AppState>,
+    path: String,
+) -> Result<PluRegisterSnapshotSummaryResponse, CmdError>
+```
+
+共通 FilePicker（D-054）が選んだ Z004 path を受け、BIZ-04 の snapshot 取込みを呼ぶ。path / 実コードを response や operation log に複製せず、`snapshot_at`, `free_count`, `external_count`, `app_managed_count`, `conflict_count` の要約だけを返す。
+
+#### get_plu_slot_summary（CMD-08-D5 / SPEC-PLS-D2、D7）
+
+```rust
+#[tauri::command]
+#[specta::specta]
+fn get_plu_slot_summary(
+    state: State<AppState>,
+) -> Result<PluRegisterSnapshotSummaryResponse, CmdError>
+```
+
+`app_settings` と `plu_slots` から最後の読込み日時と占有要約を read-only で返す。snapshot 未読込みは null timestamp と zero summary で表し、prepare の gate 判定は BIZ-04 が行う。
 
 ---
 
@@ -568,6 +604,8 @@ Vec<ProductResponse>
 4. Err(BizError) → CmdError に変換して返す
 
 **設計判断 — 戻り値の型**: BIZ層が返す `Vec<Product>` をそのままフロントエンドに返さず、`ProductResponse` に変換する。CMD-01と同じ商品レスポンス型を使うことで、フロントエンドの型定義を統一する。
+
+`import_plu_register_snapshot` / `get_plu_slot_summary`、prepare / confirm の `memory_no` DTO、`no_free_slot`、`plu_memory_no` は後続実装 A/B で specta 登録と bindings 再生成を行う。本 design-first PR は `src/lib/bindings.ts` を変更しない。
 
 **入力例**: なし（引数なし）
 

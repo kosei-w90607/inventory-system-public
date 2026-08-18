@@ -10,6 +10,7 @@ src-tauri/src/
     schema_v2.rs  -- 冪等性カラム追加（4テーブル再作成）
     schema_v3.rs  -- PLU対象フラグ追加
     schema_v4.rs  -- 日報取込みテーブル追加
+    schema_v5.rs  -- PLU slot 永続割当テーブル追加
 ```
 
 ### 3.2 migrate
@@ -259,3 +260,15 @@ fixture / 注入の必須条件は 71 §71.10「fixture / 注入の必須条件�
 エラーダイアログの pre-window（setup hook 内、webview マウント前）表示が Windows 実機で動作することの確認（表示機構の選定を含む、MNT-03-D4 の Contract Probe）も実装 PR1 の完了条件に含める（自動化不能なら L3 相当の手動確認として実装 packet に記録）。
 
 実 WAL fixture 移行テストは MNT-03-D2 の前提（新規接続で開いた旧 DB への `VACUUM INTO` が WAL 内 commit を取り込む）の経験的検証を兼ねる。このテストが fail する場合は実装の不具合と決めつけず、MNT-03-D2 の設計自体を再検討する。
+
+## 13. MNT-03 追加: migration v5（plu_slots）
+
+**MNT-03-D9 / SPEC-PLS-D1**: migration v5 を schema_versions に追加する。実装と migration map 登録は後続実装 A の義務であり、本 design-first PR では schema を変更しない。
+
+**手順**:
+
+1. `plu_slots` を [db-design/plu-tables.md](../db-design/plu-tables.md) の完全 DDL（memory_no の 217..5000 CHECK、status の 5 値 CHECK、timestamp 列）で作成する。
+2. `status <> 'free'` を条件とする `scanning_code` partial UNIQUE index を作成する。
+3. memory No. 217〜5000 の **4,784 行**を `free` として事前投入する。範囲は既存の開始番号・範囲サイズ定数から導出し、重複した magic number を実装へ増やさない。
+4. row count、範囲端、既定 status を同一 transaction 内で検証し、失敗時は §3.2 / MNT-03-D1 に従って rollback する。
+5. schema_versions に v5 を記録して commit する。v3 の `plu_target` backfill と v4 の日報 table は変更しない。

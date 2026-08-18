@@ -153,9 +153,10 @@ Rustでは通常fieldを `Option<T>`、clear可能fieldを `Option<Option<T>>` �
      - old_selling = existing.selling_price, new_selling = req.selling_price.unwrap_or(existing.selling_price)
      - old_cost, new_costも同様
    - selling_priceが変わった場合 → updatesにplu_dirty=trueを追加
-4b. **plu_target 遷移チェック**（D-028）
+4b. **plu_target / JAN 遷移チェック**（BIZ-01-D3 / SPEC-PLS-D4）
    - plu_target が Some で既存値 0 → 1 に変わる場合 → updatesにplu_dirty=trueを追加（レジ登録が新たに必要になったため）
-   - 1 → 0 の場合は plu_dirty を触らない（抽出・通知クエリの plu_target 条件で自然に対象外になる）
+   - 1 → 0 の場合は BIZ-04 の共通解放 trigger を呼ぶ。reserved は free、active は release_pending とする
+   - CSV 上書き等の許可された経路で jan_code が変わる場合も、旧 JAN について同じ解放 trigger を呼ぶ
 5. **productsをUPDATE**
    - ProductUpdatesを構築してproduct_repo::update_product()を呼ぶ
 6. **操作ログ記録**
@@ -172,7 +173,7 @@ Rustでは通常fieldを `Option<T>`、clear可能fieldを `Option<Option<T>>` �
 
 ### 4.5 toggle_discontinue
 
-**関数要求**: 商品の廃番フラグを反転する
+**関数要求**: 商品の廃番フラグを反転する（BIZ-01-D3 / SPEC-PLS-D4）
 
 **シグネチャ**:
 ```
@@ -184,10 +185,11 @@ fn toggle_discontinue(conn: &mut DbConnection, product_code: &str) -> Result<boo
    - None → BizError::NotFound
 2. new_status = !existing.is_discontinued
 3. **トランザクション開始**
-4. product_repo::update_product(product_code, ProductUpdates { is_discontinued: Some(new_status), plu_dirty: Some(true) })
-5. system_repo::insert_operation_log(operation_type="product_discontinue")
-6. **COMMIT**
-7. new_statusを返す（trueなら廃番になった、falseなら復帰した）
+4. 廃番化（new_status=true）は `plu_target=0` も同時更新し、旧 JAN の共通解放 trigger を呼ぶ。廃番解除は `plu_target` を自動で 1 に戻さない
+5. product_repo::update_product() を呼ぶ。廃番解除時は `plu_dirty` / `plu_target` の既存値を尊重する
+6. system_repo::insert_operation_log(operation_type="product_discontinue")
+7. **COMMIT**
+8. new_statusを返す（trueなら廃番になった、falseなら復帰した）
 
 ---
 
@@ -274,6 +276,7 @@ struct ImportRow {
     maker_code: Option<String>,
     supplier_id: Option<i64>,
     pos_stock_sync: Option<bool>,   // 省略時 true
+    plu_target: Option<bool>,       // 任意列「PLU対象」。空欄は None
 }
 ```
 
@@ -290,6 +293,7 @@ struct ImportRow {
 3. **ヘッダ検証**（必須列の確認）
    - 必須列: "商品コード", "商品名", "部門ID", "売価", "原価", "税率"
    - 不足 → BizError::ImportError("必須列が不足しています: {不足列名}")
+   - 任意列 `PLU対象` は `1` / `0` / 空欄だけを受理する。それ以外は行 error とし、IO-03 は raw 値の parse だけを担う（BIZ-01-D4 / SPEC-PLS-D6）
 
 4. **各行のバリデーション**
    - 商品コード: 空でないこと
@@ -297,6 +301,7 @@ struct ImportRow {
    - 部門ID: 整数変換可能、departments に存在すること
    - 売価・原価: 0以上の整数
    - 税率: '10', '8', '0' のいずれか
+   - `PLU対象=1` かつ JAN が 13 桁数字でない、または check digit 不正の場合は preview warning を付けて `plu_target=0` に正規化する
    - バリデーション失敗 → error_rows に追加
 
 5. **重複チェック**
@@ -346,10 +351,10 @@ struct ImportResult {
    b. overwrite_codes に含まれない → product_repo::insert_product で直接INSERT
    c. 新規登録の場合:
       - 4.3 create_product と同等の処理をインライン実行（独自コード発番なし。CSVに product_code が指定済み）
-      - plu_target はインライン導出する: `is_discontinued=0 かつ jan_code が 13 桁数字なら 1、それ以外 0`（D-028。migration v3 backfill と同一規則。CSV に plu_target 列は追加しない）
+      - `PLU対象` が `1` / `0` ならその値を適用する。ただし `1` で JAN 不備なら preview warning 済みの `0` を使う。列なし / 空欄は `is_discontinued=0 かつ jan_code が 13 桁数字なら 1、それ以外 0` の既存導出規則を使う
       - initial_stock > 0 → inventory_repo::insert_movement に receiving として記録
       - 進行中の棚卸し → stocktake_repo::insert_stocktake_item に自動追加
-   d. 上書き更新の場合: plu_target は変更しない（利用者が UI-01b で設定した値を保持する）
+   d. 上書き更新の場合: `PLU対象` 列に `1` / `0` がある行だけ plu_target を更新する。列なし / 空欄は既存値を保持する。1→0 または JAN 変更では §4.4 の共通解放 trigger を同一 TX 内で呼ぶ
 
 3. **COMMIT**（tx.commit()）
 
@@ -365,6 +370,25 @@ struct ImportResult {
 - 個別行のバリデーションエラー → preview_import で事前に検出済みのため通常到達しない
 
 ---
+
+### 4.9.1 bulk_set_plu_target（BIZ-01-D4 / SPEC-PLS-D6）
+
+```rust
+fn bulk_set_plu_target(
+    conn: &mut DbConnection,
+    filter: ProductBulkFilter,
+    plu_target: bool,
+) -> Result<BulkPluTargetResult, BizError>
+```
+
+現在 filter（keyword / department / discontinued）に一致する**全件**をページングなしで対象にし、1 transaction で更新する。
+
+- ON: 未廃番かつ有効な 13 桁 JAN の商品だけを `plu_target=1`, `plu_dirty=1` にする。JAN 不備と廃番はそれぞれ skip 件数へ積む
+- OFF: filter 一致全件を `plu_target=0` にし、1→0 の商品は BIZ-04 解放 trigger を呼ぶ
+- result: `matched_count`, `updated_count`, `invalid_jan_skipped_count`, `discontinued_skipped_count`
+- operation_logs: filter の正規化要約、要求値、各件数を記録する。対象 product の実 JAN 一覧は記録しない
+
+途中失敗は商品更新・slot 解放・operation log をまとめて rollback する。
 
 ### 4.10 BizError列挙型（Phase 5 拡張）
 

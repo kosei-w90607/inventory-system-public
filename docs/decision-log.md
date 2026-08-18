@@ -571,3 +571,12 @@ Use concise ADR-style entries.
 - Impact: Z004 と日報の両 pipeline は、同一 hash の active import をブロックし、同日別 hash を利用者確認後に追加保存する。訂正は対象 import ID の論理取消と再取込みを別操作にし、日次・月次の読出しは同日の全 active import を加算する。営業日は表示・集計の group key であり uniqueness key ではない。
 - Alternatives considered: 営業日単位で既存 import を無効化して最新ファイルだけを残す案（精算単位 delta の先行分を失うため却下）; byte 違いの意味的重複を自動判定する案（復旧用書出し等の同内容性を汎用に証明できず、誤ブロックを避けるため追加確認を採用）; 同日別 hash を無確認で追加する案（byte 違い同内容の二重計上を operator が検知する機会を失うため却下）。
 - Revisit: upstream が精算単位 delta から cumulative snapshot へ変わる証跡を観測したとき、adapter 契約を再設計する。
+
+## D-072: PLU slot 永続割当と段階導入（2026-08-18）
+
+- Decision: (1) スキャニング PLU 領域の authority を分割し、app 管理 slot は app、既存登録はレジ、空き判定は Z004 全スロットダンプ（owner 裁定 Q2=A）を必須 source とする。(2) 割当は JAN 単位の永続予約・最小空き memory No.・sticky allocation とし、解放は clear 行の書出し + confirm で確定する。(3) 廃番化は `plu_target=0` を伴い、廃番解除では自動復帰しない。(4) memory No. 永続化後は Diff / Full とも CV17 へ投入でき、Full は app 管理 slot 全体、Diff は未反映対象 + 解放分を出力する。D-028 の暫定投入ガードを本決定が supersede する（SPEC-PLS-D10）。
+- Status: accepted（owner 裁定 2026-08-18、Plan Packet Q1〜Q5 解決済み）
+- Why: 書出し順から memory No. を再計算すると Diff import が既存 slot を上書きし得る一方、レジ既存登録を一律に空き扱いすることもできない。レジの全 slot 観測と app の永続予約を分け、JAN identity で接続すれば、既存運用を保全しながら段階的に対象商品を増やせる。Z004 は必要な code 有無 / 値を全 slot について提供し、設定書出し固有の単価・課税列を占有判定へ持ち込まない。
+- Impact: migration v5 の `plu_slots`、snapshot 用 app_settings、IO-02 占有 mode、BIZ-04 の照合・予約・解放、IO-04 clear 行、CMD / generated DTO、UI-08 snapshot step、商品 CSV / 一括操作 / 移行状態表示を後続実装 A / B で追加する。PLU slot 状態は売上・在庫・会計集計へ影響させない。
+- Alternatives considered: CV17 のレジ設定書出し file を占有 source にする案（照合に不要な列と operator の追加操作を増やすため不採用）; 毎回の再採番を維持して投入を限定する案（段階導入と安全な Diff を阻害）; clear confirm 前に slot を再利用する案（レジ側に旧商品が残る衝突を招くため不採用）。
+- Revisit: `no_free_slot` が発生して空き枯渇の兆候が出たとき、または CV17 / SR-S4000 が exact clear 行を受理しないことが Windows native L3 で判明したとき。clear が確認できるまで release_pending slot は再利用しない。

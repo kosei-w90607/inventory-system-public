@@ -24,7 +24,7 @@
 | REQ-101 | 商品を新規登録できる | `spec/requirements.md`; `function-design/30-biz-product-service.md`; `function-design/51-ui-product-form.md` | current | — |
 | REQ-102 | 商品情報を修正し、変更履歴と連携状態を保てる | `spec/requirements.md`; `function-design/30-biz-product-service.md`; `function-design/51-ui-product-form.md` | current | — |
 | REQ-103 | 商品を検索・一覧表示できる | `spec/requirements.md`; `function-design/30-biz-product-service.md`; `function-design/50-ui-product-list.md` | current | — |
-| REQ-104 | 商品マスタを CSV から一括取込できる | `spec/requirements.md`; `function-design/60-ui-product-import.md` | current | — |
+| REQ-104 | 商品マスタを CSV から一括取込でき、任意列 `PLU対象` を preview / 適用できる | `spec/requirements.md`; `function-design/26-io-product-csv-importer.md`; `function-design/30-biz-product-service.md`; `function-design/60-ui-product-import.md` | current | — |
 | REQ-201 | 仕入入庫を在庫変動と業務記録として保存できる | `spec/requirements.md`; `function-design/31-biz-inventory-service.md`; `function-design/61-ui-receiving.md` | current | — |
 | REQ-202 | 返品・交換と在庫への反映有無を記録できる | `spec/requirements.md`; `function-design/31-biz-inventory-service.md`; `function-design/63-ui-return-exchange.md`; `function-design/65-inventory-record-traceability.md` | current | — |
 | REQ-203 | 自動取込で扱わない販売出庫を手動記録できる | `spec/requirements.md`; `function-design/31-biz-inventory-service.md`; `function-design/62-ui-manual-sale.md` | current | — |
@@ -34,7 +34,8 @@
 | REQ-302 | 在庫切れ・在庫少の商品を一覧できる | `spec/requirements.md`; `function-design/53-ui-home.md`; `function-design/58-ui-stock-inquiry.md` | current | — |
 | REQ-303 | 商品別の在庫変動を時系列で追跡できる | `spec/requirements.md`; `function-design/65-inventory-record-traceability.md`; `function-design/66-ui-stock-movements.md` | current | — |
 | REQ-401 | POS 由来データを検証・取込し、現行運用の日報情報を保存できる | `spec/requirements.md`; `function-design/29-io-daily-report-parser.md`; `function-design/32-biz-csv-import-service.md`; `function-design/37-biz-daily-report-import-service.md`; `function-design/55-ui-csv-import.md` | superseded | 単一形式前提は後発の現場確認と D-022/D-025 により二つの取込 track へ置換した |
-| REQ-402 | 商品マスタから対応 POS 向け PLU データを生成・保存できる | `spec/requirements.md`; `function-design/25-io-plu-formatter.md`; `function-design/33-biz-plu-export-service.md`; `function-design/67-ui-plu-export.md` | superseded | 原典の形式・容量前提は後発の adapter 契約と安全確認により置換した |
+| REQ-402 | 商品マスタから対応 POS 向け PLU データを永続 memory No. で生成・保存できる | `spec/requirements.md`; `function-design/25-io-plu-formatter.md`; `function-design/33-biz-plu-export-service.md`; `function-design/67-ui-plu-export.md` | superseded | 原典の形式・容量前提を adapter 契約と D-072 の slot 永続割当へ置換した（メモリNo. 採番規則は REQ-907 で永続割当へ置換）。Diff / Full とも投入可 |
+| REQ-907 | レジ占有 snapshot、PLU slot 永続割当・解放、bulk onboarding、段階移行状態を安全に管理できる | `spec/requirements.md`; `db-design/plu-tables.md`; `function-design/33-biz-plu-export-service.md`; `function-design/30-biz-product-service.md`; `function-design/67-ui-plu-export.md`; `function-design/50-ui-product-list.md` | current | 後続実装 A / B で traceability test を追加する |
 | REQ-403 | POS 側とシステム側の部門別売上集計を照合できる | `spec/requirements.md`; `architecture/biz-task-specs.md`; `db-design/pos-tables.md`; `db-design/master-tables.md` | deferred | UI-13 の在庫整合性（REQ-904）とは別責務で task 未割当。自動修正は行わない |
 | REQ-501 | 日次売上を商品・部門の観点で確認できる | `spec/requirements.md`; `function-design/27-io-report-csv-exporter.md`; `function-design/34-biz-sales-service.md`; `function-design/56-ui-daily-sales.md` | current | — |
 | REQ-502 | 月次売上を商品・部門・比較の観点で集計できる | `spec/requirements.md`; `function-design/34-biz-sales-service.md`; `function-design/57-ui-monthly-sales.md` | current | — |
