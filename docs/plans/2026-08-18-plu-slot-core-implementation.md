@@ -6,7 +6,7 @@
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: fade732
-- Amendments: c76fdbd, ebf4a31
+- Amendments: c76fdbd, ebf4a31, 56e5fda
 - Coordinator: Fable
 - Writer: Codex
 - Plan Reviewer: Sonnet
@@ -395,7 +395,7 @@ Do not transcribe exact-HEAD SHA or test counts here (D-035/D-038 Evidence Owner
 
 - 事象: (1) AC A-G1 の sweep command が packet / matrix 自身（command 記載と旧状態説明）を hit し、字義どおりには成立しない（実装・source docs 側は 0 hit）(2) packet / matrix の `ProductResponse.plu_memory_no` 表記が実 wire 型と不一致。
 - 是正: A-G1 command（AC / Inventory / matrix A-G1）に `--glob '!docs/plans/**'` を追加、`ProductResponse` → `ProductWithRelations`（get_product 応答）へ packet 5 箇所 + matrix 1 箇所を同期。設計意味は不変。
-- amendment commit = pending（Workflow State `Amendments` に記録）。
+- amendment commit = `56e5fda`（Workflow State `Amendments` に記録）。
 
 ### owner plan approval / 遷移記録（2026-08-18）
 
