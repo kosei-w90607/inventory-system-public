@@ -6,7 +6,7 @@
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: fade732
-- Amendments: c76fdbd, ebf4a31, 56e5fda
+- Amendments: c76fdbd, ebf4a31, 56e5fda, 42d88bf
 - Coordinator: Fable
 - Writer: Codex
 - Plan Reviewer: Sonnet
@@ -426,4 +426,10 @@ Do not transcribe exact-HEAD SHA or test counts here (D-035/D-038 Evidence Owner
 - 是正: (1) `25-io §12.3` 2f を `単品売り=いいえ` へ改め IO-04-D5（理由 = 実機観測）を追記、`plu_formatter.rs` の固定列 + 既存 unit test の assert を `いいえ` へ（Matrix A-E7 新設 + mutation 設問「`はい` に戻す → A-E7」）、`docs/project-memory.md` CV17 profile 行に観測を追記 (2) `PluExportPage.tsx` 2 箇所 + RTL 2 箇所を `67-ui §67.9` の exact 文言へ同期（Matrix A-E5 拡張 + mutation 設問）。packet Scope IO-04 / AC / Required Design Artifacts / Trace Matrix を同期。`67-ui` 本文は不変（既存契約へ実装を合わせるのみ）。
 - 設計意味の影響: 書出し file の列構成・行選択・slot 遷移は不変。変わるのは product 行 field[5] の固定値のみ。D-072 の Decision / Revisit は変更なし（clear 行受理は L3 round 2 で判定）。
 - 実装者: Coordinator/Writer 兼務（PR #81 gated Amendment 4 先例。relay 往復 3/2 超過で Writer 往復を増やさない budget 判断）。独立 Sonnet Final Reviewer が delta を再検証して自己承認を回避する。
-- amendment commit SHA は Workflow State `Amendments` に後続 commit で記録。
+- amendment commit = `42d88bf`（Workflow State `Amendments` に記録）。
+
+### Final Review delta（2026-08-19、独立 Sonnet Final Reviewer、content `42d88bf`）
+
+- Verdict: P1 0 / P2 0 / P3 1。worktree 隔離の clean tree で mutation 3 件（formatter 固定列 `いいえ→はい` / 回復手順文言 2 箇所の各旧文言化）を独立注入し 3/3 KILLED（復元後 tree clean）。sweep: `単品売り` の forward-looking 残存 0（旧値 `はい` は packet / 25-io の理由説明文のみ）、旧 Full-only 回復文言は `src` 0 hit、新文言は `67-ui §67.9` と byte 一致 4 hit、A-G1 0 hit。A-E7 / A-E5 の oracle と実 assert が一致、oracle は production 定数非依存、既存 test の削除・skip なし、packet 記載の file / 箇所数は diff と一致。
+- P3（accept、Coordinator が docs-only 是正）: Matrix の A-E7 行が A-E6 の前に挿入されていた並び順を A-E6 の後へ移動（本記録 commit に同乗）。
+- L1 full は `42d88bf` で RESULT=PASS / END_TREE_STATE=CLEAN / MERGE_EVIDENCE_VALID=true（evidence は PR body）。Phase は implementing のまま据え置き、L3 round 2 PASS + Ready 承認後に state-only 3 本目で `implementing -> local-verified -> independent-review -> human-confirm -> ready-hosted-final` を隣接 forward 圧縮で materialize する（evidence = 本 L1 / 本 Final Review delta / L3 round 2 / Ready 承認、Reviewed Content HEAD を同 commit で設定）。

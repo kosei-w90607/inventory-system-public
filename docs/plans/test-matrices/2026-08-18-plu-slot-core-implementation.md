@@ -78,8 +78,8 @@ R3。schema migration、新規 repository、IO-02 新 mode、BIZ-04 prepare / co
 | A-E3 | D5 範囲外 reject | Rust unit | 216 / 5001 を持つ行 → formatter error | error |
 | A-E4 | D5 Diff 構成 | Rust integration | Diff = plu_dirty=1 の product 行 + 全 release_pending clear 行 | rows |
 | A-E5 | D5 UI 文言 | RTL | UI-08 に「Diff / Full とも投入可」系文言と旧 Full file 再投入禁止文言、旧 Full-only 注意文は不在。回復手順文言（保存後 warning Alert + 復帰 Alert の 2 箇所）は `67-ui §67.9` failure note before confirm の exact 文言（`保存済みファイルを再投入するか、差分または全件を書き出し直してください。`）で、旧 Full-only 回復文言（`未反映を外さずに全件を書き出し直して`）は不在（gated amendment 4） | text |
-| A-E7 | D5 固定列 | Rust unit | product 行の field[5] `単品売り` = `いいえ`（`25-io §12.3` 2f から独立転記、exact）。field[6..9] = `いいえ` / `いいえ` / `いいえ` / `無し` も同 test で exact（gated amendment 4、L3 round 1 S6 FAIL 起源） | 文字列 exact |
 | A-E6 | D5 要修正中維持 | Rust integration | active slot を持つ JAN を check digit 不正にして Full / Diff → 行 0（product / clear とも）、slot 不変、excluded に理由付き | rows / 行 / excluded |
+| A-E7 | D5 固定列 | Rust unit | product 行の field[5] `単品売り` = `いいえ`（`25-io §12.3` 2f から独立転記、exact）。field[6..9] = `いいえ` / `いいえ` / `いいえ` / `無し` も同 test で exact（gated amendment 4、L3 round 1 S6 FAIL 起源） | 文字列 exact |
 | A-V1 | D7 UI-08 | RTL | FilePicker `onSelect` の `bytes` → `importPluRegisterSnapshot({ fileBytes })` 呼出し（path を渡さない）→ 要約表示（日時 + 4 件数）→ 未読込み時の `レジ設定の読込みが必要です` と書出し無効化 → 読込み後の有効化 → invalidation → `no_free_slot` 理由表示 `レジの空きスロットがありません`。既存 localStorage 復帰・confirm 導線 test は不変 | text / call / query |
 | A-U1 | D7 UI-01b | RTL | edit form に `レジメモリNo.` read-only、値あり / `未割当` | text / readonly 属性 |
 | A-W1 | D7 wire | generated | `generate_bindings` 後 diff 0、`bindings.ts` に `importPluRegisterSnapshot` / `getPluSlotSummary` / `pluMemoryNo` / `preparedRows`、`confirmPluExportSaved` の入力が `{ product_codes, prepared_rows }` | local-ci `generated-bindings-diff` |
