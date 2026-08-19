@@ -76,7 +76,7 @@ In scope:
 
 1. IO-03 / BIZ-01 CSV 任意列 `PLU対象`（`26-io §IO-03-D1` / `30-biz §4.8〜4.9` / SPEC-PLS-D6 (a)）: `preview_import` が header `PLU対象` を読み `1` / `0` / 空欄のみ受理（他は行 error、`POS在庫連動` の `true/はい` 系同義語は受理しない = 設計どおり）。`ImportRow` に `plu_target: Option<bool>`（正規化済み適用値。空欄 / 列なし = `None`）と `warnings: Vec<String>`（`1` + JAN 不備 → warning 文言 + `Some(false)` へ正規化）を追加。`commit_import` は新規行 = `Some` なら適用 / `None` なら既存導出規則（`should_default_plu_target`）、上書き行 = `Some` なら適用（1→0 と JAN 変更は同一 TX で共通解放 service）/ `None` なら既存値維持。
 2. BIZ-01 `bulk_set_plu_target(conn, filter: ProductBulkFilter, plu_target: bool) -> Result<BulkPluTargetResult, BizError>`（`30-biz §4.9.1`）: `ProductBulkFilter { keyword, department_id, is_discontinued, plu }` = 商品一覧 filter と同一意味（page / per_page なし）。ON = filter 一致のうち未廃番 + 有効 13 桁 JAN（`should_default_plu_target` と同一判定）かつ `plu_target=0` の行を `plu_target=1, plu_dirty=1`、既に 1 の行は無変更、廃番 / JAN 不備は skip 件数。OFF = filter 一致全件のうち `plu_target=1` を 0 にし、各行で `plu_export_service::release_plu_slot_for_jan` を呼ぶ。1 TX、`operation_logs` に filter 正規化要約 + 要求値 + 4 件数（JAN 一覧は残さない）。result = `matched_count / updated_count / invalid_jan_skipped_count / discontinued_skipped_count`。
-3. IO `product_repo`: filter 一致全件を取得する unpaged 読取り `find_products_for_bulk_plu_target(conn, &ProductBulkFilter)`（`20-io` 本文で既に命名済みの名を維持。fenced signature を追加し、同 prose の「keyword / department / discontinued 条件」に `plu` を追記）と `ProductSearchQuery.plu: Option<PluMigrationFilter>`（`20-io §search_products` 設計済み: Target / Pending / Synced / Excluded の WHERE 条件、All は無条件）。`PluMigrationFilter` は db 層 enum（serde + specta、`#[serde(default)]` で既存 caller 互換）。
+3. IO `product_repo`: filter 一致全件を取得する unpaged 読取り `find_products_for_bulk_plu_target(conn, &ProductBulkFilter)`（`20-io` 本文で既に命名済みの名を維持。fenced signature を追加し、同 prose の「keyword / department / discontinued 条件」に `plu` を追記）と `ProductSearchQuery.plu: Option<PluMigrationFilter>`（`20-io §search_products` 設計済み: Target / Pending / Synced / Excluded の WHERE 条件、All は無条件）。`PluMigrationFilter` は db 層 enum（serde `rename_all` + specta）。`ProductSearchQuery.plu` は `#[serde(default)]` 付き（specta の `?:` 生成のため。Contract Probe 参照）。
 4. CMD-01 `bulk_set_plu_target` command（`40-cmd §bulk_set_plu_target`）: `lib.rs` `collect_commands!` + `generate_handler!` 双方へ登録（60 → 61）、`cargo run --bin generate_bindings` で `src/lib/bindings.ts` 再生成（`bulkSetPluTarget` / `ProductBulkFilter` / `BulkPluTargetResult` / `PluMigrationFilter` / `ImportRow.plu_target` / `ImportRow.warnings` / `ProductSearchQuery.plu`）。
 5. UI-01a（`50-ui` UI-01a-D10 / D11）: `search.ts` に `plu` param（`all|target|pending|synced|excluded`、既定 `all`、無効値は `all` へ正規化、`discontinued` と同じ `OPTIONS / normalizeEnum / payload` 機構）と filter UI（SegmentedControl 同列）、一覧に独立「PLU」列（3 語彙 text badge + 補助 icon、色のみ符号化なし、行減衰なし）、一括操作ボタン「PLU 対象にする」「PLU 対象から外す」→ `AlertDialog`（現在の filter 一致件数 = 一覧 query の `total_count` を表示）→ `commands.bulkSetPluTarget(filter, plu_target)` → 結果 toast（DSR-03: 完了通知）+ 失敗時は destructive Alert → D-052 C18 invalidation。
 6. UI-01c（`60-ui` UI-01c-D16）: preview 表に `PLU対象` 列（表示値 `対象` / `対象外` / `既定（13桁JANなら対象）`）と同行 warning（text + icon）、列の意味説明 1 行。
@@ -132,7 +132,7 @@ In scope:
 |---|---|
 | Tauri command `bulk_set_plu_target` | `lib.rs` `collect_commands!` + `generate_handler!` 双方へ登録（60 → 61）/ `#[tauri::command]` + `#[specta::specta]` / `cargo run --bin generate_bindings` → `src/lib/bindings.ts` 再生成（B-W1）。fenced signature は `40-cmd` に既存 |
 | 新規 pub fn（BIZ-01 `bulk_set_plu_target` / `product_repo` unpaged 読取り + bulk 更新 helper） | `30-biz §4.9.1`（既存 fenced）/ `20-io`（新規 fenced）に signature、`design_compliance_test` PASS（B-W2）。`KNOWN_ALLOWLIST` 追加は原則禁止 |
-| 新 type（`ProductBulkFilter` / `BulkPluTargetResult` / `PluMigrationFilter`、`ImportRow.plu_target` / `warnings`、`ProductSearchQuery.plu`） | `specta::Type` + serde（`ProductSearchQuery.plu` と `ImportRow` 新 field は `#[serde(default)]` で旧 caller / 旧 localStorage 互換）、bindings 再生成 + consumer 同一 commit 切替（B-W1） |
+| 新 type（`ProductBulkFilter` / `BulkPluTargetResult` / `PluMigrationFilter`、`ImportRow.plu_target` / `warnings`、`ProductSearchQuery.plu`） | `specta::Type` + serde（`ProductSearchQuery.plu` / `ImportRow.plu_target` は `#[serde(default)]` で TS 側 `?:`、`ImportRow.warnings: Vec<String>` は Rust 側 missing 許容のためにも `#[serde(default)]` 必須）、bindings 再生成 + consumer 同一 commit 切替（B-W1） |
 | URL search param `plu` | `src/features/products/search.ts` の OPTIONS / schema / normalize / payload / patch の 5 箇所同時追加、`50-ui` search param 表は既存 |
 | D-052 C18 | `invalidation-contract.ts` `pluBulkTarget` + 独立 oracle test + `decision-log.md` D-052 Contract 行 + `UI_TECH_STACK.md §2.5` + `50-ui` 新規決定行 `UI-01a-D12`（B-I1） |
 | REQ-907 test 付与 | `cargo run --bin generate_traceability` で `90-traceability.md` 再生成、`--check` PASS（B-W3）。hand edit 禁止 |
@@ -192,7 +192,7 @@ Minimum design checks for business-app work:
 
 ## Contract Probe
 
-- `#[serde(default)]` を付けた `Option` field が specta で optional（`plu?: PluMigrationFilter | null`）として生成され、旧 caller（`plu` 未指定）が型 error にならない: 既存 `ProductUpdateRequest.plu_target?: boolean | null`（`bindings.ts`）が同じ機構で生成済み -> 成立（実装時に bindings diff で再確認、B-W1）。
+- `#[serde(default)]` の役割は TS 側の optional key（specta が `plu?: PluMigrationFilter | null` を生成し、`plu` 未指定の既存 TS caller が型 error にならない）である。Rust 側の missing field → `None` は `Option<T>` の serde 組込み挙動で、属性の有無に依存しない（round 3 reviewer が scratch crate で実証）。precedent: `ProductUpdateRequest` は container-level `#[serde(default)]`（`product_service.rs:47`）を持ち `bindings.ts` で `plu_target?: boolean | null`、属性なしの型では `plu_target: boolean | null`（必須 key）になる -> `ProductSearchQuery.plu` と `ImportRow.plu_target` に field-level `#[serde(default)]` を付けて `?:` を得る。`ImportRow.warnings: Vec<String>` は missing → Err になるため `#[serde(default)]` が Rust 側でも必須。実装時に bindings diff で再確認（B-W1）。
 - `AlertDialog` で件数付き確認を出す既存実装: `AdditionalImportConfirmDialog.tsx`（件数 `toLocaleString("ja-JP")` 表示、open / onCancel / onConfirm）-> 同型で流用可。
 - その他の外部前提なし（CV17 / レジは本 packet の対象外）。
 
@@ -261,7 +261,7 @@ Test Design Matrix: `docs/plans/test-matrices/2026-08-19-plu-bulk-onboarding-imp
 - precision/range: 件数は usize → u32、商品数上限は実運用数千
 - round-trip path: UI `search.ts` の正規化 filter → `buildProductSearchQuery` と同じ source から `ProductBulkFilter` を構築（page / per_page を除く）
 - invalid input: `plu` 不明値 = serde error → CmdError（UI は `search.ts` で事前正規化）、CSV 不正値 = 行 error
-- compatibility: `#[serde(default)]` で `plu` / `plu_target` / `warnings` 省略可、既存 caller 無改変で動作
+- compatibility: `plu` / `plu_target` は `Option<T>` 組込みで Rust 側省略可 + `#[serde(default)]` で TS 側 `?:`、`warnings` は `#[serde(default)]` で省略可。既存 caller 無改変で動作
 
 ## Human Gate Proposal
 
@@ -343,7 +343,14 @@ Do not transcribe exact-HEAD SHA or test counts here (D-035/D-038 Evidence Owner
 
 ### Plan Gate round 2（2026-08-19、fresh 独立 Sonnet Plan Reviewer、対象 `4feed6c`）
 
-- round 1 是正 8 件は全件「適正」（20-io 命名 / DSR-04 PR #95 記述 / DB_DESIGN D-3 別物 / 50-ui D-12 未使用 / importer 無条件 trim / Wave Operation 並行前提 / failpoint mod / D-073 先送り を source で裏取り）。事実主張 17 件 OK。
+- round 1 是正 8 件（`git show 4feed6c` の delta、reviewer 報告）は全件「適正」（20-io 命名 / DSR-04 PR #95 記述 / DB_DESIGN D-3 別物 / 50-ui D-12 未使用 / importer 無条件 trim / Wave Operation 並行前提 / failpoint mod / D-073 先送り を source で裏取り）。事実主張 17 件 OK。
 - 新規 P2 1（accept）: Mutation 設問に B-V2 / B-S2 / B-P1 の mutant が不在 → 3 件追加（`normalizeEnum` bypass / `#[serde(default)]` 除去 / preview 表示値 swap）。
 - 新規 P3 1（accept）: `Plans.md` 次の行動の本 packet 行が `plan-draft` 表記のまま → `plan-gate` へ同期（同 commit）。
 - round 3 は fresh delta 再検証（P1/P2 = 0 収束確認）。
+
+### Plan Gate round 3（2026-08-19、fresh 独立 Sonnet Plan Reviewer、対象 `fa90206`、rally 天井）
+
+- round 2 是正: `Plans.md` 同期 = 適正、mutation 3 行追加 = B-V2 / B-P1 適正、B-S2 の mutant は equivalent（P2）。
+- P2 1（accept、Coordinator 是正）: 「`#[serde(default)]` を外す」は Rust 側 deserialize を変えない equivalent mutant（`Option<T>` は属性なしでも missing → `None`、reviewer が scratch crate で実証）。是正 = B-S2 の mutant を `PluMigrationFilter` の `rename_all` 除去へ差し替え、`#[serde(default)]` 除去は TS 側 `?:` 消失として B-W1（bindings diff + tsc）で検出する旨を Matrix に明記。Contract Probe の precedent 記述を訂正（`ProductUpdateRequest` は container-level `#[serde(default)]`（`product_service.rs:47`）を持ち、それが specta の `?:` を生む。Rust 側 missing 許容は `Option<T>` 組込み）。Scope 3 / Registration / Boundary の `#[serde(default)]` の役割記述も同期（`warnings: Vec<String>` のみ Rust 側でも必須）。
+- rally 天井到達時の disposition（`DEV_WORKFLOW.md` Review Rules）: 残 finding は本 P2 1 件のみで、是正は Matrix / packet 記述の訂正（設計変更なし）。Coordinator が同型指摘の一括是正として閉じ、次 round は開始しない。Final Review が実装時の bindings diff（`plu?:` / `plu_target?:` / `warnings?:`）で再確認する。
+- Plan Gate 収束: round 1〜3 で P1 = 0、round 3 残 P2 は上記 disposition で是正済み。owner plan approval 待ち。
