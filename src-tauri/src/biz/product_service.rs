@@ -438,7 +438,7 @@ pub fn bulk_set_plu_target(
                 discontinued_skipped_count += 1;
                 continue;
             }
-            if !should_default_plu_target(product.jan_code.as_deref()) {
+            if !is_plu_target_eligible_jan(product.jan_code.as_deref()) {
                 invalid_jan_skipped_count += 1;
                 continue;
             }
@@ -573,6 +573,10 @@ pub fn list_low_stock(
 // ---------------------------------------------------------------------------
 
 fn should_default_plu_target(jan_code: Option<&str>) -> bool {
+    jan_code.is_some_and(|jan| jan.len() == 13 && jan.chars().all(|ch| ch.is_ascii_digit()))
+}
+
+fn is_plu_target_eligible_jan(jan_code: Option<&str>) -> bool {
     jan_code.is_some_and(|jan| jan.len() == 13 && jan_code::validate(jan).is_ok())
 }
 
@@ -883,7 +887,7 @@ pub fn preview_import(conn: &DbConnection, file_bytes: &[u8]) -> Result<ImportPr
         let mut warnings = Vec::new();
         let plu_target = match row.fields.get("PLU対象") {
             Some(value) if !value.is_empty() => match value.as_str() {
-                "1" if should_default_plu_target(jan_code.as_deref()) => Some(true),
+                "1" if is_plu_target_eligible_jan(jan_code.as_deref()) => Some(true),
                 "1" => {
                     warnings.push("JAN が13桁でないため対象外として取り込みます".to_string());
                     Some(false)
@@ -1506,6 +1510,11 @@ mod tests {
                 "jan={jan_code:?}"
             );
         }
+    }
+
+    #[test]
+    fn test_should_default_plu_target_req907_preserves_invalid_check_digit_compatibility() {
+        assert!(should_default_plu_target(Some("2000000000038")));
     }
 
     #[test]
@@ -2521,17 +2530,27 @@ mod tests {
 
         let mut new_default = make_import_row("PLU-C4-NEW", "既定対象");
         new_default.jan_code = Some("2000000000039".to_string());
+        let mut invalid_check_digit =
+            make_import_row("PLU-C4-INVALID-CHECK", "チェックディジット不一致");
+        invalid_check_digit.jan_code = Some("2000000000038".to_string());
         let mut overwrite_blank = make_import_row("PLU-C4-KEEP", "空欄上書き");
         overwrite_blank.jan_code = Some("2000000000015".to_string());
         commit_import(
             &mut conn,
-            vec![new_default, overwrite_blank],
+            vec![new_default, invalid_check_digit, overwrite_blank],
             vec!["PLU-C4-KEEP".to_string()],
         )
         .unwrap();
 
         assert!(
             product_repo::find_by_product_code(&conn, "PLU-C4-NEW")
+                .unwrap()
+                .unwrap()
+                .product
+                .plu_target
+        );
+        assert!(
+            product_repo::find_by_product_code(&conn, "PLU-C4-INVALID-CHECK")
                 .unwrap()
                 .unwrap()
                 .product
@@ -2999,10 +3018,24 @@ mod tests {
                 (false, target, dirty),
             );
         }
+        for (code, department_id, is_discontinued) in [
+            ("BL7-DEPT-DECOY", 3_i64, false),
+            ("BL7-DISC-DECOY", 2_i64, true),
+        ] {
+            let jan = synthetic_ean13_req907(260_000_000_100 + department_id as u64);
+            insert_bulk_product_req907(
+                &conn,
+                code,
+                "BL7 FILTER",
+                Some(&jan),
+                department_id,
+                (is_discontinued, true, true),
+            );
+        }
         let query = ProductSearchQuery {
             keyword: Some("BL7 FILTER".into()),
             department_id: Some(2),
-            is_discontinued: None,
+            is_discontinued: Some(false),
             plu: Some(PluMigrationFilter::Pending),
             sort_key: SortKey::Name,
             sort_order: SortOrder::Asc,
@@ -3011,12 +3044,20 @@ mod tests {
         };
         let search_count = search_products(&conn, query).unwrap().total_count;
         let pending = ProductBulkFilter {
+            is_discontinued: Some(false),
             plu: Some(PluMigrationFilter::Pending),
             ..bulk_filter_req907("BL7 FILTER")
         };
         let pending_result = bulk_set_plu_target(&mut conn, pending, false).unwrap();
-        let all_result =
-            bulk_set_plu_target(&mut conn, bulk_filter_req907("BL7 FILTER"), false).unwrap();
+        let all_result = bulk_set_plu_target(
+            &mut conn,
+            ProductBulkFilter {
+                is_discontinued: Some(false),
+                ..bulk_filter_req907("BL7 FILTER")
+            },
+            false,
+        )
+        .unwrap();
         assert!(search_count > 0);
         assert_eq!(pending_result.matched_count, search_count);
         assert_eq!(all_result.matched_count, 4);
