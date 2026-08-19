@@ -247,27 +247,53 @@ function SummaryCard({ title, value, tone }: { title: string; value: string; ton
 
 function ImportRowsTable({ rows }: { rows: ImportPreview["valid_rows"] }) {
   return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>行</TableHead>
-          <TableHead>商品コード</TableHead>
-          <TableHead>商品名</TableHead>
-          <TableHead>部門ID</TableHead>
-          <TableHead className="text-right">売価</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {rows.slice(0, MAX_VISIBLE_ROWS).map((row) => (
-          <TableRow key={`${String(row.line_no)}-${row.product_code}`}>
-            <TableCell>{row.line_no}</TableCell>
-            <TableCell className="font-mono">{row.product_code}</TableCell>
-            <TableCell>{row.name}</TableCell>
-            <TableCell>{row.department_id}</TableCell>
-            <TableCell className="text-right">¥{row.selling_price.toLocaleString()}</TableCell>
+    <div className="space-y-2">
+      <p className="text-sm text-muted-foreground">
+        PLU対象が空欄の場合は、13桁JANの商品を対象とする既定ルールを適用します。
+      </p>
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>行</TableHead>
+            <TableHead>商品コード</TableHead>
+            <TableHead>商品名</TableHead>
+            <TableHead>部門ID</TableHead>
+            <TableHead className="text-right">売価</TableHead>
+            <TableHead>PLU対象</TableHead>
           </TableRow>
-        ))}
-      </TableBody>
-    </Table>
+        </TableHeader>
+        <TableBody>
+          {rows.slice(0, MAX_VISIBLE_ROWS).map((row) => (
+            <TableRow key={`${String(row.line_no)}-${row.product_code}`}>
+              <TableCell>{row.line_no}</TableCell>
+              <TableCell className="font-mono">{row.product_code}</TableCell>
+              <TableCell>{row.name}</TableCell>
+              <TableCell>{row.department_id}</TableCell>
+              <TableCell className="text-right">¥{row.selling_price.toLocaleString()}</TableCell>
+              <TableCell>
+                <div className="space-y-1">
+                  <span>
+                    {row.plu_target === true
+                      ? "対象"
+                      : row.plu_target === false
+                        ? "対象外"
+                        : "既定（13桁JANなら対象）"}
+                  </span>
+                  {(row.warnings ?? []).map((warning) => (
+                    <span
+                      key={warning}
+                      className="flex items-start gap-1 text-xs text-warning-emphasis"
+                    >
+                      <AlertTriangle className="mt-0.5 size-3 shrink-0" aria-hidden="true" />
+                      {warning}
+                    </span>
+                  ))}
+                </div>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </div>
   );
 }

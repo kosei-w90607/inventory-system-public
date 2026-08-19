@@ -4,7 +4,7 @@ import { queryKeys } from "./query-keys";
 
 export type InvalidationKey = QueryKey;
 
-/** D-052-C1〜C17: mutation 成功時に stale 化する consumer query の SSOT。 */
+/** D-052-C1〜C18: mutation 成功時に stale 化する consumer query の SSOT。 */
 export const invalidationContract = {
   productCreate: () => [
     queryKeys.productList.root(),
@@ -138,6 +138,12 @@ export const invalidationContract = {
     queryKeys.stockInquiryRoot(),
   ],
   pluRegisterSnapshot: () => [queryKeys.pluSlotSummary()],
+  pluBulkTarget: () => [
+    queryKeys.productList.root(),
+    queryKeys.pluDirty(),
+    queryKeys.productForm.root(),
+    queryKeys.pluSlotSummary(),
+  ],
 } satisfies Record<string, (...args: never[]) => InvalidationKey[]>;
 
 export async function invalidateByContract(

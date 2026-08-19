@@ -153,7 +153,7 @@ mod tests {
     use crate::db::{
         init_database,
         migration_tx::{self, FailurePoint},
-        schema_v1, schema_v2, DbError,
+        schema_v1, schema_v2, schema_v3, schema_v4, DbError,
     };
     use rusqlite::Connection;
 
@@ -357,6 +357,19 @@ mod tests {
     fn setup_v2_only_db() -> (tempfile::TempDir, Connection) {
         let (dir, conn) = setup_v1_only_db();
         schema_v2::apply_v2_idempotency(&conn, 2).unwrap();
+        (dir, conn)
+    }
+
+    fn setup_v4_only_db() -> (tempfile::TempDir, Connection) {
+        let (dir, conn) = setup_v2_only_db();
+        schema_v3::apply_v3_plu_target(&conn, 3).unwrap();
+        super::apply_sql_migration(
+            &conn,
+            4,
+            "日報取込みテーブル追加（daily_report_imports + lines）",
+            schema_v4::get_v4_daily_report_schema(),
+        )
+        .unwrap();
         (dir, conn)
     }
 
@@ -567,6 +580,23 @@ mod tests {
             )
             .unwrap();
         assert_eq!((max_version, version_count), (5, 5));
+    }
+
+    #[test]
+    fn test_migration_req907_upgrades_v4_database_and_seeds_all_plu_slots() {
+        // REQ-907 / B-F1: v1〜v4 適用済み DB から v5 だけを適用する。
+        let (_dir, conn) = setup_v4_only_db();
+        super::migrate(&conn).unwrap();
+        let max_version: i64 = conn
+            .query_row("SELECT MAX(version) FROM schema_versions", [], |row| {
+                row.get(0)
+            })
+            .unwrap();
+        let slot_count: i64 = conn
+            .query_row("SELECT COUNT(*) FROM plu_slots", [], |row| row.get(0))
+            .unwrap();
+        assert_eq!(max_version, 5);
+        assert_eq!(slot_count, 4_784);
     }
 
     #[test]

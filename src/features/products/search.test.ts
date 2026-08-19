@@ -9,9 +9,11 @@ import { describe, expect, it } from "vitest";
 import {
   PRODUCT_DISCONTINUED_OPTIONS,
   PRODUCT_PER_PAGE_OPTIONS,
+  PRODUCT_PLU_OPTIONS,
   PRODUCT_SORT_DIRECTION_OPTIONS,
   PRODUCT_SORT_OPTIONS,
   buildProductSearchQuery,
+  buildProductBulkFilter,
   normalizeProductListSearch,
   productListSearchSchema,
   updateProductListSearch,
@@ -43,6 +45,7 @@ describe("product list search mapping (UI-01a)", () => {
       keyword: null,
       department_id: null,
       is_discontinued: false,
+      plu: "all",
       sort_key: "ProductCode",
       sort_order: "Asc",
       page: 1,
@@ -56,6 +59,7 @@ describe("product list search mapping (UI-01a)", () => {
         q: "  HZ-0047  ",
         dept: 3,
         discontinued: "discontinued",
+        plu: "synced",
         sort: "selling_price",
         dir: "desc",
         page: 4,
@@ -65,6 +69,7 @@ describe("product list search mapping (UI-01a)", () => {
       keyword: "HZ-0047",
       department_id: 3,
       is_discontinued: true,
+      plu: "synced",
       sort_key: "SellingPrice",
       sort_order: "Desc",
       page: 4,
@@ -77,6 +82,7 @@ describe("product list search mapping (UI-01a)", () => {
       q: "",
       dept: -1,
       discontinued: "unknown",
+      plu: "bogus",
       sort: "bad_sort",
       dir: "sideways",
       page: 0,
@@ -87,12 +93,41 @@ describe("product list search mapping (UI-01a)", () => {
       q: undefined,
       dept: undefined,
       discontinued: "active",
+      plu: "all",
       sort: "product_code",
       dir: "asc",
       page: 1,
       perPage: 50,
     });
     expect(buildProductSearchQuery(normalized).per_page).toBe(50);
+  });
+
+  it("REQ-907 B-V2: normalizes PLU URL values and builds the unpaged bulk filter", () => {
+    expect(normalizeProductListSearch({ plu: "pending", discontinued: "all" })).toMatchObject({
+      plu: "pending",
+      discontinued: "all",
+      page: 1,
+    });
+    expect(buildProductSearchQuery({ plu: "bogus" })).toMatchObject({ plu: "all" });
+    expect(
+      buildProductBulkFilter({
+        q: "  糸  ",
+        dept: 2,
+        discontinued: "all",
+        plu: "pending",
+        page: 9,
+        perPage: 200,
+      }),
+    ).toEqual({
+      keyword: "糸",
+      department_id: 2,
+      is_discontinued: null,
+      plu: "pending",
+    });
+    expect(updateProductListSearch({ plu: "pending", page: 7 }, { plu: "synced" })).toEqual({
+      plu: "synced",
+      page: 1,
+    });
   });
 
   it("UI-01a-D4: filter/sort/perPage changes reset page but page-only changes preserve filters", () => {
@@ -131,6 +166,13 @@ describe("feature-owned finite search schemas", () => {
       { value: "active", label: "表示中", payload: false },
       { value: "all", label: "すべて", payload: null },
       { value: "discontinued", label: "廃番のみ", payload: true },
+    ]);
+    expect(PRODUCT_PLU_OPTIONS).toEqual([
+      { value: "all", label: "すべて", payload: "all" },
+      { value: "target", label: "対象", payload: "target" },
+      { value: "pending", label: "未反映", payload: "pending" },
+      { value: "synced", label: "反映済み", payload: "synced" },
+      { value: "excluded", label: "対象外", payload: "excluded" },
     ]);
     expect(PRODUCT_SORT_OPTIONS).toEqual([
       { value: "product_code", label: "商品コード", payload: "ProductCode" },
@@ -223,6 +265,12 @@ describe("feature-owned finite search schemas", () => {
   });
 
   it.each([
+    {
+      name: "product PLU",
+      schema: productListSearchSchema,
+      key: "plu",
+      values: ["all", "target", "pending", "synced", "excluded"],
+    },
     {
       name: "product discontinued",
       schema: productListSearchSchema,

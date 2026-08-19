@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 
+import { d052InvalidationOracle } from "@/test/invalidation-oracle";
+
 import { invalidationContract } from "./invalidation-contract";
 
 describe("UI-07 D-052 invalidation SSOT shape", () => {
-  it("defines all 17 non-empty mutation entries", () => {
+  it("REQ-907 B-I1: defines all 18 mutation entries exactly once against the independent oracle", () => {
     expect(Object.keys(invalidationContract).sort()).toEqual(
       [
         "productCreate",
@@ -23,9 +25,10 @@ describe("UI-07 D-052 invalidation SSOT shape", () => {
         "thresholdSave",
         "pluExportConfirm",
         "pluRegisterSnapshot",
+        "pluBulkTarget",
       ].sort(),
     );
-    const entries = [
+    const actualEntries = [
       invalidationContract.productCreate(),
       invalidationContract.productUpdate("P-001"),
       invalidationContract.productImport(),
@@ -43,9 +46,36 @@ describe("UI-07 D-052 invalidation SSOT shape", () => {
       invalidationContract.thresholdSave(),
       invalidationContract.pluExportConfirm(),
       invalidationContract.pluRegisterSnapshot(),
+      invalidationContract.pluBulkTarget(),
+    ];
+    const expectedEntries = [
+      d052InvalidationOracle.productCreate(),
+      d052InvalidationOracle.productUpdate("P-001"),
+      d052InvalidationOracle.productImport(),
+      d052InvalidationOracle.receiving(),
+      d052InvalidationOracle.returnExchange(false),
+      d052InvalidationOracle.manualSale("2026-07-23"),
+      d052InvalidationOracle.disposal(),
+      d052InvalidationOracle.csvImportCommit(),
+      d052InvalidationOracle.csvImportRollback(),
+      d052InvalidationOracle.dailyReportImport(),
+      d052InvalidationOracle.stocktakeStart(),
+      d052InvalidationOracle.stocktakeCountUpdate(),
+      d052InvalidationOracle.stocktakeComplete(),
+      d052InvalidationOracle.integrityFix(),
+      d052InvalidationOracle.thresholdSave(),
+      d052InvalidationOracle.pluExportConfirm(),
+      d052InvalidationOracle.pluRegisterSnapshot(),
+      d052InvalidationOracle.pluBulkTarget(),
     ];
 
-    expect(entries).toHaveLength(17);
-    for (const entry of entries) expect(entry.length).toBeGreaterThan(0);
+    expect(actualEntries).toHaveLength(18);
+    expect(actualEntries.map((entry) => entry.map((key) => JSON.stringify(key)).sort())).toEqual(
+      expectedEntries.map((entry) => entry.map((key) => JSON.stringify(key)).sort()),
+    );
+    for (const entry of actualEntries) {
+      expect(entry.length).toBeGreaterThan(0);
+      expect(new Set(entry.map((key) => JSON.stringify(key))).size).toBe(entry.length);
+    }
   });
 });

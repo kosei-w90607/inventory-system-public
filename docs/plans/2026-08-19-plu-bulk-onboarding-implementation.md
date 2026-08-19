@@ -321,7 +321,7 @@ Contract ID: SPEC-PLS-D6 / SPEC-PLS-D7（一覧）/ B-D1〜B-D4
 
 ## Implementation Results
 
-Fill after implementation.
+CSV の `PLU対象` 契約、filter 全件の一括対象更新、PLU 移行検索・一覧表示、確認 dialog と結果通知、C18 invalidation を実装した。PR #85 follow-up として v4→v5 migration および reservation dropped 後の再予約 oracle も追加し、generated bindings と source docs を同期した。
 
 Do not transcribe exact-HEAD SHA or test counts here (D-035/D-038 Evidence Ownership). Record a qualitative summary and the PR link only.
 
