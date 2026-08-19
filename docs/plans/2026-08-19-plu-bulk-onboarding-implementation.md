@@ -10,7 +10,7 @@ If a state-only commit materializes multiple phases, list the complete adjacent 
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: f0cd25c
-- Amendments: none
+- Amendments: fd2fd5f
 - Coordinator: Fable
 - Writer: Codex
 - Plan Reviewer: Sonnet subagent（独立、Writer と別 context）
@@ -365,4 +365,4 @@ Do not transcribe exact-HEAD SHA or test counts here (D-035/D-038 Evidence Owner
 
 - 事象: Writer が実装前の source contract 監査で停止 — (1) `40-cmd §bulk_set_plu_target` の戻り値 `BulkPluTargetResponse` と packet Boundary（`BulkPluTargetResult` を BIZ 型として CMD から直接返す）の不一致 (2) `30-biz §4.8` の `ImportRow` fenced 定義に `warnings: Vec<String>` がなく、Required Design Artifacts に §4.8 DTO 更新が未列挙。
 - 裁定: (1) `40-cmd` を `BulkPluTargetResult` へ訂正（`create_product` が `ProductCreateResult` を直接返す既存慣行と `cmd-task-specs` の表記に一致。別 DTO を作らない）(2) `30-biz §4.8` `ImportRow` fenced 定義に `warnings: Vec<String>` を追加し、Required Design Artifacts の Backend 行に明記。設計意味（契約・遷移・文言）は不変、Plan Commit `f0cd25c` 維持。
-- amendment commit SHA は Workflow State `Amendments` に後続 commit で記録。
+- amendment commit = `fd2fd5f`（Workflow State `Amendments` に記録）。
