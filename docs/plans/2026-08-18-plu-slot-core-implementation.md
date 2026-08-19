@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: human-confirm
+- Phase: implementing
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: fade732
@@ -11,7 +11,7 @@
 - Writer: Codex
 - Plan Reviewer: Sonnet
 - Final Reviewer: Sonnet
-- Reviewed Content HEAD: f30d9ff
+- Reviewed Content HEAD: pending
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
 - Human Gate: Windows native L3（`67-ui §67.12` が UI-08 実装 PR に必須と規定。実機 Z004 読込み・Diff 投入・clear 行の CV17 受理 + レジ側未設定化、店舗訪問と同期）/ human visual confirmation（UI-08 snapshot step + 要約、UI-01b レジメモリNo.）/ Ready / merge（owner plan approval は 2026-08-18 に完了、介入 1 回目）
@@ -411,3 +411,11 @@ Do not transcribe exact-HEAD SHA or test counts here (D-035/D-038 Evidence Owner
 - human-confirm の evidence = findings 裁定済み（P2 / P3 accept 是正 = `56e5fda`、P3 2 件 follow-up routing）、Reviewed Content HEAD = `f30d9ff`。
 - 残る Human Gate = Windows native L3（`67-ui §67.12` 該当項目、店舗訪問と同期。手順書と synthetic fixture は Coordinator が owner へ提示済み）/ human visual confirmation（L3 と同時）/ Ready 承認 / merge。L3 で clear 行が受理されない場合は `PLU_CLEAR_ROW_ENABLED=false` の gated amendment + Final Review delta を経て Ready。
 - Owner Effort Budget 実績（2026-08-19 時点）: 介入 1/3（plan approval）、relay 往復 3/2（初回発注 / amendment 1 再開 / amendment 2 再開。超過は Coordinator の設計監査不足に起因、Writer 往復はこれ以上増やさない）、STATECAP forward 2/3。
+
+### Windows native L3 round 1 FAIL / state-backtrack 記録（2026-08-19）
+
+- 結果（owner 報告、店 PC、exact HEAD = `4835073`、AppData なし、register baseline 確認済み）: Phase 0 / S1〜S5 PASS（Z004 読込み free 3,851 / external 933 / app managed 0 / conflict 0 = 合計 4,784、T1 対象化で `未割当`、Diff 保存で 6 桁 memory No. 割当 + 旧 Full file 再投入禁止文言、CV17 1.1.1 受理、SD 書込み + SR-S4000 設定読込み）。**S6 FAIL**: アプリ生成行が `単品売り=はい` のため scan-call だけで現金ちょうどの自動会計 + レシート発行となる（operator の選択なし）。owner が CV17 上で T1 のみ `単品売り=いいえ` に変更して再投入すると scan-call 後は通常の会計待ちになり、原因が `単品売り=はい` であることを実機確認。S7〜S14（confirm / 対象外化 / clear 行 / CV17 clear 受理 / 未設定化 / 再 Z004 / Full）は未実施。テスト売上は戻モードで相殺、追加診断取引は取引中止済み、アプリの「未反映から外す」は未操作。register baseline 復元は owner 判断で省略（店舗はスキャニング PLU を実運用していない）。実 JAN・商品名・価格・実ファイル・DB・backup は転記しない。
+- 追加 UI 所見（owner）: 保存済み未確認の復帰 Alert の回復手順文言が Full-only の再書出し案内（`未反映を外さずに全件を書き出し直して取り込んでください`）のままで、source contract `67-ui §67.9`「failure note before confirm」= `保存済みファイルを再投入するか、差分または全件を書き出し直してください。`（UI-08-D4 / D10、PR #84 で改訂済み）と不一致。保存完了後の独立 warning Alert も同文のため同一欠陥。
+- 根本原因: (1) `25-io §12.3` 処理ステップ 2f の固定列 `単品売り=はい` は CV17 template 由来の値で、SR-S4000 ではこの値が scan-call 即時会計（単品売り）を意味する。実装（`plu_formatter.rs` 固定列 + test assert）は設計どおりで、設計契約が実機挙動と不一致（設計起源、Writer 責任外）。(2) 回復手順文言は PR #84 の `67-ui §67.9` 文言表改訂に対する実装同期漏れ + Final Review の文言表突合漏れ（A-V1 は「旧 Full-only 注意文（保存前 warning）の不在」のみ assert し、回復手順文言は旧文言を test が pin していた）。
+- 裁定: state-backtrack `human-confirm -> implementing`（最早影響 phase = implementing、code 是正を伴うため）。Reviewed Content HEAD は pending へ戻す（`f30d9ff` の監査記録は Review Response に保持）。是正は gated amendment 4（`25-io §12.3` 2f `単品売り=いいえ` + `67-ui` 文言表はそのまま実装同期）として Coordinator/Writer 兼務で実施する（PR #81 先例。relay 往復 3/2 超過につき Writer 往復を増やさない budget 判断、独立 Sonnet Final Review delta で自己承認を回避）。`implementing -> local-verified` は是正 content commit に同乗し、以後は L3 round 2（次回店舗訪問、Phase 0 から S1〜S14 全再走。S6 はアプリ生成 file の `いいえ` で再確認）→ Ready 承認後に state-only 3 本目（`local-verified -> independent-review -> human-confirm -> ready-hosted-final` の隣接 forward 圧縮、Reviewed Content HEAD 設定）。
+- Owner Effort Budget 実績: 介入 2/3（plan approval / L3 round 1 結果報告）。packet 想定どおり L3 round 2 = 3/3、Ready 承認 = 4/3 の超過が確定（超過報告は Ready 依頼時に明示）。STATECAP forward 2/3（backtrack は cap 対象外）。
