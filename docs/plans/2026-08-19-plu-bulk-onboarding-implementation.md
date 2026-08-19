@@ -10,7 +10,7 @@ If a state-only commit materializes multiple phases, list the complete adjacent 
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: f0cd25c
-- Amendments: fd2fd5f, 2650408, fa1659f
+- Amendments: fd2fd5f, 2650408, fa1659f, d7e4ed1
 - Coordinator: Fable
 - Writer: Codex
 - Plan Reviewer: Sonnet subagent（独立、Writer と別 context）
@@ -380,4 +380,4 @@ Do not transcribe exact-HEAD SHA or test counts here (D-035/D-038 Evidence Owner
 - 事象: `buildProductSearchQuery` が新契約で `plu: "all"` を送るため、既存 `search.test.ts` / `useProductList.test.tsx` の旧 payload exact assert が FAIL（frontend 全回帰 1 件）。Oracle Replacement Ledger に両 test が未列挙で、既存 test の expected 変更禁止条件に抵触。
 - 選択肢: A = Ledger に両 test を追加し default payload `plu: "all"` を確定 / B = `all` のとき payload を省略する契約へ変更。裁定 = **A**。`discontinued` の既定 `active` が `is_discontinued: false` として送られる既存慣行と揃い、serde 側の `#[serde(default)]` は旧 caller 互換（TS `?:`）のために残す。B は「既定値だけ省略」という例外を 1 param にだけ作り、B-V2 の oracle と bindings 契約を曖昧にする。
 - 是正: packet Oracle Replacement Ledger に 2 test の置換行を追加（置換理由 / 新 oracle / Matrix B-V2 / B-S2 / B-W1）、Matrix B-V2 の「or 省略」を削除して `plu: "all"` 送信に確定。設計意味は不変、Plan Commit `f0cd25c` 維持。
-- amendment commit SHA は Workflow State `Amendments` に後続 commit で記録。
+- amendment commit = `d7e4ed1`（Workflow State `Amendments` に記録）。
