@@ -10,7 +10,7 @@ If a state-only commit materializes multiple phases, list the complete adjacent 
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: f0cd25c
-- Amendments: fd2fd5f, 2650408
+- Amendments: fd2fd5f, 2650408, fa1659f
 - Coordinator: Fable
 - Writer: Codex
 - Plan Reviewer: Sonnet subagent（独立、Writer と別 context）
@@ -372,4 +372,4 @@ Do not transcribe exact-HEAD SHA or test counts here (D-035/D-038 Evidence Owner
 - 事象: packet Boundary が `ProductBulkFilter` を biz 層所有と書く一方、Scope 3 は `product_repo::find_products_for_bulk_plu_target(conn, &ProductBulkFilter)` を要求しており、`architecture_test.rs` の db → biz 依存禁止（例外なし）と両立しない。
 - 選択肢: A = IO 層に内部型 `ProductBulkQuery` を置き biz の `ProductBulkFilter` から変換（20-io fenced signature と Scope 3 を `&ProductBulkQuery` へ変更）/ B = `ProductBulkFilter` を db 層 `product_repo` 所有にし biz が `pub use` で再 export（`ProductSearchQuery` / `ProductWithRelations` の既存慣行、`biz/mod.rs:21`）。裁定 = **B**。A は同じ field 集合の型を 2 つ持ち変換 1 段を増やすだけで、既存の検索 filter（`ProductSearchQuery`）が db 所有である慣行とも揃わない。B は 20-io の fenced 形・30-biz / 40-cmd の signature を変えずに済み、`PluMigrationFilter`（db 層 enum）と同居する。
 - 是正: packet Boundary の internal type 行と Scope 2 の所有記述を更新。source docs は不変（型の所有層は function-design の signature に現れない）。設計意味は不変、Plan Commit `f0cd25c` 維持。
-- amendment commit SHA は Workflow State `Amendments` に後続 commit で記録。
+- amendment commit = `fa1659f`（Workflow State `Amendments` に記録）。
