@@ -6,10 +6,10 @@ Use the field definitions, enums, transition evidence, packet-selection rule, an
 
 If a state-only commit materializes multiple phases, list the complete adjacent forward sequence and the pre-existing evidence for every intermediate transition in an append-only review/evidence record. Recording compression never permits a gate skip.
 
-- Phase: plan-gate
+- Phase: implementing
 - Risk: R2
 - Execution Mode: fable-window
-- Plan Commit: pending
+- Plan Commit: e29c27e
 - Amendments: none
 - Coordinator: Fable
 - Writer: Fable（docs-only。設計判断の起草者 = Coordinator。独立 Sonnet reviewer で自己承認を回避）
@@ -218,3 +218,9 @@ Fill after implementation.
 
 - round 1 是正 4 件は全件適正（§3.1 要件充足と PK4 非衝突を script 実行で確認 / 反映先 ⑬ 実在 / `text-xs` 39 hit で badge 外 20 超の主張を裏付け / space-8 = 32px との相違は事実）。新規 P1 0 / P2 0 / P3 0 → **Plan Gate 収束**。owner plan approval 待ち。
 - 付記: Hosted CI Requirement は docs-only で `not-required` も選べるが、安全側の `required` を維持。
+
+### owner plan approval / 遷移記録（2026-08-20）
+
+- owner plan approval（介入 1 回目 / 予算 2 回、owner 発言 `承認するよ`。§3.1 design board 例外の役割割当ごと承認）。
+- state-only 遷移（append-only、STATECAP forward 1 本目）: `plan-gate -> plan-approved -> implementing`。plan-approved の evidence = Plan Gate round 2 P1/P2 = 0（`dbe8f2d`）+ owner approval。implementing の evidence = Plan Commit `e29c27e`（plan-first、content commit に先行）。
+- 以後: docs content commit（04-backbone / reference / README）→ L1 full → 独立 Sonnet Final Review → Ready 承認（介入 2/2）→ state-only 2 本目（`local-verified -> independent-review -> human-confirm -> ready-hosted-final` の隣接 forward 圧縮、`implementing -> local-verified` は content commit 同乗）。
