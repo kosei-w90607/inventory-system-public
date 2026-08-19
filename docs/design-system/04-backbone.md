@@ -18,7 +18,7 @@
 4. **badge は 3 種だけ。** ①状態 = outline + icon + soft 背景（在庫切れ / 在庫少 / PLU 未反映 等）②分類 = secondary pill・icon なし（廃番 / 手動 等）③強調 = 琥珀 pill（ランキング 1 位 / 最新 等）。4 種目を作らない。（B §2.6）
 5. **1 画面に primary（琥珀塗り）は 1 つ。** 入口（ホーム）は最重要導線 1 つだけ primary にする。0 primary の画面は昇格を検討する。（既存 DSR-01 + A 診断 #3）
 6. **画面の器は 1 つ。** `PageShell`（p-6 / space-y-6）を唯一の page root にする。一覧画面の検索・絞り込みは枠（rounded-md border p-4）に入れ、「検索条件」と「並び替え・件数」は段を分ける。（B §2.2 + A 診断 #5 #6 + B D15。00-foundations スペーシング表の「space-8 = ページ余白」行と数値が異なる = 現行実装の多数派 p-6 に合わせる意図、batch 1 で同行を修正）
-7. **検索欄は全画面で同じ挙動。** live 型（入力で絞り込み）+ 検索ボタン併記。Enter を押させる commit 型の画面を残さない。（B D7、owner 裁定 2026-08-20）
+7. **検索欄は全画面で同じ挙動。** live 型（入力で絞り込み）+ 検索ボタン併記。Enter を押させる commit 型の画面を残さない。（B D7、owner 裁定 2026-08-20。02-component-catalog ⑨ の canonical `SearchBar` は live 型「ボタンなし」/ commit 型の 2 実装で、本行と異なる = batch 1〜2 で ⑨ の skeleton を「live + ボタン併記」の単一形へ改める）
 8. **押せるものは押せる顔をしている。** 行は hover 背景 + 右端 chevron、ボタン・入力欄は最小高 40px。（B D13 D17）
 9. **入口と見出しは「何をする画面か」を 1 行で添える。** ホームの大ボタンは icon（24px）+ 題名 + 1 行説明、PageHeader は subtitle と actions を同時に持てる。（B D6 D11、SCREEN_DESIGN の元意図）
 10. **icon は 16 / 20 / 24 の 3 段だけ。** 表内・badge = 16、ボタン・入力・ナビ・見出し隣接 = 20、ホーム大ボタン・空状態・画面題名 = 24。（既存 foundations の履行。B の 28 は不採用、ホーム大ボタンで弱ければ明示例外として追記する）
@@ -41,7 +41,7 @@
 
 - `00-foundations.md`: 原則 1 / 2 / 6 / 8 / 10 / 12（上記 token 表）
 - `01-decision-rules.md`: 原則 4（DSR-16 新設）/ 5（DSR-01 に「0 primary 画面の昇格」追記）/ 7（検索欄の単一挙動）/ 9（PageHeader subtitle 基準）
-- `02-component-catalog.md`: 原則 4（⑬ ステータスバッジに badge 3 種の visual 仕様）/ 6（⑨ 検索行の器）/ 9（① subtitle + actions）/ 11（ListSkeleton）
+- `02-component-catalog.md`: 原則 4（⑬ ステータスバッジに badge 3 種の visual 仕様）/ 6（⑨ 検索行の器）/ 7（⑨ `SearchBar` canonical を live + ボタン併記の単一形へ）/ 9（① subtitle + actions）/ 11（ListSkeleton）
 - `quality/review-checklist.md`: 原則 1（本文 16px）/ 2（token 登録）
 
 ## 適用の順序（参考、正本は各 batch の Plan Packet）
