@@ -213,3 +213,8 @@ Fill after implementation.
 - P3-2（accept）: 原則 1 の由来を A（16px）+ B（12px は badge 内）に訂正し、caption 段の退役規模（badge 外 20 箇所超）と batch 1 での 00-foundations 更新を明記。
 - P3-3（accept）: 原則 6 に 00-foundations「space-8 = ページ余白」との数値相違と batch 1 での修正を明記。
 - Phase は plan-gate に留まる in-place 是正。round 2 は fresh delta 再検証。
+
+### Plan Gate round 2（2026-08-20、fresh 独立 Sonnet Plan Reviewer、対象 `e4a1c9e` + draft）
+
+- round 1 是正 4 件は全件適正（§3.1 要件充足と PK4 非衝突を script 実行で確認 / 反映先 ⑬ 実在 / `text-xs` 39 hit で badge 外 20 超の主張を裏付け / space-8 = 32px との相違は事実）。新規 P1 0 / P2 0 / P3 0 → **Plan Gate 収束**。owner plan approval 待ち。
+- 付記: Hosted CI Requirement は docs-only で `not-required` も選べるが、安全側の `required` を維持。
