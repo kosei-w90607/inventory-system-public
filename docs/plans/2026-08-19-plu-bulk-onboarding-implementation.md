@@ -217,6 +217,7 @@ Minimum design checks for business-app work:
 | `test_commit_import_req104_derives_plu_target_like_backfill_and_keeps_on_overwrite` | 列なし時の挙動は不変のため維持。列あり case は新規 test で追加（既存 test 改変禁止） | 維持 + B-C1〜B-C5 新規 | B-C4 |
 | `ProductListPage.test.tsx` / `ProductImportPage.test.tsx` 既存 assert | 既存 filter / 列の assert は不変。PLU 列 / `plu` param / dialog は新規 test | 維持 + 新規 | B-V1〜B-V3 / B-P1 |
 | D-052 oracle test（C1〜C17 完全一致） | C18 追加で期待集合を独立転記更新 | C1〜C18 | B-I1 |
+| `src/features/products/search.test.ts` / `src/features/products/hooks/useProductList.test.tsx` の default / normalize payload の exact object assert | `ProductSearchQuery.plu` と URL 既定値 `all` の追加で payload が 1 field 増える（`discontinued` 既定 `active` → `is_discontinued: false` と同じく既定値も送る契約、gated amendment 3） | default / 無効 URL → `plu: "all"`、有効値 → 対応 enum 値（既存 field の期待は不変） | B-V2 / B-S2 / B-W1 |
 
 ## Contract Coverage Ledger
 
@@ -373,3 +374,10 @@ Do not transcribe exact-HEAD SHA or test counts here (D-035/D-038 Evidence Owner
 - 選択肢: A = IO 層に内部型 `ProductBulkQuery` を置き biz の `ProductBulkFilter` から変換（20-io fenced signature と Scope 3 を `&ProductBulkQuery` へ変更）/ B = `ProductBulkFilter` を db 層 `product_repo` 所有にし biz が `pub use` で再 export（`ProductSearchQuery` / `ProductWithRelations` の既存慣行、`biz/mod.rs:21`）。裁定 = **B**。A は同じ field 集合の型を 2 つ持ち変換 1 段を増やすだけで、既存の検索 filter（`ProductSearchQuery`）が db 所有である慣行とも揃わない。B は 20-io の fenced 形・30-biz / 40-cmd の signature を変えずに済み、`PluMigrationFilter`（db 層 enum）と同居する。
 - 是正: packet Boundary の internal type 行と Scope 2 の所有記述を更新。source docs は不変（型の所有層は function-design の signature に現れない）。設計意味は不変、Plan Commit `f0cd25c` 維持。
 - amendment commit = `fa1659f`（Workflow State `Amendments` に記録）。
+
+### gated amendment 3（2026-08-19、Codex Writer fail-closed 起源、true positive）
+
+- 事象: `buildProductSearchQuery` が新契約で `plu: "all"` を送るため、既存 `search.test.ts` / `useProductList.test.tsx` の旧 payload exact assert が FAIL（frontend 全回帰 1 件）。Oracle Replacement Ledger に両 test が未列挙で、既存 test の expected 変更禁止条件に抵触。
+- 選択肢: A = Ledger に両 test を追加し default payload `plu: "all"` を確定 / B = `all` のとき payload を省略する契約へ変更。裁定 = **A**。`discontinued` の既定 `active` が `is_discontinued: false` として送られる既存慣行と揃い、serde 側の `#[serde(default)]` は旧 caller 互換（TS `?:`）のために残す。B は「既定値だけ省略」という例外を 1 param にだけ作り、B-V2 の oracle と bindings 契約を曖昧にする。
+- 是正: packet Oracle Replacement Ledger に 2 test の置換行を追加（置換理由 / 新 oracle / Matrix B-V2 / B-S2 / B-W1）、Matrix B-V2 の「or 省略」を削除して `plu: "all"` 送信に確定。設計意味は不変、Plan Commit `f0cd25c` 維持。
+- amendment commit SHA は Workflow State `Amendments` に後続 commit で記録。
