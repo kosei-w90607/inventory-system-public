@@ -36,7 +36,7 @@ Risk: R3
 | B-C1 | D6 (a) 列あり | Rust unit（`preview_import`） | header に `PLU対象` を含む CSV: `1`（13 桁有効 JAN）→ `plu_target=Some(true)`, warnings 空 / `0` → `Some(false)` / 空欄 → `None`。既存列の parse 結果は不変 | field 値 |
 | B-C2 | D6 (a) `1` + JAN 不備 | Rust unit | `1` かつ JAN なし / 8 桁 / check digit 不正の 3 行 → `Some(false)` + `warnings` 1 件（文言 `JAN が13桁でないため対象外として取り込みます` を独立転記）、行は `valid_rows` に残る（error_rows へ行かない） | field + 文言 exact |
 | B-C3 | D6 (a) 不正値 | Rust unit | `PLU対象` = `true` / `はい` / `2` / ` 1 `（IO-03 `parse_product_csv` が全列を無条件 `trim` するため `1` として受理される = 既存事実。本 case は正例側に置く）、`true` / `はい` / `2` → 行 error（`error_rows`、理由文言）。`POS在庫連動` の同義語集合を流用していないことの負例 = `はい` が error | error_rows + 文言 |
-| B-C4 | D6 (a) 列なし / `None` | Rust integration（`commit_import`） | 列なし CSV: 新規行 = 既存導出（13 桁 JAN → 1、他 0）、上書き行 = 既存値維持（既存 `test_commit_import_req104_derives_plu_target_like_backfill_and_keeps_on_overwrite` は不変のまま維持し、本 test は `PLU対象` 列ありで空欄の行を追加した新規 test） | products 行 |
+| B-C4 | D6 (a) 列なし / `None` | Rust integration（`commit_import`） | 列なし CSV: 新規行 = 既存導出（13 桁 JAN → 1、他 0）、上書き行 = 既存値維持（既存 `test_commit_import_req104_derives_plu_target_like_backfill_and_keeps_on_overwrite` は不変のまま維持し、本 test は `PLU対象` 列ありで空欄の行を追加した新規 test）。回帰 case（gated amendment 4）: 13 桁数字だが check digit 不正の JAN を持つ新規行 + 空欄 → 既定導出で `plu_target=1`（従来どおり）。あわせて `should_default_plu_target` 単体の新規 test で同 JAN → true を固定（既存 test は改変しない） | products 行 |
 | B-C5 | D6 (a) `Some` 適用 + 解放 | Rust integration | 上書き行 `0` で既存 `plu_target=1`（reserved slot 持ち）→ 0 + slot free（`plu_slots` 行 status）/ 上書き行 `1` で既存 0 → 1 + `plu_dirty=1` / 新規行 `0` で 13 桁 JAN でも 0 / JAN 変更 + `1` → 旧 JAN slot 解放 + 新 JAN は次 prepare で予約 | products + plu_slots 行 |
 | B-L1 | D6 (b) filter 全件 | Rust integration（`bulk_set_plu_target`） | 商品 fixture 250 件（per_page 上限 200 超）、`keyword` / `department_id` 一致 230 件、ON → `matched_count=230`、page 外の行も更新 | 件数 + 行 |
 | B-L2 | D6 (b) ON skip | Rust integration | filter 一致 6 件: 有効 JAN 未廃番 2 / JAN なし 1 / 8 桁 1 / check digit 不正 1 / 廃番（有効 JAN）1 → `updated=2, invalid_jan_skipped=3, discontinued_skipped=1, matched=6`、skip 行は `plu_target=0` のまま | 4 件数 + 行 |
@@ -44,7 +44,7 @@ Risk: R3
 | B-L4 | D6 (b) OFF + 解放 | Rust integration | 一致 4 件: reserved slot 持ち `1` / active slot 持ち `1` / `1` で slot なし / `0` → OFF → 全件 `plu_target=0`、`updated=3`、`plu_slots`: reserved → free（scanning_code NULL）/ active → release_pending、`0` 行は updated に数えない | products + plu_slots 行 |
 | B-L5 | D6 (b) TX rollback | Rust integration | 既存 `product_service::failpoint` 機構（`CREATE_PRODUCT_AFTER_INSERT` 等と同型の test 専用 flag）に bulk 用 failpoint を 1 つ追加し、2 行目更新後に Err → 、商品 / `plu_slots` / operation_logs すべて before と一致 | 行 exact |
 | B-L6 | D6 (b) operation_logs | Rust integration | 成功 1 回で operation_logs 1 行: action 種別、filter 要約（keyword / dept / discontinued / plu の正規化表記）、要求値、4 件数を含み、fixture の JAN 文字列を含まない（負例: `rg` 相当の substring assert） | 行 + 非含有 |
-| B-L7 | B-D2 filter 同型 | Rust integration | 同一 fixture で `search_products(plu=Pending, per_page=200)` の total_count と `bulk_set_plu_target(filter{plu=Pending}, OFF)` の matched_count が一致（非空、`plu=All` では一致かつ件数が異なる = plu が効いている） | 件数一致 |
+| B-L7 | B-D2 filter 同型 | Rust integration | 同一 fixture で `search_products(plu=Pending, per_page=200)` の total_count と `bulk_set_plu_target(filter{plu=Pending}, OFF)` の matched_count が一致（非空、`plu=All` では一致かつ件数が異なる = plu が効いている）。decoy（gated amendment 4、review-only P3）: 同一 keyword で別部門 / 別廃番状態の行を fixture に含め、`department_id` / `is_discontinued` を落とす mutant が件数差で検出されること | 件数一致 |
 | B-S1 | D7 `plu` WHERE | Rust integration（`product_repo::search_products`） | fixture 3 商品 `0/0` / `1/1` / `1/0` + 廃番 1: All 4 / Target 2 / Pending 1 / Synced 1 / Excluded 2（廃番 `0` を含む）。`is_discontinued=Some(false)` との AND も 1 case | total_count + items |
 | B-S2 | D7 `plu` 省略互換 | Rust unit（serde） | `ProductSearchQuery` JSON に `plu` なし → `None`（All）、`"plu":null` → `None`、`"plu":"pending"` → `Some(Pending)`、`"plu":"bogus"` → Err | deserialize 結果 |
 | B-V1 | D7 badge + 独立列（B-D3） | RTL（`ProductTable` / `ProductListPage`） | items 3 件 `0/0` / `1/1` / `1/0` → 列 header `PLU`、各行に `対象外` / `未反映` / `反映済み` の text + icon（`aria-hidden` icon + visible text、色 class のみの差分ではない）、行 `text-muted-foreground` なし | text / role |
@@ -125,6 +125,8 @@ Writer は下記 mutant を実注入して各 test の kill を確認し、Final
 | bulk ON の `plu_target=0` 条件を外す（既に 1 も dirty=1 に） | B-L3 |
 | bulk ON の廃番 skip を外す | B-L2 |
 | bulk ON の JAN 判定を「13 桁数字」のみ（check digit 不問）に | B-L2（check digit 不正 fixture） |
+| bulk ON の適格判定を `should_default_plu_target` に差し替える（= check digit 不問）/ 逆に既定導出を check digit 込みへ変える | B-L2 / B-C4 回帰 case + `should_default_plu_target` 新規 test |
+| bulk query から `department_id` または `is_discontinued` 条件を落とす | B-L7（decoy） |
 | bulk OFF で `release_plu_slot_for_jan` 呼出しを外す | B-L4 |
 | bulk の読取りを `search_products` の page 1 に差し替え | B-L1 |
 | `ProductBulkFilter` の `plu` を WHERE に反映しない | B-L7 |
