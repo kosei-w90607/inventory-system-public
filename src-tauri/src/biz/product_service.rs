@@ -1140,10 +1140,9 @@ mod tests {
         name: &str,
         jan_code: Option<&str>,
         department_id: i64,
-        is_discontinued: bool,
-        plu_target: bool,
-        plu_dirty: bool,
+        state: (bool, bool, bool),
     ) {
+        let (is_discontinued, plu_target, plu_dirty) = state;
         product_repo::insert_product(
             conn,
             &NewProduct {
@@ -2734,7 +2733,7 @@ mod tests {
                 "対象外"
             };
             let jan = synthetic_ean13_req907(200_000_000_000 + index);
-            insert_bulk_product_req907(&conn, &code, name, Some(&jan), 2, false, false, false);
+            insert_bulk_product_req907(&conn, &code, name, Some(&jan), 2, (false, false, false));
         }
 
         let result = bulk_set_plu_target(&mut conn, bulk_filter_req907("BULK907"), true).unwrap();
@@ -2772,9 +2771,7 @@ mod tests {
                 "BL2 FILTER",
                 jan,
                 2,
-                discontinued,
-                false,
-                false,
+                (discontinued, false, false),
             );
         }
 
@@ -2807,9 +2804,7 @@ mod tests {
                 "BL3 FILTER",
                 Some(&jan),
                 2,
-                false,
-                target,
-                dirty,
+                (false, target, dirty),
             );
             conn.execute(
                 "UPDATE products SET updated_at='2000-01-01T00:00:00' WHERE product_code=?1",
@@ -2855,9 +2850,7 @@ mod tests {
             "BL4 FILTER",
             Some(&shared),
             2,
-            false,
-            true,
-            true,
+            (false, true, true),
         );
         insert_bulk_product_req907(
             &conn,
@@ -2865,9 +2858,7 @@ mod tests {
             "BL4 FILTER",
             Some(&active),
             2,
-            false,
-            true,
-            false,
+            (false, true, false),
         );
         insert_bulk_product_req907(
             &conn,
@@ -2875,11 +2866,9 @@ mod tests {
             "BL4 FILTER",
             Some(&shared),
             2,
-            false,
-            true,
-            true,
+            (false, true, true),
         );
-        insert_bulk_product_req907(&conn, "BL4-D", "BL4 FILTER", None, 2, false, false, false);
+        insert_bulk_product_req907(&conn, "BL4-D", "BL4 FILTER", None, 2, (false, false, false));
         conn.execute("UPDATE plu_slots SET scanning_code=?1,status='reserved',reserved_at='2026-08-19T00:00:00' WHERE memory_no=300", [&shared]).unwrap();
         conn.execute("UPDATE plu_slots SET scanning_code=?1,status='active',activated_at='2026-08-19T00:00:00' WHERE memory_no=301", [&active]).unwrap();
 
@@ -2919,7 +2908,14 @@ mod tests {
         let jan_a = synthetic_ean13_req907(240_000_000_001);
         let jan_b = synthetic_ean13_req907(240_000_000_002);
         for (code, jan) in [("BL5-A", &jan_a), ("BL5-B", &jan_b)] {
-            insert_bulk_product_req907(&conn, code, "BL5 FILTER", Some(jan), 2, false, true, true);
+            insert_bulk_product_req907(
+                &conn,
+                code,
+                "BL5 FILTER",
+                Some(jan),
+                2,
+                (false, true, true),
+            );
         }
         conn.execute(
             "UPDATE plu_slots SET scanning_code=?1,status='reserved' WHERE memory_no=310",
@@ -2964,9 +2960,7 @@ mod tests {
             "BL6 FILTER",
             Some(&jan),
             2,
-            false,
-            false,
-            false,
+            (false, false, false),
         );
         let result =
             bulk_set_plu_target(&mut conn, bulk_filter_req907("  BL6 FILTER  "), true).unwrap();
@@ -3002,9 +2996,7 @@ mod tests {
                 "BL7 FILTER",
                 Some(&jan),
                 2,
-                false,
-                target,
-                dirty,
+                (false, target, dirty),
             );
         }
         let query = ProductSearchQuery {
