@@ -118,7 +118,7 @@ Risk: R3
 
 ## Mutation-style Adequacy Questions
 
-Writer は下記 mutant を実注入して各 test の kill を確認し、Final Reviewer は clean tree で同 Matrix どおりに独立再現する。
+Writer は下記 mutant（23 行。`#[serde(default)]` 除去は equivalent で B-W1 検出）を実注入して各 test の kill を確認し、Final Reviewer は clean tree で同 Matrix どおりに独立再現する。
 
 | Mutant | Must be killed by |
 |---|---|

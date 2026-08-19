@@ -123,7 +123,7 @@ In scope:
 | Screen / UI / route state / Japanese wording | 50-ui UI-01a-D10 / D11 + search param 表 / 60-ui UI-01c-D16 / design-system DSR-03 / 04 / 07 | updated in this PR（50-ui: PLU 列の置き場 = 独立列（DSR-04 判定理由）+ 文言表（dialog / toast / badge）+ D11 の filter に `plu` を含む旨 / 60-ui: preview 表示値 3 種の文言） |
 | CSV / TSV / report / import / export format | 26-io IO-03-D1 / 30-biz §4.8 | existing sufficient（値文法 `1` / `0` / 空欄、不正値 = 行 error、`1` + JAN 不備 = warning + 0 は設計済み） |
 | Invalidation contract | decision-log D-052 / UI_TECH_STACK §2.5 / `src/lib/invalidation-contract.ts` / 50-ui | updated in this PR（C18 追加、SSOT + 独立 oracle + decision-log + UI_TECH_STACK + 50-ui 新規 `UI-01a-D12` を同一 PR） |
-| Human Gate scope | 67-ui §67.12 / decision-log | updated in this PR（§67.12 に scope 条項: CV17 / SR-S4000 を伴う native L3 は PLU file 形状・レジ向け field 値・書出し / confirm operator flow に触れる PR に必須、触れない PR は human visual confirmation のみ。D-073 として記録、owner 提案 2026-08-19） |
+| Human Gate scope | 67-ui §67.12 / decision-log | updated in this PR（§67.12 に scope 条項: CV17 / SR-S4000 を伴う native L3 は PLU file 形状・レジ向け field 値・書出し / confirm / 復帰の operator flow に触れる PR に必須、触れない PR は human visual confirmation のみ。D-073 として記録、owner 提案 2026-08-19） |
 | Durable decision / ADR | D-072 / D-052 / D-073（新設） | updated in this PR（D-073 新設、D-052 C18） |
 
 ## Registration / Generation Obligations
@@ -216,6 +216,8 @@ Minimum design checks for business-app work:
 |---|---|---|---|
 | `test_commit_import_req104_derives_plu_target_like_backfill_and_keeps_on_overwrite` | 列なし時の挙動は不変のため維持。列あり case は新規 test で追加（既存 test 改変禁止） | 維持 + B-C1〜B-C5 新規 | B-C4 |
 | `ProductListPage.test.tsx` / `ProductImportPage.test.tsx` 既存 assert | 既存 filter / 列の assert は不変。PLU 列 / `plu` param / dialog は新規 test | 維持 + 新規 | B-V1〜B-V3 / B-P1 |
+| `ProductListPage.test.tsx` 既存 test（一覧 empty 系）への追加 assert | 一覧 0 件で一括操作ボタン 2 種が disabled であることを既存の empty case に追記（既存 expected 値は不変、Final Review P2 で Ledger 追記） | 既存 assert 維持 + `toBeDisabled()` 2 件追加 | B-V3 |
+| `search.test.ts` 既存 test（descriptor 一致）への追加 assert | `PRODUCT_PLU_OPTIONS` の descriptor 検査を既存 descriptor test に追記（既存 expected 値は不変、同上） | 既存 assert 維持 + `PRODUCT_PLU_OPTIONS` block 追加 | B-V2 |
 | D-052 oracle test（C1〜C17 完全一致） | C18 追加で期待集合を独立転記更新 | C1〜C18 | B-I1 |
 | `src/features/products/search.test.ts` / `src/features/products/hooks/useProductList.test.tsx` の default / normalize payload の exact object assert | `ProductSearchQuery.plu` と URL 既定値 `all` の追加で payload が 1 field 増える（`discontinued` 既定 `active` → `is_discontinued: false` と同じく既定値も送る契約、gated amendment 3） | default / 無効 URL → `plu: "all"`、有効値 → 対応 enum 値（既存 field の期待は不変） | B-V2 / B-S2 / B-W1 |
 
@@ -389,3 +391,13 @@ Do not transcribe exact-HEAD SHA or test counts here (D-035/D-038 Evidence Owner
 - 同時 accept（review-only P3）: B-L7 に同一 keyword・別部門 / 別廃番の decoy を追加し、bulk query が `department_id` / `is_discontinued` を落とす mutant を件数差で殺す。
 - source docs は不変（30-biz の記述が正しく、packet 側の誤記）。設計意味は不変、Plan Commit `f0cd25c` 維持。Writer は修正後の content HEAD で mutation 再確認・review-only・L1 full・`cargo check --release` を再実行する。
 - amendment commit = `a8487b7`（Workflow State `Amendments` に記録）。
+
+### Final Review round 1（2026-08-19〜20、独立 Sonnet Final Reviewer、content `f10b3cd`、worktree 隔離）
+
+- Verdict: P1 0 / P2 1 / P3 1。Contract Audit（Ledger 10 行）全 OK — B-D1 `if product.plu_target { continue; }` / B-D2 `buildProductBulkFilter` が `normalizeProductListSearch` を共有 / B-D3 独立列 + 行減衰なし / B-D4 / gated amendment 4 の別 predicate `is_plu_target_eligible_jan` + 回帰 test / 20-io WHERE 5 値が search と bulk で同一 match arm / OFF の解放 / 1 TX + JAN 非含有 / D-052 C18 4 点 / db 所有 + biz 再 export（`architecture_test` PASS）。文言 exact 突合 9/9 一致（badge / ボタン / dialog title×2 + description / toast / preview 3 値 / warning / §67.12 + D-073 条項）。
+- Mutation: Matrix 23 行を clean tree で独立注入 → 22 KILLED + equivalent 1（`#[serde(default)]` 除去は bindings `plu?:`→`plu:` + `tsc --noEmit` 7 caller error で検出、round 3 disposition どおり）。復元後 tree clean。B-L7 decoy は `department_id` 側のみ実注入（`is_discontinued` 側は同型 code の inspection）。
+- Registration / Generation: `collect_commands!` / `generate_handler!` 61 / bindings 再生成 diff 0 / design_compliance unexpected 0 / traceability `--check` PASS / doccheck ERROR 0（既存 per_page WARN のみ）/ `cargo test` 全 PASS / `npx vitest run` 全 PASS / `search.ts` の `plu` 5 箇所。
+- P2（accept、Coordinator docs-only 是正）: 既存 test 2 件（`ProductListPage.test.tsx` empty case / `search.test.ts` descriptor test）に additive な assert が挿入され Ledger 未記載。expected 値の変更・削除・skip はなし → Ledger に 2 行追記（本 commit）。実装は不変。
+- P3（accept、同上）: packet Required Design Artifacts の D-073 要約 cell が「復帰」を落としていた → 同期。Matrix prose の mutant 数 22 → 23 も同期。
+- 既存 test の削除 / skip / `.todo` は diff 全域で 0。Writer は `docs/plans/**` の Workflow State を変更せず Implementation Results のみ追記（SHA / 件数なし）。
+- Coordinator 判定: P2 / P3 とも docs-only で実装非接触。fresh delta 再検証は packet 3 箇所の転記確認に限定して実施する。
