@@ -340,3 +340,10 @@ Do not transcribe exact-HEAD SHA or test counts here (D-035/D-038 Evidence Owner
 - P3-1（accept）: B-L5 の rollback fixture を既存 `product_service::failpoint` 機構の再利用に具体化。
 - P3-2（記録）: D-073 / §67.12 条項の実文面は Writer が source doc に書く段階で確定し、Final Review が粒度（判定対象 3 種の列挙）を検証する。
 - Phase は plan-gate に留まる in-place 是正。round 2 は fresh delta 再検証。
+
+### Plan Gate round 2（2026-08-19、fresh 独立 Sonnet Plan Reviewer、対象 `4feed6c`）
+
+- round 1 是正 8 件は全件「適正」（20-io 命名 / DSR-04 PR #95 記述 / DB_DESIGN D-3 別物 / 50-ui D-12 未使用 / importer 無条件 trim / Wave Operation 並行前提 / failpoint mod / D-073 先送り を source で裏取り）。事実主張 17 件 OK。
+- 新規 P2 1（accept）: Mutation 設問に B-V2 / B-S2 / B-P1 の mutant が不在 → 3 件追加（`normalizeEnum` bypass / `#[serde(default)]` 除去 / preview 表示値 swap）。
+- 新規 P3 1（accept）: `Plans.md` 次の行動の本 packet 行が `plan-draft` 表記のまま → `plan-gate` へ同期（同 commit）。
+- round 3 は fresh delta 再検証（P1/P2 = 0 収束確認）。

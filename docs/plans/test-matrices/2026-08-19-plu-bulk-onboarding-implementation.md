@@ -139,6 +139,9 @@ Writer は下記 mutant を実注入して各 test の kill を確認し、Final
 | command 引数から `plu` を落とす | B-V3 |
 | C18 から `pluSlotSummary` を落とす | B-I1 |
 | A-N8b 再予約で旧 slot を再利用 | B-F2 |
+| `search.ts` の `plu` 正規化（`normalizeEnum`）を bypass して不正値を payload へ通す | B-V2 |
+| `ProductSearchQuery.plu` の `#[serde(default)]` を外す（`plu` 省略 payload が Err） | B-S2 |
+| preview の `PLU対象` 表示値 `対象` / `対象外` を swap | B-P1 |
 
 ## Residual Test Gaps
 
