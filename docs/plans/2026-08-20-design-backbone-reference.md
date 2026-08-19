@@ -13,6 +13,7 @@ If a state-only commit materializes multiple phases, list the complete adjacent 
 - Amendments: none
 - Coordinator: Fable
 - Writer: Fable（docs-only。設計判断の起草者 = Coordinator。独立 Sonnet reviewer で自己承認を回避）
+- Design Board Exception: AGENT_OPERATING_MANUAL §3.1 適用（design-only change。owner 明示指示 2026-08-20「背骨 C これでいい / お手本をどこかに残して背骨と合わせて参考資料に」。Plan Gate / Final Reviewer は Sonnet 独立 fresh context、実装 code の Writer には割り当てない）
 - Plan Reviewer: Sonnet subagent（独立、fresh context）
 - Final Reviewer: Sonnet subagent（独立、fresh context）
 - Reviewed Content HEAD: pending
@@ -203,3 +204,12 @@ Fill after implementation.
 ## Review Response
 
 - Findings Freeze: not yet frozen; post-freeze exceptions: none.
+
+### Plan Gate round 1（2026-08-20、独立 Sonnet Plan Reviewer、対象 `e29c27e` + 未コミット docs draft）
+
+- Verdict: P1 0 / P2 1 / P3 3。事実主張（token / 色値 / DisplayScale 3 段 / minHeight 720 / button h-9 / mockup 同一 CSS・外部資源 0・実 JAN なし / doc check / 00〜03 不変 / PK4 / A・B 原文の file:line）は全件 OK。12 行判定: 一致 5 / 拡張 6 / 矛盾明記 1、すべて冒頭の「意図 / 現行基準」条項で吸収可。
+- P2（accept）: Writer = Fable は AGENT_OPERATING_MANUAL §3.1 design board 例外に当たり、Workflow State への適用 1 行記録と owner 明示指示の根拠が欠けていた → `Design Board Exception` 行を追加（owner 指示 2026-08-20 を根拠、plan approval で役割割当ごと確認する）。
+- P3-1（accept）: 原則 4 の反映先に `02-component-catalog.md ⑬` を追加。
+- P3-2（accept）: 原則 1 の由来を A（16px）+ B（12px は badge 内）に訂正し、caption 段の退役規模（badge 外 20 箇所超）と batch 1 での 00-foundations 更新を明記。
+- P3-3（accept）: 原則 6 に 00-foundations「space-8 = ページ余白」との数値相違と batch 1 での修正を明記。
+- Phase は plan-gate に留まる in-place 是正。round 2 は fresh delta 再検証。
