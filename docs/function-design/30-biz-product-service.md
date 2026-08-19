@@ -276,7 +276,8 @@ struct ImportRow {
     maker_code: Option<String>,
     supplier_id: Option<i64>,
     pos_stock_sync: Option<bool>,   // 省略時 true
-    plu_target: Option<bool>,       // 任意列「PLU対象」。空欄は None
+    plu_target: Option<bool>,       // 任意列「PLU対象」。空欄は None。`1` + JAN 不備は Some(false) へ正規化
+    warnings: Vec<String>,          // preview warning（`1` + JAN 不備 等）。通常は空。wire では #[serde(default)]（PR #86 gated amendment 1）
 }
 ```
 
