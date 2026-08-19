@@ -117,8 +117,8 @@ In scope:
 
 | Area touched by upcoming work | Required source doc / artifact | Status: existing sufficient / updated in this PR / intentionally deferred |
 |---|---|---|
-| Backend function / command / repository / validation / error | 30-biz §4.8〜4.9.1 / 20-io §search_products / 26-io IO-03-D1 / 33-biz §16.6 | updated in this PR（30-biz §4.9.1: `ProductBulkFilter` に `plu` 追加 + 「既に 1 の行は無変更」明記 + fenced signature は既存 / 20-io: `find_products_for_bulk_plu_target` の fenced signature 追加 + 同 prose の filter 条件に `plu` 追記、`ProductSearchQuery.plu` は既存 / 26-io: 不変） |
-| Command / DTO / generated binding / wire shape | 40-cmd §bulk_set_plu_target + §search_products / cmd-task-specs | updated in this PR（40-cmd: `ProductBulkFilter` に `plu`、`search_products` 節に `plu` 追記 / cmd-task-specs: 同期） |
+| Backend function / command / repository / validation / error | 30-biz §4.8〜4.9.1 / 20-io §search_products / 26-io IO-03-D1 / 33-biz §16.6 | updated in this PR（30-biz §4.8: `ImportRow` fenced 定義に `warnings: Vec<String>` 追加（gated amendment 1）/ 30-biz §4.9.1: `ProductBulkFilter` に `plu` 追加 + 「既に 1 の行は無変更」明記 + fenced signature は既存 / 20-io: `find_products_for_bulk_plu_target` の fenced signature 追加 + 同 prose の filter 条件に `plu` 追記、`ProductSearchQuery.plu` は既存 / 26-io: 不変） |
+| Command / DTO / generated binding / wire shape | 40-cmd §bulk_set_plu_target + §search_products / cmd-task-specs | updated in this PR（40-cmd: 戻り値を `BulkPluTargetResult`（BIZ 型を直接返す既存慣行、gated amendment 1）へ訂正、`ProductBulkFilter` に `plu`、`search_products` 節に `plu` 追記 / cmd-task-specs: 同期） |
 | DB / transaction / audit / rollback / migration | plu-tables.md / 22-mnt | existing sufficient（schema 変更なし。operation_logs は既存 table） |
 | Screen / UI / route state / Japanese wording | 50-ui UI-01a-D10 / D11 + search param 表 / 60-ui UI-01c-D16 / design-system DSR-03 / 04 / 07 | updated in this PR（50-ui: PLU 列の置き場 = 独立列（DSR-04 判定理由）+ 文言表（dialog / toast / badge）+ D11 の filter に `plu` を含む旨 / 60-ui: preview 表示値 3 種の文言） |
 | CSV / TSV / report / import / export format | 26-io IO-03-D1 / 30-biz §4.8 | existing sufficient（値文法 `1` / `0` / 空欄、不正値 = 行 error、`1` + JAN 不備 = warning + 0 は設計済み） |
@@ -360,3 +360,9 @@ Do not transcribe exact-HEAD SHA or test counts here (D-035/D-038 Evidence Owner
 - owner plan approval（介入 1 回目 / 予算 3 回、owner 発言 `承認するよ`）。Coordinator 裁定（B-D1〜B-D4 / Human Gate = visual のみ + D-073 / stacked train 運用 / 予算）に異論なし。
 - state-only 遷移（append-only、STATECAP forward 1 本目）: `plan-gate -> plan-approved -> implementing`。plan-approved の evidence = Plan Gate rally 3 round で P1/P2 = 0 収束（round 3 残 P2 は天井 disposition で是正 `51f53c3`）+ owner approval。implementing の evidence = Plan Commit `f0cd25c`（plan-first、全実装 commit に先行）確定、Codex 発注書は本遷移後に提示。
 - 以後の予定: Codex 実装 → L1 full → 独立 Sonnet Final Review → owner visual confirmation（介入 2 回目）→ Ready 承認（介入 3 回目）→ state-only 2 本目（`local-verified -> independent-review -> human-confirm -> ready-hosted-final` の隣接 forward 圧縮。`implementing -> local-verified` は content commit 同乗）。PR #85 merge 後に base を main へ付け替え rebase + L1 再取得。
+
+### gated amendment 1（2026-08-19、Codex Writer fail-closed 起源、true positive）
+
+- 事象: Writer が実装前の source contract 監査で停止 — (1) `40-cmd §bulk_set_plu_target` の戻り値 `BulkPluTargetResponse` と packet Boundary（`BulkPluTargetResult` を BIZ 型として CMD から直接返す）の不一致 (2) `30-biz §4.8` の `ImportRow` fenced 定義に `warnings: Vec<String>` がなく、Required Design Artifacts に §4.8 DTO 更新が未列挙。
+- 裁定: (1) `40-cmd` を `BulkPluTargetResult` へ訂正（`create_product` が `ProductCreateResult` を直接返す既存慣行と `cmd-task-specs` の表記に一致。別 DTO を作らない）(2) `30-biz §4.8` `ImportRow` fenced 定義に `warnings: Vec<String>` を追加し、Required Design Artifacts の Backend 行に明記。設計意味（契約・遷移・文言）は不変、Plan Commit `f0cd25c` 維持。
+- amendment commit SHA は Workflow State `Amendments` に後続 commit で記録。
