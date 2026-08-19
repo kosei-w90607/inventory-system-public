@@ -401,3 +401,11 @@ Do not transcribe exact-HEAD SHA or test counts here (D-035/D-038 Evidence Owner
 - P3（accept、同上）: packet Required Design Artifacts の D-073 要約 cell が「復帰」を落としていた → 同期。Matrix prose の mutant 数 22 → 23 も同期。
 - 既存 test の削除 / skip / `.todo` は diff 全域で 0。Writer は `docs/plans/**` の Workflow State を変更せず Implementation Results のみ追記（SHA / 件数なし）。
 - Coordinator 判定: P2 / P3 とも docs-only で実装非接触。fresh delta 再検証は packet 3 箇所の転記確認に限定して実施する。
+
+### Human visual confirmation 結果 / 記録（2026-08-20）
+
+- 結果（owner 報告、PR #86 comment、tested HEAD `230f0e5`、開発 PC Windows native、レジ / CV17 なし）: **V1〜V6 すべて PASS**。PLU 独立列の 3 語彙 text + icon / 行減衰なし、`plu` filter 5 値 + URL 復元 + `?plu=bogus` → `すべて` 正規化、一括 ON の件数 dialog → cancel 無変化 → 実行 toast（更新 / JAN 不備 / 廃番）→ badge `未反映` + ホーム未反映件数の即時反映（OFF→ON で 11→10→11）、一括 OFF → `対象外` + 未予約商品の `レジメモリNo.` = `未割当`、CSV preview の `PLU対象` 列 3 表示値 + 不正値 error 行 + JAN 不備 warning（text + icon）、commit 後の一覧 badge。DB は基準線から復元（3 file SHA-256 一致、RESTORE=PASS）。
+- fixture 代替: Coordinator 提示の fixture は UTF-8 BOM で、商品 CSV 取込みは CP932 前提のため「文字コードが判別できません」で fail-closed（DB 無変化 = 既存契約どおり）。owner が同内容を CP932 で作成して使用。Coordinator の fixture encoding 誤りで、実装欠陥ではない（次回以降の fixture は CP932 で提示）。
+- 非ブロッキング所見（owner）: (1) 一覧の列見出しで数値列 / 操作列と文字列列の左右寄せが混在しリズムが不揃い → UI polish P3 候補として follow-up（実装 B の scope 外、PR body Follow-up に記録）(2) 一覧の既定 `表示中` が廃番を除外するため「未反映」件数が一覧 9 / ホーム 10 と途中で異なって見える → 仕様どおり（`すべて` で一致、owner がコード走査でも確認）。
+- Owner Effort Budget 実績: decision point 単位で 介入 2/3（plan approval / visual 結果報告）。owner comment の `owner intervention 3/3` は実施中の手動操作回数（V3 再確認を含む）で計上基準が異なる。Ready 承認 = 介入 3/3（予算内）。
+- 残る Human Gate = Ready 承認。merge train は PR #85 → PR #86 のため、Ready 遷移 commit（state-only 2 本目、`implementing -> local-verified -> independent-review -> human-confirm -> ready-hosted-final` の隣接 forward 圧縮、Reviewed Content HEAD 設定）+ exact HEAD L1 再取得 + PR body refresh は PR #85 merge 後の base 付け替え rebase の後に実施する。
