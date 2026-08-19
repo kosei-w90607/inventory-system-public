@@ -169,7 +169,7 @@ pub(crate) fn generate_plu_tsv_with_date(
 
         // タブ + 単価 + タブ + 課税方式 + 固定列 + 部門リンク
         let suffix = format!(
-            "\t{}\t{}\tはい\tいいえ\tいいえ\tいいえ\t無し\t{}",
+            "\t{}\t{}\tいいえ\tいいえ\tいいえ\tいいえ\t無し\t{}",
             row.selling_price, tax, row.department_name
         );
         let (suffix_bytes, _, had_replacements) = encoding_rs::SHIFT_JIS.encode(&suffix);
@@ -532,7 +532,7 @@ mod tests {
         // 名称: ハマナカ→ﾊﾏﾅｶ, アミアミ→ｱﾐｱﾐ, 極太は全角漢字(2byte), col.42は半角
         assert_eq!(data_fields[3], "648", "単価");
         assert_eq!(data_fields[4], "税1(内税)", "課税方式");
-        assert_eq!(data_fields[5], "はい", "単品売り");
+        assert_eq!(data_fields[5], "いいえ", "単品売り");
         assert_eq!(data_fields[6], "いいえ", "負単価");
         assert_eq!(data_fields[7], "いいえ", "品番PLU");
         assert_eq!(data_fields[8], "いいえ", "ゼロ単価");

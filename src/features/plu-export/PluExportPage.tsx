@@ -446,7 +446,7 @@ export function PluExportPage() {
                   違うPLUファイルでやり直す場合は破棄して再書出しします。
                 </p>
                 <p className="font-medium">
-                  PCツールに取り込めなかった場合は、未反映を外さずに全件を書き出し直して取り込んでください。
+                  PCツールに取り込めなかった場合は、保存済みファイルを再投入するか、差分または全件を書き出し直してください。
                 </p>
                 <div className="grid gap-1">
                   <p>保存先: {pendingExport.savedPath}</p>
@@ -531,7 +531,7 @@ export function PluExportPage() {
                 <AlertTriangle />
                 <AlertTitle>PCツールに取り込めなかった場合の回復手順</AlertTitle>
                 <AlertDescription>
-                  PCツールに取り込めなかった場合は、未反映を外さずに全件を書き出し直して取り込んでください。
+                  PCツールに取り込めなかった場合は、保存済みファイルを再投入するか、差分または全件を書き出し直してください。
                 </AlertDescription>
               </Alert>
             </>

@@ -634,7 +634,7 @@ describe("PluExportPage (UI-08 / REQ-402)", () => {
     expect(screen.getByText("PCツールに取り込めなかった場合の回復手順")).toBeInTheDocument();
     expect(
       screen.getByText(
-        "PCツールに取り込めなかった場合は、未反映を外さずに全件を書き出し直して取り込んでください。",
+        "PCツールに取り込めなかった場合は、保存済みファイルを再投入するか、差分または全件を書き出し直してください。",
       ),
     ).toBeInTheDocument();
   });
@@ -663,7 +663,7 @@ describe("PluExportPage (UI-08 / REQ-402)", () => {
     const statusRegion = screen.getByRole("region", { name: "PLU書出し状態" });
     expect(
       within(statusRegion).getByText(
-        "PCツールに取り込めなかった場合は、未反映を外さずに全件を書き出し直して取り込んでください。",
+        "PCツールに取り込めなかった場合は、保存済みファイルを再投入するか、差分または全件を書き出し直してください。",
       ),
     ).toBeInTheDocument();
   });
