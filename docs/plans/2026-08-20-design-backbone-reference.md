@@ -230,3 +230,4 @@ Fill after implementation.
 - Verdict: P1 0 / P2 1 / P3 0。AC 実証: 外部資源 0 / 架空 JAN のみ / README リンク / commit 順序（plan-first 先行）/ Plans.md 登録 / §3.1 5 要件 すべて OK。事実主張 12 件 OK（mockup 3 file の style block は `<title>` 以外完全一致、navigation label 18 件・StockStatusBadge 3 語彙・PR #86 の PLU badge 3 語彙と文言一致）。
 - P2（accept、docs-only 是正）: 原則 7 の反映先に `02-component-catalog.md ⑨`（canonical `SearchBar` が live「ボタンなし」/ commit の 2 実装で本行と異なる）が欠けていた → 原則 7 の行内注記と反映先リストに追加。
 - L1 full は `c103d1c` で RESULT=PASS / END_TREE_STATE=CLEAN / MERGE_EVIDENCE_VALID=true（evidence は PR body）。是正後の HEAD で fresh delta 再検証 → Ready 承認後の state-only 遷移 commit の exact HEAD で L1 再取得。
+- fresh delta 再検証（`f3e0b64`）: ⑨ の事実関係（live 型ボタンなし / commit 型）と反映先追加を確認、docs/plans 以外の変更は 04-backbone のみ、Workflow State 不変、新規 P1/P2 = 0 → Final Review 収束。
