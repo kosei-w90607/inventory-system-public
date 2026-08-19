@@ -6,10 +6,10 @@ Use the field definitions, enums, transition evidence, packet-selection rule, an
 
 If a state-only commit materializes multiple phases, list the complete adjacent forward sequence and the pre-existing evidence for every intermediate transition in an append-only review/evidence record. Recording compression never permits a gate skip.
 
-- Phase: plan-gate
+- Phase: implementing
 - Risk: R3
 - Execution Mode: fable-window
-- Plan Commit: pending
+- Plan Commit: f0cd25c
 - Amendments: none
 - Coordinator: Fable
 - Writer: Codex
@@ -354,3 +354,9 @@ Do not transcribe exact-HEAD SHA or test counts here (D-035/D-038 Evidence Owner
 - P2 1（accept、Coordinator 是正）: 「`#[serde(default)]` を外す」は Rust 側 deserialize を変えない equivalent mutant（`Option<T>` は属性なしでも missing → `None`、reviewer が scratch crate で実証）。是正 = B-S2 の mutant を `PluMigrationFilter` の `rename_all` 除去へ差し替え、`#[serde(default)]` 除去は TS 側 `?:` 消失として B-W1（bindings diff + tsc）で検出する旨を Matrix に明記。Contract Probe の precedent 記述を訂正（`ProductUpdateRequest` は container-level `#[serde(default)]`（`product_service.rs:47`）を持ち、それが specta の `?:` を生む。Rust 側 missing 許容は `Option<T>` 組込み）。Scope 3 / Registration / Boundary の `#[serde(default)]` の役割記述も同期（`warnings: Vec<String>` のみ Rust 側でも必須）。
 - rally 天井到達時の disposition（`DEV_WORKFLOW.md` Review Rules）: 残 finding は本 P2 1 件のみで、是正は Matrix / packet 記述の訂正（設計変更なし）。Coordinator が同型指摘の一括是正として閉じ、次 round は開始しない。Final Review が実装時の bindings diff（`plu?:` / `plu_target?:` / `warnings?:`）で再確認する。
 - Plan Gate 収束: round 1〜3 で P1 = 0、round 3 残 P2 は上記 disposition で是正済み。owner plan approval 待ち。
+
+### owner plan approval / 遷移記録（2026-08-19）
+
+- owner plan approval（介入 1 回目 / 予算 3 回、owner 発言 `承認するよ`）。Coordinator 裁定（B-D1〜B-D4 / Human Gate = visual のみ + D-073 / stacked train 運用 / 予算）に異論なし。
+- state-only 遷移（append-only、STATECAP forward 1 本目）: `plan-gate -> plan-approved -> implementing`。plan-approved の evidence = Plan Gate rally 3 round で P1/P2 = 0 収束（round 3 残 P2 は天井 disposition で是正 `51f53c3`）+ owner approval。implementing の evidence = Plan Commit `f0cd25c`（plan-first、全実装 commit に先行）確定、Codex 発注書は本遷移後に提示。
+- 以後の予定: Codex 実装 → L1 full → 独立 Sonnet Final Review → owner visual confirmation（介入 2 回目）→ Ready 承認（介入 3 回目）→ state-only 2 本目（`local-verified -> independent-review -> human-confirm -> ready-hosted-final` の隣接 forward 圧縮。`implementing -> local-verified` は content commit 同乗）。PR #85 merge 後に base を main へ付け替え rebase + L1 再取得。
