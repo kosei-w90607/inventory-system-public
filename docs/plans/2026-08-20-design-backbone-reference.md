@@ -6,7 +6,7 @@ Use the field definitions, enums, transition evidence, packet-selection rule, an
 
 If a state-only commit materializes multiple phases, list the complete adjacent forward sequence and the pre-existing evidence for every intermediate transition in an append-only review/evidence record. Recording compression never permits a gate skip.
 
-- Phase: implementing
+- Phase: ready-hosted-final
 - Risk: R2
 - Execution Mode: fable-window
 - Plan Commit: e29c27e
@@ -16,7 +16,7 @@ If a state-only commit materializes multiple phases, list the complete adjacent 
 - Design Board Exception: AGENT_OPERATING_MANUAL §3.1 適用（design-only change。owner 明示指示 2026-08-20「背骨 C これでいい / お手本をどこかに残して背骨と合わせて参考資料に」。Plan Gate / Final Reviewer は Sonnet 独立 fresh context、実装 code の Writer には割り当てない）
 - Plan Reviewer: Sonnet subagent（独立、fresh context）
 - Final Reviewer: Sonnet subagent（独立、fresh context）
-- Reviewed Content HEAD: pending
+- Reviewed Content HEAD: f3e0b64
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
 - Human Gate: owner plan approval / Ready / merge（docs-only のため visual confirmation なし。背骨 v1.0 と mockup C の内容自体は owner が 2026-08-20 に Artifact 上で「これでいい」と採用済み）
@@ -231,3 +231,10 @@ Fill after implementation.
 - P2（accept、docs-only 是正）: 原則 7 の反映先に `02-component-catalog.md ⑨`（canonical `SearchBar` が live「ボタンなし」/ commit の 2 実装で本行と異なる）が欠けていた → 原則 7 の行内注記と反映先リストに追加。
 - L1 full は `c103d1c` で RESULT=PASS / END_TREE_STATE=CLEAN / MERGE_EVIDENCE_VALID=true（evidence は PR body）。是正後の HEAD で fresh delta 再検証 → Ready 承認後の state-only 遷移 commit の exact HEAD で L1 再取得。
 - fresh delta 再検証（`f3e0b64`）: ⑨ の事実関係（live 型ボタンなし / commit 型）と反映先追加を確認、docs/plans 以外の変更は 04-backbone のみ、Workflow State 不変、新規 P1/P2 = 0 → Final Review 収束。
+
+### owner Ready 承認 / 遷移記録（2026-08-20）
+
+- owner Ready 承認（介入 2 回目 / 予算 2 回、owner 発言 `承認するよ`）。Human Gate の owner 項目は全消化。
+- state-only 遷移（append-only、STATECAP forward 2 本目、post-implementation 1 本目）: `implementing -> local-verified -> independent-review -> human-confirm -> ready-hosted-final`（隣接 forward の recording compression）。evidence: local-verified = content candidate `c103d1c` の L1 full RESULT=PASS / END_TREE_STATE=CLEAN / MERGE_EVIDENCE_VALID=true（evidence は PR body）/ independent-review = 独立 Sonnet Final Review round 1（P1 0 / P2 1 / P3 0）+ P2 是正 `f3e0b64` の fresh delta 再検証 P1/P2 = 0 / human-confirm = findings 裁定済み、Reviewed Content HEAD = `f3e0b64`（content の最終 = 04-backbone 原則 7 注記まで）/ ready-hosted-final = owner Ready 承認。
+- 遷移後: 本 exact HEAD で L1 full 再実行 + PR body 全面 refresh → owner が Ready トリガー → hosted CI → merge → Post-Merge Closeout（packet を archive、Plans.md 同期）。
+- Owner Effort Budget 実績: 介入 2/2、relay 0/0、STATECAP forward 2/3。
