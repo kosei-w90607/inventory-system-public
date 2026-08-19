@@ -10,7 +10,7 @@ If a state-only commit materializes multiple phases, list the complete adjacent 
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: f0cd25c
-- Amendments: fd2fd5f, 2650408, fa1659f, d7e4ed1
+- Amendments: fd2fd5f, 2650408, fa1659f, d7e4ed1, a8487b7
 - Coordinator: Fable
 - Writer: Codex
 - Plan Reviewer: Sonnet subagent（独立、Writer と別 context）
@@ -388,4 +388,4 @@ Do not transcribe exact-HEAD SHA or test counts here (D-035/D-038 Evidence Owner
 - 裁定: 既定導出 `should_default_plu_target` は従来どおり ASCII 13 桁数字判定を維持（frontend `suggestPluTarget` との二重実装契約も不変）。CSV 明示 `1` と bulk ON の適格判定は check digit 込みの別 predicate（`30-biz §4.8` の `1` + JAN 不備判定と同一、`§4.9.1` の「有効な 13 桁 JAN」）。packet Scope 2 / Design Intent Audit を訂正。Matrix: B-C4 に回帰 case（13 桁 + check digit 不正 + 空欄 → 既定 1）と `should_default_plu_target` の新規 test、mutation 設問に「適格判定を既定導出へ差し替え / 既定導出を check digit 込みへ」を追加。
 - 同時 accept（review-only P3）: B-L7 に同一 keyword・別部門 / 別廃番の decoy を追加し、bulk query が `department_id` / `is_discontinued` を落とす mutant を件数差で殺す。
 - source docs は不変（30-biz の記述が正しく、packet 側の誤記）。設計意味は不変、Plan Commit `f0cd25c` 維持。Writer は修正後の content HEAD で mutation 再確認・review-only・L1 full・`cargo check --release` を再実行する。
-- amendment commit SHA は Workflow State `Amendments` に後続 commit で記録。
+- amendment commit = `a8487b7`（Workflow State `Amendments` に記録）。
