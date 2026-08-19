@@ -1,0 +1,92 @@
+<!doctype html><html lang="ja"><head><meta charset="utf-8"><title>商品検索・一覧 — 統合案 C</title><style>
+:root{--bg:#fafaf9;--fg:#1c1917;--muted:#57534e;--card:#fff;--border:#e7e5e4;--accent:#f5f5f4;
+--primary:#b45309;--primary-fg:#fff;--primary-soft:#fef3c7;
+--warn-soft:#fffbeb;--warn-border:#fde68a;--warn-strong:#78350f;--warn:#d97706;
+--bad-soft:#fef2f2;--bad-border:#fecaca;--bad-strong:#991b1b;--bad:#dc2626;
+--ok-soft:#f0fdf4;--ok-border:#bbf7d0;--ok-strong:#14532d;--ok:#16a34a;
+--ring:#b45309}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.5 -apple-system,BlinkMacSystemFont,"Hiragino Kaku Gothic ProN","Hiragino Sans",Meiryo,sans-serif}
+.app{display:grid;grid-template-columns:240px 1fr;min-height:100vh}
+/* sidebar */
+.sb{background:var(--card);border-right:1px solid var(--border);padding:16px 12px;display:flex;flex-direction:column;gap:16px}
+.brand{font-size:16px;font-weight:700;padding:4px 8px}
+.area h4{font-size:12px;letter-spacing:.06em;color:var(--muted);font-weight:600;margin:8px 8px 4px}
+.nav a{display:flex;align-items:center;gap:8px;padding:8px;border-radius:6px;color:var(--fg);text-decoration:none;font-size:14px;line-height:1.4}
+.nav a.cur{background:var(--primary-soft);font-weight:600}
+.nav svg{width:20px;height:20px;flex:none;stroke:currentColor;fill:none;stroke-width:1.75;color:var(--muted)}
+.nav a.cur svg{color:var(--primary)}
+.sbfoot{margin-top:auto;font-size:14px;color:var(--muted);padding:8px;border-top:1px solid var(--border)}
+.sbfoot select{font:inherit;min-height:40px;border:1px solid var(--border);border-radius:6px;padding:0 8px;background:#fff;width:100%}
+/* page shell */
+.page{padding:24px;display:flex;flex-direction:column;gap:24px;max-width:1200px}
+.ph{display:flex;align-items:flex-start;justify-content:space-between;gap:16px}
+.ph h1{font-size:24px;line-height:1.3;font-weight:600;margin:0}
+.ph p{margin:2px 0 0;color:var(--muted);font-size:14px}
+.btn{display:inline-flex;align-items:center;gap:8px;min-height:40px;padding:0 16px;border-radius:6px;border:1px solid var(--border);background:#fff;color:var(--fg);font:inherit;font-size:16px;cursor:pointer}
+.btn svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.75}
+.btn.primary{background:var(--primary);color:var(--primary-fg);border-color:var(--primary)}
+.btn.sm{min-height:36px;font-size:14px;padding:0 12px}
+.btn:focus-visible,.nav a:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--ring);outline-offset:2px}
+/* alert */
+.alert{display:grid;grid-template-columns:20px 1fr auto;gap:12px;align-items:start;padding:12px 16px;border:1px solid;border-radius:6px}
+.alert svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.75;margin-top:2px}
+.alert b{display:block;font-size:16px}
+.alert span{font-size:14px}
+.alert.warn{background:var(--warn-soft);border-color:var(--warn-border);color:var(--warn-strong)}
+.alert.ok{background:var(--ok-soft);border-color:var(--ok-border);color:var(--ok-strong)}
+/* cards */
+.cards{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+.card{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:16px}
+.card .lbl{font-size:14px;color:var(--muted)}
+.card .val{font-size:24px;font-weight:600;font-variant-numeric:tabular-nums;line-height:1.3;margin-top:4px}
+.card .sub{font-size:14px;color:var(--muted);margin-top:2px}
+/* home actions */
+.sec h2{font-size:20px;font-weight:600;margin:0 0 12px}
+.actions{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+.action{display:grid;grid-template-columns:24px 1fr;gap:12px;align-items:start;padding:14px 16px;background:var(--card);border:1px solid var(--border);border-radius:8px;text-decoration:none;color:var(--fg);min-height:72px}
+.action svg{width:24px;height:24px;stroke:currentColor;fill:none;stroke-width:1.75;color:var(--muted);margin-top:2px}
+.action b{display:block;font-size:16px;font-weight:600}
+.action span{display:block;font-size:14px;color:var(--muted);margin-top:2px}
+.action.primary{border-color:var(--primary);background:var(--primary-soft)}
+.action.primary svg{color:var(--primary)}
+.action:hover{background:var(--accent)}
+/* filter bar + table */
+.filters{display:flex;flex-wrap:wrap;gap:12px;align-items:center;padding:16px;background:var(--card);border:1px solid var(--border);border-radius:8px}
+.filters label{font-size:14px;color:var(--muted);display:flex;align-items:center;gap:8px}
+.search{display:flex;align-items:center;gap:0}
+.search input{min-height:40px;width:280px;border:1px solid var(--border);border-radius:6px 0 0 6px;padding:0 12px;font:inherit;font-size:16px}
+.search .btn{border-radius:0 6px 6px 0;border-left:0}
+select.ctl{min-height:40px;border:1px solid var(--border);border-radius:6px;padding:0 8px;font:inherit;font-size:16px;background:#fff;width:11rem}
+.seg{display:inline-flex;border:1px solid var(--border);border-radius:6px;overflow:hidden}
+.seg button{min-height:40px;padding:0 14px;border:0;background:#fff;font:inherit;font-size:16px;color:var(--fg);border-left:1px solid var(--border)}
+.seg button:first-child{border-left:0}
+.seg button.on{background:var(--primary-soft);font-weight:600}
+.sep{flex-basis:100%;height:0}
+.tbl{background:var(--card);border:1px solid var(--border);border-radius:8px;overflow:hidden}
+table{width:100%;border-collapse:collapse;font-size:16px}
+th{font-size:14px;color:var(--muted);font-weight:600;text-align:left;padding:10px 12px;border-bottom:1px solid var(--border);background:#fafaf9}
+td{padding:10px 12px;border-bottom:1px solid var(--border);vertical-align:middle}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+tr.row{cursor:pointer}
+tr.row:hover td{background:var(--accent)}
+td.chev{width:40px;text-align:center;color:var(--muted)}
+td.chev svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2}
+.sub{font-size:14px;color:var(--muted)}
+/* badges: 3 kinds */
+.badge{display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:600;line-height:1;padding:4px 8px;border-radius:9999px;white-space:nowrap;vertical-align:middle}
+.badge svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2}
+.b-state{border:1px solid var(--border);background:#fff;color:var(--fg)}
+.b-state.warn{background:var(--warn-soft);border-color:var(--warn-border);color:var(--warn-strong)}
+.b-state.bad{background:var(--bad-soft);border-color:var(--bad-border);color:var(--bad-strong)}
+.b-state.ok{background:var(--ok-soft);border-color:var(--ok-border);color:var(--ok-strong)}
+.b-class{background:var(--accent);color:var(--muted)}
+.b-emph{background:var(--primary);color:#fff}
+.pager{display:flex;justify-content:space-between;align-items:center;font-size:14px;color:var(--muted)}
+.detail{background:#fafaf9;border-top:1px solid var(--border)}
+.detail .dl{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;padding:16px 12px 16px 52px}
+.detail dt{font-size:14px;color:var(--muted)}.detail dd{margin:0;font-size:16px;font-weight:600}
+.detail .acts{display:flex;gap:8px;padding:0 12px 16px 52px}
+.note{font-size:13px;color:var(--muted);border-top:1px dashed var(--border);padding:12px 24px;max-width:1200px}
+.note b{color:var(--fg)}
+</style></head><body><div class="app"><aside class="sb"><div class="brand">在庫管理システム</div><div class="area"><h4>毎日の業務</h4><nav class="nav"><a href="#" class=""><svg viewBox="0 0 24 24"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>ホーム</a><a href="#" class=""><svg viewBox="0 0 24 24"><path d="M12 16V4m0 0-4 4m4-4 4 4M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg>売上データ取込み</a><a href="#" class=""><svg viewBox="0 0 24 24"><path d="M5 4h14v16H5zM8 9h8M8 13h8M8 17h5"/></svg>日次売上</a><a href="#" class=""><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>在庫照会</a><a href="#" class=""><svg viewBox="0 0 24 24"><path d="M5 4h14v16H5zM8 9h8M8 13h8M8 17h5"/></svg>月次売上</a></nav></div><div class="area"><h4>商品管理</h4><nav class="nav"><a href="#" class="cur"><svg viewBox="0 0 24 24"><path d="M3 8l9-4 9 4v9l-9 4-9-4zM3 8l9 4 9-4M12 12v9"/></svg>商品検索・一覧</a><a href="#" class=""><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>商品登録</a><a href="#" class=""><svg viewBox="0 0 24 24"><path d="M4 17v3h16v-3M12 4v12m0 0 4-4m-4 4-4-4"/></svg>一括インポート</a><a href="#" class=""><svg viewBox="0 0 24 24"><path d="M4 4h8l8 8-8 8-8-8zM8 8h.01"/></svg>PLU書出し</a></nav></div><div class="area"><h4>入出庫</h4><nav class="nav"><a href="#" class=""><svg viewBox="0 0 24 24"><path d="M20 12H4m0 0 6-6m-6 6 6 6"/></svg>入庫記録</a><a href="#" class=""><svg viewBox="0 0 24 24"><path d="M4 8h14l-4-4m4 4-4 4M20 16H6l4 4m-4-4 4-4"/></svg>返品・交換</a><a href="#" class=""><svg viewBox="0 0 24 24"><path d="M4 12h16m0 0-6-6m6 6-6 6"/></svg>手動販売出庫</a><a href="#" class=""><svg viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3m-8 0 1 13h8l1-13"/></svg>廃棄・破損</a><a href="#" class=""><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></svg>入出庫履歴</a><a href="#" class=""><svg viewBox="0 0 24 24"><path d="M12 4l9 16H3zM12 10v4m0 3h.01"/></svg>在庫少一覧</a><a href="#" class=""><svg viewBox="0 0 24 24"><path d="M9 4h6v3H9zM6 6h12v14H6zM9 12h6M9 16h4"/></svg>棚卸し</a></nav></div><div class="area"><h4>システム管理</h4><nav class="nav"><a href="#" class=""><svg viewBox="0 0 24 24"><ellipse cx="12" cy="6" rx="7" ry="3"/><path d="M5 6v12c0 1.7 3.1 3 7 3s7-1.3 7-3V6M5 12c0 1.7 3.1 3 7 3s7-1.3 7-3"/></svg>バックアップ・復元</a><a href="#" class=""><svg viewBox="0 0 24 24"><path d="M6 4h12v16H6zM9 9h6M9 13h6"/></svg>操作ログ</a><a href="#" class=""><svg viewBox="0 0 24 24"><path d="M4 14a8 8 0 0 1 16 0M12 14l4-4"/></svg>在庫少の基準</a></nav></div><div class="sbfoot">文字の大きさ<select><option>標準</option><option>大きめ</option><option>特大</option></select></div></aside><main><div class="page"><div class="ph"><div><h1>商品検索・一覧</h1><p>登録済み商品を探し、売価・在庫・PLU の状態を確認します</p></div><a class="btn primary" href="#"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>商品登録</a></div><div class="filters"><div class="search"><input placeholder="商品名・商品コード・JANで検索" aria-label="商品検索"><button class="btn"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>検索</button></div><select class="ctl"><option>すべての部門</option></select><div class="seg"><button class="on">表示中</button><button>すべて</button><button>廃番のみ</button></div><div class="seg"><button class="on">PLU: すべて</button><button>対象外</button><button>未反映</button><button>反映済み</button></div><div class="sep"></div><label>並び替え <select class="ctl"><option>商品コード</option></select></label><div class="seg"><button class="on">昇順</button><button>降順</button></div><label>表示件数 <select class="ctl" style="width:7rem"><option>50 件</option></select></label><span style="margin-left:auto" class="sub">238 件が該当</span></div><div style="display:flex;gap:8px"><button class="btn">PLU 対象にする</button><button class="btn">PLU 対象から外す</button><span class="sub" style="align-self:center">現在の絞り込み条件に一致する全件が対象です</span></div><div class="tbl"><table><thead><tr><th>商品コード</th><th>商品名</th><th>部門</th><th class="num">売価</th><th class="num">在庫数</th><th>PLU</th><th></th></tr></thead><tbody><tr class="row"><td>HZ-0047</td><td>並太毛糸（生成）<div class="sub">JAN 4900000000012</div></td><td>毛糸</td><td class="num">¥520</td><td class="num">18 玉</td><td><span class="badge b-state warn"><svg viewBox="0 0 24 24"><path d="M12 4l9 16H3zM12 10v4m0 3h.01"/></svg>未反映</span></td><td class="chev"><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></td></tr><tr class="row"><td>F-0132</td><td>コットンブロード（無地・生成）</td><td>生地</td><td class="num">¥780</td><td class="num">1,240 cm</td><td><span class="badge b-state ok"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M8 12l3 3 5-6"/></svg>反映済み</span></td><td class="chev"><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></td></tr><tr class="row"><td>H-0009</td><td>木製ボタン（大） <span class="badge b-class">廃番</span></td><td>手芸小物</td><td class="num">¥120</td><td class="num">0 個</td><td><span class="badge b-state">対象外</span></td><td class="chev"><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></td></tr><tr class="row"><td>4901234567894</td><td>刺しゅう糸 25番（赤系アソート）</td><td>刺しゅう</td><td class="num">¥165</td><td class="num">64 本</td><td><span class="badge b-state warn"><svg viewBox="0 0 24 24"><path d="M12 4l9 16H3zM12 10v4m0 3h.01"/></svg>未反映</span></td><td class="chev"><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></td></tr></tbody></table></div><div class="pager"><span>238 件中 1 / 5 ページ</span><div style="display:flex;gap:8px"><button class="btn sm">← 前へ</button><button class="btn sm">次へ →</button></div></div></div><div class="note"><b>統合案 C の要点（商品一覧）</b>: 検索・絞り込みは 1 つの枠（A）。検索欄は live 型 + 検索ボタン併記（B、全画面共通）。「検索条件」と「並び替え・件数」を 2 段に分離（B D15）。テーブル本文 16px（規範履行）、行高は現行維持（48px 見送り）。押せる行は hover + 右端 chevron（B D13）。PLU 列は #86 の独立列で、badge は 3 種のうち「状態」（icon + 文字 + soft）。廃番は「分類」badge で商品名セル内（DSR-04 維持）。primary は「商品登録」1 つ。</div></main></div></body></html>
