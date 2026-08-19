@@ -409,3 +409,9 @@ Do not transcribe exact-HEAD SHA or test counts here (D-035/D-038 Evidence Owner
 - 非ブロッキング所見（owner）: (1) 一覧の列見出しで数値列 / 操作列と文字列列の左右寄せが混在しリズムが不揃い → UI polish P3 候補として follow-up（実装 B の scope 外、PR body Follow-up に記録）(2) 一覧の既定 `表示中` が廃番を除外するため「未反映」件数が一覧 9 / ホーム 10 と途中で異なって見える → 仕様どおり（`すべて` で一致、owner がコード走査でも確認）。
 - Owner Effort Budget 実績: decision point 単位で 介入 2/3（plan approval / visual 結果報告）。owner comment の `owner intervention 3/3` は実施中の手動操作回数（V3 再確認を含む）で計上基準が異なる。Ready 承認 = 介入 3/3（予算内）。
 - 残る Human Gate = Ready 承認。merge train は PR #85 → PR #86 のため、Ready 遷移 commit（state-only 2 本目、`implementing -> local-verified -> independent-review -> human-confirm -> ready-hosted-final` の隣接 forward 圧縮、Reviewed Content HEAD 設定）+ exact HEAD L1 再取得 + PR body refresh は PR #85 merge 後の base 付け替え rebase の後に実施する。
+
+### owner Ready 承認記録（2026-08-20）
+
+- owner Ready 承認（介入 3 回目 / 予算 3 回、owner 発言 `承認するよ`）。Human Gate の owner 項目（plan approval / visual confirmation / Ready 承認）は全消化、merge のみ残る。
+- Phase は implementing のまま据え置く。merge train PR #85 → PR #86 のため、Ready 遷移は次の順で実施する: PR #85 merge → 本 branch の base を main へ付け替え rebase（conflict は `67-ui-plu-export.md` / `bindings.ts` を中心に解消、L1 再取得）→ state-only 2 本目（`implementing -> local-verified -> independent-review -> human-confirm -> ready-hosted-final` の隣接 forward 圧縮。evidence = rebase 後 exact HEAD の L1 full / Final Review round 1 + delta 再検証 P1/P2 = 0 / visual confirmation 全 PASS / 本 Ready 承認、Reviewed Content HEAD = rebase 後の content HEAD）→ 同 HEAD で L1 full → PR body 全面 refresh → owner が Ready トリガー → hosted CI → merge。
+- rebase 後に content が変わる場合（conflict 解消が実装に及ぶ場合）は Final Review の delta 再検証を挟んでから遷移する。docs-only の conflict 解消なら delta ack のみ。
