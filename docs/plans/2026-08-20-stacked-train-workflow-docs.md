@@ -4,10 +4,10 @@
 
 Use the field definitions, enums, transition evidence, packet-selection rule, and fail-closed behavior from `docs/DEV_WORKFLOW.md` `Workflow State`. Keep exactly one `- Key: value` line per field.
 
-- Phase: plan-draft
+- Phase: implementing
 - Risk: R3
 - Execution Mode: fable-window
-- Plan Commit: pending
+- Plan Commit: 3829b95
 - Amendments: none
 - Coordinator: Fable
 - Writer: Codex
@@ -229,3 +229,9 @@ anchor は汎用語の cross-reference hit を避け、rg -c で重複出現 0 �
 - round 1 / 2 是正の全数適合を独立確認: D-074 新設の 6 箇所一貫（Scope 1 / Required Design Artifacts / Ledger L9 / M-S11 / Spec Contract / Plans.md entry）、STATECAP 二段 cap の script 実装一致（aggregate ≤3 / post-impl ≤2）、Scope 4 配置先の実在、D-073 が最終 entry で D-074 空き。
 - 新規角度の精査も指摘なし: Workflow State 13 field 形式一致・D-062 vendor 制約充足、D-074↔D-055 は単方向参照で循環なし（D-039 独立昇格 precedent と整合）、Non-scope 境界・AC 検証可能性・M-S9/M-S11 の実行可能性を確認。
 - Plan Gate 収束 = rally 3 round（P1+P2: 3 → 3 → 0、round 1 P1-1 は packet 自身が禁じる節引用欠陥の true positive）。次 = owner plan approval（介入 1 回目 / 予算 3 回）。
+
+### owner plan approval / 遷移記録（2026-08-21）
+
+- owner plan approval（介入 1 回目 / 予算 3 回、owner 発言 `両方とも承認するよ` = PR #88 Ready 承認との一括裁定）。D-074 新設・Scope 4 系統・Non-scope 分離に異論なし。
+- state-only 遷移（append-only、STATECAP forward 1 本目）: `plan-draft -> plan-gate -> plan-approved -> implementing` の隣接 forward 圧縮。evidence = plan-gate: rally round 1 開始（plan-first `3829b95` + round 1 発注）/ plan-approved: rally 3 round 収束 P1/P2 = 0（round 3 新規指摘 0、是正 commit `c6747f5` `dfe2cc5` `90854ce` 収束記録 `cd8375b`）+ owner approval / implementing: Plan Commit `3829b95`（plan-first、全実装 commit に先行）確定。Codex 発注書は本遷移後に提示。
+- 以後の予定: Codex Writer 実装（worktree 隔離）→ L1 full → 独立 Sonnet Final Review（Double Audit）→ Ready 承認（介入 2 回目）→ state-only 2 本目（`implementing -> local-verified -> independent-review -> human-confirm -> ready-hosted-final`。Human Gate に visual confirmation なしのため human-confirm の evidence は owner plan approval + Ready 承認で構成、PR #70 先例）→ docs-only の explicit dispatch で三点一致 → merge（介入 3 回目）。
