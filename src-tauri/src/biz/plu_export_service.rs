@@ -91,6 +91,7 @@ pub struct PluRegisterSnapshotSummary {
     pub external_count: usize,
     pub app_managed_count: usize,
     pub conflict_count: usize,
+    pub release_pending_count: usize,
 }
 
 /// PLU保存済み確認リクエスト
@@ -297,6 +298,7 @@ pub fn get_plu_slot_summary(conn: &DbConnection) -> Result<PluRegisterSnapshotSu
             external_count: 0,
             app_managed_count: 0,
             conflict_count: 0,
+            release_pending_count: 0,
         });
     }
     let conflict_count = system_repo::get_setting(conn, "plu_register_snapshot_summary")?
@@ -806,15 +808,21 @@ fn summarize_slots(
     snapshot_at: Option<String>,
     conflict_count: usize,
 ) -> Result<PluRegisterSnapshotSummary, BizError> {
-    let (free_count, external_count, app_managed_count): (i64, i64, i64) = conn
+    let (free_count, external_count, app_managed_count, release_pending_count): (
+        i64,
+        i64,
+        i64,
+        i64,
+    ) = conn
         .query_row(
             "SELECT
             SUM(status='free'),
             SUM(status='external'),
-            SUM(status IN ('reserved','active','release_pending'))
+            SUM(status IN ('reserved','active','release_pending')),
+            SUM(status='release_pending')
          FROM plu_slots",
             [],
-            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
         )
         .map_err(crate::db::DbError::from)?;
     Ok(PluRegisterSnapshotSummary {
@@ -823,6 +831,7 @@ fn summarize_slots(
         external_count: external_count as usize,
         app_managed_count: app_managed_count as usize,
         conflict_count,
+        release_pending_count: release_pending_count as usize,
     })
 }
 
@@ -1067,6 +1076,26 @@ mod tests {
             )
             .unwrap();
         assert_eq!((before, after), (0, 0));
+    }
+
+    #[test]
+    fn test_get_plu_slot_summary_req907_reports_release_pending_count() {
+        // REQ-907 / UI-08-D11: release_pending-only でも Diff 導線を有効化できる summary oracle.
+        let (_dir, conn) = setup_test_db();
+        system_repo::upsert_setting(&conn, "plu_register_snapshot_at", "2026-08-20T17:34:00")
+            .unwrap();
+        put_slot(
+            &conn,
+            217,
+            Some("4901234567894"),
+            PluSlotStatus::ReleasePending,
+        );
+        put_slot(&conn, 218, Some("4901234567887"), PluSlotStatus::Active);
+
+        let summary = get_plu_slot_summary(&conn).unwrap();
+
+        assert_eq!(summary.release_pending_count, 1);
+        assert_eq!(summary.app_managed_count, 2);
     }
 
     #[test]

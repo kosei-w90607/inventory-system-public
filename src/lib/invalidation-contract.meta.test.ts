@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { invalidationContract } from "./invalidation-contract";
 
 describe("UI-07 D-052 invalidation SSOT shape", () => {
-  it("defines all 17 non-empty mutation entries", () => {
+  it("defines all 18 non-empty mutation entries", () => {
     expect(Object.keys(invalidationContract).sort()).toEqual(
       [
         "productCreate",
@@ -23,6 +23,7 @@ describe("UI-07 D-052 invalidation SSOT shape", () => {
         "thresholdSave",
         "pluExportConfirm",
         "pluRegisterSnapshot",
+        "pluExportPrepare",
       ].sort(),
     );
     const entries = [
@@ -43,9 +44,10 @@ describe("UI-07 D-052 invalidation SSOT shape", () => {
       invalidationContract.thresholdSave(),
       invalidationContract.pluExportConfirm(),
       invalidationContract.pluRegisterSnapshot(),
+      invalidationContract.pluExportPrepare(),
     ];
 
-    expect(entries).toHaveLength(17);
+    expect(entries).toHaveLength(18);
     for (const entry of entries) expect(entry.length).toBeGreaterThan(0);
   });
 });

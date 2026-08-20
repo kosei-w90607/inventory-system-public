@@ -139,6 +139,7 @@ function mockDefaultCommands() {
       external_count: 1,
       app_managed_count: 3,
       conflict_count: 0,
+      release_pending_count: 0,
     },
   });
   mockImportPluRegisterSnapshot.mockResolvedValue({
@@ -149,6 +150,7 @@ function mockDefaultCommands() {
       external_count: 1,
       app_managed_count: 3,
       conflict_count: 0,
+      release_pending_count: 0,
     },
   });
 }
@@ -206,6 +208,78 @@ describe("PluExportPage (UI-08 / REQ-402)", () => {
     expect(await screen.findByRole("columnheader", { name: "JANコード" })).toBeInTheDocument();
     expect(screen.getByText("4900000000001")).toBeInTheDocument();
     expect(screen.getByText("未登録")).toBeInTheDocument();
+  });
+
+  it("REQ-907 enables Diff for a release-pending slot when no product is dirty", async () => {
+    // UI-08-D11: 登録解除待ちだけの状態でも operator が clear 行を書き出せる回帰 oracle.
+    const user = userEvent.setup();
+    mockListPluDirty.mockResolvedValue({ status: "ok", data: [] });
+    mockGetPluSlotSummary.mockResolvedValue({
+      status: "ok",
+      data: {
+        snapshot_at: "2026-08-20T17:34:00",
+        free_count: 3_850,
+        external_count: 933,
+        app_managed_count: 1,
+        conflict_count: 0,
+        release_pending_count: 1,
+      },
+    });
+    mockPreparePluExport.mockResolvedValue({
+      status: "ok",
+      data: {
+        bytes_base64: "QUJD",
+        suggested_filename: "PLU_20260820.txt",
+        content_type: "text/tab-separated-values",
+        encoding: "CP932",
+        count: 1,
+        target_product_codes: ["PLU-001"],
+        prepared_rows: [{ memory_no: 217, row_kind: "clear", target_product_codes: ["PLU-001"] }],
+        excluded: [],
+        over_limit_warning: false,
+      },
+    });
+    mockSave.mockResolvedValue("/synthetic/PLU_20260820.txt");
+    mockWriteFile.mockResolvedValue(undefined);
+
+    renderWithClient(<PluExportPage />);
+
+    expect(
+      await screen.findByText(
+        "レジ登録解除待ちが1件あります。差分を書き出すと、レジから登録を外す行を作成します。",
+      ),
+    ).toBeInTheDocument();
+    const diffButton = screen.getByRole("button", { name: "差分を書き出す" });
+    expect(diffButton).toBeEnabled();
+    expect(screen.getByText("差分対象").nextElementSibling).toHaveTextContent("1 件");
+
+    await user.click(diffButton);
+    await waitFor(() => {
+      expect(mockPreparePluExport).toHaveBeenCalledWith("diff");
+    });
+  });
+
+  it("REQ-907 keeps Diff disabled when app-managed slots exist without dirty or release-pending rows", async () => {
+    // UI-08-D11: app-managed total must not be substituted for the release-pending count.
+    mockListPluDirty.mockResolvedValue({ status: "ok", data: [] });
+    mockGetPluSlotSummary.mockResolvedValue({
+      status: "ok",
+      data: {
+        snapshot_at: "2026-08-20T17:34:00",
+        free_count: 3_850,
+        external_count: 933,
+        app_managed_count: 1,
+        conflict_count: 0,
+        release_pending_count: 0,
+      },
+    });
+
+    renderWithClient(<PluExportPage />);
+
+    const diffButton = await screen.findByRole("button", { name: "差分を書き出す" });
+    expect(diffButton).toBeDisabled();
+    expect(screen.getByText("差分対象").nextElementSibling).toHaveTextContent("0 件");
+    expect(screen.queryByText(/レジ登録解除待ちが/)).not.toBeInTheDocument();
   });
 
   it("REQ-402 does not confirm when the save dialog is cancelled", async () => {
@@ -468,7 +542,21 @@ describe("PluExportPage (UI-08 / REQ-402)", () => {
     expect(mockScrollTo).toHaveBeenCalledWith({ top: 0, behavior: "smooth" });
   });
 
-  it("REQ-402 D-052-C14 invalidates the exact six-key oracle after confirmation", async () => {
+  it("REQ-907 D-052-C18 invalidates the slot summary after prepare succeeds", async () => {
+    const user = userEvent.setup();
+    mockSave.mockResolvedValue(null);
+
+    const { queryClient } = renderWithClient(<PluExportPage />);
+    const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries");
+
+    await user.click(await screen.findByRole("button", { name: "差分を書き出す" }));
+
+    await waitFor(() => {
+      expectExactInvalidations(invalidateSpy.mock.calls, d052InvalidationOracle.pluExportPrepare());
+    });
+  });
+
+  it("REQ-402 D-052-C14 invalidates the exact seven-key oracle after confirmation", async () => {
     const user = userEvent.setup();
     mockSave.mockResolvedValue("/home/kosei/PLU_20260701.txt");
     mockWriteFile.mockResolvedValue(undefined);
@@ -477,6 +565,8 @@ describe("PluExportPage (UI-08 / REQ-402)", () => {
     const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries");
 
     await user.click(await screen.findByRole("button", { name: "差分を書き出す" }));
+    await screen.findByText("PLUファイルを保存しました");
+    invalidateSpy.mockClear();
     await user.click(await screen.findByRole("button", { name: "この書出しを未反映から外す" }));
 
     await waitFor(() => {
@@ -680,6 +770,7 @@ describe("PluExportPage (UI-08 / REQ-402)", () => {
           external_count: 0,
           app_managed_count: 0,
           conflict_count: 0,
+          release_pending_count: 0,
         },
       })
       .mockResolvedValue({
@@ -690,6 +781,7 @@ describe("PluExportPage (UI-08 / REQ-402)", () => {
           external_count: 20,
           app_managed_count: 64,
           conflict_count: 1,
+          release_pending_count: 0,
         },
       });
     mockOpen.mockResolvedValue("/synthetic/Z004.csv");

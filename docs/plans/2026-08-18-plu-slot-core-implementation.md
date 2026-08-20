@@ -6,7 +6,7 @@
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: fade732
-- Amendments: c76fdbd, ebf4a31, 56e5fda, 42d88bf
+- Amendments: c76fdbd, ebf4a31, 56e5fda, 42d88bf, afda36e
 - Coordinator: Fable
 - Writer: Codex
 - Plan Reviewer: Sonnet
@@ -447,4 +447,4 @@ Do not transcribe exact-HEAD SHA or test counts here (D-035/D-038 Evidence Owner
 - 裁定: summary DTO に `release_pending_count`（app managed の内数）を追加し、Diff count = 商品 dirty + release pending とする。両方 0 のときだけ Diff を無効化する。D-052 C2 / C14 に slot summary を追加し、C18 prepare 成功を新設する。SSOT・独立 oracle・UI_TECH_STACK・decision-log・33-biz・41-cmd・67-ui・packet・Matrix を同期する。
 - Test: release-pending-only の Diff 有効 + clear prepare、app-managed-only / release 0 の Diff 無効、C2 / C14 / C18 exact invalidation、Rust summary の active + release_pending 独立集計。Rust harness は Windows で既知の `STATUS_ENTRYPOINT_NOT_FOUND` により実行未完了なら、その事実を verification に残し PASS と扱わない。
 - 実装者: Codex（store-PC provisional follow-up）。review-only pass で P2 3 件を検出して範囲を拡張した。Phase は implementing、Reviewed Content HEAD は pending、Ready 判定は行わない。
-- amendment commit: pending（先行 docs commit 後、次 commit で実 SHA を記録）
+- amendment commit: `afda36e`
