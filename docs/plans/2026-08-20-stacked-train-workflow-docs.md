@@ -40,7 +40,9 @@ Risk: R3
 
 ## Goal
 
-PR #84〜#86 で実測された workflow gap 4 系統を正本 docs へ昇格し、次回の stacked train / 並行 lane / Codex 発注で同じ失敗を再現させない。
+Goal Invariant:
+
+PR #84〜#86 で実測された workflow gap 4 系統を正本 docs へ昇格し、次回の stacked train / 並行 lane / Codex 発注で同じ失敗を再現させない。既存規範の文言（D-055 / D-038 / D-039、drift test が保全する token を含む）は削除・改変しない。
 
 ### 最小完了条件
 
@@ -85,9 +87,9 @@ docs-only、4 系統:
 
 ## Acceptance Criteria
 
-- AC1: Scope 1〜4 の各規則が指定正本 doc に存在し、anchor token（Test Plan 参照）が rg exact で 1 hit する。
-- AC2: 新設記述が D-055（Rebase Map）/ D-038・D-039（STATECAP）の既存契約文と矛盾しない（Plan / Final Reviewer の突合観点）。
-- AC3: 規則ごとに出典実測（PR 番号）が本文または近傍に記録され、実測なき規則の発明がない。
+- AC1: Scope 1〜4 の各規則が指定正本 doc に存在し、anchor token（Test Plan 参照）が `rg -F -c` exact で 1 hit する。
+- AC2: 新設記述が `docs/DEV_WORKFLOW.md` / `docs/decision-log.md` の D-055（Rebase Map）/ D-038・D-039（STATECAP）既存契約文と矛盾しない（Plan / Final Reviewer の突合観点、M-S9 の `git diff` 既存行変更 0 検査を含む）。
+- AC3: 規則ごとに出典実測（PR 番号）が本文または近傍に記録され、実測なき規則の発明がない（rally が `docs/archive/plans/` の一次資料と突合済み）。
 - AC4: L1 full PASS、doc-consistency ERROR 0、既存 test / checker への変更なし。
 
 ## Design Sources
@@ -193,6 +195,14 @@ anchor は汎用語の cross-reference hit を避け、rg -c で重複出現 0 �
 
 ## Trace Matrix
 
+| Spec ID | Plan Step | Test | Review Focus | Evidence |
+|---|---|---|---|---|
+| D-074 | Scope 1（stacked train 小節 + D-074 新設） | M-S1〜M-S4 / M-S11 | 規則発明・D-055 整合 | anchor rg + mutation 記録 |
+| D-052 C-n / D-n 採番 | Scope 2（Review Rules 採番規律） | M-S5 | 既存 ID 規範との整合 | anchor rg |
+| §5.6 発注書規律 | Scope 3（referent 一致 / 90-traceability 完了条件） | M-S6 / M-S7 | 出典実測との一致 | anchor rg |
+| fixture encoding | Scope 4（Human Visual Confirmation 節） | M-S8 | 配置先実在 | anchor rg |
+| 既存契約不変 | 横断 | M-S9 / M-S10 | D-055 / D-038 / D-039 無改変 | `git diff` + L1 full |
+
 - Matrix: `docs/plans/test-matrices/2026-08-20-stacked-train-workflow-docs.md`
 
 ## Data Safety
@@ -240,7 +250,7 @@ anchor は汎用語の cross-reference hit を避け、rg -c で重複出現 0 �
 - Verdict: **新規指摘 0、収束**（P1/P2/P3 = 0）。disposition route への遷移不要。
 - round 1 / 2 是正の全数適合を独立確認: D-074 新設の 6 箇所一貫（Scope 1 / Required Design Artifacts / Ledger L9 / M-S11 / Spec Contract / Plans.md entry）、STATECAP 二段 cap の script 実装一致（aggregate ≤3 / post-impl ≤2）、Scope 4 配置先の実在、D-073 が最終 entry で D-074 空き。
 - 新規角度の精査も指摘なし: Workflow State 13 field 形式一致・D-062 vendor 制約充足、D-074↔D-055 は単方向参照で循環なし（D-039 独立昇格 precedent と整合）、Non-scope 境界・AC 検証可能性・M-S9/M-S11 の実行可能性を確認。
-- Plan Gate 収束 = rally 3 round（P1+P2: 3 → 3 → 0、round 1 P1-1 は packet 自身が禁じる節引用欠陥の true positive）。次 = owner plan approval（介入 1 回目 / 予算 3 回）。
+- Plan Gate 収束 = rally 3 round（P1+P2: 3 → 3 → 0、evidence = 是正 commit `c6747f5` / `dfe2cc5` / `90854ce`、round 1 P1-1 は packet 自身が禁じる節引用欠陥の true positive）。次 = owner plan approval（介入 1 回目 / 予算 3 回、記録 = 遷移記録節）。
 
 ### owner plan approval / 遷移記録（2026-08-21）
 
@@ -261,3 +271,9 @@ anchor は汎用語の cross-reference hit を避け、rg -c で重複出現 0 �
 - 裁定 = A 案（gated amendment 1 と同じ分業判断）: Test Plan 節冒頭へ Markdown link（PR #70 packet の先例形式）、Review Response へ `- Findings Freeze: not yet frozen; post-freeze exceptions: none.`（PR #86 packet の先例形式）を追加。設計意味は不変、Plan Commit `3829b95` 維持。
 - 教訓の追記（gated amendment 1 の WER 候補を拡張）: R3 packet の checker 検査は `Risk: Rn` 認識後に検査項目が段階発火する。plan-draft 段階の rally 発注書へ「doc-consistency-check を実行し ERROR 0 を確認」を含めれば、形式系 3 件（Risk 行 / Matrix link / Findings Freeze）は起草直後に一括検出できた。
 - amendment commit = 本 commit（SHA は state-only 遷移 2 本目で `Amendments` 行へ追記する）。
+
+### gated amendment 3（2026-08-21、`doc-consistency-check.sh` WARN 6 件の形式充足、Coordinator 実施）
+
+- 事象: Writer 完了報告の特記事項どおり、packet 起源の `doc-consistency-check.sh` WARN 6 件（D-046 Goal Invariant marker / PK3 Trace Matrix data row / PK3 AC1〜AC3 観測 token ×3 / PK6 数値主張の evidence 参照）が残存。ERROR 0 のため gate は通るが、先例 packet（PR #70 / #86）は WARN 0 相当で Final Review の指摘対象になる形式差。
+- 裁定: Coordinator が一括充足 — Goal Invariant block 追加 / Trace Matrix へ data row 5 行 / AC1〜AC3 へ観測 token（`rg -F -c` 等の backtick）/ rally round 3 記録行へ evidence commit 参照を追記（数値・内容は不変、形式補完のみ。append-only 記録の本文改変はこの evidence 参照追加 1 行に限る）。
+- 設計意味・Scope・Matrix 検証行は不変、Plan Commit `3829b95` 維持。amendment commit = 本 commit（SHA は state-only 遷移 2 本目で `Amendments` 行へ追記）。
