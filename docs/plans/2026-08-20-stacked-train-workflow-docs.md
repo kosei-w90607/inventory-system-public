@@ -160,6 +160,8 @@ docs-only、4 系統:
 
 ## Test Plan
 
+Test Design Matrix: [2026-08-20-stacked-train-workflow-docs.md](test-matrices/2026-08-20-stacked-train-workflow-docs.md)
+
 docs-only のため drift-test 形式（PR #70 と同型）: 各規則に一意の anchor token を置き、`rg -F -c` exact 1 hit を検証する。mutation は anchor 文の削除 / 意味反転（例: 「単段 merge」→「多段 merge」）で該当検査が red になることを Writer / Final Reviewer が独立に確認する。
 
 | # | 対象 | anchor（例、Writer が確定） | 検証 |
@@ -203,7 +205,9 @@ anchor は汎用語の cross-reference hit を避け、rg -c で重複出現 0 �
 
 ## Review Response
 
-（rally 記録を追記）
+- Findings Freeze: not yet frozen; post-freeze exceptions: none.
+
+（rally 記録は以下に追記）
 
 ### Plan Gate rally round 1（2026-08-20、独立 Sonnet Plan Reviewer、fresh context）
 
@@ -244,3 +248,10 @@ anchor は汎用語の cross-reference hit を避け、rg -c で重複出現 0 �
 - 検出経緯の記録: Coordinator 起草時と Plan Gate rally 3 round はいずれも doc-consistency-check を未実行（round 1 / 2 は「未実施」と明示申告、round 3 は plan-draft 段階の対象外整理）。checker 実行を伴う最初の工程 = Writer 着手時に検出された。plan-draft 段階の packet に対する checker 実行を rally 発注書へ含める改善は WER 候補として記録する。
 - 裁定 = A 案: `## Risk` 節冒頭へ standalone `Risk: R3` 行を追加（既存の説明 bullet は維持）。発注書の「packet は Implementation Results 以外変更禁止」は Writer / Coordinator の正しい分業のため改訂しない（B 案不採用）。設計意味は不変、Plan Commit `3829b95` 維持。
 - amendment commit = 本 commit（SHA は state-only 遷移 2 本目で Workflow State `Amendments` 行へ追記する）。
+
+### gated amendment 2（2026-08-21、Codex Writer fail-closed 起源、true positive）
+
+- 事象: gated amendment 1 で `Risk: R3` が PK1 に認識された結果、R3 固有検査が段階発火 — (1) packet が Test Design Matrix への Markdown link / 専用節を欠く（Test Plan 節は prose のみ、Matrix 参照は Trace Matrix 節の backtick のみ）(2) `## Review Response` に `- Findings Freeze:` 行がない。`doc-consistency-check.sh` ERROR 2。いずれも Implementation Results 外のため Writer は分業境界で停止（正しい判断、2 回連続の true positive）。
+- 裁定 = A 案（gated amendment 1 と同じ分業判断）: Test Plan 節冒頭へ Markdown link（PR #70 packet の先例形式）、Review Response へ `- Findings Freeze: not yet frozen; post-freeze exceptions: none.`（PR #86 packet の先例形式）を追加。設計意味は不変、Plan Commit `3829b95` 維持。
+- 教訓の追記（gated amendment 1 の WER 候補を拡張）: R3 packet の checker 検査は `Risk: Rn` 認識後に検査項目が段階発火する。plan-draft 段階の rally 発注書へ「doc-consistency-check を実行し ERROR 0 を確認」を含めれば、形式系 3 件（Risk 行 / Matrix link / Findings Freeze）は起草直後に一括検出できた。
+- amendment commit = 本 commit（SHA は state-only 遷移 2 本目で `Amendments` 行へ追記する）。
