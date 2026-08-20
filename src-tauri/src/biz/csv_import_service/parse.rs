@@ -44,6 +44,9 @@ pub fn parse_and_validate(
                 Z004ParseError::NoSettlementDate(_) => {
                     "Z004ファイルの解析に失敗しました: 精算日を抽出できません"
                 }
+                Z004ParseError::ImportError(_) => {
+                    "Z004ファイルの解析に失敗しました: snapshot形式エラー"
+                }
             };
             log_parse_failure(conn, msg);
             return Err(BizError::ImportError(msg.to_string()));

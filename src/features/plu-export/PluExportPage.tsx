@@ -1,14 +1,20 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, CheckCircle2, Download, RotateCcw, Save } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Download, RotateCcw, Save, Upload } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
 import { PageHeader } from "@/components/patterns/PageHeader";
+import { FilePicker, type PickedFile } from "@/components/FilePicker";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { SegmentedControl } from "@/components/ui/segmented-control";
-import { commands, type ExportMode, type PluExportPrepareResponse } from "@/lib/bindings";
+import {
+  commands,
+  type ExportMode,
+  type PluExportPrepareResponse,
+  type PluPreparedRow,
+} from "@/lib/bindings";
 import { describeError } from "@/lib/describe-error";
 import { invalidateByContract, invalidationContract } from "@/lib/invalidation-contract";
 import { unwrapResult } from "@/lib/invoke";
@@ -36,6 +42,7 @@ interface PendingPluExport {
   count: number;
   encoding: string;
   targetProductCodes: string[];
+  preparedRows: PluPreparedRow[];
   overLimitWarning: boolean;
 }
 
@@ -50,6 +57,7 @@ const PENDING_PLU_EXPORT_KEYS = [
   "count",
   "encoding",
   "targetProductCodes",
+  "preparedRows",
   "overLimitWarning",
 ] as const;
 
@@ -76,6 +84,9 @@ function isPendingPluExport(value: unknown): value is PendingPluExport {
   if (!value || typeof value !== "object") return false;
   if (!hasOnlyPendingPluExportKeys(value as Record<string, unknown>)) return false;
   const pending = value as Partial<PendingPluExport>;
+  if (!Array.isArray(pending.targetProductCodes) || !Array.isArray(pending.preparedRows)) {
+    return false;
+  }
   const uniqueTargetCodes = new Set(pending.targetProductCodes);
   return (
     pending.version === 1 &&
@@ -87,10 +98,9 @@ function isPendingPluExport(value: unknown): value is PendingPluExport {
     Number.isInteger(pending.count) &&
     pending.count >= 0 &&
     typeof pending.encoding === "string" &&
-    Array.isArray(pending.targetProductCodes) &&
-    pending.targetProductCodes.length > 0 &&
+    pending.preparedRows.length > 0 &&
     uniqueTargetCodes.size === pending.targetProductCodes.length &&
-    pending.count <= pending.targetProductCodes.length &&
+    pending.count === pending.preparedRows.length &&
     pending.targetProductCodes.every((code) => typeof code === "string" && code.length > 0) &&
     typeof pending.overLimitWarning === "boolean"
   );
@@ -140,6 +150,7 @@ function buildPendingPluExport(
     count: nextPrepared.count,
     encoding: nextPrepared.encoding,
     targetProductCodes: nextPrepared.target_product_codes,
+    preparedRows: nextPrepared.prepared_rows,
     overLimitWarning: nextPrepared.over_limit_warning,
   };
 }
@@ -166,6 +177,8 @@ function formatExcludedReason(reason: string): string {
       return "JANのチェックディジットが不正です";
     case "group_price_mismatch":
       return "同じJANの商品で売価または税率が一致していません";
+    case "no_free_slot":
+      return "レジの空きスロットがありません";
     default:
       return "要修正（詳細不明）";
   }
@@ -181,6 +194,7 @@ export function PluExportPage() {
   );
   const [savedPath, setSavedPath] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [snapshotImporting, setSnapshotImporting] = useState(false);
 
   const dirtyQuery = useQuery({
     queryKey: queryKeys.pluDirty(),
@@ -188,8 +202,38 @@ export function PluExportPage() {
       unwrapResult(commands.listPluDirty(), { source: "commands", cmd: "list_plu_dirty" }),
   });
 
+  const slotSummaryQuery = useQuery({
+    queryKey: queryKeys.pluSlotSummary(),
+    queryFn: () =>
+      unwrapResult(commands.getPluSlotSummary(), {
+        source: "commands",
+        cmd: "get_plu_slot_summary",
+      }),
+  });
+
   const isBusy = status === "preparing";
   const dirtyCount = dirtyQuery.data?.length ?? 0;
+  const releasePendingCount = slotSummaryQuery.data?.release_pending_count ?? 0;
+  const diffCount = dirtyCount + releasePendingCount;
+  const snapshotLoaded = slotSummaryQuery.data?.snapshot_at != null;
+
+  async function handleSnapshotSelect(file: PickedFile) {
+    setSnapshotImporting(true);
+    setErrorMessage(null);
+    try {
+      await unwrapResult(commands.importPluRegisterSnapshot(Array.from(file.bytes)), {
+        source: "commands",
+        cmd: "import_plu_register_snapshot",
+      });
+      await invalidateByContract(queryClient, invalidationContract.pluRegisterSnapshot());
+      toast.success("レジ登録状況を読み込みました");
+    } catch (error) {
+      setErrorMessage(describeError(error));
+      toast.error("レジ登録状況を読み込めませんでした");
+    } finally {
+      setSnapshotImporting(false);
+    }
+  }
 
   async function savePreparedFile(nextPrepared: PluExportPrepareResponse) {
     const targetPath = await save({
@@ -233,6 +277,7 @@ export function PluExportPage() {
         source: "commands",
         cmd: "prepare_plu_export",
       });
+      await invalidateByContract(queryClient, invalidationContract.pluExportPrepare());
       setPrepared(nextPrepared);
       await savePreparedFile(nextPrepared);
     } catch (error) {
@@ -252,11 +297,12 @@ export function PluExportPage() {
 
   async function handleConfirm() {
     const targetProductCodes = pendingExport?.targetProductCodes ?? prepared?.target_product_codes;
-    if (!targetProductCodes || targetProductCodes.length === 0) return;
+    const preparedRows = pendingExport?.preparedRows ?? prepared?.prepared_rows;
+    if (!targetProductCodes || !preparedRows || preparedRows.length === 0) return;
     setStatus("preparing");
     setErrorMessage(null);
     try {
-      await unwrapResult(commands.confirmPluExportSaved(targetProductCodes), {
+      await unwrapResult(commands.confirmPluExportSaved(targetProductCodes, preparedRows), {
         source: "commands",
         cmd: "confirm_plu_export_saved",
       });
@@ -284,7 +330,6 @@ export function PluExportPage() {
     scrollPageToTop();
   }
 
-  const showFullModeWarning = mode === "full";
   const displayCount = pendingExport?.count ?? prepared?.count;
   const displayEncoding = pendingExport?.encoding ?? prepared?.encoding;
   const displayOverLimitWarning =
@@ -320,6 +365,68 @@ export function PluExportPage() {
         </AlertDescription>
       </Alert>
 
+      <Card>
+        <CardHeader>
+          <CardTitle>レジ登録状況</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {snapshotLoaded && slotSummaryQuery.data ? (
+            <>
+              <p className="text-sm">
+                最終読込み日時: {formatPendingSavedAt(slotSummaryQuery.data.snapshot_at ?? "")}
+              </p>
+              <dl className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
+                <div>
+                  <dt className="text-muted-foreground">空き</dt>
+                  <dd className="font-semibold">
+                    {slotSummaryQuery.data.free_count.toLocaleString()} 件
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-muted-foreground">外部登録</dt>
+                  <dd className="font-semibold">
+                    {slotSummaryQuery.data.external_count.toLocaleString()} 件
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-muted-foreground">アプリ管理</dt>
+                  <dd className="font-semibold">
+                    {slotSummaryQuery.data.app_managed_count.toLocaleString()} 件
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-muted-foreground">競合</dt>
+                  <dd className="font-semibold">
+                    {slotSummaryQuery.data.conflict_count.toLocaleString()} 件
+                  </dd>
+                </div>
+              </dl>
+            </>
+          ) : (
+            <Alert className="border-warning bg-warning-soft text-warning-strong">
+              <AlertTriangle />
+              <AlertTitle>レジ設定の読込みが必要です</AlertTitle>
+              <AlertDescription>
+                書出しの前に、レジから取得したZ004を選んでください。
+              </AlertDescription>
+            </Alert>
+          )}
+          <FilePicker
+            accept=".csv,.txt"
+            ariaLabel="レジ登録状況のZ004を選ぶ"
+            buttonLabel="レジ登録状況を読み込む"
+            buttonIcon={<Upload aria-hidden="true" />}
+            dialogFilterName="Z004 / CSV / TXT"
+            dropEnabled={false}
+            disabled={snapshotImporting}
+            onSelect={(file) => void handleSnapshotSelect(file)}
+          />
+          {errorMessage && !snapshotLoaded ? (
+            <p className="text-sm text-destructive">{errorMessage}</p>
+          ) : null}
+        </CardContent>
+      </Card>
+
       {hasTopStatus ? (
         <section aria-label="PLU書出し状態" className="space-y-3">
           {displayOverLimitWarning ? (
@@ -342,7 +449,7 @@ export function PluExportPage() {
                   違うPLUファイルでやり直す場合は破棄して再書出しします。
                 </p>
                 <p className="font-medium">
-                  PCツールに取り込めなかった場合は、未反映を外さずに全件を書き出し直して取り込んでください。
+                  PCツールに取り込めなかった場合は、保存済みファイルを再投入するか、差分または全件を書き出し直してください。
                 </p>
                 <div className="grid gap-1">
                   <p>保存先: {pendingExport.savedPath}</p>
@@ -427,7 +534,7 @@ export function PluExportPage() {
                 <AlertTriangle />
                 <AlertTitle>PCツールに取り込めなかった場合の回復手順</AlertTitle>
                 <AlertDescription>
-                  PCツールに取り込めなかった場合は、未反映を外さずに全件を書き出し直して取り込んでください。
+                  PCツールに取り込めなかった場合は、保存済みファイルを再投入するか、差分または全件を書き出し直してください。
                 </AlertDescription>
               </Alert>
             </>
@@ -527,8 +634,14 @@ export function PluExportPage() {
             {dirtyQuery.isError ? (
               <p className="text-sm text-destructive">未反映商品を取得できませんでした。</p>
             ) : null}
-            {dirtyQuery.isSuccess && dirtyCount === 0 ? (
+            {dirtyQuery.isSuccess && dirtyCount === 0 && releasePendingCount === 0 ? (
               <p className="text-sm text-muted-foreground">PLU書出しが必要な商品はありません。</p>
+            ) : null}
+            {releasePendingCount > 0 ? (
+              <p className="text-sm">
+                レジ登録解除待ちが{releasePendingCount.toLocaleString()}
+                件あります。差分を書き出すと、レジから登録を外す行を作成します。
+              </p>
             ) : null}
             {dirtyQuery.isSuccess && dirtyCount > 0 ? (
               <div className="overflow-x-auto">
@@ -581,20 +694,18 @@ export function PluExportPage() {
               onValueChange={setMode}
             />
 
-            {showFullModeWarning ? (
-              <Alert className="border-warning bg-warning-soft text-warning-strong">
-                <AlertTriangle />
-                <AlertTitle>全件書出し前にレジ側データのバックアップを確認してください</AlertTitle>
-                <AlertDescription>
-                  PCツール（CV17）に取り込んでよいのは全件書出しのファイルだけです。差分書出しのファイルは取り込まないでください。
-                </AlertDescription>
-              </Alert>
-            ) : null}
+            <Alert className="border-warning bg-warning-soft text-warning-strong">
+              <AlertTriangle />
+              <AlertTitle>Diff / Full ともレジへ投入できます</AlertTitle>
+              <AlertDescription>
+                メモリNo.を永続化する前に作成した全件ファイルは再投入しないでください。
+              </AlertDescription>
+            </Alert>
 
             <div className="grid gap-2 text-sm">
               <div className="flex justify-between gap-4">
                 <span className="text-muted-foreground">差分対象</span>
-                <strong>{dirtyCount.toLocaleString()} 件</strong>
+                <strong>{diffCount.toLocaleString()} 件</strong>
               </div>
               {displayCount !== undefined && displayEncoding ? (
                 <>
@@ -614,7 +725,11 @@ export function PluExportPage() {
               type="button"
               variant={hasSavedExportPending ? "outline" : "default"}
               className="w-full"
-              disabled={isBusy || (mode === "diff" && dirtyQuery.isSuccess && dirtyCount === 0)}
+              disabled={
+                isBusy ||
+                !snapshotLoaded ||
+                (mode === "diff" && dirtyQuery.isSuccess && diffCount === 0)
+              }
               onClick={() => void handlePrepareAndSave()}
             >
               <Download />

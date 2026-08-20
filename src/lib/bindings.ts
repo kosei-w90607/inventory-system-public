@@ -175,7 +175,9 @@ export const commands = {
 	 *
 	 *  docs/function-design/41-cmd-pos.md §17.6 confirm_plu_export_saved
 	 */
-	confirmPluExportSaved: (productCodes: string[]) => typedError<PluExportConfirmResponse, CmdError>(__TAURI_INVOKE("confirm_plu_export_saved", { productCodes })),
+	confirmPluExportSaved: (productCodes: string[], preparedRows: PluPreparedRow[]) => typedError<PluExportConfirmResponse, CmdError>(__TAURI_INVOKE("confirm_plu_export_saved", { productCodes, preparedRows })),
+	importPluRegisterSnapshot: (fileBytes: number[]) => typedError<PluRegisterSnapshotSummary, CmdError>(__TAURI_INVOKE("import_plu_register_snapshot", { fileBytes })),
+	getPluSlotSummary: () => typedError<PluRegisterSnapshotSummary, CmdError>(__TAURI_INVOKE("get_plu_slot_summary")),
 	/**
 	 *  PLU書出しが必要な商品一覧を返す
 	 *
@@ -1024,6 +1026,7 @@ export type PluExcludedProductResponse = {
 	product_code: string,
 	jan_code: string | null,
 	name: string,
+	memory_no: number | null,
 	reason: string,
 };
 
@@ -1052,10 +1055,28 @@ export type PluExportPrepareResponse = {
 	count: number,
 	// PLUファイルに含めた商品コード一覧
 	target_product_codes: string[],
+	prepared_rows: PluPreparedRow[],
 	// PLUファイルに含めなかった商品一覧
 	excluded: PluExcludedProductResponse[],
 	// PLU上限超過警告（互換維持フィールド）
 	over_limit_warning: boolean,
+};
+
+export type PluPreparedRow = {
+	memory_no: number,
+	row_kind: PluPreparedRowKind,
+	target_product_codes: string[],
+};
+
+export type PluPreparedRowKind = "product" | "clear";
+
+export type PluRegisterSnapshotSummary = {
+	snapshot_at: string | null,
+	free_count: number,
+	external_count: number,
+	app_managed_count: number,
+	conflict_count: number,
+	release_pending_count: number,
 };
 
 // フロントエンドに返すプレビューデータ
@@ -1200,6 +1221,7 @@ export type ProductUpdateResult = {
 export type ProductWithRelations = {
 	department_name: string,
 	supplier_name: string | null,
+	plu_memory_no: number | null,
 } & (Product);
 
 // 入庫記録リクエスト（31-biz-inventory-service.md §12.3）

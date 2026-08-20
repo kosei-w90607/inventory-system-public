@@ -557,11 +557,11 @@ struct PluExportConfirmResponse {
 #[specta::specta]
 fn import_plu_register_snapshot(
     state: State<AppState>,
-    path: String,
+    file_bytes: Vec<u8>,
 ) -> Result<PluRegisterSnapshotSummaryResponse, CmdError>
 ```
 
-共通 FilePicker（D-054）が選んだ Z004 path を受け、BIZ-04 の snapshot 取込みを呼ぶ。path / 実コードを response や operation log に複製せず、`snapshot_at`, `free_count`, `external_count`, `app_managed_count`, `conflict_count` の要約だけを返す。
+共通 FilePicker（D-054）が返す Z004 の bytes（`PickedFile.bytes`、wire は `fileBytes: number[]`）を受け、`CSV_IMPORT_FILE_SIZE_LIMIT` 超過は `parse_and_validate_csv` と同じ Validation error で止め、BIZ-04 の snapshot 取込みを呼ぶ。path は受け取らない（D-054 は path を公開しない。設計時の `path: String` は gated amendment で改訂、2026-08-18）。実コードを response や operation log に複製せず、`snapshot_at`, `free_count`, `external_count`, `app_managed_count`, `conflict_count`, `release_pending_count` の要約だけを返す。`release_pending_count` は app 管理総数の内数で、次回 Diff / Full の clear 行候補件数である。
 
 #### get_plu_slot_summary（CMD-08-D5 / SPEC-PLS-D2、D7）
 
@@ -573,7 +573,7 @@ fn get_plu_slot_summary(
 ) -> Result<PluRegisterSnapshotSummaryResponse, CmdError>
 ```
 
-`app_settings` と `plu_slots` から最後の読込み日時と占有要約を read-only で返す。snapshot 未読込みは null timestamp と zero summary で表し、prepare の gate 判定は BIZ-04 が行う。
+`app_settings` と `plu_slots` から最後の読込み日時と占有要約を read-only で返す。snapshot 未読込みは null timestamp と全件数 zero の summary で表し、prepare の gate 判定は BIZ-04 が行う。`release_pending_count` は `app_managed_count` と別集計し、UI は解除待ち件数を app 管理総数から推測しない。
 
 ---
 

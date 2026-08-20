@@ -7,7 +7,7 @@
 
 use std::fmt;
 
-use crate::constants::SCANNING_PLU_MEMORY_START;
+use crate::constants::{PLU_EXPORT_LIMIT, SCANNING_PLU_MEMORY_START};
 
 // ---------------------------------------------------------------------------
 // 型定義
@@ -18,12 +18,20 @@ use crate::constants::SCANNING_PLU_MEMORY_START;
 /// IO層に定義し、BIZ層がインポートして使う（BIZ → IO 方向の型参照は許可）
 #[derive(Debug, Clone)]
 pub struct PluExportRow {
+    pub memory_no: i64,
+    pub row_kind: PluExportRowKind,
     pub product_code: String,
     pub jan_code: Option<String>,
     pub name: String,
     pub selling_price: i64,
     pub tax_rate: String,
     pub department_name: String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PluExportRowKind {
+    Product,
+    Clear,
 }
 
 /// PLUファイル生成結果
@@ -59,6 +67,10 @@ pub enum PluFormatError {
         tax_rate: String,
         message: String,
     },
+    InvalidMemoryNo {
+        memory_no: i64,
+        message: String,
+    },
 }
 
 impl fmt::Display for PluFormatError {
@@ -67,6 +79,7 @@ impl fmt::Display for PluFormatError {
             PluFormatError::EncodingError { message, .. } => write!(f, "{}", message),
             PluFormatError::InvalidScanningCode { message, .. } => write!(f, "{}", message),
             PluFormatError::TaxMappingError { message, .. } => write!(f, "{}", message),
+            PluFormatError::InvalidMemoryNo { message, .. } => write!(f, "{}", message),
         }
     }
 }
@@ -111,13 +124,32 @@ pub(crate) fn generate_plu_tsv_with_date(
     output.extend_from_slice(b"\r\n");
 
     // データ行
-    for (i, row) in rows.iter().enumerate() {
+    for row in rows {
+        if row.memory_no < SCANNING_PLU_MEMORY_START as i64
+            || row.memory_no > PLU_EXPORT_LIMIT as i64
+        {
+            return Err(PluFormatError::InvalidMemoryNo {
+                memory_no: row.memory_no,
+                message: format!("PLUメモリNo.が範囲外です: {}", row.memory_no),
+            });
+        }
+        if row.row_kind == PluExportRowKind::Clear {
+            let clear = format!(
+                "{:06}\t00000000000000\t\t\\0\t税1(内税)\tいいえ\tいいえ\tいいえ\tいいえ\t無し\tノンリンク",
+                row.memory_no
+            );
+            let (clear_bytes, _, had_replacements) = encoding_rs::SHIFT_JIS.encode(&clear);
+            debug_assert!(!had_replacements);
+            output.extend_from_slice(&clear_bytes);
+            output.extend_from_slice(b"\r\n");
+            continue;
+        }
         let name_bytes = process_product_name(&row.name, &row.product_code)?;
         let tax = map_tax_rate(&row.tax_rate, &row.product_code)?;
         let scanning_code = validate_scanning_code(row)?;
 
         // メモリNo. + タブ + スキャニングコード + タブ
-        let prefix = format!("{}\t{}\t", SCANNING_PLU_MEMORY_START + i, scanning_code);
+        let prefix = format!("{:06}\t{}\t", row.memory_no, scanning_code);
         let (prefix_bytes, _, had_replacements) = encoding_rs::SHIFT_JIS.encode(&prefix);
         if had_replacements {
             let bad_char = find_unmappable_char(scanning_code).unwrap_or('?');
@@ -137,7 +169,7 @@ pub(crate) fn generate_plu_tsv_with_date(
 
         // タブ + 単価 + タブ + 課税方式 + 固定列 + 部門リンク
         let suffix = format!(
-            "\t{}\t{}\tはい\tいいえ\tいいえ\tいいえ\t無し\t{}",
+            "\t{}\t{}\tいいえ\tいいえ\tいいえ\tいいえ\t無し\t{}",
             row.selling_price, tax, row.department_name
         );
         let (suffix_bytes, _, had_replacements) = encoding_rs::SHIFT_JIS.encode(&suffix);
@@ -430,6 +462,8 @@ mod tests {
         department_name: &str,
     ) -> PluExportRow {
         PluExportRow {
+            memory_no: 217,
+            row_kind: PluExportRowKind::Product,
             product_code: product_code.to_string(),
             jan_code: jan_code.map(String::from),
             name: name.to_string(),
@@ -493,12 +527,12 @@ mod tests {
         );
         let data_fields: Vec<&str> = lines[1].split('\t').collect();
         // 現地profile: 通常PLU216枠使用後のスキャニングPLU開始番号
-        assert_eq!(data_fields[0], "217", "メモリNo.");
+        assert_eq!(data_fields[0], "000217", "メモリNo.");
         assert_eq!(data_fields[1], "4901234567894", "ｽｷｬﾆﾝｸﾞｺｰﾄﾞ");
         // 名称: ハマナカ→ﾊﾏﾅｶ, アミアミ→ｱﾐｱﾐ, 極太は全角漢字(2byte), col.42は半角
         assert_eq!(data_fields[3], "648", "単価");
         assert_eq!(data_fields[4], "税1(内税)", "課税方式");
-        assert_eq!(data_fields[5], "はい", "単品売り");
+        assert_eq!(data_fields[5], "いいえ", "単品売り");
         assert_eq!(data_fields[6], "いいえ", "負単価");
         assert_eq!(data_fields[7], "いいえ", "品番PLU");
         assert_eq!(data_fields[8], "いいえ", "ゼロ単価");
@@ -822,5 +856,52 @@ mod tests {
         assert_eq!(map_tax_rate("10", "X").unwrap(), "税1(内税)");
         assert_eq!(map_tax_rate("8", "X").unwrap(), "税2(内税)");
         assert_eq!(map_tax_rate("0", "X").unwrap(), "非課税");
+    }
+
+    #[test]
+    fn test_clear_row_req907_exact_eleven_fields() {
+        // REQ-907: A-R5b independent exact oracle.
+        let row = PluExportRow {
+            memory_no: 217,
+            row_kind: PluExportRowKind::Clear,
+            product_code: String::new(),
+            jan_code: None,
+            name: String::new(),
+            selling_price: 0,
+            tax_rate: "10".to_string(),
+            department_name: String::new(),
+        };
+        let output = generate_plu_tsv_with_date(&[row], "20260818").unwrap();
+        let (decoded, _, _) = encoding_rs::SHIFT_JIS.decode(&output.bytes);
+        let line = decoded.split("\r\n").nth(1).unwrap();
+        assert_eq!(
+            line,
+            "000217\t00000000000000\t\t\\0\t税1(内税)\tいいえ\tいいえ\tいいえ\tいいえ\t無し\tノンリンク"
+        );
+        assert_eq!(line.split('\t').count(), 11);
+        assert_eq!(line.split('\t').nth(3), Some("\\0"));
+    }
+
+    #[test]
+    fn test_memory_no_req907_is_zero_padded_and_range_checked() {
+        // REQ-907: A-E2/A-E3 independent boundary oracle.
+        let mut low = make_row("LOW", Some("4901234567894"), "low", 100, "10", "毛糸");
+        low.memory_no = 217;
+        let mut high = make_row("HIGH", Some("4901234567887"), "high", 100, "10", "毛糸");
+        high.memory_no = 5_000;
+        let output = generate_plu_tsv_with_date(&[low, high], "20260818").unwrap();
+        let (decoded, _, _) = encoding_rs::SHIFT_JIS.decode(&output.bytes);
+        let lines: Vec<_> = decoded.split("\r\n").collect();
+        assert!(lines[1].starts_with("000217\t"));
+        assert!(lines[2].starts_with("005000\t"));
+
+        for memory_no in [216, 5_001] {
+            let mut invalid = make_row("BAD", Some("4901234567894"), "bad", 100, "10", "毛糸");
+            invalid.memory_no = memory_no;
+            assert!(matches!(
+                generate_plu_tsv_with_date(&[invalid], "20260818"),
+                Err(PluFormatError::InvalidMemoryNo { .. })
+            ));
+        }
     }
 }

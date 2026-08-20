@@ -42,6 +42,13 @@ pub struct ParsedRow {
     pub amount: i32,
 }
 
+/// レジ全スロット占有 snapshot の1行。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PluRegisterSlot {
+    pub memory_no: i64,
+    pub raw_code: Option<String>,
+}
+
 /// 行単位パースエラー（他の行の処理は継続）
 #[derive(Debug, Clone)]
 pub struct ParseError {
@@ -77,6 +84,8 @@ pub enum Z004ParseError {
     NoDataLines(String),
     /// ヘッダまたは精算日を抽出不能
     NoSettlementDate(String),
+    /// 全スロット snapshot の構造が契約を満たさない。
+    ImportError(String),
 }
 
 impl fmt::Display for Z004ParseError {
@@ -85,6 +94,7 @@ impl fmt::Display for Z004ParseError {
             Z004ParseError::DecodeFailed(msg) => write!(f, "{}", msg),
             Z004ParseError::NoDataLines(msg) => write!(f, "{}", msg),
             Z004ParseError::NoSettlementDate(msg) => write!(f, "{}", msg),
+            Z004ParseError::ImportError(msg) => write!(f, "{}", msg),
         }
     }
 }
@@ -203,6 +213,91 @@ pub fn parse_z004(raw_bytes: &[u8]) -> Result<ParseResult, Z004ParseError> {
         total_data_lines,
         file_hash,
     })
+}
+
+/// Z004 全スロットダンプを占有 snapshot として fail-closed で読む。
+pub fn parse_plu_register_snapshot(
+    raw_bytes: &[u8],
+) -> Result<Vec<PluRegisterSlot>, Z004ParseError> {
+    let (decoded, had_errors) = encoding_rs::SHIFT_JIS.decode_without_bom_handling(raw_bytes);
+    if had_errors {
+        return Err(Z004ParseError::DecodeFailed(
+            "CP932デコードに失敗しました。ファイル形式を確認してください".to_string(),
+        ));
+    }
+    let normalized = decoded
+        .replace("\u{0085}", "\n")
+        .replace("\r\n", "\n")
+        .replace('\r', "\n");
+    let lines: Vec<&str> = normalized.split('\n').collect();
+    const HEADER_SCAN_LIMIT: usize = 20;
+    let header_index = lines
+        .iter()
+        .take(HEADER_SCAN_LIMIT)
+        .position(|line| is_layout_a_header_line(line))
+        .ok_or_else(|| {
+            Z004ParseError::ImportError(
+                "ヘッダ行を検出できません。ファイル形式を確認してください".to_string(),
+            )
+        })?;
+
+    let data_lines: Vec<&str> = lines[header_index + 1..]
+        .iter()
+        .copied()
+        .filter(|line| !line.trim().is_empty())
+        .collect();
+    if data_lines.len() != 5_000 {
+        return Err(Z004ParseError::ImportError(format!(
+            "PLUスロット行数が不正です（期待: 5000, 実際: {}）",
+            data_lines.len()
+        )));
+    }
+
+    let mut seen = vec![false; 5_001];
+    let mut slots = Vec::with_capacity(5_000);
+    for line in data_lines {
+        let fields = split_csv_fields(line);
+        if fields.len() != 5 {
+            return Err(Z004ParseError::ImportError(format!(
+                "PLUスロット行のフィールド数が不正です（実際: {}）",
+                fields.len()
+            )));
+        }
+        let memory_no: usize = fields[0].trim().parse().map_err(|_| {
+            Z004ParseError::ImportError(format!("memory No.が不正です: '{}'", fields[0]))
+        })?;
+        if !(1..=5_000).contains(&memory_no) || seen[memory_no] {
+            return Err(Z004ParseError::ImportError(format!(
+                "memory No.が範囲外または重複しています: {memory_no}"
+            )));
+        }
+        seen[memory_no] = true;
+
+        let raw = &fields[1];
+        let raw_code = if raw.len() == 14 && raw.bytes().all(|byte| byte == b'0') {
+            None
+        } else if raw.len() == 14
+            && raw.as_bytes()[..13].iter().all(u8::is_ascii_digit)
+            && raw.as_bytes()[13] == b'E'
+        {
+            Some(raw[..13].to_string())
+        } else if raw.is_empty() {
+            None
+        } else {
+            Some(raw.clone())
+        };
+        slots.push(PluRegisterSlot {
+            memory_no: memory_no as i64,
+            raw_code,
+        });
+    }
+    if seen[1..].iter().any(|seen| !seen) {
+        return Err(Z004ParseError::ImportError(
+            "memory No.が欠落しています".to_string(),
+        ));
+    }
+    slots.sort_by_key(|slot| slot.memory_no);
+    Ok(slots)
 }
 
 // ---------------------------------------------------------------------------
@@ -1004,5 +1099,85 @@ mod layout_a_tests {
             parse_z004(&raw).unwrap_err(),
             "ヘッダ行を検出できません。ファイル形式を確認してください",
         );
+    }
+}
+
+#[cfg(test)]
+mod plu_register_snapshot_tests {
+    use super::*;
+
+    fn snapshot_bytes(row_count: usize, override_row: Option<(usize, &str)>) -> Vec<u8> {
+        let mut text = String::from(
+            "\"meta\",\"synthetic\"\r\n\"メモリNo.\",\"ｽｷｬﾆﾝｸﾞｺｰﾄﾞ\",\"名称\",\"個数\",\"金額\"\r\n",
+        );
+        for memory_no in 1..=row_count {
+            let code = override_row
+                .filter(|(target, _)| *target == memory_no)
+                .map_or("00000000000000", |(_, code)| code);
+            text.push_str(&format!("{memory_no},{code},,0,0\r\n"));
+        }
+        let (bytes, _, _) = encoding_rs::SHIFT_JIS.encode(&text);
+        bytes.into_owned()
+    }
+
+    fn snapshot_bytes_with_memory_numbers(
+        memory_numbers: impl IntoIterator<Item = usize>,
+    ) -> Vec<u8> {
+        let mut text = String::from(
+            "\"meta\",\"synthetic\"\r\n\"メモリNo.\",\"ｽｷｬﾆﾝｸﾞｺｰﾄﾞ\",\"名称\",\"個数\",\"金額\"\r\n",
+        );
+        for memory_no in memory_numbers {
+            text.push_str(&format!("{memory_no},00000000000000,,0,0\r\n"));
+        }
+        let (bytes, _, _) = encoding_rs::SHIFT_JIS.encode(&text);
+        bytes.into_owned()
+    }
+
+    #[test]
+    fn test_parse_plu_register_snapshot_req907_normalizes_only_register_padding() {
+        // REQ-907: A-N2 / A-N2c
+        let mut text = String::from(
+            "\"meta\",\"synthetic\"\r\n\"メモリNo.\",\"ｽｷｬﾆﾝｸﾞｺｰﾄﾞ\",\"名称\",\"個数\",\"金額\"\r\n",
+        );
+        for memory_no in 1..=5_000 {
+            let code = match memory_no {
+                1 => "4901234567894E",
+                2 => "12345678EEEEEE",
+                3 => "123456789012EE",
+                _ => "00000000000000",
+            };
+            text.push_str(&format!("{memory_no},{code},,0,0\r\n"));
+        }
+        let (bytes, _, _) = encoding_rs::SHIFT_JIS.encode(&text);
+        let slots = parse_plu_register_snapshot(&bytes).unwrap();
+        assert_eq!(slots.len(), 5_000);
+        assert_eq!(slots[0].raw_code.as_deref(), Some("4901234567894"));
+        assert_eq!(slots[1].raw_code.as_deref(), Some("12345678EEEEEE"));
+        assert_eq!(slots[2].raw_code.as_deref(), Some("123456789012EE"));
+        assert_eq!(slots[3].raw_code, None);
+    }
+
+    #[test]
+    fn test_parse_plu_register_snapshot_req907_rejects_incomplete_snapshot() {
+        // REQ-907: A-N1b
+        for row_count in [4_999, 5_001] {
+            let error = parse_plu_register_snapshot(&snapshot_bytes(row_count, None)).unwrap_err();
+            assert!(
+                matches!(error, Z004ParseError::ImportError(ref message) if message.contains("PLUスロット行数"))
+            );
+        }
+        assert!(matches!(
+            parse_plu_register_snapshot(b"meta\r\nwrong-header\r\n"),
+            Err(Z004ParseError::ImportError(_))
+        ));
+        let duplicate = (1..5_000).chain(std::iter::once(4_999));
+        assert!(matches!(
+            parse_plu_register_snapshot(&snapshot_bytes_with_memory_numbers(duplicate)),
+            Err(Z004ParseError::ImportError(_))
+        ));
+        assert!(matches!(
+            parse_plu_register_snapshot(&snapshot_bytes_with_memory_numbers(0..5_000)),
+            Err(Z004ParseError::ImportError(_))
+        ));
     }
 }

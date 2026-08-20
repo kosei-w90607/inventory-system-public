@@ -81,6 +81,7 @@ function makeProduct(productCode: string, stockQuantity: number): ProductWithRel
     updated_at: "2026-01-01T00:00:00",
     department_name: "synthetic-department",
     supplier_name: null,
+    plu_memory_no: null,
   };
 }
 

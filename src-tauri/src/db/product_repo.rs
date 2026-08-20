@@ -105,6 +105,7 @@ pub struct ProductWithRelations {
     pub product: Product,
     pub department_name: String,
     pub supplier_name: Option<String>,
+    pub plu_memory_no: Option<i64>,
 }
 
 /// 商品 + 部門名（INNER JOIN結果、PLU書出し用）
@@ -154,6 +155,7 @@ pub struct NewProduct {
 /// plu_exported_at: Option<Option<String>> — None=変更なし、Some(None)=NULLに設定、Some(Some(v))=値を設定
 #[derive(Debug, Default)]
 pub struct ProductUpdates {
+    pub jan_code: Option<Option<String>>,
     pub name: Option<String>,
     pub department_id: Option<i64>,
     pub supplier_id: Option<Option<i64>>,
@@ -274,6 +276,7 @@ fn row_to_product_with_relations(row: &rusqlite::Row) -> rusqlite::Result<Produc
         product,
         department_name: row.get(18)?,
         supplier_name: row.get(19)?,
+        plu_memory_no: row.get(20)?,
     })
 }
 
@@ -477,7 +480,13 @@ pub fn find_by_product_code(
                 p.plu_dirty, p.plu_exported_at, p.plu_target, p.pos_stock_sync,
                 p.created_at, p.updated_at,
                 d.name AS dept_name,
-                s.name AS supplier_name
+                s.name AS supplier_name,
+                (SELECT ps.memory_no FROM plu_slots ps
+                 WHERE ps.scanning_code = p.jan_code
+                   AND ps.status IN ('reserved','active','release_pending')
+                 ORDER BY CASE WHEN ps.status IN ('reserved','active') THEN 0 ELSE 1 END,
+                          ps.memory_no
+                 LIMIT 1) AS plu_memory_no
          FROM products p
          LEFT JOIN departments d ON p.department_id = d.id
          LEFT JOIN suppliers s ON p.supplier_id = s.id
@@ -716,7 +725,13 @@ pub fn search_products(
                 p.plu_dirty, p.plu_exported_at, p.plu_target, p.pos_stock_sync,
                 p.created_at, p.updated_at,
                 d.name AS dept_name,
-                s.name AS supplier_name
+                s.name AS supplier_name,
+                (SELECT ps.memory_no FROM plu_slots ps
+                 WHERE ps.scanning_code = p.jan_code
+                   AND ps.status IN ('reserved','active','release_pending')
+                 ORDER BY CASE WHEN ps.status IN ('reserved','active') THEN 0 ELSE 1 END,
+                          ps.memory_no
+                 LIMIT 1) AS plu_memory_no
          FROM products p
          LEFT JOIN departments d ON p.department_id = d.id
          LEFT JOIN suppliers s ON p.supplier_id = s.id
@@ -761,6 +776,11 @@ pub fn update_product(
     if let Some(ref name) = updates.name {
         set_clauses.push(format!("name = ?{}", idx));
         params.push(Box::new(name.clone()));
+        idx += 1;
+    }
+    if let Some(ref jan_code) = updates.jan_code {
+        set_clauses.push(format!("jan_code = ?{}", idx));
+        params.push(Box::new(jan_code.clone()));
         idx += 1;
     }
     if let Some(dept_id) = updates.department_id {
@@ -922,6 +942,12 @@ pub fn get_stock_detail(conn: &DbConnection, product_code: &str) -> Result<Stock
                 p.created_at, p.updated_at,
                 d.name AS dept_name,
                 s.name AS supplier_name,
+                (SELECT ps.memory_no FROM plu_slots ps
+                 WHERE ps.scanning_code = p.jan_code
+                   AND ps.status IN ('reserved','active','release_pending')
+                 ORDER BY CASE WHEN ps.status IN ('reserved','active') THEN 0 ELSE 1 END,
+                          ps.memory_no
+                 LIMIT 1) AS plu_memory_no,
                 (SELECT MAX(rr.receiving_date)
                  FROM receiving_items ri
                  JOIN receiving_records rr ON ri.receiving_record_id = rr.id
@@ -940,8 +966,8 @@ pub fn get_stock_detail(conn: &DbConnection, product_code: &str) -> Result<Stock
             let product = row_to_product_with_relations(row)?;
             Ok(StockDetail {
                 product,
-                last_receiving_date: row.get(20)?,
-                last_sale_date: row.get(21)?,
+                last_receiving_date: row.get(21)?,
+                last_sale_date: row.get(22)?,
             })
         }
         None => Err(DbError::NotFound),
@@ -969,7 +995,13 @@ pub fn list_low_stock_products(
                 p.plu_dirty, p.plu_exported_at, p.plu_target, p.pos_stock_sync,
                 p.created_at, p.updated_at,
                 d.name AS dept_name,
-                s.name AS supplier_name
+                s.name AS supplier_name,
+                (SELECT ps.memory_no FROM plu_slots ps
+                 WHERE ps.scanning_code = p.jan_code
+                   AND ps.status IN ('reserved','active','release_pending')
+                 ORDER BY CASE WHEN ps.status IN ('reserved','active') THEN 0 ELSE 1 END,
+                          ps.memory_no
+                 LIMIT 1) AS plu_memory_no
          FROM products p
          LEFT JOIN departments d ON p.department_id = d.id
          LEFT JOIN suppliers s ON p.supplier_id = s.id

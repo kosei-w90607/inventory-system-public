@@ -115,6 +115,7 @@ fn build_doc_to_modules_map() -> HashMap<&'static str, Vec<&'static str>> {
             "db::sales_repo",
             "db::stocktake_repo",
             "db::system_repo",
+            "db::plu_slot_repo",
         ],
     );
 

@@ -23,7 +23,7 @@ SR-S4000 のスキャニング PLU 領域について、レジで観測した占
 | released_at | TEXT | NULLABLE | 解放確認日時 |
 | updated_at | TEXT | NOT NULL | 最終更新日時 |
 
-`scanning_code` には `status <> 'free'` の行だけを対象とする partial UNIQUE index を置く。同じ JAN / 観測コードを複数スロットへ割り当てる状態は、スナップショット照合時の重複解消処理を除いて DB が拒否する。
+`scanning_code` には `status IN ('external','reserved','active')` の行だけを対象とする partial UNIQUE index を置く。同じ JAN / 観測コードをこれら 3 status の複数スロットへ割り当てる状態は DB が拒否する。`release_pending` は clear 待ちの stale 保持であり index の対象外とする（同一コードの `release_pending` 複数行、および `active` / `reserved` / `external` との共存を許容する）。スナップショット照合の重複解消（最小番号だけ active、残り release_pending）と解放 trigger はこの例外で保存できる（gated amendment 2、2026-08-18。`status <> 'free'` では重複解消結果が保存不能だった）。
 
 ### migration v5
 
@@ -31,15 +31,17 @@ migration v5 は table と partial UNIQUE index を作り、memory No. 217〜500
 
 ### products との結合
 
-`plu_slots.scanning_code = products.jan_code` を JAN 単位の結合キーとする。product_code は slot identity に使わない。同一 JAN の商品群は 1 スロットを共有し、商品一覧・商品詳細は `reserved` / `active` / `release_pending` の該当 memory No. を読み取り専用値として返す。
+`plu_slots.scanning_code = products.jan_code` を JAN 単位の結合キーとする。product_code は slot identity に使わない。同一 JAN の商品群は 1 スロットを共有し、商品一覧・商品詳細は `reserved` / `active` / `release_pending` の該当 memory No. を読み取り専用値として返す。同一 JAN に複数行が該当する場合（重複解消後の `active` + `release_pending`、または `release_pending` 複数行）は `reserved` / `active` を優先し、`release_pending` のみなら最小 memory No. の 1 行を返す。
 
 ### 状態遷移
 
 | 現在状態 | 契機 | 次状態 | 必須処理 |
 |---|---|---|---|
 | free | prepare | reserved | 最小空き番号、reserved_at |
-| free | snapshot: レジ有・eligible JAN 一致 | active | 採用。同一 JAN 重複は最小番号だけ active、残り release_pending |
+| free | snapshot: レジ有・eligible JAN 一致（その JAN に reserved / active なし） | active | 採用、activated_at。同一 JAN 重複は最小番号だけ active、残り release_pending（scanning_code 保持） |
+| free | snapshot: レジ有・reserved / active 保持 JAN と同一コード | release_pending | 重複 stale（33-biz §16.6 (4)）。app 管理 slot の memory No. は維持、observed 側に scanning_code 保持 |
 | free | snapshot: レジ有・その他 | external | 観測コードを保持 |
+| external | prepare: 同一コードの JAN が eligible かつ reserved / active なし | active | 採用、activated_at。新規 free 予約はしない（レジ既存登録の app 管理への移行） |
 | free | snapshot: レジ空 | free | no-op |
 | external | snapshot: レジ空 | free | scanning_code を NULL |
 | external | snapshot: レジ有・同一コード | external | 維持 |
@@ -57,7 +59,7 @@ migration v5 は table と partial UNIQUE index を作り、memory No. 217〜500
 | release_pending | snapshot: レジ空 | free | 解放確認 |
 | release_pending | snapshot: レジ有・同一コード | release_pending | clear 待ちを維持 |
 | release_pending | snapshot: レジ有・別コード | external | 解放済み扱い、clear 不要 |
-| release_pending | 元 JAN を再対象化 | active / reserved | activated_at の有無で復元、商品を dirty |
+| release_pending | 元 JAN を再対象化 | active / reserved | activated_at の有無で復元、商品を dirty。同一 JAN の release_pending が複数行なら最小 memory No. の 1 行のみ復元し残りは維持。同一コードの external があれば external → active 採用を優先し本行は維持 |
 | release_pending | fallback no-reuse | release_pending | clear 行を出さず固定 |
 
 別コード衝突、同一 JAN 重複、要修正商品の扱いを含む照合表の正本は [33-biz-plu-export-service.md](../function-design/33-biz-plu-export-service.md) §16.3 とする（**BIZ-04-D3 / SPEC-PLS-D2〜D4**）。

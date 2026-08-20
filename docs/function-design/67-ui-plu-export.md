@@ -24,15 +24,15 @@ function PluExportPage(): JSX.Element
 
 ## 67.4 処理ステップ
 
-1. `commands.listPluDirty()` で差分対象を取得し、件数と一覧を表示する
+1. `commands.listPluDirty()` で未反映商品を取得し、`getPluSlotSummary` の `release_pending_count` と合算して Diff 対象件数を表示する。解除待ちは商品一覧と別に説明文を表示する
 2. 利用者がDiffまたはFullを選ぶ
-3. `getPluSlotSummary` を読み、snapshot 未読込みなら共通 FilePicker（D-054）で Z004 を選ぶ「レジ登録状況を読み込む」step を先に表示する。`importPluRegisterSnapshot({ path })` 後は最終読込み日時と占有要約を above the fold に表示する
-4. `commands.preparePluExport({ mode })` を呼び、`bytes_base64`、memory No. 付き prepared rows、`target_product_codes`、`excluded`（要修正一覧）を受け取る。`excluded` が空でなければ理由付き一覧を表示し、商品マスタ修正へ誘導する
+3. `getPluSlotSummary` を読み、snapshot 未読込みなら共通 FilePicker（D-054）で Z004 を選ぶ「レジ登録状況を読み込む」step を先に表示する。`importPluRegisterSnapshot({ fileBytes })` 成功後は D-052-C17 の SSOT helper を適用し、最終読込み日時と占有要約を above the fold に表示する
+4. `commands.preparePluExport({ mode })` を呼び、`bytes_base64`、memory No. 付き prepared rows、`target_product_codes`、`excluded`（要修正一覧）を受け取る。成功後は slot 状態が変わり得るため D-052-C18 の SSOT helper を適用する。`excluded` が空でなければ理由付き一覧を表示し、商品マスタ修正へ誘導する
 5. native save dialogで保存先を選び、CP932 PLUファイルバイト列を書き込む
 6. 保存キャンセルまたは保存失敗では `confirm_plu_export_saved` を呼ばず、未反映を残す
 7. 保存成功後は `target_product_codes`、保存先、件数、文字コード、保存日時を復帰用 `localStorage` に保存する。PLUファイル本文 (`bytes_base64`) は保存しない
 8. 画面再表示時に保存済み未確認の復帰状態があれば、ページ上部に `保存済みで未確認のPLU書出しがあります` を表示し、同じ exact product_code set で未反映解除できる導線を出す
-9. 利用者が保存済み扱いを確認した場合だけ `commands.confirmPluExportSaved({ product_codes })` を呼ぶ。復帰状態がある場合は復帰状態の `targetProductCodes` を使い、現在の差分一覧から再計算しない
+9. 利用者が保存済み扱いを確認した場合だけ `commands.confirmPluExportSaved({ product_codes, prepared_rows })` を呼ぶ。復帰状態がある場合は復帰状態の `targetProductCodes` / `preparedRows` を使い、現在の差分一覧から再計算しない
 10. confirm成功後に D-052-C14 の SSOT helper を適用し、復帰状態を削除して未反映解除結果を表示する
 
 ## 67.5 Design Decisions
@@ -49,7 +49,7 @@ function PluExportPage(): JSX.Element
 | REQ-402 / status visibility | UI-08-D6 | PLUファイル保存、保存失敗、キャンセル、未反映解除結果はページ上部の注意文直下に表示し、状態遷移後はページ先頭へスクロールする。ページ全体は既存業務画面と同じ内側余白を持つ。confirm失敗は成功色の保存済み表示に混ぜず、失敗タイトルと再試行導線を持つ別 Alert にする。 | 保存後の `この書出しを未反映から外す` は次操作の要であり、下部に出すと利用者が見落とす。confirm失敗が成功表示に混ざると未反映解除に失敗した事実を見落とす。UI-02/03/04/05 の保存結果 visibility follow-up と DSR-01 の共通レイアウト継承に合わせる。 |
 | REQ-402 / D-028 L3 | UI-08-D10 | 注意情報はページ上部圏に集約する: 要修正一覧（excluded）は状態表示 section の直後・コンテンツ 2 カラムより前に置き、見出しに warning アイコン + 説明 1 行を添える。CV17 回復手順文言は保存完了の成功 Alert に埋めず、warning トーンの独立 Alert（タイトル `PCツールに取り込めなかった場合の回復手順`）とし、restored pending Alert 内にも同文を強調表示する。 | PR #124 L3 の owner 指摘（要修正一覧が最下部でスクロールしないと見えない / 事故防止文言が埋もれている）。安全側の案内は視線が最初に通る場所 + 強調（色のみ不可）で初めて効く。memory feedback-operator-ui-critical-notes-placement、DSR-03（データ安全系 = 上部 Alert 帯）整合。 |
 | REQ-402 / recovery | UI-08-D7 | PLUファイル保存後、未反映解除前に画面遷移・アプリ終了・PC再起動が起きても復帰できるよう、保存済み未確認状態を軽量 `localStorage` に残す。保存するのは `version`、mode、保存先、保存日時、推奨ファイル名、件数、文字コード、exact product_code / memory_no set だけで、ファイル本文や実ファイル内容は保存しない。confirm成功または `破棄して再書出し` で削除する。 | PCツール、SDカード、レジ操作はアプリ外の時間が長く、画面を開きっぱなしにする前提は実運用に合わない。履歴/監査ではないためDBテーブルは作らず、未完了作業の復帰に必要な最小状態だけを保持する。 |
-| REQ-907 / D-072 | UI-08-D11 | 「レジ登録状況を読み込む」で共通 FilePicker（D-054）から Z004 を選び、最終読込み日時と free / external / app managed / conflict の占有要約をページ上部に表示する。snapshot 未読込みは書出しより先に step と導線を出す。 | 既存登録を空きと推測せず、operator が現在の占有 source を確認してから予約できるようにする（SPEC-PLS-D2、D7）。 |
+| REQ-907 / D-072 | UI-08-D11 | 「レジ登録状況を読み込む」で共通 FilePicker（D-054）から Z004 を選び、最終読込み日時と free / external / app managed / conflict の占有要約をページ上部に表示する。summary は app managed の内数として `release_pending_count` も返し、0 より大きければ解除待ち説明を出す。Diff 件数は `listPluDirty` 件数 + `release_pending_count` とし、両方 0 のときだけ Diff を無効化する。snapshot 未読込みは書出しより先に step と導線を出す。 | 既存登録を空きと推測せず、operator が現在の占有 source を確認してから予約できるようにする。商品側 dirty が 0 でも解除 clear 行だけを Diff 出力できる必要がある（SPEC-PLS-D2、D5、D7）。 |
 
 ## 67.6 Route / Components
 
@@ -85,10 +85,10 @@ function PluExportPage(): JSX.Element
 | Command | Input | Output | UI handling |
 |---|---|---|---|
 | `commands.listPluDirty()` | none | `ProductResponse[]` | 差分対象一覧（`plu_target=1` かつ `plu_dirty=1`、D-028）。0件は空状態でエラーではない |
-| `commands.getPluSlotSummary()` | なし | `snapshot_at`, free / external / app managed / conflict counts | snapshot 状態を above the fold に表示 |
-| `commands.importPluRegisterSnapshot({ path })` | Z004 path | snapshot summary | FilePicker D-054 で選択。実コードは UI に一覧表示しない |
-| `commands.preparePluExport({ mode })` | `"diff"` / `"full"` | `bytes_base64`, `suggested_filename`, `content_type`, `encoding`, `count`, `target_product_codes`, `prepared_rows[memory_no]`, `excluded` | snapshot 未読込みは `register_snapshot_required`。`no_free_slot` を含む要修正は生成から除外。slot 予約は永続化する |
-| `commands.confirmPluExportSaved({ product_codes })` | prepare結果の `target_product_codes` | `updated_count`, `confirmed_at` | 保存済み確認。成功後は D-052-C14 の SSOT helper を適用 |
+| `commands.getPluSlotSummary()` | なし | `snapshot_at`, free / external / app managed / conflict counts, `release_pending_count` | snapshot 状態を above the fold に表示。解除待ちは app managed の内数として Diff 件数へ加算 |
+| `commands.importPluRegisterSnapshot({ fileBytes })` | Z004 の bytes（FilePicker `PickedFile.bytes` を `number[]` へ） | snapshot summary | FilePicker D-054 で選択（path は渡らない）。実コードは UI に一覧表示しない。成功後は D-052-C17 の SSOT helper を適用 |
+| `commands.preparePluExport({ mode })` | `"diff"` / `"full"` | `bytes_base64`, `suggested_filename`, `content_type`, `encoding`, `count`, `target_product_codes`, `prepared_rows[memory_no]`, `excluded` | snapshot 未読込みは `register_snapshot_required`。`no_free_slot` を含む要修正は生成から除外。slot 予約・再対象化復元は永続化し、成功後は D-052-C18 の SSOT helper を適用 |
+| `commands.confirmPluExportSaved({ product_codes, prepared_rows })` | prepare結果の `target_product_codes` / `prepared_rows` | `updated_count`, `confirmed_at` | 保存済み確認。成功後は D-052-C14 の SSOT helper を適用 |
 
 `target_product_codes` はprepare時のexact setである。confirm時にUIが現在の差分一覧から再計算しない。
 
@@ -131,7 +131,7 @@ function PluExportPage(): JSX.Element
 - format validation note: `JANコードが未登録または不正な商品は、スキャニングPLU書出しに含められません。商品マスタで13桁JANを確認してください。`
 - excluded list title: `書出しに含めなかった商品（要修正）`
 - excluded reasons: `JAN未登録` / `JANが13桁ではありません` / `JANのチェックディジットが不正です` / `同じJANの商品で売価または税率が一致していません`
-- full-only import note: `PCツール（CV17）に取り込んでよいのは全件書出しのファイルだけです。差分書出しのファイルは取り込まないでください。`
+- import note: `Diff / Full ともレジへ投入できます。`
 - restored pending title: `保存済みで未確認のPLU書出しがあります`
 - discard button: `破棄して再書出し`
 
@@ -141,13 +141,13 @@ function PluExportPage(): JSX.Element
 
 ## 67.10 Query Invalidation
 
-- prepare成功: invalidateしない。`plu_dirty` は変わらない
+- prepare成功: D-052-C18 の SSOT helper で slot summary を invalidate する。`plu_dirty` は変わらないが、予約・external採用・再対象化復元で slot status が変わり得る
 - save cancel / save failure: invalidateしない
-- confirm成功: [D-052](../decision-log.md) C14 と `src/lib/invalidation-contract.ts` を正本として SSOT helper を適用する。具体的な query key 集合と除外判断は本書へ複製しない。
+- 商品 update / 廃番 toggle 成功: D-052-C2、confirm成功: D-052-C14 を適用し、いずれも slot summary を stale 化する。具体的な query key 集合と除外判断は本書へ複製しない。
 
 ## 67.11 Error / Recovery
 
-- Diff対象0件: prepareを呼ばず、空状態で「差分はありません」を表示する。Full書出しは選べる
+- Diff対象0件: `listPluDirty` と `release_pending_count` がともに 0 なら prepareを呼ばず、空状態で「差分はありません」を表示する。Full書出しは選べる。app managed が 1 以上でも解除待ち 0 なら Diff を有効化しない
 - prepare validation error: Alertで表示し、差分一覧へ戻れる
 - snapshot 未読込み: `register_snapshot_required` を表示し、Z004 FilePicker へフォーカスを戻す
 - JANなし / 13桁以外 / チェックディジット不正 / 同一JAN価格不一致 / `no_free_slot`: prepareは失敗せず、該当商品を `excluded`（要修正一覧）として理由付きで表示する。既存 slot は維持し、今回のファイルには含めない

@@ -10,6 +10,7 @@ pub mod inventory_repo;
 pub mod manual_sale_repo;
 pub mod migration;
 mod migration_tx;
+pub mod plu_slot_repo;
 pub mod product_repo;
 pub mod receiving_repo;
 pub mod return_repo;
@@ -22,6 +23,7 @@ mod schema_v1;
 mod schema_v2;
 mod schema_v3;
 mod schema_v4;
+mod schema_v5;
 
 #[cfg(test)]
 pub(crate) mod test_support;

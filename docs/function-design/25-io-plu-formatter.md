@@ -70,7 +70,7 @@ fn generate_plu_tsv(rows: &[PluExportRow]) -> Result<PluFileOutput, PluFormatErr
    c. **名称** = 商品名加工パイプライン（12.4参照）
    d. **単価** = selling_price（整数文字列）
    e. **課税方式** = 税区分マッピング（12.5参照）
-   f. **固定列**: 単品売り=`はい`、負単価=`いいえ`、品番PLU=`いいえ`、ゼロ単価=`いいえ`、入力桁制限=`無し`
+   f. **固定列**: 単品売り=`いいえ`、負単価=`いいえ`、品番PLU=`いいえ`、ゼロ単価=`いいえ`、入力桁制限=`無し`（IO-04-D5: `単品売り=はい` は SR-S4000 で scan-call 即時の自動会計 + レシート発行を意味し、2026-08-19 Windows native L3 で実機確認した。operator の通常会計待ちにするため `いいえ` を固定値とする。PR #85 gated amendment 4）
    g. **部門リンク** = department_name
 
    `row_kind=Clear` は **11 field** を次の exact shape で出力する（IO-04-D3 / SPEC-PLS-D4）。

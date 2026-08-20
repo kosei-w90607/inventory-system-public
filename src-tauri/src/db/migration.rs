@@ -13,6 +13,7 @@ use super::schema_v1;
 use super::schema_v2;
 use super::schema_v3;
 use super::schema_v4;
+use super::schema_v5;
 use super::DbError;
 use rusqlite::Connection;
 
@@ -53,6 +54,11 @@ fn migrations() -> Vec<Migration> {
             version: 4,
             description: "日報取込みテーブル追加（daily_report_imports + lines）",
             kind: MigrationKind::Sql(schema_v4::get_v4_daily_report_schema()),
+        },
+        Migration {
+            version: 5,
+            description: "PLU slot永続割当（plu_slots + 事前投入）",
+            kind: MigrationKind::Custom(schema_v5::apply_v5_plu_slots),
         },
     ]
 }
@@ -354,7 +360,7 @@ mod tests {
         (dir, conn)
     }
 
-    /// 全20テーブル（schema_v1.rs） + schema_versions = 21テーブルが存在すること
+    /// schema_v1 の20テーブル + schema_versions + v5 plu_slots が存在すること
     #[test]
     fn test_migration_req903_creates_all_tables() {
         let dir = tempfile::tempdir().unwrap();
@@ -383,6 +389,7 @@ mod tests {
             "stocktake_items",
             "operation_logs",
             "app_settings",
+            "plu_slots",
         ];
 
         for table_name in &expected_tables {
@@ -410,7 +417,7 @@ mod tests {
                 row.get(0)
             })
             .unwrap();
-        assert_eq!(v1, 4);
+        assert_eq!(v1, 5);
         drop(conn);
 
         // 2回目（同じDBに対して再初期化）
@@ -420,13 +427,13 @@ mod tests {
                 row.get(0)
             })
             .unwrap();
-        assert_eq!(v2, 4, "バージョンが変わってはいけない");
+        assert_eq!(v2, 5, "バージョンが変わってはいけない");
 
-        // schema_versionsにレコードが4件であること（v1 + v2 + v3 + v4）
+        // schema_versionsにレコードが5件であること（v1 + v2 + v3 + v4 + v5）
         let count: i64 = conn
             .query_row("SELECT COUNT(*) FROM schema_versions", [], |row| row.get(0))
             .unwrap();
-        assert_eq!(count, 4, "マイグレーションレコードは4件（v1+v2+v3+v4）");
+        assert_eq!(count, 5, "マイグレーションレコードは5件（v1+v2+v3+v4+v5）");
     }
 
     #[test]
@@ -459,7 +466,7 @@ mod tests {
                 row.get(0)
             })
             .unwrap();
-        assert_eq!(version, 4);
+        assert_eq!(version, 5);
 
         let rows: Vec<(String, bool)> = {
             let mut stmt = conn
@@ -495,7 +502,7 @@ mod tests {
                 row.get(0)
             })
             .unwrap();
-        assert_eq!(version, 4);
+        assert_eq!(version, 5);
 
         for table_name in &[
             "daily_report_imports",
@@ -529,6 +536,87 @@ mod tests {
                 .unwrap();
             assert!(exists, "インデックス '{}' が存在しません", index_name);
         }
+    }
+
+    #[test]
+    fn test_migration_req907_v5_seeds_all_plu_slots() {
+        // REQ-907: A-S1 migration v5 oracle values are intentionally independent.
+        let dir = tempfile::tempdir().unwrap();
+        let db_path = dir.path().join("test.db");
+        let conn = init_database(db_path.to_str().unwrap()).unwrap();
+
+        let (count, min_memory, max_memory, free_count): (i64, i64, i64, i64) = conn
+            .query_row(
+                "SELECT COUNT(*), MIN(memory_no), MAX(memory_no),
+                        SUM(CASE WHEN status = 'free' THEN 1 ELSE 0 END)
+                 FROM plu_slots",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
+            )
+            .unwrap();
+        assert_eq!(
+            (count, min_memory, max_memory, free_count),
+            (4_784, 217, 5_000, 4_784)
+        );
+
+        let (max_version, version_count): (i64, i64) = conn
+            .query_row(
+                "SELECT MAX(version), COUNT(*) FROM schema_versions",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .unwrap();
+        assert_eq!((max_version, version_count), (5, 5));
+    }
+
+    #[test]
+    fn test_migration_req907_v5_rejects_out_of_range_and_unknown_status() {
+        // REQ-907: A-S2 independent boundary oracle.
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("test.db");
+        let conn = init_database(path.to_str().unwrap()).unwrap();
+        for sql in [
+            "INSERT INTO plu_slots(memory_no,status,updated_at) VALUES(216,'free','x')",
+            "INSERT INTO plu_slots(memory_no,status,updated_at) VALUES(5001,'free','x')",
+            "UPDATE plu_slots SET status='unknown' WHERE memory_no=217",
+        ] {
+            let error: DbError = conn.execute(sql, []).unwrap_err().into();
+            assert!(matches!(error, DbError::QueryFailed(_)));
+        }
+    }
+
+    #[test]
+    fn test_migration_req907_v5_partial_unique_excludes_release_pending() {
+        // REQ-907: A-S3 combinations are intentionally independent from production DDL.
+        fn set(
+            conn: &Connection,
+            no: i64,
+            code: Option<&str>,
+            status: &str,
+        ) -> Result<(), DbError> {
+            conn.execute(
+                "UPDATE plu_slots SET scanning_code=?2,status=?3 WHERE memory_no=?1",
+                rusqlite::params![no, code, status],
+            )?;
+            Ok(())
+        }
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("test.db");
+        let conn = init_database(path.to_str().unwrap()).unwrap();
+
+        set(&conn, 217, Some("A"), "active").unwrap();
+        assert!(set(&conn, 218, Some("A"), "active").is_err());
+        set(&conn, 217, Some("B"), "external").unwrap();
+        assert!(set(&conn, 218, Some("B"), "reserved").is_err());
+        set(&conn, 217, Some("B2"), "external").unwrap();
+        assert!(set(&conn, 218, Some("B2"), "active").is_err());
+        set(&conn, 217, Some("C"), "active").unwrap();
+        set(&conn, 218, Some("C"), "release_pending").unwrap();
+        set(&conn, 219, Some("C"), "release_pending").unwrap();
+        set(&conn, 220, Some("D"), "external").unwrap();
+        set(&conn, 221, Some("D"), "release_pending").unwrap();
+        set(&conn, 222, None, "free").unwrap();
+        set(&conn, 223, None, "free").unwrap();
     }
 
     #[test]
