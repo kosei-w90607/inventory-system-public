@@ -27,7 +27,7 @@
 | REQ-103 / UI-01a | UI-01a-D9 | 検索欄を在庫照会と同型の live 型へ統一する（`debounceMs=200` / `type="search"` + native clear / 外付け Label・検索ボタン非表示 / `aria-label="商品検索"` 維持）。 | Why = commit 型維持の業務理由が owner 調査で確認できず、共通化時の既存挙動温存だった。live 型でも HID スキャナの Enter 即時確定・IME 変換確定 Enter の誤発火防止・条件変更時の `page` reset は維持される。Rejected = commit 型の維持（画面間の操作一貫性を損なう理由が説明できない）（owner L3 判断 2026-08-03、gated amendment）。 |
 | REQ-907 / SPEC-PLS-D7 | UI-01a-D10 | PLU 移行状態を独立列「PLU」に置き、`plu_target=0 -> 対象外`、`plu_target=1 && plu_dirty=1 -> 未反映`、`plu_target=1 && plu_dirty=0 -> 反映済み` の 3 語彙で導出する。`plu=all|target|pending|synced|excluded` を URL search param に持つ。 | DSR-04: この画面では PLU 移行状態が filter / 一括操作の主情報であり、全行に値があるため商品名セル内へ詰め込まない。badge は text / icon を併用し、色だけで状態を符号化しない。PLU 状態による行減衰は行わない。 |
 | REQ-907 / SPEC-PLS-D6 | UI-01a-D11 | 現在の q / dept / discontinued / plu filter に一致する全件を「PLU 対象にする / 対象から外す」で更新する。実行前に件数付き dialog、実行後に更新 / JAN 不備 skip / 廃番 skip の結果を表示する。 | page 内だけ、または PLU filter を落とした更新は operator が見ている集合とずれる。BIZ-01 の 1 TX command に判断を集約する。 |
-| REQ-907 / D-052 | UI-01a-D12 | 一括操作成功後は D-052 C18（`productList.root / pluDirty / productForm.root / pluSlotSummary`）を invalidate する。 | 一覧 badge、ホーム未反映件数、商品詳細、slot 要約の stale を同じ production SSOT から解消する。 |
+| REQ-907 / D-052 | UI-01a-D12 | 一括操作成功後は D-052 C19（`productList.root / pluDirty / productForm.root / pluSlotSummary`）を invalidate する。 | 一覧 badge、ホーム未反映件数、商品詳細、slot 要約の stale を同じ production SSOT から解消する。 |
 
 ## 50.3 画面構成
 

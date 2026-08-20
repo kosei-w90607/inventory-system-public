@@ -13,6 +13,7 @@
 | [01-decision-rules.md](01-decision-rules.md) | DSR-01〜15: 実装判断を一意に決めるルール集 | 主動線 CTA / Tabs vs SegmentedControl / Toast vs Alert 3 階層 / ステータスバッジ配置 / read-only vs disabled / 必須表示 / 確認ダイアログ境界 / semantic 色 / Form セクション / フィルタソース / 空状態・Tooltip / truncate・密度 / 表示スケール / ファイル選択方式 / returnTo 検証 |
 | [02-component-catalog.md](02-component-catalog.md) | 15 パターンカタログ（使いどころ / JSX skeleton / トークン / 状態 / a11y / Do-Don't / canonical ファイル参照） | ①ページヘッダ ②サマリカード ③テーブル ④フォームセクション ⑤SegmentedControl ⑥空状態・エラー・ローディング ⑦Toast ⑧Dialog/確認 ⑨検索+フィルタ ⑩ページネーション ⑪日付・月ナビ ⑫行インライン展開 ⑬ステータスバッジ ⑭FilePicker ⑮商品追加欄live候補プレビュー |
 | [03-philosophy.md](03-philosophy.md) | 参照哲学の正典（何を取り、何を取らないか） | 核心4本柱（refactoring-ui / ux-principles / GOV.UK / IBM Carbon）+ 補助3原則（Polaris / Atlassian / Fluent 2）+ japanese-webdesign 観点借用 |
+| [04-backbone.md](04-backbone.md) | 12 行の「まず守る骨」（00〜03 の上に被せる優先原則、owner 採用 2026-08-20）+ foundations 追記 token 表 + 00〜03 への反映先 | 文字 16px 最低線 / 色 3 家族 / badge 3 種 / primary 1 つ / PageShell / 検索欄 live 統一 / 押せる顔 / 1 行説明 / icon 3 段 / 待ち時間 / 密度維持。お手本 mockup と提案原文は [reference/](reference/README.md) |
 
 ---
 
@@ -36,6 +37,8 @@
 | `01` | decision-rules（DSR 判断ルール） |
 | `02` | component-catalog（パターン集） |
 | `03` | philosophy（参照哲学） |
+| `04` | backbone（まず守る骨、00〜03 の上位要約 + 採用済み判断） |
+| `reference/` | お手本 mockup（統合案 C）と提案原文（正本ではない） |
 
 ---
 

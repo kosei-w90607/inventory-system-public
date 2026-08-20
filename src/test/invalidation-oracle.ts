@@ -5,7 +5,7 @@ import { queryKeys } from "@/lib/query-keys";
 export type InvalidationKey = readonly unknown[];
 
 /**
- * D-052-C1〜C18 を test 側へ独立転記した oracle。
+ * D-052-C1〜C19 を test 側へ独立転記した oracle。
  * production の invalidation-contract.ts を参照してはならない。
  */
 export const d052InvalidationOracle = {
@@ -23,6 +23,7 @@ export const d052InvalidationOracle = {
     queryKeys.lowStock(false),
     queryKeys.stockInquiryRoot(),
     queryKeys.pluDirty(),
+    queryKeys.pluSlotSummary(),
     queryKeys.stockMovements.root(),
   ],
   productImport: () => [
@@ -134,6 +135,7 @@ export const d052InvalidationOracle = {
   ],
   pluExportConfirm: () => [
     queryKeys.pluDirty(),
+    queryKeys.pluSlotSummary(),
     queryKeys.productList.root(),
     queryKeys.stockMovements.root(),
     queryKeys.productForm.root(),
@@ -141,6 +143,7 @@ export const d052InvalidationOracle = {
     queryKeys.stockInquiryRoot(),
   ],
   pluRegisterSnapshot: () => [queryKeys.pluSlotSummary()],
+  pluExportPrepare: () => [queryKeys.pluSlotSummary()],
   pluBulkTarget: () => [
     queryKeys.productList.root(),
     queryKeys.pluDirty(),

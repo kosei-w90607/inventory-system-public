@@ -213,6 +213,8 @@ export function PluExportPage() {
 
   const isBusy = status === "preparing";
   const dirtyCount = dirtyQuery.data?.length ?? 0;
+  const releasePendingCount = slotSummaryQuery.data?.release_pending_count ?? 0;
+  const diffCount = dirtyCount + releasePendingCount;
   const snapshotLoaded = slotSummaryQuery.data?.snapshot_at != null;
 
   async function handleSnapshotSelect(file: PickedFile) {
@@ -275,6 +277,7 @@ export function PluExportPage() {
         source: "commands",
         cmd: "prepare_plu_export",
       });
+      await invalidateByContract(queryClient, invalidationContract.pluExportPrepare());
       setPrepared(nextPrepared);
       await savePreparedFile(nextPrepared);
     } catch (error) {
@@ -631,8 +634,14 @@ export function PluExportPage() {
             {dirtyQuery.isError ? (
               <p className="text-sm text-destructive">未反映商品を取得できませんでした。</p>
             ) : null}
-            {dirtyQuery.isSuccess && dirtyCount === 0 ? (
+            {dirtyQuery.isSuccess && dirtyCount === 0 && releasePendingCount === 0 ? (
               <p className="text-sm text-muted-foreground">PLU書出しが必要な商品はありません。</p>
+            ) : null}
+            {releasePendingCount > 0 ? (
+              <p className="text-sm">
+                レジ登録解除待ちが{releasePendingCount.toLocaleString()}
+                件あります。差分を書き出すと、レジから登録を外す行を作成します。
+              </p>
             ) : null}
             {dirtyQuery.isSuccess && dirtyCount > 0 ? (
               <div className="overflow-x-auto">
@@ -696,7 +705,7 @@ export function PluExportPage() {
             <div className="grid gap-2 text-sm">
               <div className="flex justify-between gap-4">
                 <span className="text-muted-foreground">差分対象</span>
-                <strong>{dirtyCount.toLocaleString()} 件</strong>
+                <strong>{diffCount.toLocaleString()} 件</strong>
               </div>
               {displayCount !== undefined && displayEncoding ? (
                 <>
@@ -719,7 +728,7 @@ export function PluExportPage() {
               disabled={
                 isBusy ||
                 !snapshotLoaded ||
-                (mode === "diff" && dirtyQuery.isSuccess && dirtyCount === 0)
+                (mode === "diff" && dirtyQuery.isSuccess && diffCount === 0)
               }
               onClick={() => void handlePrepareAndSave()}
             >

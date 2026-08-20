@@ -1090,6 +1090,7 @@ export type PluRegisterSnapshotSummary = {
 	external_count: number,
 	app_managed_count: number,
 	conflict_count: number,
+	release_pending_count: number,
 };
 
 // フロントエンドに返すプレビューデータ

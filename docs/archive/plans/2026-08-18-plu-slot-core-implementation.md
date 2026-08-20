@@ -2,16 +2,16 @@
 
 ## Workflow State
 
-- Phase: implementing
+- Phase: ready-hosted-final
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: fade732
-- Amendments: c76fdbd, ebf4a31, 56e5fda, 42d88bf
+- Amendments: c76fdbd, ebf4a31, 56e5fda, 42d88bf, afda36e
 - Coordinator: Fable
 - Writer: Codex
 - Plan Reviewer: Sonnet
 - Final Reviewer: Sonnet
-- Reviewed Content HEAD: pending
+- Reviewed Content HEAD: c03f8ec
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
 - Human Gate: Windows native L3（`67-ui §67.12` が UI-08 実装 PR に必須と規定。実機 Z004 読込み・Diff 投入・clear 行の CV17 受理 + レジ側未設定化、店舗訪問と同期）/ human visual confirmation（UI-08 snapshot step + 要約、UI-01b レジメモリNo.）/ Ready / merge（owner plan approval は 2026-08-18 に完了、介入 1 回目）
@@ -45,7 +45,7 @@ D-072 / SPEC-PLS-D1〜D5 + D7（UI-08 / UI-01b 部分）を backend・wire・UI�
 
 ### 最小完了条件
 
-- operator が UI-08 で Z004 を選んでレジ登録状況を読み込み、最終読込み日時と free / external / app managed / conflict の要約を見られる。未読込みのままでは書出しへ進めず、`レジ設定の読込みが必要です` の導線が出る。
+- operator が UI-08 で Z004 を選んでレジ登録状況を読み込み、最終読込み日時と free / external / app managed / conflict の要約を見られる。`release_pending_count` は app managed の内数として別集計し、商品 dirty 0 件でも解除待ちがあれば Diff を選べる。未読込みのままでは書出しへ進めず、`レジ設定の読込みが必要です` の導線が出る。
 - prepare は対象 JAN ごとに最小 `free` memory No. を予約し、保存キャンセル・再 prepare でも同じ memory No. を返す。空きがなければその JAN だけ `no_free_slot`（`レジの空きスロットがありません`）で excluded になり、他は続行する。
 - confirm で `reserved → active`、`release_pending → free`、`plu_dirty=0` が 1 TX で確定し、リトライは冪等。
 - `plu_target 1→0` / 廃番化 / `jan_code` 変更で slot が解放され（`reserved` は直接 `free`、`active` は `release_pending`）、次回 Diff / Full に exact 11 field の clear 行が入る。
@@ -75,14 +75,14 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。
 - MNT-03 / DB: `src-tauri/src/db/schema_v5.rs`（新設）+ `db/migration.rs` `migrations()` へ v5 追加。DDL は `db-design/plu-tables.md §25` の完全形（memory_no CHECK / status 5 値 CHECK / `status IN ('external','reserved','active')` の partial UNIQUE（`release_pending` 対象外、gated amendment 2）/ timestamp 列）、事前投入範囲は `SCANNING_PLU_MEMORY_START` と `PLU_EXPORT_LIMIT`（or `SCANNING_PLU_EXPORT_LIMIT`）から導出し magic number を増やさない。既存の migration test（version max/count = 4、table 一覧）を 5 / `plu_slots` 込みへ更新。
 - IO: `src-tauri/src/db/plu_slot_repo.rs`（新設、`db/mod.rs` 公開、`design_compliance_test.rs` の doc→module map 登録）— 全件 ordered read、JAN / status lookup、最小 `free` 予約、sticky 取得、snapshot / prepare / confirm / release の状態遷移を呼び出し側 TX 内で提供。
 - IO-02: `src-tauri/src/io/z004_parser.rs` に `parse_plu_register_snapshot(raw_bytes)`（`23-io §13.3.1`）を追加。layout A の preamble / header 検査と CP932 decode を再利用し、5,000 行の `(memory_no, raw_code)` を返す。全ゼロ = None、13 桁 + `E` は 13 桁へ、8 桁 + `E×6` は raw、行数不一致 / memory No. 欠落・重複 / header 未検出は fail-closed。
-- BIZ-04: `src-tauri/src/biz/plu_export_service.rs` — `import_plu_register_snapshot(conn, raw_bytes)`（`33-biz §16.3` 照合表 12 行 + 重複 JAN → release_pending + `app_settings` 2 key + operation_log、1 TX）、`get_plu_slot_summary(conn)`、`prepare_plu_export` の書換え（`§16.4` 8 step: snapshot gate / eligible 判定 / D-028 dedup / sticky / 同一コード external の active 採用 / 最小空き予約 / Diff・Full 行構成 / 要修正中 slot 維持・非出力 / memory_no 付き行）、`confirm_plu_export_saved` の拡張（`§16.5`: exact set 再検証、reserved→active、release_pending→free、冪等）、共通解放 service（`§16.6`）。`SCANNING_PLU_EXPORT_LIMIT` との件数比較を撤廃。`PLU_CLEAR_ROW_ENABLED` 定数を `src-tauri/src/constants.rs` に置き、行構成関数は flag を引数で受けて const は 1 箇所で配線（両 mode を test 可能にする）。
+- BIZ-04: `src-tauri/src/biz/plu_export_service.rs` — `import_plu_register_snapshot(conn, raw_bytes)`（`33-biz §16.3` 照合表 12 行 + 重複 JAN → release_pending + `app_settings` 2 key + operation_log、1 TX）、`get_plu_slot_summary(conn)`（app managed の内数 `release_pending_count` を別集計）、`prepare_plu_export` の書換え（`§16.4` 8 step: snapshot gate / eligible 判定 / D-028 dedup / sticky / 同一コード external の active 採用 / 最小空き予約 / Diff・Full 行構成 / 要修正中 slot 維持・非出力 / memory_no 付き行）、`confirm_plu_export_saved` の拡張（`§16.5`: exact set 再検証、reserved→active、release_pending→free、冪等）、共通解放 service（`§16.6`）。`SCANNING_PLU_EXPORT_LIMIT` との件数比較を撤廃。`PLU_CLEAR_ROW_ENABLED` 定数を `src-tauri/src/constants.rs` に置き、行構成関数は flag を引数で受けて const は 1 箇所で配線（両 mode を test 可能にする）。
 - BIZ-01: `src-tauri/src/biz/product_service.rs` — `update_product` の `plu_target 1→0` と `jan_code` 変更、`toggle_discontinue` の廃番化（`plu_target=0` 同時設定、廃番解除は復帰しない）から共通解放 service を同一 TX で呼ぶ（`30-biz §4.4` step 4b / `§4.5`）。同一 JAN を共有する `plu_target=1` 未廃番商品が残れば解放しない。
 - IO-04: `src-tauri/src/io/plu_formatter.rs` — 行インデックス採番（`SCANNING_PLU_MEMORY_START + i`）を撤去し入力行の `memory_no` を 6 桁ゼロ埋めで出力、範囲外は reject、clear 行の exact 11 field 出力（`25-io §12.3`）。product 行の固定列 `単品売り` は `いいえ`（`25-io §12.3` 2f / IO-04-D5、gated amendment 4）。
 - CMD-08 / CMD-01 / wire: `import_plu_register_snapshot(file_bytes)`（FilePicker D-054 の bytes、`CSV_IMPORT_FILE_SIZE_LIMIT` 超過は sibling と同じ Validation error）/ `get_plu_slot_summary()`（`41-cmd §CMD-08-D4/D5`）の新設 + `lib.rs` の `collect_commands!` と `generate_handler!` 双方へ登録、prepare / confirm DTO へ `prepared_rows`（memory_no / row_kind / target_product_codes）と `no_free_slot` reason、`ProductWithRelations.plu_memory_no: Option<i64>`（`40-cmd §5.4` get_product、`20-io §` JAN LEFT JOIN）。`cargo run --bin generate_bindings` で `src/lib/bindings.ts` 再生成、同一 commit で consumer 切替。
-- UI-08: `src/features/plu-export/PluExportPage.tsx` — 「レジ登録状況を読み込む」step（共通 FilePicker D-054）+ 要約表示 above the fold + `register_snapshot_required` 導線 + D4/D5/D9 改訂文言 + `no_free_slot` 理由表示 + 旧 Full-only 注意文（`PluExportPage.tsx:589`）の撤去 / 旧 Full file 再投入禁止文言。既存の localStorage 復帰・確認ボタン配置・invalidation（`67-ui §67.7〜67.11`）は維持。
+- UI-08: `src/features/plu-export/PluExportPage.tsx` — 「レジ登録状況を読み込む」step（共通 FilePicker D-054）+ 要約表示 above the fold + `register_snapshot_required` 導線 + D4/D5/D9 改訂文言 + `no_free_slot` 理由表示 + 旧 Full-only 注意文（`PluExportPage.tsx:589`）の撤去 / 旧 Full file 再投入禁止文言。Diff 件数は商品 dirty + `release_pending_count` とし、解除待ちだけでも書出せる。D-052 C2/C14 の slot summary 追加と C18 prepare 成功を SSOT / 独立 oracle / page test で拘束する。
 - UI-01b: `src/features/products/*` edit form に「レジメモリNo.」read-only 表示（`51-ui` UI-01b-D19、未割当 = `未割当`）。
 - Source doc 追随（実装で判明した最小限、design_compliance の fenced signature 契約を含む）: (1) `67-ui-plu-export.md §67.9` の full-only import note 行を撤去（UI-08-D9 と矛盾）(2) `40-cmd-product.md §5.4` 末尾の「`plu_memory_no` を含む response は後続実装 B」を実装 A へ訂正 (3) `67-ui-plu-export.md §67.8` の `confirmPluExportSaved` 行を `41-cmd` の `{ product_codes, prepared_rows }` に同期 (4) `design_compliance_test` が pub fn を function-design doc の fenced code block から検出する規約に合わせ、`33-biz §16.3` に `fn get_plu_slot_summary(...)`、`§16.6` に共通解放 service の `fn` signature、`23-io §13.3.1` に `fn parse_plu_register_snapshot(...)` の fenced block を追加し、`20-io-product-repo.md` に `db::plu_slot_repo` の pub fn signature 一覧 subsection を新設する（fn 名は Writer が確定、doc と code を一致させる）。他の source docs は PR #84 で正本化済み。
-- Tests: Test Design Matrix の A-S1〜A-S4 / A-N1〜A-N9c / A-V1 / A-P1〜A-P5 / A-R1〜A-R7 + A-R5b / A-E1〜A-E6 / A-U1 / A-W1〜A-W3 / A-G1 を実装。REQ-907（必要箇所は REQ-402 併記）を test comment に付与し、`cargo run --bin generate_traceability` で `90-traceability.md` を再生成する（hand edit 禁止）。
+- Tests: Test Design Matrix の A-S1〜A-S4 / A-N1〜A-N9c / A-V1〜A-V1b / A-P1〜A-P5 / A-R1〜A-R7 + A-R5b / A-E1〜A-E6 / A-U1 / A-W1〜A-W3 / A-G1 を実装。REQ-907（必要箇所は REQ-402 併記）を test comment に付与し、`cargo run --bin generate_traceability` で `90-traceability.md` を再生成する（hand edit 禁止）。
 
 ## Non-scope
 
@@ -253,6 +253,7 @@ rg -n "fn migrations|version: 4|v1\+v2\+v3\+v4" src-tauri/src/db/migration.rs
 | SPEC-PLS-D4 fallback（`PLU_CLEAR_ROW_ENABLED`） | constants + 行構成関数 | A-R7 | L3 結果で値確定 |
 | SPEC-PLS-D5 / UI-08-D9（Diff・Full 投入可 / external・free 非出力 / release_pending clear） | prepare / UI-08 文言 | A-E1 / A-E4 / A-E5 / A-V1 | Diff 投入は L3 |
 | SPEC-PLS-D7 / UI-08-D11（snapshot step / 要約 / gate 導線） | PluExportPage | A-V1 | above the fold は L3 |
+| SPEC-PLS-D5 / UI-08-D11 / D-052（解除待ちだけの Diff + cache lifecycle） | summary DTO / PluExportPage / invalidation SSOT + 独立 oracle | A-V1b + product update C2 / prepare C18 / confirm C14 exact invalidation tests | Windows native L3 round 2 で解除待ち Diff を確認。暫定 follow-up のため Ready 判定は別 gate |
 | SPEC-PLS-D7 / UI-01b-D19 + CMD-01-D3（`plu_memory_no` read-only / 未割当） | ProductWithRelations（get_product 応答）/ product_repo JOIN / edit form | A-U1 / A-W1 | — |
 | UI-08-D1 / D4 / D7 既存契約（confirm 分離 / キャンセルで予約維持 / localStorage 復帰） | PluExportPage 既存 | 既存 RTL 非回帰 + A-P2 | — |
 | CMD-08-D4 / D5 + wire | plu_export_cmd / lib.rs / bindings.ts | A-W1 | — |
@@ -433,3 +434,35 @@ Do not transcribe exact-HEAD SHA or test counts here (D-035/D-038 Evidence Owner
 - Verdict: P1 0 / P2 0 / P3 1。worktree 隔離の clean tree で mutation 3 件（formatter 固定列 `いいえ→はい` / 回復手順文言 2 箇所の各旧文言化）を独立注入し 3/3 KILLED（復元後 tree clean）。sweep: `単品売り` の forward-looking 残存 0（旧値 `はい` は packet / 25-io の理由説明文のみ）、旧 Full-only 回復文言は `src` 0 hit、新文言は `67-ui §67.9` と byte 一致 4 hit、A-G1 0 hit。A-E7 / A-E5 の oracle と実 assert が一致、oracle は production 定数非依存、既存 test の削除・skip なし、packet 記載の file / 箇所数は diff と一致。
 - P3（accept、Coordinator が docs-only 是正）: Matrix の A-E7 行が A-E6 の前に挿入されていた並び順を A-E6 の後へ移動（本記録 commit に同乗）。
 - L1 full は `42d88bf` で RESULT=PASS / END_TREE_STATE=CLEAN / MERGE_EVIDENCE_VALID=true（evidence は PR body）。Phase は implementing のまま据え置き、L3 round 2 PASS + Ready 承認後に state-only 3 本目で `implementing -> local-verified -> independent-review -> human-confirm -> ready-hosted-final` を隣接 forward 圧縮で materialize する（evidence = 本 L1 / 本 Final Review delta / L3 round 2 / Ready 承認、Reviewed Content HEAD を同 commit で設定）。
+
+### Windows native L3 round 2 / provisional follow-up（2026-08-20）
+
+- 実機結果（owner 操作、匿名化）: snapshot 読込み、対象化 Diff、CV17 受理、SD / レジ設定読込み、`単品売り=いいえ` で会計待ち、confirm、対象外化、clear Diff、CV17 受理、レジ未登録扱い、confirm、最新 Z004 再読込みまで PASS。Full は app 管理 0 件で「書出せる商品なし」を正しく拒否したため、非空 Full の CV17 確認は N/A。S3 の UI `レジメモリNo.` は raw 4 桁表示で、file 内は 6 桁だった（navigator の確認場所差分）。本結果だけで Ready / merge 承認とはしない。
+- L3 中の不具合: 対象外保存後、backend は `release_pending` 1 件を保持し Diff clear 行を生成できる一方、UI の Diff 可否と件数が `listPluDirty()` の商品 dirty のみを見ていたため 0 件表示となった。店 PC の同一 branch worktreeへ最小の暫定変更を入れ、解除待ち 1 件表示、Diff 保存、CV17 / レジ投入、confirm、最新 snapshot 整合まで通した。
+- 位置づけ: owner 指示どおり「この branch 内の暫定 follow-up」であり、Fable 監督外で L3 途中に作成した。正式品質へ引き上げるため、review-only pass の P2（slot summary cache invalidation、wire/source-doc drift、negative oracle不足）を gated amendment 5 として同じ PR で閉じる。実データ、実 JAN、商品名、価格、Z004 / PLU file、DB、レジ backup は commit しない。
+
+### gated amendment 5（2026-08-20、Windows native L3 round 2 起源）
+
+- 事象: `release_pending` は clear 行として Diff / Full に含まれる（33-biz §16.4 / Matrix A-E4）が、UI-08 の Diff gate は商品 `plu_dirty` 件数だけを見ていた。さらに `pluSlotSummary` は global staleTime 60 秒の対象なのに、release を作る C2 商品 update/廃番 toggle、release を free 化する C14 confirm、再対象化を復元し得る prepare 成功で invalidate されず、同じ誤表示または解除待ち残留を起こし得た。
+- 裁定: summary DTO に `release_pending_count`（app managed の内数）を追加し、Diff count = 商品 dirty + release pending とする。両方 0 のときだけ Diff を無効化する。D-052 C2 / C14 に slot summary を追加し、C18 prepare 成功を新設する。SSOT・独立 oracle・UI_TECH_STACK・decision-log・33-biz・41-cmd・67-ui・packet・Matrix を同期する。
+- Test: release-pending-only の Diff 有効 + clear prepare、app-managed-only / release 0 の Diff 無効、C2 / C14 / C18 exact invalidation、Rust summary の active + release_pending 独立集計。Rust harness は Windows で既知の `STATUS_ENTRYPOINT_NOT_FOUND` により実行未完了なら、その事実を verification に残し PASS と扱わない。
+- 実装者: Codex（store-PC provisional follow-up）。review-only pass で P2 3 件を検出して範囲を拡張した。Phase は implementing、Reviewed Content HEAD は pending、Ready 判定は行わない。
+- amendment commit: `afda36e`
+
+### main drift 吸収の merge 記録（2026-08-20）
+
+- L3 round 2 完了後、main の PR #87 merge（`80ffeda`）による drift を吸収した。当初 rebase を試行したが、`docs/Plans.md` の衝突解消により plan-first commit と amendment 5 docs commit の patch-id 同値が崩れ、D-055 Rebase Map（conflict-free rebase 限定）では証明不能なことを L1 workflow-git PK5 が機械検出した（D-055 の「conflict が出た rebase は content change」規定に合致）。
+- 裁定: rebase を破棄し、原 SHA の ancestry を保存する **origin/main の merge 方式**へ切替（衝突 = `docs/Plans.md` 1 箇所、active PLU エントリと PR #87 完了記録の両立で解消）。これにより Plan Commit `fade732` / Amendments 全 SHA / PR #85 コメントの L3 evidence SHA（開始 `92bd76f` / 最終 `48a81cb`）はすべて現 HEAD の祖先として保存され、Rebase Map は不要。
+- merge 後 tree は破棄した rebase 試行の tree と diff 空（byte 一致）であることを検分済み。よって下記 Final Review delta と Rust test の補完 evidence は本 content にそのまま適用できる。
+
+### Final Review delta（2026-08-20、独立 Sonnet Final Reviewer、gated amendment 5 = `afda36e` + `48a81cb`）
+
+- Verdict: P1 0 / P2 0 / P3 1。隔離 worktree の clean tree で mutation 3 件（summary の release_pending 集計定数化 / UI diffCount の dirty-only 化 / D-052 C2 contract からの pluSlotSummary 削除）を独立注入し 3/3 KILLED（各注入後に復元・tree clean 確認）。oracle 独立性（invalidation-oracle は production contract 非 import、UI test 期待値は production 定数非依存）、`app_managed_count` 定義不変 + `release_pending_count` 内数の非退化 assert、docs↔実装 drift 0（D-052 C2/C14/C17/C18 対応の一次資料一致を含む）を確認。
+- 補完 evidence: 店 PC で `STATUS_ENTRYPOINT_NOT_FOUND` により実行不能だった新規 Rust test は、Linux 隔離 worktree での targeted 実行で PASS を独立取得済み（件数・log は PR body evidence）。
+- P3（accept、Coordinator 是正 = 上記 merge 記録）: rebase 試行時に packet の Plan Commit / Amendments SHA が HEAD の祖先でなくなっていた指摘。merge 方式への切替で原 SHA の ancestry が復帰し解消。
+
+### state-only 遷移 3 本目（2026-08-20、隣接 forward 圧縮）
+
+- `implementing -> local-verified -> independent-review -> human-confirm -> ready-hosted-final`（STATECAP forward 3/3）。
+- evidence: local-verified = L1 full PASS（merge + traceability 再生成後の content candidate、envelope は PR body）。independent-review = 上記 Final Review delta（P1 0 / P2 0）。human-confirm = L3 round 2 実機確認（PR コメント）+ owner Ready 承認（2026-08-20）。Reviewed Content HEAD = `c03f8ec` を本 commit で設定（review 済み content との差分は packet 記録 + generated traceability の docs-only / generated delta のみ）。
+- Owner Effort Budget 実績（最終再集計、decision point 単位）: 介入 5/3 — plan approval / L3 round 1 実施 + 報告 / L3 round 2 中の暫定パッチ承認 / L3 round 2 結果報告 / Ready 承認。超過 2 はいずれも L3 true positive（S6 / S9）起因として owner 承認時に明示済み。packet 事前想定（4/3）との差 1 は店 PC パッチ承認の個別計上による。relay 往復 3/2（既記録）、STATECAP forward 3/3。

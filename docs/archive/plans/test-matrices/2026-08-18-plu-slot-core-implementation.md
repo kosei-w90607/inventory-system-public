@@ -80,7 +80,8 @@ R3。schema migration、新規 repository、IO-02 新 mode、BIZ-04 prepare / co
 | A-E5 | D5 UI 文言 | RTL | UI-08 に「Diff / Full とも投入可」系文言と旧 Full file 再投入禁止文言、旧 Full-only 注意文は不在。回復手順文言（保存後 warning Alert + 復帰 Alert の 2 箇所）は `67-ui §67.9` failure note before confirm の exact 文言（`保存済みファイルを再投入するか、差分または全件を書き出し直してください。`）で、旧 Full-only 回復文言（`未反映を外さずに全件を書き出し直して`）は不在（gated amendment 4） | text |
 | A-E6 | D5 要修正中維持 | Rust integration | active slot を持つ JAN を check digit 不正にして Full / Diff → 行 0（product / clear とも）、slot 不変、excluded に理由付き | rows / 行 / excluded |
 | A-E7 | D5 固定列 | Rust unit | product 行の field[5] `単品売り` = `いいえ`（`25-io §12.3` 2f から独立転記、exact）。field[6..9] = `いいえ` / `いいえ` / `いいえ` / `無し` も同 test で exact（gated amendment 4、L3 round 1 S6 FAIL 起源） | 文字列 exact |
-| A-V1 | D7 UI-08 | RTL | FilePicker `onSelect` の `bytes` → `importPluRegisterSnapshot({ fileBytes })` 呼出し（path を渡さない）→ 要約表示（日時 + 4 件数）→ 未読込み時の `レジ設定の読込みが必要です` と書出し無効化 → 読込み後の有効化 → invalidation → `no_free_slot` 理由表示 `レジの空きスロットがありません`。既存 localStorage 復帰・confirm 導線 test は不変 | text / call / query |
+| A-V1 | D7 UI-08 | RTL | FilePicker `onSelect` の `bytes` → `importPluRegisterSnapshot({ fileBytes })` 呼出し（path を渡さない）→ 要約表示（日時 + 4 表示件数 + wire の `release_pending_count`）→ 未読込み時の `レジ設定の読込みが必要です` と書出し無効化 → 読込み後の有効化 → invalidation → `no_free_slot` 理由表示 `レジの空きスロットがありません`。既存 localStorage 復帰・confirm 導線 test は不変 | text / call / query |
+| A-V1b | D5/D7 UI-08-D11 / D-052 | Rust + RTL | summary fixture を active 1 + release_pending 1 として app managed=2 / release pending=1 を独立 assert。商品 dirty=0 / release=1 は解除待ち文言 + Diff 1 + prepare 呼出し、商品 dirty=0 / app managed=1 / release=0 は Diff 0 + disabled。C2 product update、C18 prepare、C14 confirm は独立 oracle と exact invalidation | app managed を release count に代入、release count を無視、3 lifecycle の slot summary key 欠落を red |
 | A-U1 | D7 UI-01b | RTL | edit form に `レジメモリNo.` read-only、値あり / `未割当` | text / readonly 属性 |
 | A-W1 | D7 wire | generated | `generate_bindings` 後 diff 0、`bindings.ts` に `importPluRegisterSnapshot` / `getPluSlotSummary` / `pluMemoryNo` / `preparedRows`、`confirmPluExportSaved` の入力が `{ product_codes, prepared_rows }` | local-ci `generated-bindings-diff` |
 | A-W2 | D9 traceability | generated | `generate_traceability --check` PASS、`90-traceability.md` に REQ-907 行 | local-ci `traceability` |
@@ -106,7 +107,7 @@ R3。schema migration、新規 repository、IO-02 新 mode、BIZ-04 prepare / co
 | plu_slot active | confirm | — | 維持 | trigger で release_pending | snapshot 空 → missing + dirty / 別 → conflict + dirty | 再対象化で維持 | 永続 | 上書き禁止 | — | A-P3 / A-N6b / A-N8 / A-R1 |
 | plu_slot release_pending | trigger | clear 行出力待ち | confirm → free（enabled 時） | 再対象化 → active/reserved 復帰 | snapshot 空 → free / 別 → external | Diff/Full 毎に clear 行 | 永続 | fallback=false で維持 | 冪等 | A-R5 / A-R6 / A-R7 / A-N9 |
 | plu_slot external | snapshot | — | 維持 | snapshot 空 → free | 別コードで更新 | prepare は同一 JAN 対象化時のみ active へ採用、他は触らない | 永続 | — | — | A-N4 / A-N5 / A-N5b / A-N8c / A-P3b |
-| snapshot summary（app_settings） | 未読込み = null / 0 | 読込み TX | 日時 + 件数 | 次回読込みで上書き | UI query invalidation | 画面再訪で再取得 | 永続 | TX 失敗で無変化 | 再読込み | A-N9c / A-V1 |
+| snapshot summary（app_settings + live slots） | 未読込み = null / 0 | 読込み TX | 日時 + 4 表示件数 + release pending 内数 | C2 update / C18 prepare / C14 confirm / C17 snapshot | slot summary refetch | 再訪で再取得 | 永続 | TX 失敗で無変化 | 再操作 | A-N9c / A-V1 / A-V1b |
 | UI-08 gate | 未読込み → 書出し無効 | FilePicker | 有効化 | — | 要約 refetch | 再訪でも summary で判定 | localStorage 復帰は既存どおり | ImportError alert | 再選択 | A-V1 |
 | implementation workflow | plan-draft | Plan Gate | plan-approved 後のみ code | content candidate で L1 | review で Ledger 再検証 | finding は implementing へ | exact HEAD 再検証 | design gap は design へ | gated amendment 後 re-review | packet Workflow State |
 
@@ -155,7 +156,7 @@ R3。schema migration、新規 repository、IO-02 新 mode、BIZ-04 prepare / co
 
 ## Main Wiring / Integration Checks
 
-- FilePicker `PickedFile.bytes` → `import_plu_register_snapshot(file_bytes)` → CMD → BIZ-04 TX → `plu_slots` + `app_settings` + operation_log → `get_plu_slot_summary` → UI 要約 → query invalidation（A-V1 + A-N9c）
+- FilePicker `PickedFile.bytes` → `import_plu_register_snapshot(file_bytes)` → CMD → BIZ-04 TX → `plu_slots` + `app_settings` + operation_log → `get_plu_slot_summary`（release pending 内数を別集計）→ UI 要約 / Diff gate → C2 / C18 / C14 / C17 query invalidation（A-V1 + A-V1b + A-N9c）
 - product edit → `get_product` → `plu_memory_no` → UI-01b 表示（A-U1 + A-W1）
 - prepare → `PluPreparedRow` → formatter → TSV bytes → confirm exact set（A-P3 / A-R5）
 - `lib.rs` `collect_commands!` と `generate_handler!` の双方に 2 command（A-W1、片方欠落は bindings diff または実行時 error で検出）
@@ -192,6 +193,8 @@ Writer は下記 mutant を実注入して各 test の kill を確認し、Final
 | 8 桁 + E×6 を JAN error に | A-N2 |
 | product 行の固定列 `単品売り` を `はい` に戻す | A-E7 |
 | 回復手順文言を旧 Full-only 文言に戻す（2 箇所のいずれか） | A-E5 |
+| `release_pending_count` に `app_managed_count` を代入、または UI Diff 件数で release pending を無視 | A-V1b |
+| D-052 C2 / C14 / C18 のいずれかから `pluSlotSummary` を削除 | A-V1b exact invalidation |
 
 oracle は production 定数・定義から導出せず test 側へ独立転記する（`feedback-test-oracle-must-not-share-ssot`）。空集合期待の case（A-E6 の行 0、A-N1 の write 0）は非空期待 case（A-E1 / A-N3）と対で持つ。
 

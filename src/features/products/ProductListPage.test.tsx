@@ -94,7 +94,7 @@ describe("ProductListPage (UI-01a)", () => {
     });
   });
 
-  it("REQ-907 B-V3: confirms filter-wide bulk target, toasts counts, and invalidates C18", async () => {
+  it("REQ-907 B-V3: confirms filter-wide bulk target, toasts counts, and invalidates C19", async () => {
     const user = userEvent.setup();
     mockSearchProducts.mockResolvedValue({
       status: "ok",

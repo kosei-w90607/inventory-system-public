@@ -112,6 +112,19 @@ pub fn find_min_free_slot(conn: &DbConnection) -> Result<Option<PluSlot>, DbErro
 pub fn update_slot(conn: &DbConnection, update: PluSlotUpdate<'_>) -> Result<(), DbError>
 ```
 
+#### db::plu_slot_repo（IO-01-D4 / SPEC-PLS-D1）
+
+`plu_slots` の ordered lookup と状態遷移だけを担当し、transaction は呼出側 BIZ-04 が所有する。
+
+```rust
+pub fn list_slots(conn: &DbConnection) -> Result<Vec<PluSlot>, DbError>
+pub fn find_slots_by_scanning_code(conn: &DbConnection, scanning_code: &str) -> Result<Vec<PluSlot>, DbError>
+pub fn find_slots_by_status(conn: &DbConnection, status: PluSlotStatus) -> Result<Vec<PluSlot>, DbError>
+pub fn find_slot_by_memory_no(conn: &DbConnection, memory_no: i64) -> Result<Option<PluSlot>, DbError>
+pub fn find_min_free_slot(conn: &DbConnection) -> Result<Option<PluSlot>, DbError>
+pub fn update_slot(conn: &DbConnection, update: PluSlotUpdate<'_>) -> Result<(), DbError>
+```
+
 **エラーハンドリング**:
 - SQL実行失敗 → DbError::QueryFailed(詳細)
 

@@ -1,0 +1,92 @@
+<!doctype html><html lang="ja"><head><meta charset="utf-8"><title>ホーム — 統合案 C</title><style>
+:root{--bg:#fafaf9;--fg:#1c1917;--muted:#57534e;--card:#fff;--border:#e7e5e4;--accent:#f5f5f4;
+--primary:#b45309;--primary-fg:#fff;--primary-soft:#fef3c7;
+--warn-soft:#fffbeb;--warn-border:#fde68a;--warn-strong:#78350f;--warn:#d97706;
+--bad-soft:#fef2f2;--bad-border:#fecaca;--bad-strong:#991b1b;--bad:#dc2626;
+--ok-soft:#f0fdf4;--ok-border:#bbf7d0;--ok-strong:#14532d;--ok:#16a34a;
+--ring:#b45309}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.5 -apple-system,BlinkMacSystemFont,"Hiragino Kaku Gothic ProN","Hiragino Sans",Meiryo,sans-serif}
+.app{display:grid;grid-template-columns:240px 1fr;min-height:100vh}
+/* sidebar */
+.sb{background:var(--card);border-right:1px solid var(--border);padding:16px 12px;display:flex;flex-direction:column;gap:16px}
+.brand{font-size:16px;font-weight:700;padding:4px 8px}
+.area h4{font-size:12px;letter-spacing:.06em;color:var(--muted);font-weight:600;margin:8px 8px 4px}
+.nav a{display:flex;align-items:center;gap:8px;padding:8px;border-radius:6px;color:var(--fg);text-decoration:none;font-size:14px;line-height:1.4}
+.nav a.cur{background:var(--primary-soft);font-weight:600}
+.nav svg{width:20px;height:20px;flex:none;stroke:currentColor;fill:none;stroke-width:1.75;color:var(--muted)}
+.nav a.cur svg{color:var(--primary)}
+.sbfoot{margin-top:auto;font-size:14px;color:var(--muted);padding:8px;border-top:1px solid var(--border)}
+.sbfoot select{font:inherit;min-height:40px;border:1px solid var(--border);border-radius:6px;padding:0 8px;background:#fff;width:100%}
+/* page shell */
+.page{padding:24px;display:flex;flex-direction:column;gap:24px;max-width:1200px}
+.ph{display:flex;align-items:flex-start;justify-content:space-between;gap:16px}
+.ph h1{font-size:24px;line-height:1.3;font-weight:600;margin:0}
+.ph p{margin:2px 0 0;color:var(--muted);font-size:14px}
+.btn{display:inline-flex;align-items:center;gap:8px;min-height:40px;padding:0 16px;border-radius:6px;border:1px solid var(--border);background:#fff;color:var(--fg);font:inherit;font-size:16px;cursor:pointer}
+.btn svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.75}
+.btn.primary{background:var(--primary);color:var(--primary-fg);border-color:var(--primary)}
+.btn.sm{min-height:36px;font-size:14px;padding:0 12px}
+.btn:focus-visible,.nav a:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--ring);outline-offset:2px}
+/* alert */
+.alert{display:grid;grid-template-columns:20px 1fr auto;gap:12px;align-items:start;padding:12px 16px;border:1px solid;border-radius:6px}
+.alert svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.75;margin-top:2px}
+.alert b{display:block;font-size:16px}
+.alert span{font-size:14px}
+.alert.warn{background:var(--warn-soft);border-color:var(--warn-border);color:var(--warn-strong)}
+.alert.ok{background:var(--ok-soft);border-color:var(--ok-border);color:var(--ok-strong)}
+/* cards */
+.cards{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+.card{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:16px}
+.card .lbl{font-size:14px;color:var(--muted)}
+.card .val{font-size:24px;font-weight:600;font-variant-numeric:tabular-nums;line-height:1.3;margin-top:4px}
+.card .sub{font-size:14px;color:var(--muted);margin-top:2px}
+/* home actions */
+.sec h2{font-size:20px;font-weight:600;margin:0 0 12px}
+.actions{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+.action{display:grid;grid-template-columns:24px 1fr;gap:12px;align-items:start;padding:14px 16px;background:var(--card);border:1px solid var(--border);border-radius:8px;text-decoration:none;color:var(--fg);min-height:72px}
+.action svg{width:24px;height:24px;stroke:currentColor;fill:none;stroke-width:1.75;color:var(--muted);margin-top:2px}
+.action b{display:block;font-size:16px;font-weight:600}
+.action span{display:block;font-size:14px;color:var(--muted);margin-top:2px}
+.action.primary{border-color:var(--primary);background:var(--primary-soft)}
+.action.primary svg{color:var(--primary)}
+.action:hover{background:var(--accent)}
+/* filter bar + table */
+.filters{display:flex;flex-wrap:wrap;gap:12px;align-items:center;padding:16px;background:var(--card);border:1px solid var(--border);border-radius:8px}
+.filters label{font-size:14px;color:var(--muted);display:flex;align-items:center;gap:8px}
+.search{display:flex;align-items:center;gap:0}
+.search input{min-height:40px;width:280px;border:1px solid var(--border);border-radius:6px 0 0 6px;padding:0 12px;font:inherit;font-size:16px}
+.search .btn{border-radius:0 6px 6px 0;border-left:0}
+select.ctl{min-height:40px;border:1px solid var(--border);border-radius:6px;padding:0 8px;font:inherit;font-size:16px;background:#fff;width:11rem}
+.seg{display:inline-flex;border:1px solid var(--border);border-radius:6px;overflow:hidden}
+.seg button{min-height:40px;padding:0 14px;border:0;background:#fff;font:inherit;font-size:16px;color:var(--fg);border-left:1px solid var(--border)}
+.seg button:first-child{border-left:0}
+.seg button.on{background:var(--primary-soft);font-weight:600}
+.sep{flex-basis:100%;height:0}
+.tbl{background:var(--card);border:1px solid var(--border);border-radius:8px;overflow:hidden}
+table{width:100%;border-collapse:collapse;font-size:16px}
+th{font-size:14px;color:var(--muted);font-weight:600;text-align:left;padding:10px 12px;border-bottom:1px solid var(--border);background:#fafaf9}
+td{padding:10px 12px;border-bottom:1px solid var(--border);vertical-align:middle}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+tr.row{cursor:pointer}
+tr.row:hover td{background:var(--accent)}
+td.chev{width:40px;text-align:center;color:var(--muted)}
+td.chev svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2}
+.sub{font-size:14px;color:var(--muted)}
+/* badges: 3 kinds */
+.badge{display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:600;line-height:1;padding:4px 8px;border-radius:9999px;white-space:nowrap;vertical-align:middle}
+.badge svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2}
+.b-state{border:1px solid var(--border);background:#fff;color:var(--fg)}
+.b-state.warn{background:var(--warn-soft);border-color:var(--warn-border);color:var(--warn-strong)}
+.b-state.bad{background:var(--bad-soft);border-color:var(--bad-border);color:var(--bad-strong)}
+.b-state.ok{background:var(--ok-soft);border-color:var(--ok-border);color:var(--ok-strong)}
+.b-class{background:var(--accent);color:var(--muted)}
+.b-emph{background:var(--primary);color:#fff}
+.pager{display:flex;justify-content:space-between;align-items:center;font-size:14px;color:var(--muted)}
+.detail{background:#fafaf9;border-top:1px solid var(--border)}
+.detail .dl{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;padding:16px 12px 16px 52px}
+.detail dt{font-size:14px;color:var(--muted)}.detail dd{margin:0;font-size:16px;font-weight:600}
+.detail .acts{display:flex;gap:8px;padding:0 12px 16px 52px}
+.note{font-size:13px;color:var(--muted);border-top:1px dashed var(--border);padding:12px 24px;max-width:1200px}
+.note b{color:var(--fg)}
+</style></head><body><div class="app"><aside class="sb"><div class="brand">在庫管理システム</div><div class="area"><h4>毎日の業務</h4><nav class="nav"><a href="#" class="cur"><svg viewBox="0 0 24 24"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>ホーム</a><a href="#" class=""><svg viewBox="0 0 24 24"><path d="M12 16V4m0 0-4 4m4-4 4 4M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg>売上データ取込み</a><a href="#" class=""><svg viewBox="0 0 24 24"><path d="M5 4h14v16H5zM8 9h8M8 13h8M8 17h5"/></svg>日次売上</a><a href="#" class=""><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>在庫照会</a><a href="#" class=""><svg viewBox="0 0 24 24"><path d="M5 4h14v16H5zM8 9h8M8 13h8M8 17h5"/></svg>月次売上</a></nav></div><div class="area"><h4>商品管理</h4><nav class="nav"><a href="#" class=""><svg viewBox="0 0 24 24"><path d="M3 8l9-4 9 4v9l-9 4-9-4zM3 8l9 4 9-4M12 12v9"/></svg>商品検索・一覧</a><a href="#" class=""><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>商品登録</a><a href="#" class=""><svg viewBox="0 0 24 24"><path d="M4 17v3h16v-3M12 4v12m0 0 4-4m-4 4-4-4"/></svg>一括インポート</a><a href="#" class=""><svg viewBox="0 0 24 24"><path d="M4 4h8l8 8-8 8-8-8zM8 8h.01"/></svg>PLU書出し</a></nav></div><div class="area"><h4>入出庫</h4><nav class="nav"><a href="#" class=""><svg viewBox="0 0 24 24"><path d="M20 12H4m0 0 6-6m-6 6 6 6"/></svg>入庫記録</a><a href="#" class=""><svg viewBox="0 0 24 24"><path d="M4 8h14l-4-4m4 4-4 4M20 16H6l4 4m-4-4 4-4"/></svg>返品・交換</a><a href="#" class=""><svg viewBox="0 0 24 24"><path d="M4 12h16m0 0-6-6m6 6-6 6"/></svg>手動販売出庫</a><a href="#" class=""><svg viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3m-8 0 1 13h8l1-13"/></svg>廃棄・破損</a><a href="#" class=""><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></svg>入出庫履歴</a><a href="#" class=""><svg viewBox="0 0 24 24"><path d="M12 4l9 16H3zM12 10v4m0 3h.01"/></svg>在庫少一覧</a><a href="#" class=""><svg viewBox="0 0 24 24"><path d="M9 4h6v3H9zM6 6h12v14H6zM9 12h6M9 16h4"/></svg>棚卸し</a></nav></div><div class="area"><h4>システム管理</h4><nav class="nav"><a href="#" class=""><svg viewBox="0 0 24 24"><ellipse cx="12" cy="6" rx="7" ry="3"/><path d="M5 6v12c0 1.7 3.1 3 7 3s7-1.3 7-3V6M5 12c0 1.7 3.1 3 7 3s7-1.3 7-3"/></svg>バックアップ・復元</a><a href="#" class=""><svg viewBox="0 0 24 24"><path d="M6 4h12v16H6zM9 9h6M9 13h6"/></svg>操作ログ</a><a href="#" class=""><svg viewBox="0 0 24 24"><path d="M4 14a8 8 0 0 1 16 0M12 14l4-4"/></svg>在庫少の基準</a></nav></div><div class="sbfoot">文字の大きさ<select><option>標準</option><option>大きめ</option><option>特大</option></select></div></aside><main><div class="page"><div class="ph"><div><h1>ホーム</h1><p>2026年8月20日（水）</p></div></div><div class="alert warn"><svg viewBox="0 0 24 24"><path d="M12 4l9 16H3zM12 10v4m0 3h.01"/></svg><div><b>PLU 未反映商品があります</b><span>3 件の商品で PLU 書出しが必要です。</span></div><a class="btn sm" href="#">PLU 書出しへ</a></div><div class="cards"><div class="card"><div class="lbl">昨日の売上（8/19）</div><div class="val">¥48,200</div><div class="sub">37 点</div></div><div class="card"><div class="lbl">在庫切れ</div><div class="val">2 件</div><div class="sub">すぐ確認</div></div><div class="card"><div class="lbl">在庫少</div><div class="val">5 件</div><div class="sub">基準を下回る商品</div></div><div class="card"><div class="lbl">PLU 未反映</div><div class="val">3 件</div><div class="sub">レジ反映待ち</div></div></div><section class="sec"><h2>毎日の作業</h2><div class="actions"><a href="#" class="action primary"><svg viewBox="0 0 24 24"><path d="M12 16V4m0 0-4 4m4-4 4 4M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg><div><b>売上データ取込み</b><span>レジの日報CSVを読み込み、当日の売上を記録します</span></div></a><a href="#" class="action "><svg viewBox="0 0 24 24"><path d="M5 4h14v16H5zM8 9h8M8 13h8M8 17h5"/></svg><div><b>日次売上</b><span>今日・昨日の売上明細と集計を確認します</span></div></a><a href="#" class="action "><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg><div><b>在庫照会</b><span>商品の在庫数・在庫切れ / 在庫少を調べます</span></div></a><a href="#" class="action "><svg viewBox="0 0 24 24"><path d="M3 8l9-4 9 4v9l-9 4-9-4zM3 8l9 4 9-4M12 12v9"/></svg><div><b>商品検索・一覧</b><span>登録済み商品を探す・売価や在庫を確認します</span></div></a></div></section><section class="sec"><h2>入庫・出庫</h2><div class="actions"><a href="#" class="action "><svg viewBox="0 0 24 24"><path d="M20 12H4m0 0 6-6m-6 6 6 6"/></svg><div><b>入庫記録</b><span>仕入れた商品が届いたときに記録します</span></div></a><a href="#" class="action "><svg viewBox="0 0 24 24"><path d="M4 8h14l-4-4m4 4-4 4M20 16H6l4 4m-4-4 4-4"/></svg><div><b>返品・交換</b><span>お客様からの返品・交換を記録します</span></div></a><a href="#" class="action "><svg viewBox="0 0 24 24"><path d="M4 12h16m0 0-6-6m6 6-6 6"/></svg><div><b>手動販売出庫</b><span>レジを通さず売った商品の在庫を減らします</span></div></a><a href="#" class="action "><svg viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3m-8 0 1 13h8l1-13"/></svg><div><b>廃棄・破損</b><span>傷んだ・破損した商品を在庫から除きます</span></div></a></div></section><section class="sec"><h2>その他</h2><div class="actions"><a href="#" class="action "><svg viewBox="0 0 24 24"><path d="M9 4h6v3H9zM6 6h12v14H6zM9 12h6M9 16h4"/></svg><div><b>棚卸し</b><span>実在庫を数えてシステム在庫と突き合わせます</span></div></a><a href="#" class="action "><svg viewBox="0 0 24 24"><ellipse cx="12" cy="6" rx="7" ry="3"/><path d="M5 6v12c0 1.7 3.1 3 7 3s7-1.3 7-3V6M5 12c0 1.7 3.1 3 7 3s7-1.3 7-3"/></svg><div><b>バックアップ・復元</b><span>データの控えを取る・控えから戻します</span></div></a><a href="#" class="action "><svg viewBox="0 0 24 24"><path d="M4 14a8 8 0 0 1 16 0M12 14l4-4"/></svg><div><b>在庫少の基準</b><span>「在庫少」と判定する数量の基準を設定します</span></div></a></div></section></div><div class="note"><b>統合案 C の要点（ホーム）</b>: B の「icon + 題名 + 1 行説明」の入口をそのまま採用（SCREEN_DESIGN の元意図）。icon は既存規範の 24px。primary（琥珀）は「売上データ取込み」1 つだけ（A / DSR-01）。注意バナーは warning トーン（info は新設しない）。数字は tabular。sidebar は既存 4 エリア、icon 20px。</div></main></div></body></html>
