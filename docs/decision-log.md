@@ -589,3 +589,12 @@ Use concise ADR-style entries.
 - Impact: `67-ui §67.12` の適用範囲条項、および以後の PLU 関連 Plan Packet の Human Gate 判定に適用する。
 - Alternatives considered: 全 PLU PR に一律 L3（観測差分のない変更にも実機確認を課すため不採用）。
 - Revisit: PLU file 形状または register 挙動に関わる契約変更時。
+
+## D-074: stacked train の base 付け替え（2026-08-21）
+
+- Decision: **stacked train の base 付け替えを単段 merge で確立する**。先頭 lane の squash merge 後、後続 lane は旧 tip を保存して `origin/main` を 1 回だけ merge し、元の plan-first / gated Amendment / Human Gate evidence SHA の ancestry を維持する。先頭 lane branch tip の追加 merge を伴う多段 merge は禁止し、継承した forward state-only commit が STATECAP 枠を使い切る場合は Ready 遷移を content commit に同乗させて packet に継承 SHA と理由を記録する。
+- Status: accepted（2026-08-21）
+- Why: PR #86 では、conflict-free rebase が plan-first replay と先頭 lane closeout drift（`Plans.md` 更新・packet archive 移動）で即衝突し、`Rebase Map` の patch-id 同値を証明できなかった。さらに先頭 lane branch tip を追加 merge する 2 段 merge は、squash で main から不可達になった他 lane の forward state-only commit を `merge-base(origin/main, HEAD)..HEAD` へ取り込み、STATECAP を機械超過した。`origin/main` の単段 merge は原 SHA ancestry を保ったまま成立した。D-055 は file footprint が互いに素な並列 lane と conflict-free rebase を定義するため、逐次依存 stacked train はその定義範囲外であり、D-055 自体は書き換えない。
+- Impact: `docs/DEV_WORKFLOW.md` Wave Operation の stacked train 小節が、適用除外、単段 merge、STATECAP の aggregate / post-implementation subset の独立二段 cap、content commit 同乗、merge delta の独立再検証を定める。既存の D-038 / D-039 / D-055 契約は変更しない。
+- Alternatives considered: conflict-free rebase + `Rebase Map`（PR #86 で plan-first replay が closeout drift と衝突し実測棄却）; 先頭 lane branch tip と `origin/main` の 2 段 merge（PR #86 で STATECAP 超過を実測し棄却）。
+- Revisit: 次回 stacked train 適用時に `git merge-tree` 事前判定を記録付きで実施し、conflict-free rebase の不成立を mutation 前に識別する推奨手順として有効かを検証する。

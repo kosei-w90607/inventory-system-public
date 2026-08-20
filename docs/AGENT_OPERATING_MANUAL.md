@@ -199,6 +199,9 @@ docs/Plans.md cleanup は DEV_WORKFLOW.md の Post-Merge Closeout に準拠す�
 
 遷移 commit の作成主体や Writer / Coordinator の分担は、本節で再配分しない。[DEV_WORKFLOW.md](DEV_WORKFLOW.md) の現行規範と per-change Plan Packet の定めに従う。
 
+- **doc 節番号は referent 一致まで検証する**: 発注書で `§n` などの doc 節番号を指定する場合、起草時に `rg` で節の実在を確認し、その節の既存内容が発注対象と一致するところまで確認する。番号が存在するだけでは足りない（出典実測: PR #84 の §12 occupancy 不一致）。
+- **REQ token 変更の発注は 90-traceability 再生成を完了条件にする**: test 追加を含め、REQ token に触れる変更を依頼する発注書は、generated `docs/function-design/90-traceability.md` の再生成を完了条件へ明記する（出典実測: PR #72 / #84 / #85）。
+
 ### 5.7 変則 provenance packet の監査採用手順
 
 正式発注フロー外で起草された packet（引き継ぎ事故、誤配、自発起草に由来する artifact）は、再起草を既定にせず、Coordinator が次の 9 観点を監査して採用可否を判定する。

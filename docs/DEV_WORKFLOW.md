@@ -249,6 +249,18 @@ Wave Operation は、互いに干渉しない複数 change を Draft PR まで�
 - 先頭 lane の merge 後、次 lane の rebase は Codex が行う。rebase 前後の plan-first commit と各 gated Amendment commit が `patch-id 同値`であることを証明できる conflict-free rebase に限り Phase を維持し、rebase 後 HEAD で L1 full を再実行して PR body を更新する。Writer は packet の append-only narrative に、plan-first commit と `Amendments` 行の各 SHA をそれぞれ root とする `Rebase Map: <旧 SHA> -> <新 SHA>` を追記し、`Plan Commit` field と `Amendments` 行の原 SHA 列は変更しない。機械検査の第 1 層として PK5 は mapped pair ごとの単一 commit `patch-id 同値`、旧 object の解決、root ごとの多段 chain 整合を検査し、第 2 層として Map 適用後の実効 SHA で plan-first の ancestry と各 Amendment の descendant / ancestry を検証する。lane 全体の rebase 前後 whole-diff 同値は Writer evidence として PR body に記録し、PK5 の機械検査対象にはしない。`conflict が出た rebase は content change として implementing へ戻る`ものとし、通常の再検証・再レビューを行う。
 - owner は 1 回の train 承認で全 lane の Ready 遷移実行を Coordinator に委任できるが、[Owner Effort Budget](#owner-effort-budget) の lane ごとの decision point 計上と、各 lane の merge gate は省略できない。
 
+### Stacked train
+
+stacked train は、後続 lane を先頭 lane の branch 上へ stack する逐次依存 train であり、D-055 が定義する非干渉 lane の並列 wave とは異なる。
+
+- **逐次依存 train の適用除外**: `file footprint が互いに素`と`生成 file を再生成する lane は 1 wave に 1 つまで`の規則は stacked train には適用しない。後続 lane の Draft PR は先頭 lane branch を base とし、先頭 lane の merge 後に base 付け替えで衝突を解消する。ただし、`ready-hosted-final への遷移は merge train 先頭の lane のみ`という既存規則は維持する。
+- **origin/main 単段 merge を base 付け替えの確立手順とする**: 先頭 lane の squash merge 後は、後続 lane の旧 tip を保存してから最新 `origin/main` を 1 回だけ merge する。この単段 merge は元の `Plan Commit`、各 `Amendments`、Human Gate evidence SHA の ancestry を維持するため、`Rebase Map` を要しない。先頭 lane branch tip を追加で merge する多段 merge は禁止する。
+- conflict-free rebase + `Rebase Map` は、plan-first commit の replay が先頭 lane closeout による `Plans.md` 更新や packet の archive 移動と衝突するため、stacked train の base 付け替えでは原則として成立しない。`git merge-tree` による事前判定は**記録上未実測の推奨手順**であり、確立手順とは区別する。その記録付き有効性検証は [D-074](decision-log.md#d-074-stacked-train-の-base-付け替え2026-08-21) の Revisit 対象とする。
+- **継承 commit は STATECAP の二段 cap の双方に計上されうる**: stack 点以前にある他 lane の forward state-only commit は、先頭 lane の squash merge 後に main から到達できず、`merge-base(origin/main, HEAD)..HEAD` の STATECAP 検査範囲へ継承される。aggregate `3` 以下と post-implementation subset `2` 以下（D-038）は独立した cap であり、同じ継承 commit が両方へ計上されうる。継承で枠が尽きた場合、Ready 遷移は既存の正規手段である content commit 同乗で実体化し、packet の遷移記録へ継承 commit の SHA と同乗理由を明記する。
+- **実装 file まで解消した merge delta は独立再検証する**: merge conflict の解消が実装 file に及んだ場合は、遷移前に独立 Final Reviewer が delta を再検証する。docs-only の解消なら delta ack のみでよい。
+
+本手順の出典実測は PR #86（rebase 即衝突、2 段 merge の STATECAP 超過、`origin/main` 単段 merge + content commit 同乗で成立）であり、durable decision は D-074 に置く。
+
 ## Subagent Budget
 
 Risk-tiered ceiling for delegated sub-agents, regardless of harness (D-034):
@@ -330,6 +342,7 @@ CI routing:
 - CI, unit tests, and review-only sub-agent approval do not replace this visual confirmation. If it is skipped, record who accepted the residual risk and why.
 - **L3 Eligibility**: an item belongs in human L3 only when it meets all three conditions — (1) it is observable only on Windows/Tauri native, (2) the human gate step requires no newly introduced tool, and (3) it does not require a manual fault-injection-grade procedure such as DB lock manipulation, synthetic row insertion, or config restore (route those to automated tests instead). UI-11c's L3-7/L3-8 grew into SQLite CLI setup, synthetic row insertion, and DB lock/WAL manipulation and were ultimately waived — that incident is the basis for this rule. Within L3 Eligibility scope, the owner's role is limited to eye confirmation and a PASS/FAIL call; evidence packaging, PR body formatting, and waiver wording are the agent's responsibility.
 - The generic human visual confirmation slot above stays mandatory for every operator-facing screen change regardless of L3 Eligibility; L3 Eligibility only narrows which items belong on the separate Windows native L3 checklist, it does not decide whether visual confirmation happens at all.
+- **取込み fixture は実 encoding にそろえる**: Coordinator が human visual confirmation 用に提示する fixture は対象機能の実 encoding に合わせる（例: 商品 CSV は CP932。出典実測: PR #86）。
 
 ## Review Rules
 
@@ -346,6 +359,7 @@ CI routing:
 - Same-PR fixes are for regressions, contract drift, data safety gaps, missing critical tests, and merge blockers. Future improvements go to the dashboard or archive evidence.
 - For iterative plan or contract review, each finding must attach a concrete fix proposal; the reviewer and Coordinator then use mutual adjudication, and the reviewer retains an objection channel when the proposed disposition would leave the contract unsound (backup/migration design WER lesson).
 - For iterative plan or contract review (rally), 同一 reviewer 系での`round 数 3 を天井`とする。この hard cap は reviewer vendor に依存せず、到達時は Coordinator が残 findings を `同型指摘の一括是正 / backlog 化 / owner escalation` のいずれかへ disposition し、次 round を開始しない。per-change の `Plan Review round 天井` は Plan Packet の Owner Effort Budget に記録する。
+- **連番契約 registry の採番を後続 lane が確定する**: 並行または stacked な lane が同じ連番 registry（例: D-052 C-n、decision-log D-n、REQ-n）へ追加する場合、merge 済み正本の番号は変えない。後続 lane は正本 merge 後に採番し直して gated amendment と同一 packet 内の full sweep を記録するか、packet 起草時に番号予約を宣言する。[Design Phase Rules の Design decision IDs](#design-decision-ids) と併せて適用する（出典実測: PR #86 の C18 二重割当、PR #84 の packet-local D-n 衝突）。
 - Before claiming that a file is absent, stale, duplicated, or divergent in a finding or correction proposal, confirm its file type with `eza -l` (including the symlink arrow) or `git ls-files -s` (where mode `120000` identifies a symlink). A static `git log` and a line-count difference in `diff --stat` can produce the same signature for a symlink and are not evidence of a duplicate by themselves; the existing irreversible-finding requirements still apply.
 - **Findings Freeze** (D-038): ① the finding set is frozen once the initial Broad Audit completes; rounds after that are closure confirmation only. Whenever two Contract Audit passes actually run — the mandatory Double Audit on R4/workflow gate changes, or an R3 change that opted into the Contract Audit section's recommended second pass — both passes together constitute that "initial Broad Audit", and Freeze takes effect only after both passes complete; this proviso is required so a Double Audit still catches what a single pass would miss. ② a new P2 found after Freeze is a blocker only when it is proven by a runtime failure. ③ a new P3 found after Freeze is a follow-up, not a blocker. ④ there is one broad review lane per change, chosen by where the risk sits: cross-layer/contract risk uses the Contract Audit lane, UI-presentation risk uses review-checklist §9 + the operator-ui skill, and both lanes run only when the change genuinely spans both.
 
