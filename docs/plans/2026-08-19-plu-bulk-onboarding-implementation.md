@@ -6,16 +6,16 @@ Use the field definitions, enums, transition evidence, packet-selection rule, an
 
 If a state-only commit materializes multiple phases, list the complete adjacent forward sequence and the pre-existing evidence for every intermediate transition in an append-only review/evidence record. Recording compression never permits a gate skip.
 
-- Phase: implementing
+- Phase: ready-hosted-final
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: f0cd25c
-- Amendments: fd2fd5f, 2650408, fa1659f, d7e4ed1, a8487b7
+- Amendments: fd2fd5f, 2650408, fa1659f, d7e4ed1, a8487b7, e72c1ce
 - Coordinator: Fable
 - Writer: Codex
 - Plan Reviewer: Sonnet subagent（独立、Writer と別 context）
 - Final Reviewer: Sonnet subagent（独立、Writer と別 context）
-- Reviewed Content HEAD: pending
+- Reviewed Content HEAD: e72c1ce
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
 - Human Gate: owner plan approval / human visual confirmation（Windows native、UI-01a badge・`plu` filter・一括操作 dialog・結果表示、UI-01c preview `PLU対象` 列 + warning。レジ / CV17 は不要 = `67-ui §67.12` scope 明文化に従う）/ Ready / merge
@@ -45,7 +45,7 @@ Transition narrative（append-only）:
 Risk: R3
 
 Reason:
-商品 CSV 取込み契約（任意列 `PLU対象` の受理・正規化・行 error）、Tauri command 新設（`bulk_set_plu_target`）+ 既存 command の DTO 拡張（`search_products` の `plu` filter）+ generated bindings、商品一覧の URL search param（`plu`）、filter 一致全件を 1 transaction で更新する operator workflow（誤実行で PLU slot の解放・未反映化が一括で起きる）、D-052 invalidation 契約の追加（C18）を同時に変更する。schema 変更はなく、会計・在庫系列（D-025 / SPEC-PLS-D8）には触れない。
+商品 CSV 取込み契約（任意列 `PLU対象` の受理・正規化・行 error）、Tauri command 新設（`bulk_set_plu_target`）+ 既存 command の DTO 拡張（`search_products` の `plu` filter）+ generated bindings、商品一覧の URL search param（`plu`）、filter 一致全件を 1 transaction で更新する operator workflow（誤実行で PLU slot の解放・未反映化が一括で起きる）、D-052 invalidation 契約の追加（C19）を同時に変更する。schema 変更はなく、会計・在庫系列（D-025 / SPEC-PLS-D8）には触れない。
 
 ## Goal
 
@@ -78,9 +78,9 @@ In scope:
 2. BIZ-01 `bulk_set_plu_target(conn, filter: ProductBulkFilter, plu_target: bool) -> Result<BulkPluTargetResult, BizError>`（`30-biz §4.9.1`）: `ProductBulkFilter { keyword, department_id, is_discontinued, plu }` = 商品一覧 filter と同一意味（page / per_page なし）。型は `db::product_repo` 所有で `biz/mod.rs` が再 export（`ProductSearchQuery` と同じ。gated amendment 2）。ON = filter 一致のうち未廃番 + 有効 13 桁 JAN（13 桁数字 **かつ** check digit 有効。既定導出 `should_default_plu_target`（BIZ-01-D2、ASCII 13 桁のみ）とは別の適格 predicate。CSV `PLU対象=1` の JAN 不備判定（30-biz §4.8: 13 桁数字でない、または check digit 不正）と同一、gated amendment 4）かつ `plu_target=0` の行を `plu_target=1, plu_dirty=1`、既に 1 の行は無変更、廃番 / JAN 不備は skip 件数。OFF = filter 一致全件のうち `plu_target=1` を 0 にし、各行で `plu_export_service::release_plu_slot_for_jan` を呼ぶ。1 TX、`operation_logs` に filter 正規化要約 + 要求値 + 4 件数（JAN 一覧は残さない）。result = `matched_count / updated_count / invalid_jan_skipped_count / discontinued_skipped_count`。
 3. IO `product_repo`: filter 一致全件を取得する unpaged 読取り `find_products_for_bulk_plu_target(conn, &ProductBulkFilter)`（`20-io` 本文で既に命名済みの名を維持。fenced signature を追加し、同 prose の「keyword / department / discontinued 条件」に `plu` を追記）と `ProductSearchQuery.plu: Option<PluMigrationFilter>`（`20-io §search_products` 設計済み: Target / Pending / Synced / Excluded の WHERE 条件、All は無条件）。`PluMigrationFilter` は db 層 enum（serde `rename_all` + specta）。`ProductSearchQuery.plu` は `#[serde(default)]` 付き（specta の `?:` 生成のため。Contract Probe 参照）。
 4. CMD-01 `bulk_set_plu_target` command（`40-cmd §bulk_set_plu_target`）: `lib.rs` `collect_commands!` + `generate_handler!` 双方へ登録（60 → 61）、`cargo run --bin generate_bindings` で `src/lib/bindings.ts` 再生成（`bulkSetPluTarget` / `ProductBulkFilter` / `BulkPluTargetResult` / `PluMigrationFilter` / `ImportRow.plu_target` / `ImportRow.warnings` / `ProductSearchQuery.plu`）。
-5. UI-01a（`50-ui` UI-01a-D10 / D11）: `search.ts` に `plu` param（`all|target|pending|synced|excluded`、既定 `all`、無効値は `all` へ正規化、`discontinued` と同じ `OPTIONS / normalizeEnum / payload` 機構）と filter UI（SegmentedControl 同列）、一覧に独立「PLU」列（3 語彙 text badge + 補助 icon、色のみ符号化なし、行減衰なし）、一括操作ボタン「PLU 対象にする」「PLU 対象から外す」→ `AlertDialog`（現在の filter 一致件数 = 一覧 query の `total_count` を表示）→ `commands.bulkSetPluTarget(filter, plu_target)` → 結果 toast（DSR-03: 完了通知）+ 失敗時は destructive Alert → D-052 C18 invalidation。
+5. UI-01a（`50-ui` UI-01a-D10 / D11）: `search.ts` に `plu` param（`all|target|pending|synced|excluded`、既定 `all`、無効値は `all` へ正規化、`discontinued` と同じ `OPTIONS / normalizeEnum / payload` 機構）と filter UI（SegmentedControl 同列）、一覧に独立「PLU」列（3 語彙 text badge + 補助 icon、色のみ符号化なし、行減衰なし）、一括操作ボタン「PLU 対象にする」「PLU 対象から外す」→ `AlertDialog`（現在の filter 一致件数 = 一覧 query の `total_count` を表示）→ `commands.bulkSetPluTarget(filter, plu_target)` → 結果 toast（DSR-03: 完了通知）+ 失敗時は destructive Alert → D-052 C19 invalidation。
 6. UI-01c（`60-ui` UI-01c-D16）: preview 表に `PLU対象` 列（表示値 `対象` / `対象外` / `既定（13桁JANなら対象）`）と同行 warning（text + icon）、列の意味説明 1 行。
-7. D-052 C18（`bulk_set_plu_target` 成功）: `src/lib/invalidation-contract.ts` `pluBulkTarget` = `productList.root / pluDirty / productForm.root / pluSlotSummary`。同一 PR で独立 oracle test、`decision-log.md` D-052 Contract 行、`UI_TECH_STACK.md §2.5`、`50-ui` に新規決定行 `UI-01a-D12`（一括操作成功後の invalidation = D-052 C18 を引用。50-ui は現状 D-052 参照行を持たないため更新ではなく新設）を追加（PR #85 Final Review P2 の再発防止）。
+7. D-052 C19（`bulk_set_plu_target` 成功）: `src/lib/invalidation-contract.ts` `pluBulkTarget` = `productList.root / pluDirty / productForm.root / pluSlotSummary`。同一 PR で独立 oracle test、`decision-log.md` D-052 Contract 行、`UI_TECH_STACK.md §2.5`、`50-ui` に新規決定行 `UI-01a-D12`（一括操作成功後の invalidation = D-052 C19 を引用。50-ui は現状 D-052 参照行を持たないため更新ではなく新設）を追加（PR #85 Final Review P2 の再発防止）。
 8. source doc 追随（Required Design Artifacts 参照）: `30-biz §4.9.1` / `40-cmd` / `cmd-task-specs` の `ProductBulkFilter` に `plu` を追加（理由は Spec Contract B-D2）、`30-biz §4.9.1` に「既に 1 の行は無変更」を明記、`40-cmd §search_products` に `plu` を追記、`50-ui` に PLU 列の置き場（独立列、DSR-04 判定）、`67-ui §67.12` に native L3 の scope 条項 + `decision-log` D-073、fenced signature（`20-io` / `30-biz` / `40-cmd`）、REQ-907 traceability 再生成。
 9. PR #85 Final Review P3 follow-up の消化（Rust test 追加のみ）: A-S1 を「既存 v4 fixture DB → migrate → `plu_slots` 4,784 行」形へ（B-F1）、A-N8b に「`reservation_dropped` 後の再 prepare で別 slot 予約」oracle 追加（B-F2）。
 
@@ -99,7 +99,7 @@ In scope:
 - B-V1〜B-V3（RTL）: 3 語彙 badge の導出（`plu_target × plu_dirty`）と text / icon 併用、`plu` URL param の復元・無効値正規化・`discontinued` との併用、一括操作 dialog の件数表示 → confirm で `bulkSetPluTarget` が現在の filter（`plu` 込み）で呼ばれる → 結果 toast、cancel で呼ばれない。
 - B-P1（RTL）: preview の `PLU対象` 列表示値と warning 行の表示（色以外）。
 - B-W1〜B-W3: bindings 再生成 diff 0、`collect_commands!` / `generate_handler!` 双方 61、`design_compliance_test` unexpected 0、`generate_traceability --check` PASS（REQ-907 に B-* test 付与）。
-- B-I1: `npx vitest run src/lib` で D-052 C18 の独立 oracle test（C1〜C18 の完全一致比較、production SSOT 非 import）PASS、`decision-log.md` / `UI_TECH_STACK.md` / `50-ui` に C18 記載。
+- B-I1: `npx vitest run src/lib` で D-052 C19 の独立 oracle test（C1〜C19 の完全一致比較、production SSOT 非 import）PASS、`decision-log.md` / `UI_TECH_STACK.md` / `50-ui` に C19 記載。
 - B-F1 / B-F2: `cargo test` で PR #85 P3 follow-up test（v4 fixture → migrate、`reservation_dropped` 後の再予約）が追加され PASS。
 - B-G1: `rg -n "PLU対象" src-tauri/src/biz/product_service.rs` で `"1"` / `"0"` / 空のみ受理（`true` / `はい` 同義語なし）を reviewer が実読確認（sweep は `rg -n '"はい"|"true"' src-tauri/src/biz/product_service.rs` の hit が `POS在庫連動` 行のみ）。
 - L1 `scripts/local-ci.sh full` PASS、Writer 完了時 `cargo check --release` PASS、owner の Windows native visual confirmation（Human Gate Proposal の checklist）結果を PR body に記録、hosted CI と exact-HEAD 三点一致。
@@ -122,9 +122,9 @@ In scope:
 | DB / transaction / audit / rollback / migration | plu-tables.md / 22-mnt | existing sufficient（schema 変更なし。operation_logs は既存 table） |
 | Screen / UI / route state / Japanese wording | 50-ui UI-01a-D10 / D11 + search param 表 / 60-ui UI-01c-D16 / design-system DSR-03 / 04 / 07 | updated in this PR（50-ui: PLU 列の置き場 = 独立列（DSR-04 判定理由）+ 文言表（dialog / toast / badge）+ D11 の filter に `plu` を含む旨 / 60-ui: preview 表示値 3 種の文言） |
 | CSV / TSV / report / import / export format | 26-io IO-03-D1 / 30-biz §4.8 | existing sufficient（値文法 `1` / `0` / 空欄、不正値 = 行 error、`1` + JAN 不備 = warning + 0 は設計済み） |
-| Invalidation contract | decision-log D-052 / UI_TECH_STACK §2.5 / `src/lib/invalidation-contract.ts` / 50-ui | updated in this PR（C18 追加、SSOT + 独立 oracle + decision-log + UI_TECH_STACK + 50-ui 新規 `UI-01a-D12` を同一 PR） |
+| Invalidation contract | decision-log D-052 / UI_TECH_STACK §2.5 / `src/lib/invalidation-contract.ts` / 50-ui | updated in this PR（C19 追加、SSOT + 独立 oracle + decision-log + UI_TECH_STACK + 50-ui 新規 `UI-01a-D12` を同一 PR） |
 | Human Gate scope | 67-ui §67.12 / decision-log | updated in this PR（§67.12 に scope 条項: CV17 / SR-S4000 を伴う native L3 は PLU file 形状・レジ向け field 値・書出し / confirm / 復帰の operator flow に触れる PR に必須、触れない PR は human visual confirmation のみ。D-073 として記録、owner 提案 2026-08-19） |
-| Durable decision / ADR | D-072 / D-052 / D-073（新設） | updated in this PR（D-073 新設、D-052 C18） |
+| Durable decision / ADR | D-072 / D-052 / D-073（新設） | updated in this PR（D-073 新設、D-052 C19） |
 
 ## Registration / Generation Obligations
 
@@ -134,7 +134,7 @@ In scope:
 | 新規 pub fn（BIZ-01 `bulk_set_plu_target` / `product_repo` unpaged 読取り + bulk 更新 helper） | `30-biz §4.9.1`（既存 fenced）/ `20-io`（新規 fenced）に signature、`design_compliance_test` PASS（B-W2）。`KNOWN_ALLOWLIST` 追加は原則禁止 |
 | 新 type（`ProductBulkFilter` / `BulkPluTargetResult` / `PluMigrationFilter`、`ImportRow.plu_target` / `warnings`、`ProductSearchQuery.plu`） | `specta::Type` + serde（`ProductSearchQuery.plu` / `ImportRow.plu_target` は `#[serde(default)]` で TS 側 `?:`、`ImportRow.warnings: Vec<String>` は Rust 側 missing 許容のためにも `#[serde(default)]` 必須）、bindings 再生成 + consumer 同一 commit 切替（B-W1） |
 | URL search param `plu` | `src/features/products/search.ts` の OPTIONS / schema / normalize / payload / patch の 5 箇所同時追加、`50-ui` search param 表は既存 |
-| D-052 C18 | `invalidation-contract.ts` `pluBulkTarget` + 独立 oracle test + `decision-log.md` D-052 Contract 行 + `UI_TECH_STACK.md §2.5` + `50-ui` 新規決定行 `UI-01a-D12`（B-I1） |
+| D-052 C19 | `invalidation-contract.ts` `pluBulkTarget` + 独立 oracle test + `decision-log.md` D-052 Contract 行 + `UI_TECH_STACK.md §2.5` + `50-ui` 新規決定行 `UI-01a-D12`（B-I1） |
 | REQ-907 test 付与 | `cargo run --bin generate_traceability` で `90-traceability.md` 再生成、`--check` PASS（B-W3）。hand edit 禁止 |
 | decision-log D-073 / 67-ui §67.12 scope 条項 | 同一 PR。`doc-consistency-check.sh` PASS |
 | route / navigation / operator 画面新設 | 該当なし（既存 `/products` と `/products/import` 内の変更） |
@@ -147,7 +147,7 @@ In scope:
 | REQ-104 / REQ-907 / SPEC-PLS-D6 (a) | 30-biz §4.8〜4.9 / 26-io IO-03-D1 / 60-ui UI-01c-D16 | BIZ-01-D4 / IO-03-D1 / UI-01c-D16 | CSV で初日商品群を一括対象化できる。値文法を `1` / `0` / 空欄に限定し、`1` + JAN 不備は要修正バケットへ流さず warning + 0（rejected: 行 error 化 = 取込み全体を止める） | `preview_import` / `commit_import` / `ImportRow` / preview 表 | B-C1〜B-C5 / B-P1 |
 | REQ-907 / SPEC-PLS-D6 (b) | 30-biz §4.9.1 / 40-cmd §bulk_set_plu_target / 50-ui UI-01a-D11 | BIZ-01-D4 / CMD-01-D4 / UI-01a-D11 | page 内でなく filter 一致全件（operator の期待）。filter に `plu` を含める（B-D2、rejected: `q / dept / discontinued` のみ = `対象から外す` が未反映分を巻き込む）。1 TX + 件数 dialog（DSR-07: filter 全件の高影響操作） | `bulk_set_plu_target` / `ProductBulkFilter` / command / 一覧 UI | B-L1〜B-L7 / B-V3 |
 | REQ-907 / SPEC-PLS-D7（一覧） | 50-ui UI-01a-D10 / 20-io §search_products | UI-01a-D10 | 3 語彙（`plu_target × plu_dirty`）と `plu` URL filter で段階移行を商品単位で追跡。独立列（B-D3、DSR-04: この画面では移行状態が filter / 一括操作の主情報）。rejected: `plu_exported_at` 基準（再対象化で stale、archive 記録） | badge / `search.ts` / `ProductSearchQuery.plu` | B-V1 / B-V2 / B-S1 / B-S2 |
-| D-052 | decision-log D-052 / UI_TECH_STACK §2.5 | C18 | bulk 成功後に一覧 / home 未反映 / 商品 form / slot 要約を stale 化 | `invalidation-contract.ts` | B-I1 |
+| D-052 | decision-log D-052 / UI_TECH_STACK §2.5 | C19 | bulk 成功後に一覧 / home 未反映 / 商品 form / slot 要約を stale 化 | `invalidation-contract.ts` | B-I1 |
 | D-072 Human Gate | 67-ui §67.12 | D-073 | file 形状・レジ挙動に触れない PR に CV17 / SR-S4000 L3 を課さない（owner 提案、PR #85 L3 round 1 の観測起源） | 67-ui §67.12 / decision-log | review / Human Gate |
 
 ## Design Intent Audit
@@ -176,7 +176,7 @@ In scope:
 ## Design Readiness
 
 - Existing design docs are sufficient because: PR #84 で D6 / D7 の契約（値文法、skip 規則、filter 全件、3 語彙導出、`plu` WHERE 条件、preview 表示）が関数 / command / 画面 doc に正本化済み。
-- Source docs updated in this PR: Required Design Artifacts の「updated in this PR」行（`ProductBulkFilter.plu` / 既に 1 の行 / PLU 列置き場 + 文言表 / `40-cmd §search_products` の `plu` / 20-io fenced / D-052 C18 / 67-ui §67.12 scope + D-073）。
+- Source docs updated in this PR: Required Design Artifacts の「updated in this PR」行（`ProductBulkFilter.plu` / 既に 1 の行 / PLU 列置き場 + 文言表 / `40-cmd §search_products` の `plu` / 20-io fenced / D-052 C19 / 67-ui §67.12 scope + D-073）。
 - Design gaps intentionally deferred: D-052 C2 の `pluSlotSummary` gap（follow-up）。
 - Durable decisions discovered in this plan and promoted to source docs: B-D1〜B-D4、D-073。
 
@@ -207,7 +207,7 @@ Minimum design checks for business-app work:
 | CMD | `cmd/product_cmd.rs`（biz 型を直接 return する慣行）/ `lib.rs` 2 macro | `bulk_set_plu_target` + 登録 61 | B-W1 |
 | UI-01a | `features/products/search.ts`（`discontinued` 機構）/ `ProductListPage.tsx` filter 行 + `ProductTable.tsx` / `components/ui/alert-dialog.tsx` / `AdditionalImportConfirmDialog.tsx`（件数 dialog 先例） | `plu` param、PLU 列 badge、一括ボタン + dialog + toast | B-V1〜B-V3 |
 | UI-01c | `features/products/import/ProductImportPreview.tsx` `ImportRowsTable`（5 列） | `PLU対象` 列 + warning | B-P1 |
-| D-052 | `src/lib/invalidation-contract.ts` / oracle test / decision-log / UI_TECH_STACK | C18 | B-I1 |
+| D-052 | `src/lib/invalidation-contract.ts` / oracle test / decision-log / UI_TECH_STACK | C19 | B-I1 |
 | docs | 30-biz / 40-cmd / cmd-task-specs / 50-ui / 60-ui / 20-io / 67-ui / decision-log / 90-traceability | Required Design Artifacts | B-W2 / B-W3 |
 
 ## Oracle Replacement Ledger
@@ -218,7 +218,7 @@ Minimum design checks for business-app work:
 | `ProductListPage.test.tsx` / `ProductImportPage.test.tsx` 既存 assert | 既存 filter / 列の assert は不変。PLU 列 / `plu` param / dialog は新規 test | 維持 + 新規 | B-V1〜B-V3 / B-P1 |
 | `ProductListPage.test.tsx` 既存 test（一覧 empty 系）への追加 assert | 一覧 0 件で一括操作ボタン 2 種が disabled であることを既存の empty case に追記（既存 expected 値は不変、Final Review P2 で Ledger 追記） | 既存 assert 維持 + `toBeDisabled()` 2 件追加 | B-V3 |
 | `search.test.ts` 既存 test（descriptor 一致）への追加 assert | `PRODUCT_PLU_OPTIONS` の descriptor 検査を既存 descriptor test に追記（既存 expected 値は不変、同上） | 既存 assert 維持 + `PRODUCT_PLU_OPTIONS` block 追加 | B-V2 |
-| D-052 oracle test（C1〜C17 完全一致） | C18 追加で期待集合を独立転記更新 | C1〜C18 | B-I1 |
+| D-052 oracle test（C1〜C18 完全一致） | C19 追加で期待集合を独立転記更新 | C1〜C19 | B-I1 |
 | `src/features/products/search.test.ts` / `src/features/products/hooks/useProductList.test.tsx` の default / normalize payload の exact object assert | `ProductSearchQuery.plu` と URL 既定値 `all` の追加で payload が 1 field 増える（`discontinued` 既定 `active` → `is_discontinued: false` と同じく既定値も送る契約、gated amendment 3） | default / 無効 URL → `plu: "all"`、有効値 → 対応 enum 値（既存 field の期待は不変） | B-V2 / B-S2 / B-W1 |
 
 ## Contract Coverage Ledger
@@ -239,7 +239,7 @@ Minimum design checks for business-app work:
 | UI-01a-D11 件数 dialog → filter 全件 → 結果表示 | `ProductListPage.tsx` | B-V3 | visual |
 | B-D3 PLU 独立列（DSR-04） | `ProductTable.tsx` | B-V1 | visual（密度） |
 | UI-01c-D16 preview `PLU対象` 列 + warning | `ProductImportPreview.tsx` | B-P1 | visual |
-| D-052 C18 | `invalidation-contract.ts` | B-I1 | — |
+| D-052 C19 | `invalidation-contract.ts` | B-I1 | — |
 | DSR-03 toast / DSR-07 dialog | UI | B-V3 | visual |
 | D-073 / 67-ui §67.12 scope | docs | review | — |
 | SPEC-PLS-D8 不変 | — | 既存 test 維持 | non-scope |
@@ -287,7 +287,7 @@ Coordinator 提案:
 - bulk OFF の 1→0 が PR #85 の `release_plu_slot_for_jan` を呼び、`plu_slots` の遷移（reserved → free / active → release_pending）が A の契約と一致すること（B-L4）。
 - CSV `PLU対象` の値文法が `1` / `0` / 空欄のみで、`POS在庫連動` の同義語集合を流用していないこと（B-G1）。
 - `search_products` の `plu` WHERE が `20-io` の定義と 1 対 1（B-S1）、`#[serde(default)]` で旧 caller 互換（B-W1 の bindings diff）。
-- D-052 C18 の 4 点同時更新（SSOT / oracle / decision-log / UI_TECH_STACK + 50-ui）。既存 gap: C2 が `pluSlotSummary` を含まない点は follow-up として記録のみ。
+- D-052 C19 の 4 点同時更新（SSOT / oracle / decision-log / UI_TECH_STACK + 50-ui）。既存 gap だった C2 の `pluSlotSummary` 欠落は PR #85 gated amendment 5 で解消済み（本 PR 不変）。
 - 67-ui §67.12 scope 条項 + D-073 の文面が、将来 PR の判定に使える粒度（「触れる / 触れない」の判定対象 3 種を列挙）になっていること。
 - stack 運用の file-level 衝突（`67-ui-plu-export.md` / `bindings.ts`）: lane 1（PR #85）が merge 前に同 file を再変更した場合、base 付け替え rebase 後に L1 を再取得し、§67.12 条項と bindings 再生成結果が保たれていること。
 
@@ -309,7 +309,7 @@ Contract ID: SPEC-PLS-D6 / SPEC-PLS-D7（一覧）/ B-D1〜B-D4
 | SPEC-PLS-D6 (a) / B-D4 | CSV 列 parse / 正規化 / commit | B-C1〜B-C5 / B-P1 | 値文法 / warning / 解放 | cargo test + RTL + visual |
 | SPEC-PLS-D6 (b) / B-D1 / B-D2 | bulk service / command / UI | B-L1〜B-L7 / B-V3 / B-W1 | filter 同型 / 既に 1 無変更 / 解放 / TX | cargo test + RTL + bindings diff + visual |
 | SPEC-PLS-D7 / B-D3 | `plu` filter / badge / 列 | B-S1 / B-S2 / B-V1 / B-V2 | WHERE 1 対 1 / 導出式 / 独立列 | cargo test + RTL + visual |
-| D-052 C18 | invalidation | B-I1 | 4 点同時更新 | vitest |
+| D-052 C19 | invalidation | B-I1 | 4 点同時更新 | vitest |
 | D-073 | 67-ui §67.12 / decision-log | review | scope 判定 | Plan Gate / doc check |
 | PR #85 P3 follow-up | Rust test | B-F1 / B-F2 | oracle 独立性 | cargo test |
 | Registration | bindings / macro / traceability / compliance | B-W1〜B-W3 | 61 / diff 0 | local-ci |
@@ -415,3 +415,27 @@ Do not transcribe exact-HEAD SHA or test counts here (D-035/D-038 Evidence Owner
 - owner Ready 承認（介入 3 回目 / 予算 3 回、owner 発言 `承認するよ`）。Human Gate の owner 項目（plan approval / visual confirmation / Ready 承認）は全消化、merge のみ残る。
 - Phase は implementing のまま据え置く。merge train PR #85 → PR #86 のため、Ready 遷移は次の順で実施する: PR #85 merge → 本 branch の base を main へ付け替え rebase（conflict は `67-ui-plu-export.md` / `bindings.ts` を中心に解消、L1 再取得）→ state-only 2 本目（`implementing -> local-verified -> independent-review -> human-confirm -> ready-hosted-final` の隣接 forward 圧縮。evidence = rebase 後 exact HEAD の L1 full / Final Review round 1 + delta 再検証 P1/P2 = 0 / visual confirmation 全 PASS / 本 Ready 承認、Reviewed Content HEAD = rebase 後の content HEAD）→ 同 HEAD で L1 full → PR body 全面 refresh → owner が Ready トリガー → hosted CI → merge。
 - rebase 後に content が変わる場合（conflict 解消が実装に及ぶ場合）は Final Review の delta 再検証を挟んでから遷移する。docs-only の conflict 解消なら delta ack のみ。
+
+### main 吸収の merge 記録 + gated amendment 5（2026-08-20、D-052 C 番号衝突の C19 改番）
+
+- PR #85 merge（squash `f88037d`）後の base 付け替えは、packet 計画の rebase 方式を破棄して **origin/main の単段 merge 方式**へ切替した（PR #85 packet「main drift 吸収の merge 記録」と同じ D-055 判断）。根拠 2 点:
+  - rebase 試行は plan-first commit `f0cd25c` 自体が `docs/Plans.md` 衝突 + closeout の archive 移動に伴う directory-rename 誤検出で即衝突し、D-055 Rebase Map（mapped pair の patch-id 同値）が原理的に証明不能（PR #85 の実測と同型）。
+  - PR #85 branch tip の merge を併用する 2 段 merge も試作したが、squash による ancestry 断絶のため PR #85 の state-only 遷移 commit 群が STATECAP 検査範囲 `merge-base(origin/main, HEAD)..HEAD` に入り込み、上限 3 を機械超過することを `check-workflow-git.sh` 実行で確認し破棄した。
+- merge commit = `e72c1ce`（parents = 本 branch 先端 `2fbb3af` + origin/main `242b7b3`）。squash 由来の旧 merge-base に落ちるため見かけ衝突が広域に出るが、解消は次のとおり検分済み:
+  - PR #85 実装と lane 2 実装の重複 6 file（UI_TECH_STACK / decision-log / 90-traceability / invalidation-contract + meta test + oracle）は、PR #85 amendment 5 の C18 = prepare と lane 2 の C19 = bulk を両立する織り合わせで解消。90-traceability は generator 再生成。
+  - closeout の archive 移動を尊重して docs/plans の lane 1 packet / Matrix 複製を除去（archive 側と byte 一致を検分）。`docs/Plans.md` / `docs/PROJECT_HANDOFF.md` は main 側 closeout 記録を採用し、実装 B 行と wave 5 registry を保持。
+  - PR 実効 diff（`git diff origin/main HEAD`）が lane 2 の reviewed 内容 + C19 改番のみで構成されることを file 一覧で検分（PROJECT_HANDOFF は main と diff 0）。
+  - 原 SHA（Plan Commit `f0cd25c` / Amendments 全 SHA / visual confirmation の tested HEAD `230f0e5`）はすべて現 HEAD の祖先として保存され、Rebase Map は不要。
+- gated amendment 5（Coordinator 裁定、merge 衝突解消起源の true positive）: PR #85 gated amendment 5 が D-052 **C18 = PLU prepare 成功** を先取りしており、本 packet の C18 = `bulk_set_plu_target` と番号が衝突した。merge・archive 済みの main / PR #85 側を不変とし、本 packet の bulk entry を **C19 へ改番**する。sweep = decision-log D-052 Contract / Decision 行（19 entry / 22 success handler、`rg -c "invalidateByContract\(" src/features --glob '!**/*.test.*'` 合計 22 を 2026-08-20 実測）/ UI_TECH_STACK §2.5 / 50-ui UI-01a-D12 / `invalidation-contract.ts`・`invalidation-oracle.ts`・meta test（19 entries、`pluExportPrepare` と `pluBulkTarget` を両立）/ `ProductListPage.test.tsx` test 名（以上 `e72c1ce` に同乗）/ packet・Matrix の契約行（本 commit）。append-only の round 記録・Implementation Results・Final Review 記録は原文（C18 表記）のまま維持し、本記録を改番の正とする。invalidate 対象集合・oracle 独立性・設計意味は不変、Plan Commit `f0cd25c` 維持。Workflow State `Amendments` へは実体変更を担う `e72c1ce` を追記する。
+- 併せて終結: 本 packet が follow-up と記録していた「C2 の `pluSlotSummary` 欠落」は PR #85 gated amendment 5 で解消済み（本 PR は不変のまま成立、Matrix 該当セルを同期）。
+
+### Final Review delta 再検証（2026-08-20、独立 Sonnet Final Reviewer、worktree 隔離）
+
+- Verdict: **P1 0 / P2 0 / P3 0** — merge + C19 改番は reviewed content を壊していない。対象 candidate は本 HEAD と code tree 同値（差分は packet narrative 記録のみ）で、worktree 隔離の独立 Sonnet Final Reviewer が検証。
+- 確認範囲: invalidation 契約 trio の 19 entries 一貫性 + oracle 独立性（production 非 import）維持 / C19 改番の live 契約文書全一致（C18 = prepare 参照は未改変、packet append-only 原文維持は指摘対象外の整理どおり）/ `product_service.rs`・`migration.rs`・`plu_export_service.rs` の PR 実効 diff が lane 2 実装のみで PR #85 ロジック温存 / §67.12 維持 / bindings・90-traceability 再生成 diff 0 / conflict marker 残存 0 / 既存 test の削除・skip・`.todo` 0。frontend / Rust の full suite・`tsc --noEmit` は全 PASS（件数と log は PR body evidence）。
+
+### 遷移記録: content commit 同乗による implementing -> ready-hosted-final（2026-08-20）
+
+- 本 commit（packet sweep を含む content commit）に `implementing -> local-verified -> independent-review -> human-confirm -> ready-hosted-final` の隣接 forward 遷移を同乗させる。canonical state-only commit を新設しない理由: stacked train の継承 history に PR #85 期の forward state-only 遷移 commit 2 本（`61e4d88` / `4835073`、いずれも stack 点 `92bd76f` の祖先で squash 後の main から不可達）が残り、本 packet 自身の plan approval 遷移 `7b29c04` と合わせて STATECAP 計数が既に 3/3。4 本目の state-only commit は機械 FAIL するため、DEV_WORKFLOW「content commit 同乗」（PR #58 / PR #80 先例の正規手段）で圧縮する。stacked train が他 lane の遷移 commit を自 PR の STATECAP に計上してしまう構造は Wave Operation 未定義 gap として workflow docs PR（follow-up、Plan Gate round 1 P2-6 と同枠）へ引き継ぐ。
+- evidence: local-verified = Writer 実装時 L1 full PASS + 本 commit 直後の exact-HEAD L1 full（envelope は PR body）。independent-review = Final Review round 1 P1/P2 = 0（content `f10b3cd` + docs-only 是正 `230f0e5`）+ 上記 delta 再検証。human-confirm = visual confirmation V1〜V6 全 PASS（tested HEAD `230f0e5`、本 HEAD の祖先）。ready-hosted-final = owner Ready 承認（`2fbb3af` 記録、介入 3/3）。
+- `Reviewed Content HEAD` は直前の content commit `e72c1ce` を設定する（本 commit の packet sweep 分は delta 再検証が tree 同値 candidate で確認済み、差分は本 narrative 記録のみ）。

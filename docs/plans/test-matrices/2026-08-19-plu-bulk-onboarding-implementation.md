@@ -13,7 +13,7 @@ Risk: R3
 - SPEC-PLS-D7（一覧）: `PluMigrationFilter` 5 値の WHERE、3 語彙 badge 導出（`plu_target × plu_dirty`）、`plu` URL param の既定 / 正規化、独立列（B-D3）。
 - UI-01a-D11 / DSR-07 / DSR-03: 件数 dialog → confirm で command 呼出し（現在の正規化 filter）→ toast、cancel で呼ばない。
 - UI-01c-D16: preview の `PLU対象` 列表示値と同行 warning（色以外）。
-- D-052 C18: `pluBulkTarget` = `productList.root / pluDirty / productForm.root / pluSlotSummary`。
+- D-052 C19: `pluBulkTarget` = `productList.root / pluDirty / productForm.root / pluSlotSummary`。
 - Registration: bindings 再生成 diff 0、`collect_commands!` / `generate_handler!` 61、design_compliance unexpected 0、traceability `--check`。
 - PR #85 Final Review P3 follow-up: A-S1（v4 fixture → migrate）、A-N8b（再予約 oracle）。
 
@@ -54,7 +54,7 @@ Risk: R3
 | B-W1 | wire | generated | `generate_bindings` 後 diff 0、`bindings.ts` に `bulkSetPluTarget` / `ProductBulkFilter` / `BulkPluTargetResult` / `PluMigrationFilter` / `ImportRow.plu_target` / `ImportRow.warnings` / `ProductSearchQuery.plu?`、`collect_commands!` / `generate_handler!` とも 61 | local-ci `generated-bindings-diff` + rg -c |
 | B-W2 | design compliance | cargo test | `design_compliance_test` unexpected 0（20-io / 30-biz / 40-cmd の fenced signature） | PASS |
 | B-W3 | traceability | cargo run | `generate_traceability --check` PASS、REQ-907 行に B-* test | PASS |
-| B-I1 | D-052 C18 | vitest（独立 oracle） | 期待集合 C1〜C18 を test 側へ独立転記し `invalidationContract` の実集合と順序非依存・重複検出付きで完全一致。C18 = `productList.root / pluDirty / productForm.root / pluSlotSummary` | 完全一致 |
+| B-I1 | D-052 C19 | vitest（独立 oracle） | 期待集合 C1〜C19 を test 側へ独立転記し `invalidationContract` の実集合と順序非依存・重複検出付きで完全一致。C19 = `productList.root / pluDirty / productForm.root / pluSlotSummary` | 完全一致 |
 | B-F1 | PR #85 P3 (a) | Rust integration | `setup_v1_only_db` / `setup_v2_only_db`（`db/migration.rs` tests）と同型の `setup_v4_only_db` を新設（v1〜v4 適用済み DB）→ migrate → `schema_versions` max=5 + `plu_slots` 4,784 行（直値）。新規 DB への一括適用 test は維持 | 直値 |
 | B-F2 | PR #85 P3 (b) | Rust integration | `reserved × 別コード` → `external + reservation_dropped` の後、同 JAN を再 prepare → 別 memory_no（最小 free）で `reserved`、旧 slot は `external` のまま | 行 |
 | B-G1 | 値文法 sweep | review | `rg -n '"はい"|"true"' src-tauri/src/biz/product_service.rs` の hit が `POS在庫連動` parse block のみ（`PLU対象` block は `"1"` / `"0"` / `""`） | hit 箇所 |
@@ -64,7 +64,7 @@ Risk: R3
 | State / subject | Initial | Pending | Success | Invalidate | Refetch | Revisit | Restart | Failure | Retry | Evidence |
 |---|---|---|---|---|---|---|---|---|---|---|
 | `plu` search param | URL なし = all | — | filter 変更で URL 更新 + page reset | — | query key に plu | URL から復元 | 同左 | 無効値 → all | — | B-V2 |
-| 一括操作 | ボタン有効（total>0） | dialog 表示（件数） | toast + C18 invalidation | productList / pluDirty / productForm / pluSlotSummary | 一覧 refetch で badge 更新 | — | — | destructive Alert + 再試行 | 再実行は冪等 | B-V3 / B-L3 / B-I1 |
+| 一括操作 | ボタン有効（total>0） | dialog 表示（件数） | toast + C19 invalidation | productList / pluDirty / productForm / pluSlotSummary | 一覧 refetch で badge 更新 | — | — | destructive Alert + 再試行 | 再実行は冪等 | B-V3 / B-L3 / B-I1 |
 | products.plu_target / plu_dirty | 既存値 | TX 中 | ON: 0→1 + dirty / OFF: 1→0 | — | — | — | 永続 | rollback 無変化 | 再実行 | B-L2〜B-L5 |
 | plu_slots（解放） | reserved / active | TX 中 | free / release_pending | pluSlotSummary | UI-08 要約 | — | 永続 | rollback | — | B-L4 / B-L5 |
 | CSV preview `PLU対象` | 列なし = 既定表示 | preview 中 | 列 + warning 表示 | — | — | — | preview は session 内 | 不正値 = error_rows | 再 preview | B-C1〜B-C3 / B-P1 |
@@ -79,7 +79,7 @@ Risk: R3
 | URL enum param 正規化（`discontinued`） | `search.ts` の OPTIONS / schema / normalizeEnum / payload / patch の 5 箇所 | `plu` 同 5 箇所 | `sort` / `dir`（enum だが payload 方式が異なる）は対象外 | B-V2 |
 | CSV 任意列 parse（`POS在庫連動` / `初期在庫`） | `preview_import` の各列 block | `PLU対象` block（値文法は別） | 同義語集合は流用しない（B-G1） | B-C1〜B-C3 |
 | 件数付き AlertDialog | `AdditionalImportConfirmDialog.tsx` / `DiscontinueConfirmDialog.tsx` | `PluBulkTargetConfirmDialog`（新設） | — | B-V3 |
-| D-052 invalidation entry | `invalidation-contract.ts` 17 entry + oracle test | C18 追加 | C2 の `pluSlotSummary` 欠落は follow-up（本 PR で触れない） | B-I1 |
+| D-052 invalidation entry | `invalidation-contract.ts` 18 entry + oracle test | C19 追加 | C2 の `pluSlotSummary` 欠落は PR #85 gated amendment 5 で解消済み（本 PR 不変） | B-I1 |
 | 共通解放 service 呼出し（PR #85） | `update_product` / `toggle_discontinue` / `commit_import` JAN 変更 | `bulk_set_plu_target` OFF + `commit_import` 上書き `0` | — | B-L4 / B-C5 |
 | text + icon badge（色以外） | `StockStatusBadge` / 廃番 Badge | PLU 列 badge | 行減衰は 廃番 のみ（B-D3） | B-V1 |
 
@@ -112,7 +112,7 @@ Risk: R3
 
 ## Main Wiring / Integration Checks
 
-- UI filter（正規化）→ `bulkSetPluTarget` → CMD → BIZ TX → repo 更新 + `release_plu_slot_for_jan` → operation_log → C18 invalidation → 一覧 / home 更新（B-V3 + B-L4 + B-I1）
+- UI filter（正規化）→ `bulkSetPluTarget` → CMD → BIZ TX → repo 更新 + `release_plu_slot_for_jan` → operation_log → C19 invalidation → 一覧 / home 更新（B-V3 + B-L4 + B-I1）
 - CSV preview → `ImportRow.plu_target` → commit 適用（B-C1 → B-C5）
 - `collect_commands!` / `generate_handler!` 61、bindings diff 0（B-W1）
 
@@ -139,7 +139,7 @@ Writer は下記 mutant（23 行。`#[serde(default)]` 除去は equivalent で 
 | badge 導出で `1 × dirty=0` を `未反映` に | B-V1 |
 | dialog cancel でも command 呼出し | B-V3 |
 | command 引数から `plu` を落とす | B-V3 |
-| C18 から `pluSlotSummary` を落とす | B-I1 |
+| C19 から `pluSlotSummary` を落とす | B-I1 |
 | A-N8b 再予約で旧 slot を再利用 | B-F2 |
 | `search.ts` の `plu` 正規化（`normalizeEnum`）を bypass して不正値を payload へ通す | B-V2 |
 | `PluMigrationFilter` の `#[serde(rename_all = ...)]` を外す / 変える（`"pending"` → `Some(Pending)` が Err） | B-S2 |
