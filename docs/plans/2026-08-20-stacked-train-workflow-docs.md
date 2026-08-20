@@ -277,3 +277,12 @@ anchor は汎用語の cross-reference hit を避け、rg -c で重複出現 0 �
 - 事象: Writer 完了報告の特記事項どおり、packet 起源の `doc-consistency-check.sh` WARN 6 件（D-046 Goal Invariant marker / PK3 Trace Matrix data row / PK3 AC1〜AC3 観測 token ×3 / PK6 数値主張の evidence 参照）が残存。ERROR 0 のため gate は通るが、先例 packet（PR #70 / #86）は WARN 0 相当で Final Review の指摘対象になる形式差。
 - 裁定: Coordinator が一括充足 — Goal Invariant block 追加 / Trace Matrix へ data row 5 行 / AC1〜AC3 へ観測 token（`rg -F -c` 等の backtick）/ rally round 3 記録行へ evidence commit 参照を追記（数値・内容は不変、形式補完のみ。append-only 記録の本文改変はこの evidence 参照追加 1 行に限る）。
 - 設計意味・Scope・Matrix 検証行は不変、Plan Commit `3829b95` 維持。amendment commit = 本 commit（SHA は state-only 遷移 2 本目で `Amendments` 行へ追記）。
+
+### Final Review round 1（2026-08-21、独立 Sonnet Final Reviewer、content `d21f5b9`、worktree 隔離、Double Audit）
+
+- Verdict: **P1 0 / P2 0 / P3 0**。Writer 自己検証記録に依存しない独立再現で齟齬なし。
+- Audit A: Contract Coverage Ledger L1〜L9 全行 OK（正本 doc 実文言との突合）。L2 = merge-tree が「記録上未実測の推奨手順」として明示区別済み / L3 = 二段 cap が `check-workflow-git.sh` 実装（`-gt 3` / `-gt 2`・同一範囲定義）と完全一致 / L9 = D-074 が Decision / Status / Why / Impact / Alternatives considered / Revisit の 6 項目完備、Revisit = merge-tree 事前判定の実測検証。
+- Audit B: M-S1〜M-S8 / M-S11 の anchor を独立再実行（`rg -F -c` exact 1 hit + repo 重複なし、全 PASS）。mutation は Writer 注入形と独立の 4 系統（単段→多段反転 / D-074 Revisit 行削除 / 二段 cap 数値改変 / referent 一致文削除）全 red → 復元 → tree clean。M-S9 = 既存契約行（D-055 / D-038 / D-039 / Wave Operation 既存 bullet / §5.6 既存文）の書換え 0 を hunk 単位で確認（diff 全行が追加のみ）。
+- 機械検査: `doc-consistency-check.sh` ERROR 0（既存 per_page WARN のみ）/ `generate_traceability --check` 不変 / `check-workflow-git.sh` PASS。規則発明の最終確認 = PR #86 一次資料と正本化文言の一致、未実測への外挿なし。
+- 未実施: reviewer は `local-ci.sh full` を diff scope（docs-only）判断で 3 点検査に代替。L1 full は Writer が content `496d0c4` で PASS 取得済みで、Ready 遷移後の exact HEAD で再取得する（規定どおり、envelope は PR body）。
+- 残る Human Gate = Ready 承認（介入 2 回目 / 予算 3 回）→ state-only 遷移 2 本目（`implementing -> local-verified -> independent-review -> human-confirm -> ready-hosted-final`、`Amendments` へ amendment commit 3 本を追記、Reviewed Content HEAD = `d21f5b9`）→ 同 HEAD 系で L1 full → PR body refresh → docs-only の explicit dispatch → 三点一致 → merge。
