@@ -4,16 +4,16 @@
 
 Use the field definitions, enums, transition evidence, packet-selection rule, and fail-closed behavior from `docs/DEV_WORKFLOW.md` `Workflow State`. Keep exactly one `- Key: value` line per field.
 
-- Phase: implementing
+- Phase: ready-hosted-final
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: 3829b95
-- Amendments: none
+- Amendments: 4ec0630, 2135aa0, d21f5b9
 - Coordinator: Fable
 - Writer: Codex
 - Plan Reviewer: Sonnet subagent（独立、Writer と別 context）
 - Final Reviewer: Sonnet subagent（独立、Writer と別 context）
-- Reviewed Content HEAD: pending
+- Reviewed Content HEAD: d21f5b9
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
 - Human Gate: owner plan approval / Ready / merge（画面変更なしのため visual confirmation なし）
@@ -286,3 +286,10 @@ anchor は汎用語の cross-reference hit を避け、rg -c で重複出現 0 �
 - 機械検査: `doc-consistency-check.sh` ERROR 0（既存 per_page WARN のみ）/ `generate_traceability --check` 不変 / `check-workflow-git.sh` PASS。規則発明の最終確認 = PR #86 一次資料と正本化文言の一致、未実測への外挿なし。
 - 未実施: reviewer は `local-ci.sh full` を diff scope（docs-only）判断で 3 点検査に代替。L1 full は Writer が content `496d0c4` で PASS 取得済みで、Ready 遷移後の exact HEAD で再取得する（規定どおり、envelope は PR body）。
 - 残る Human Gate = Ready 承認（介入 2 回目 / 予算 3 回）→ state-only 遷移 2 本目（`implementing -> local-verified -> independent-review -> human-confirm -> ready-hosted-final`、`Amendments` へ amendment commit 3 本を追記、Reviewed Content HEAD = `d21f5b9`）→ 同 HEAD 系で L1 full → PR body refresh → docs-only の explicit dispatch → 三点一致 → merge。
+
+### state-only 遷移 2 本目（2026-08-21、隣接 forward 圧縮）
+
+- `implementing -> local-verified -> independent-review -> human-confirm -> ready-hosted-final`（STATECAP forward 2/3、post-impl subset 1/2）。
+- evidence: local-verified = Writer L1 full PASS（content `496d0c4`、envelope は PR body）+ 本遷移後の exact HEAD で L1 full 再取得。independent-review = Final Review round 1 P1/P2/P3 = 0（content `d21f5b9`、Double Audit）。human-confirm = 本 change は画面変更なしで visual confirmation なし（Human Gate 構成どおり）、owner plan approval + Ready 承認で構成。ready-hosted-final = owner Ready 承認（owner 発言 `readyしたよー`、2026-08-21。介入 2 回目 / 予算 3 回）。
+- Amendments 行へ gated amendment 1〜3（`4ec0630` / `2135aa0` / `d21f5b9`）を追記、Reviewed Content HEAD = `d21f5b9` を設定（以後の差分 = Final Review 記録 `55e490e` + 本 state-only commit のみ）。
+- 運用逸脱の記録: DEV_WORKFLOW は Ready 遷移 commit を Draft 中に作成 → owner が Ready トリガーの順を規定するが、owner が承認と同時に GitHub 上の Ready 化を先行実施（非同期対応、PR #88 と同型）。本遷移 commit はその後になった。Ready 時点の趣旨（最終 exact HEAD での検証）は、本 commit を最終 HEAD として L1 full + docs-only explicit dispatch を取得することで充足する。
