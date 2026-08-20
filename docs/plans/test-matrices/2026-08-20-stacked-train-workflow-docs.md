@@ -11,7 +11,7 @@ docs-only change。検証は anchor token の rg exact 存在（新文言 exact 
 | M-S5 | L5 | DEV_WORKFLOW Review Rules | 連番契約 registry 採番規律 1 hit + 出典 PR 番号共起 | 規律文削除で 0 hit |
 | M-S6 | L6 | AGENT_OPERATING_MANUAL §5.6 | 節番号実在確認 1 hit | 同上 |
 | M-S7 | L7 | 同上 | 90-traceability 再生成の完了条件明記 1 hit | 同上 |
-| M-S8 | L8 | AGENT_OPERATING_MANUAL | fixture encoding 規律 1 hit | 同上 |
+| M-S8 | L8 | DEV_WORKFLOW Human Visual Confirmation For Screen Changes | fixture encoding 規律 1 hit | 同上 |
 | M-S9 | AC2 | 横断 | D-055「conflict-free rebase 限定」/ D-038 cap 3 / D-039 canonical subject の既存文言が不変（`git diff` で該当行 0 変更 or 参照追記のみ） | 既存契約文の書換えが diff に現れたら fail |
 | M-S10 | AC4 | 横断 | `scripts/local-ci.sh full` PASS / doc-consistency ERROR 0 / `generate_traceability --check` 不変 | — |
 
