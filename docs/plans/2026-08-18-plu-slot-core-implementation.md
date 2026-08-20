@@ -2,7 +2,7 @@
 
 ## Workflow State
 
-- Phase: implementing
+- Phase: ready-hosted-final
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: fade732
@@ -11,7 +11,7 @@
 - Writer: Codex
 - Plan Reviewer: Sonnet
 - Final Reviewer: Sonnet
-- Reviewed Content HEAD: pending
+- Reviewed Content HEAD: c03f8ec
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
 - Human Gate: Windows native L3（`67-ui §67.12` が UI-08 実装 PR に必須と規定。実機 Z004 読込み・Diff 投入・clear 行の CV17 受理 + レジ側未設定化、店舗訪問と同期）/ human visual confirmation（UI-08 snapshot step + 要約、UI-01b レジメモリNo.）/ Ready / merge（owner plan approval は 2026-08-18 に完了、介入 1 回目）
@@ -460,3 +460,9 @@ Do not transcribe exact-HEAD SHA or test counts here (D-035/D-038 Evidence Owner
 - Verdict: P1 0 / P2 0 / P3 1。隔離 worktree の clean tree で mutation 3 件（summary の release_pending 集計定数化 / UI diffCount の dirty-only 化 / D-052 C2 contract からの pluSlotSummary 削除）を独立注入し 3/3 KILLED（各注入後に復元・tree clean 確認）。oracle 独立性（invalidation-oracle は production contract 非 import、UI test 期待値は production 定数非依存）、`app_managed_count` 定義不変 + `release_pending_count` 内数の非退化 assert、docs↔実装 drift 0（D-052 C2/C14/C17/C18 対応の一次資料一致を含む）を確認。
 - 補完 evidence: 店 PC で `STATUS_ENTRYPOINT_NOT_FOUND` により実行不能だった新規 Rust test は、Linux 隔離 worktree での targeted 実行で PASS を独立取得済み（件数・log は PR body evidence）。
 - P3（accept、Coordinator 是正 = 上記 merge 記録）: rebase 試行時に packet の Plan Commit / Amendments SHA が HEAD の祖先でなくなっていた指摘。merge 方式への切替で原 SHA の ancestry が復帰し解消。
+
+### state-only 遷移 3 本目（2026-08-20、隣接 forward 圧縮）
+
+- `implementing -> local-verified -> independent-review -> human-confirm -> ready-hosted-final`（STATECAP forward 3/3）。
+- evidence: local-verified = L1 full PASS（merge + traceability 再生成後の content candidate、envelope は PR body）。independent-review = 上記 Final Review delta（P1 0 / P2 0）。human-confirm = L3 round 2 実機確認（PR コメント）+ owner Ready 承認（2026-08-20）。Reviewed Content HEAD = `c03f8ec` を本 commit で設定（review 済み content との差分は packet 記録 + generated traceability の docs-only / generated delta のみ）。
+- Owner Effort Budget 実績（最終再集計、decision point 単位）: 介入 5/3 — plan approval / L3 round 1 実施 + 報告 / L3 round 2 中の暫定パッチ承認 / L3 round 2 結果報告 / Ready 承認。超過 2 はいずれも L3 true positive（S6 / S9）起因として owner 承認時に明示済み。packet 事前想定（4/3）との差 1 は店 PC パッチ承認の個別計上による。relay 往復 3/2（既記録）、STATECAP forward 3/3。
