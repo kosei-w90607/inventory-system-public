@@ -222,3 +222,10 @@ anchor は汎用語の cross-reference hit を避け、rg -c で重複出現 0 �
 - P3-1（節番号規則の精度）: PR #84 実測は「実在しない節」でなく「実在する節の referent 不一致」（一次資料 = design packet の Coordinator 裁定行を round 2 が実読、Coordinator も本 round で再実読して確認）。Scope 3a を referent 一致確認まで拡張。
 - 新 D-n 裁定 = **D-074 新設で確定**。理由: D-055 は「file footprint 互いに素な並列 lane + rebase」を定義しており stacked train はその裏返し — 細則埋め込みは D-055 の暗黙拡張になる。D-039 の独立昇格 precedent、merge-tree 未実測項目の Revisit 構造化も新設側を支持。Coordinator の round 1 見解（細則で足りる）は撤回。
 - 是正 commit = 本 commit。round 3（天井）は fresh context で新規指摘 0 の収束確認。
+
+### Plan Gate rally round 3（2026-08-20、独立 Sonnet Plan Reviewer、fresh context、round 天井）
+
+- Verdict: **新規指摘 0、収束**（P1/P2/P3 = 0）。disposition route への遷移不要。
+- round 1 / 2 是正の全数適合を独立確認: D-074 新設の 6 箇所一貫（Scope 1 / Required Design Artifacts / Ledger L9 / M-S11 / Spec Contract / Plans.md entry）、STATECAP 二段 cap の script 実装一致（aggregate ≤3 / post-impl ≤2）、Scope 4 配置先の実在、D-073 が最終 entry で D-074 空き。
+- 新規角度の精査も指摘なし: Workflow State 13 field 形式一致・D-062 vendor 制約充足、D-074↔D-055 は単方向参照で循環なし（D-039 独立昇格 precedent と整合）、Non-scope 境界・AC 検証可能性・M-S9/M-S11 の実行可能性を確認。
+- Plan Gate 収束 = rally 3 round（P1+P2: 3 → 3 → 0、round 1 P1-1 は packet 自身が禁じる節引用欠陥の true positive）。次 = owner plan approval（介入 1 回目 / 予算 3 回）。
