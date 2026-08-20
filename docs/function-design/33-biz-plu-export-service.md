@@ -57,8 +57,11 @@ struct PluRegisterSnapshotSummary {
     external_count: usize,
     app_managed_count: usize,
     conflict_count: usize,
+    release_pending_count: usize,
 }
 ```
+
+`app_managed_count` は `reserved` / `active` / `release_pending` の総数、`release_pending_count` はそのうち次回 Diff / Full で clear 行を書き出す解除待ち件数を返す。後者は UI の Diff 可否判定に使うため、前者から推測しない。
 
 `NoFreeSlot` の operator 文言は「レジの空きスロットがありません」とする。件数上限との比較ではなく、snapshot 後に `free` slot がないという実状態を表す。
 
