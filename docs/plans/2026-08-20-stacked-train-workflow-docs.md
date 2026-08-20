@@ -33,6 +33,8 @@ Transition narrative（append-only）:
 
 ## Risk
 
+Risk: R3
+
 - R3（workflow docs change）。`docs/DEV_WORKFLOW.md` / `docs/AGENT_OPERATING_MANUAL.md` / `docs/templates/plan-packet.md` は全 change の運用規範であり、誤った規則の正本化は以後の全 PR に波及する。
 - 実装 code / 画面 / DB / wire への変更なし（docs-only）。
 
@@ -235,3 +237,10 @@ anchor は汎用語の cross-reference hit を避け、rg -c で重複出現 0 �
 - owner plan approval（介入 1 回目 / 予算 3 回、owner 発言 `両方とも承認するよ` = PR #88 Ready 承認との一括裁定）。D-074 新設・Scope 4 系統・Non-scope 分離に異論なし。
 - state-only 遷移（append-only、STATECAP forward 1 本目）: `plan-draft -> plan-gate -> plan-approved -> implementing` の隣接 forward 圧縮。evidence = plan-gate: rally round 1 開始（plan-first `3829b95` + round 1 発注）/ plan-approved: rally 3 round 収束 P1/P2 = 0（round 3 新規指摘 0、是正 commit `c6747f5` `dfe2cc5` `90854ce` 収束記録 `cd8375b`）+ owner approval / implementing: Plan Commit `3829b95`（plan-first、全実装 commit に先行）確定。Codex 発注書は本遷移後に提示。
 - 以後の予定: Codex Writer 実装（worktree 隔離）→ L1 full → 独立 Sonnet Final Review（Double Audit）→ Ready 承認（介入 2 回目）→ state-only 2 本目（`implementing -> local-verified -> independent-review -> human-confirm -> ready-hosted-final`。Human Gate に visual confirmation なしのため human-confirm の evidence は owner plan approval + Ready 承認で構成、PR #70 先例）→ docs-only の explicit dispatch で三点一致 → merge（介入 3 回目）。
+
+### gated amendment 1（2026-08-21、Codex Writer fail-closed 起源、true positive）
+
+- 事象: packet `## Risk` 節が bullet 形式（`- R3（...）`）のみで、PK1 の必須形式 = 行全体が `Risk: Rn` の standalone 行（`doc-consistency-check.sh` `get_valid_plan_risk` の `grep -xE`、先例 = PR #70 / #86 packet）を欠いており、`doc-consistency-check.sh` が ERROR 1 で fail。Writer の発注書は packet 変更を Implementation Results 追記に限定しているため fail-closed 停止（正しい停止判断）。
+- 検出経緯の記録: Coordinator 起草時と Plan Gate rally 3 round はいずれも doc-consistency-check を未実行（round 1 / 2 は「未実施」と明示申告、round 3 は plan-draft 段階の対象外整理）。checker 実行を伴う最初の工程 = Writer 着手時に検出された。plan-draft 段階の packet に対する checker 実行を rally 発注書へ含める改善は WER 候補として記録する。
+- 裁定 = A 案: `## Risk` 節冒頭へ standalone `Risk: R3` 行を追加（既存の説明 bullet は維持）。発注書の「packet は Implementation Results 以外変更禁止」は Writer / Coordinator の正しい分業のため改訂しない（B 案不採用）。設計意味は不変、Plan Commit `3829b95` 維持。
+- amendment commit = 本 commit（SHA は state-only 遷移 2 本目で Workflow State `Amendments` 行へ追記する）。
