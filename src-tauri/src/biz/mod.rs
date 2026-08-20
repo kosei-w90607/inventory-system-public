@@ -18,7 +18,7 @@ pub mod system_service;
 #[allow(unused_imports)]
 pub use crate::db::product_repo::{Department, Supplier};
 #[allow(unused_imports)]
-pub use crate::db::product_repo::{ProductSearchQuery, ProductWithRelations};
+pub use crate::db::product_repo::{ProductBulkFilter, ProductSearchQuery, ProductWithRelations};
 #[allow(unused_imports)]
 pub use crate::db::sales_repo::CsvImport;
 #[allow(unused_imports)]

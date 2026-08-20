@@ -217,12 +217,33 @@ pub struct ProductSearchQuery {
     pub department_id: Option<i64>,
     /// None=全件、Some(false)=現行品のみ、Some(true)=廃番のみ
     pub is_discontinued: Option<bool>,
+    #[serde(default)]
+    pub plu: Option<PluMigrationFilter>,
     pub sort_key: SortKey,
     pub sort_order: SortOrder,
     /// 1始まり。0以下は DbError::QueryFailed
     pub page: u32,
     /// 1以上。0は DbError::QueryFailed。デフォルト50
     pub per_page: u32,
+}
+
+/// PLU 対象一括更新用の商品検索条件（ページングなし）
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, specta::Type)]
+pub struct ProductBulkFilter {
+    pub keyword: Option<String>,
+    pub department_id: Option<i64>,
+    pub is_discontinued: Option<bool>,
+    pub plu: Option<PluMigrationFilter>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, specta::Type)]
+#[serde(rename_all = "snake_case")]
+pub enum PluMigrationFilter {
+    All,
+    Target,
+    Pending,
+    Synced,
+    Excluded,
 }
 
 /// 検索ソートキー
@@ -689,6 +710,20 @@ pub fn search_products(
         params.push(Box::new(discontinued));
     }
 
+    match query.plu {
+        Some(PluMigrationFilter::Target) => conditions.push("p.plu_target = 1".to_string()),
+        Some(PluMigrationFilter::Pending) => {
+            conditions.push("p.plu_target = 1 AND p.plu_dirty = 1".to_string());
+        }
+        Some(PluMigrationFilter::Synced) => {
+            conditions.push("p.plu_target = 1 AND p.plu_dirty = 0".to_string());
+        }
+        Some(PluMigrationFilter::Excluded) => {
+            conditions.push("p.plu_target = 0".to_string());
+        }
+        Some(PluMigrationFilter::All) | None => {}
+    }
+
     let where_clause = if conditions.is_empty() {
         String::new()
     } else {
@@ -753,6 +788,60 @@ pub fn search_products(
         page: query.page,
         per_page,
     })
+}
+
+/// PLU 対象一括更新用に filter 一致全件をページングなしで返す。
+pub fn find_products_for_bulk_plu_target(
+    conn: &DbConnection,
+    filter: &ProductBulkFilter,
+) -> Result<Vec<Product>, DbError> {
+    let mut conditions = Vec::new();
+    let mut params: Vec<Box<dyn rusqlite::types::ToSql>> = Vec::new();
+
+    if let Some(ref keyword) = filter.keyword {
+        let like = format!("%{}%", keyword);
+        let idx = params.len() + 1;
+        conditions.push(format!(
+            "(p.name LIKE ?{idx} OR p.product_code LIKE ?{idx} OR p.jan_code LIKE ?{idx})"
+        ));
+        params.push(Box::new(like));
+    }
+    if let Some(department_id) = filter.department_id {
+        conditions.push(format!("p.department_id = ?{}", params.len() + 1));
+        params.push(Box::new(department_id));
+    }
+    if let Some(is_discontinued) = filter.is_discontinued {
+        conditions.push(format!("p.is_discontinued = ?{}", params.len() + 1));
+        params.push(Box::new(is_discontinued));
+    }
+    match filter.plu {
+        Some(PluMigrationFilter::Target) => conditions.push("p.plu_target = 1".to_string()),
+        Some(PluMigrationFilter::Pending) => {
+            conditions.push("p.plu_target = 1 AND p.plu_dirty = 1".to_string());
+        }
+        Some(PluMigrationFilter::Synced) => {
+            conditions.push("p.plu_target = 1 AND p.plu_dirty = 0".to_string());
+        }
+        Some(PluMigrationFilter::Excluded) => conditions.push("p.plu_target = 0".to_string()),
+        Some(PluMigrationFilter::All) | None => {}
+    }
+    let where_clause = if conditions.is_empty() {
+        String::new()
+    } else {
+        format!("WHERE {}", conditions.join(" AND "))
+    };
+    let sql = format!(
+        "SELECT p.product_code, p.jan_code, p.name, p.department_id, p.supplier_id,
+                p.selling_price, p.cost_price, p.tax_rate, p.maker_code,
+                p.stock_quantity, p.stock_unit, p.is_discontinued,
+                p.plu_dirty, p.plu_exported_at, p.plu_target, p.pos_stock_sync,
+                p.created_at, p.updated_at
+         FROM products p {where_clause} ORDER BY p.product_code ASC"
+    );
+    let params_ref: Vec<&dyn rusqlite::types::ToSql> = params.iter().map(|p| p.as_ref()).collect();
+    let mut stmt = conn.prepare(&sql)?;
+    let rows = stmt.query_map(params_ref.as_slice(), row_to_product)?;
+    rows.collect::<Result<Vec<_>, _>>().map_err(DbError::from)
 }
 
 /// 商品の指定フィールドを更新する
@@ -1347,11 +1436,83 @@ mod tests {
             keyword: None,
             department_id: None,
             is_discontinued: None,
+            plu: None,
             sort_key: SortKey::ProductCode,
             sort_order: SortOrder::Asc,
             page: 1,
             per_page: 50,
         }
+    }
+
+    #[test]
+    fn test_search_products_req907_filters_plu_migration_states() {
+        let (_dir, conn) = setup_test_db();
+        let fixtures = [
+            ("PLU-EXCLUDED-A", false, false, false),
+            ("PLU-PENDING", true, true, false),
+            ("PLU-SYNCED", true, false, false),
+            ("PLU-EXCLUDED-D", false, false, true),
+        ];
+        for (code, target, dirty, discontinued) in fixtures {
+            let mut product = create_test_product(code, code, 1);
+            product.plu_target = target;
+            product.plu_dirty = dirty;
+            product.is_discontinued = discontinued;
+            insert_product(&conn, &product).unwrap();
+        }
+
+        let cases = [
+            (PluMigrationFilter::All, 4),
+            (PluMigrationFilter::Target, 2),
+            (PluMigrationFilter::Pending, 1),
+            (PluMigrationFilter::Synced, 1),
+            (PluMigrationFilter::Excluded, 2),
+        ];
+        for (filter, expected) in cases {
+            let mut query = default_search_query();
+            query.plu = Some(filter);
+            let result = search_products(&conn, &query).unwrap();
+            assert_eq!(result.total_count, expected, "filter={filter:?}");
+        }
+
+        let mut active_excluded = default_search_query();
+        active_excluded.plu = Some(PluMigrationFilter::Excluded);
+        active_excluded.is_discontinued = Some(false);
+        assert_eq!(
+            search_products(&conn, &active_excluded)
+                .unwrap()
+                .total_count,
+            1
+        );
+    }
+
+    #[test]
+    fn test_product_search_query_req907_deserializes_optional_plu_filter() {
+        let base = serde_json::json!({
+            "keyword": null,
+            "department_id": null,
+            "is_discontinued": null,
+            "sort_key": "ProductCode",
+            "sort_order": "Asc",
+            "page": 1,
+            "per_page": 50
+        });
+        let omitted: ProductSearchQuery = serde_json::from_value(base.clone()).unwrap();
+        assert_eq!(omitted.plu, None);
+
+        let mut with_null = base.clone();
+        with_null["plu"] = serde_json::Value::Null;
+        let with_null: ProductSearchQuery = serde_json::from_value(with_null).unwrap();
+        assert_eq!(with_null.plu, None);
+
+        let mut with_pending = base.clone();
+        with_pending["plu"] = serde_json::json!("pending");
+        let with_pending: ProductSearchQuery = serde_json::from_value(with_pending).unwrap();
+        assert_eq!(with_pending.plu, Some(PluMigrationFilter::Pending));
+
+        let mut bogus = base;
+        bogus["plu"] = serde_json::json!("bogus");
+        assert!(serde_json::from_value::<ProductSearchQuery>(bogus).is_err());
     }
 
     /// テストデータ（複数商品）を投入するヘルパー

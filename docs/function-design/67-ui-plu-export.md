@@ -178,6 +178,8 @@ UI-08 implementation PRでは Windows native L3 と外部手順確認を必須�
 - CV17 1.1.1へ保存済み `.txt` を投入し、受理可否、列差異、エラー文言を匿名化して記録する
 - CV17 import が通っても、SD-card書出し / SR-S4000設定読込 / register scan-call が通るまで外部manual gateは未通過とする
 
+**適用範囲（D-073、2026-08-19）**: CV17 / SR-S4000 を伴う Windows native L3 は、(1) PLU file 形状（IO-04 出力の header / field / 値）、(2) レジ向け field 値（固定列・課税方式・部門リンク等）、(3) UI-08 の書出し・confirm・復帰の operator flow、のいずれかに触れる PR に必須とする。いずれにも触れない PR（商品一覧の PLU 移行表示・一括対象化・CSV `PLU対象` 列等）は human visual confirmation で足り、レジ実機と CV17 を要さない。
+
 ## 67.13 Non-scope
 
 - レジ反映の自動確認

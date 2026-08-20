@@ -14,6 +14,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import type { ProductWithRelations } from "@/lib/bindings";
+import { CircleCheck, CircleMinus, Clock3 } from "lucide-react";
 
 export interface ProductTableProps {
   items: ProductWithRelations[];
@@ -36,6 +37,7 @@ export function ProductTable({ items, returnTo = "/products" }: ProductTableProp
           <TableHead>部門</TableHead>
           <TableHead className="text-right">売価</TableHead>
           <TableHead className="text-right">在庫数</TableHead>
+          <TableHead>PLU</TableHead>
           <TableHead className="text-right">操作</TableHead>
         </TableRow>
       </TableHeader>
@@ -61,6 +63,24 @@ export function ProductTable({ items, returnTo = "/products" }: ProductTableProp
             </TableCell>
             <TableCell className="text-right tabular-nums">
               {item.stock_quantity.toLocaleString("ja-JP")} {item.stock_unit}
+            </TableCell>
+            <TableCell>
+              {!item.plu_target ? (
+                <Badge variant="outline" className="gap-1 whitespace-nowrap">
+                  <CircleMinus className="size-3" aria-hidden="true" />
+                  対象外
+                </Badge>
+              ) : item.plu_dirty ? (
+                <Badge variant="secondary" className="gap-1 whitespace-nowrap">
+                  <Clock3 className="size-3" aria-hidden="true" />
+                  未反映
+                </Badge>
+              ) : (
+                <Badge variant="default" className="gap-1 whitespace-nowrap">
+                  <CircleCheck className="size-3" aria-hidden="true" />
+                  反映済み
+                </Badge>
+              )}
             </TableCell>
             <TableCell className="text-right">
               <Button type="button" variant="outline" size="sm" asChild>

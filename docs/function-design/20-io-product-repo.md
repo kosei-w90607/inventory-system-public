@@ -90,7 +90,27 @@ fn search_products(conn: &DbConnection, query: &ProductSearchQuery) -> Result<Pa
 
 `ProductWithRelations` には `plu_slots` を JAN で LEFT JOIN した読取り専用 `plu_memory_no` を追加する。対象 status は `reserved` / `active` / `release_pending` とし、product_code を slot identity に使わない（**IO-01-D4 / SPEC-PLS-D1、D7**）。同一 JAN に複数行が該当する場合（重複解消後の `active` + `release_pending`、`release_pending` 複数行）は `reserved` / `active` を優先し、`release_pending` のみなら最小 memory No. の 1 行に絞る（商品 1 行につき `plu_memory_no` は 1 値、行を増やさない）。
 
-一括 PLU 対象更新では、同じ keyword / department / discontinued 条件をページングなしで返す `find_products_for_bulk_plu_target(conn, filter)` を使う。BIZ-01 が 1 transaction 内で eligibility 判定、slot 解放、product 更新を行えるよう、repo は SQL 抽出・更新だけを担当する（SPEC-PLS-D6）。
+一括 PLU 対象更新では、同じ keyword / department / discontinued / plu 条件をページングなしで返す `find_products_for_bulk_plu_target(conn, filter)` を使う。`ProductBulkFilter` は `PluMigrationFilter` と同じ db 層 `product_repo` 所有で、BIZ が再 export する。BIZ-01 が 1 transaction 内で eligibility 判定、slot 解放、product 更新を行えるよう、repo は SQL 抽出・更新だけを担当する（SPEC-PLS-D6）。
+
+```rust
+pub fn find_products_for_bulk_plu_target(
+    conn: &DbConnection,
+    filter: &ProductBulkFilter,
+) -> Result<Vec<Product>, DbError>
+```
+
+#### db::plu_slot_repo（IO-01-D4 / SPEC-PLS-D1）
+
+`plu_slots` の ordered lookup と状態遷移だけを担当し、transaction は呼出側 BIZ-04 が所有する。
+
+```rust
+pub fn list_slots(conn: &DbConnection) -> Result<Vec<PluSlot>, DbError>
+pub fn find_slots_by_scanning_code(conn: &DbConnection, scanning_code: &str) -> Result<Vec<PluSlot>, DbError>
+pub fn find_slots_by_status(conn: &DbConnection, status: PluSlotStatus) -> Result<Vec<PluSlot>, DbError>
+pub fn find_slot_by_memory_no(conn: &DbConnection, memory_no: i64) -> Result<Option<PluSlot>, DbError>
+pub fn find_min_free_slot(conn: &DbConnection) -> Result<Option<PluSlot>, DbError>
+pub fn update_slot(conn: &DbConnection, update: PluSlotUpdate<'_>) -> Result<(), DbError>
+```
 
 #### db::plu_slot_repo（IO-01-D4 / SPEC-PLS-D1）
 

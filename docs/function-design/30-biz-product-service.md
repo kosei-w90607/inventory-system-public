@@ -276,7 +276,8 @@ struct ImportRow {
     maker_code: Option<String>,
     supplier_id: Option<i64>,
     pos_stock_sync: Option<bool>,   // 省略時 true
-    plu_target: Option<bool>,       // 任意列「PLU対象」。空欄は None
+    plu_target: Option<bool>,       // 任意列「PLU対象」。空欄は None。`1` + JAN 不備は Some(false) へ正規化
+    warnings: Vec<String>,          // preview warning（`1` + JAN 不備 等）。通常は空。wire では #[serde(default)]（PR #86 gated amendment 1）
 }
 ```
 
@@ -381,9 +382,9 @@ fn bulk_set_plu_target(
 ) -> Result<BulkPluTargetResult, BizError>
 ```
 
-現在 filter（keyword / department / discontinued）に一致する**全件**をページングなしで対象にし、1 transaction で更新する。
+現在 filter（keyword / department / discontinued / plu）に一致する**全件**をページングなしで対象にし、1 transaction で更新する。`ProductBulkFilter` は db 層 `product_repo` 所有で、BIZ が再 export する。
 
-- ON: 未廃番かつ有効な 13 桁 JAN の商品だけを `plu_target=1`, `plu_dirty=1` にする。JAN 不備と廃番はそれぞれ skip 件数へ積む
+- ON: `plu_target=0` のうち未廃番かつ有効な 13 桁 JAN の商品だけを `plu_target=1`, `plu_dirty=1` にする。既に `plu_target=1` の行は `plu_dirty` を含め無変更とする。JAN 不備と廃番はそれぞれ skip 件数へ積む
 - OFF: filter 一致全件を `plu_target=0` にし、1→0 の商品は BIZ-04 解放 trigger を呼ぶ
 - result: `matched_count`, `updated_count`, `invalid_jan_skipped_count`, `discontinued_skipped_count`
 - operation_logs: filter の正規化要約、要求値、各件数を記録する。対象 product の実 JAN 一覧は記録しない

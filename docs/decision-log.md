@@ -389,10 +389,10 @@ Use concise ADR-style entries.
 - Revisit: ①操作ログ保持期間を超える恒久補正履歴が要求された場合、②在庫変動履歴画面だけで全在庫変化理由を追跡する要求が確定した場合。その際の再設計候補は quantity=0 marker movement ではなく専用 correction ledger を含めて評価する。
 
 ## D-052
-- Decision: frontend mutation 成功後の consumer query invalidation は `src/lib/invalidation-contract.ts` を実装 SSOT とする。対象は D-052-C1〜C18 の 18 mutation entry / 21 success handler 呼出し（`rg -c "invalidateByContract\(" src/features --glob '!**/*.test.*'` 合計、2026-08-20 実測。C18 は PR #85 Windows native L3 round 2 follow-up で追加）で、各 handler は SSOT 適用 helper を経由する。集合は「mutation が確定した table.column を query result が読むなら invalidate」で導出し、除外は `docs/UI_TECH_STACK.md` §2.5 の E1〜E6 だけを根拠とする。逆方向では、対象 key / prefix 配下に正当な consumer がゼロの invalidate を過剰として禁止する。正当な consumer を一つでも含む prefix と、その child collateral は許容する。test は production SSOT を import せず、D-052-Cn から独立転記した oracle と実呼出し集合を順序非依存・重複検出付きで完全一致比較する。
+- Decision: frontend mutation 成功後の consumer query invalidation は `src/lib/invalidation-contract.ts` を実装 SSOT とする。対象は D-052-C1〜C19 の 19 mutation entry / 22 success handler 呼出し（`rg -c "invalidateByContract\(" src/features --glob '!**/*.test.*'` 合計、2026-08-20 実測。C18 は PR #85 Windows native L3 round 2 follow-up、C19 は PR #86 bulk onboarding で追加）で、各 handler は SSOT 適用 helper を経由する。集合は「mutation が確定した table.column を query result が読むなら invalidate」で導出し、除外は `docs/UI_TECH_STACK.md` §2.5 の E1〜E6 だけを根拠とする。逆方向では、対象 key / prefix 配下に正当な consumer がゼロの invalidate を過剰として禁止する。正当な consumer を一つでも含む prefix と、その child collateral は許容する。test は production SSOT を import せず、D-052-Cn から独立転記した oracle と実呼出し集合を順序非依存・重複検出付きで完全一致比較する。
 - Status: accepted（2026-07-23、監査是正 順 4）
 - Why: mutation ごとの page / hook に key 列挙が分散し、商品 form、整合性補正、棚卸し確定、CSV commit/rollback、閾値部分成功などで consumer cache の invalidate 欠落が再発していた。欠落だけでなく正当 consumer がない CSV commit/rollback から `pluDirty` を invalidate する過剰も契約化時に除去した。production SSOT と test が同じ集合を読む案は、key を削る mutant が実装と期待値を同時に縮めて green になる共有 tautology のため却下した。
-- Contract: C1 商品 create、C2 商品 update/廃番 toggle、C3 商品一括 import、C4 入庫、C5 返品（`register_processed` 条件付き）、C6 手動販売、C7 廃棄、C8 売上 CSV commit、C9 売上 CSV rollback、C10 日報 import commit/rollback、C11 棚卸し確定、C12 整合性補正、C13 閾値保存（部分成功を含む）、C14 PLU 書出し confirm、C15 棚卸し開始、C16 棚卸し明細個数更新、C17 レジ登録状況 snapshot 取込み、C18 PLU prepare 成功。PLU slot summary は C2 / C14 / C17 / C18 で stale 化する。各集合の実体は production SSOT、導出原則と除外は UI_TECH_STACK §2.5 を正本とし、function-design に key 全量を複製しない。
+- Contract: C1 商品 create、C2 商品 update/廃番 toggle、C3 商品一括 import、C4 入庫、C5 返品（`register_processed` 条件付き）、C6 手動販売、C7 廃棄、C8 売上 CSV commit、C9 売上 CSV rollback、C10 日報 import commit/rollback、C11 棚卸し確定、C12 整合性補正、C13 閾値保存（部分成功を含む）、C14 PLU 書出し confirm、C15 棚卸し開始、C16 棚卸し明細個数更新、C17 レジ登録状況 snapshot 取込み（`import_plu_register_snapshot` 成功、PR #85 / D-072）、C18 PLU prepare 成功（PR #85 L3 round 2 follow-up）、C19 PLU 対象一括更新（`bulk_set_plu_target` 成功、PR #86 / D-073）。PLU slot summary は C2 / C14 / C17 / C18 / C19 で stale 化する。各集合の実体は production SSOT、導出原則と除外は UI_TECH_STACK §2.5 を正本とし、function-design に key 全量を複製しない。
 - Enforcement: `queryKeys.stockMovements.root()`、`productForm.root()`、`dailySalesRoot()` を prefix helper として追加する。prefix は正当な consumer を一つ以上含むことを契約レビューで確認し、child collateral は E2 に従う。success-path の直接 `invalidateQueries` は静的回帰テストで拒否し、backup/restore domain と棚卸し conflict/error 防御の named helper だけを明示例外とする。契約テストは欠落・余分・重複をすべて red にする。
 - Alternatives considered: 各 page への個別追記（再発面積を残すため却下）; function-design の key 列挙を正本にする（二重管理になるため却下）; production SSOT を test expectation に共有する（mutation survivor を生むため却下）; 全 query invalidate（過剰 refetch で契約の意味を失うため却下）。
 - Revisit: backend の書込み table.column、query の読取り列、または E1〜E6 の除外判断が変わるとき。契約変更では production SSOT、独立 oracle、UI_TECH_STACK、該当 function-design を同一 PR で更新し、production-only mutation 感度を再実測する。
@@ -580,3 +580,12 @@ Use concise ADR-style entries.
 - Impact: migration v5 の `plu_slots`、snapshot 用 app_settings、IO-02 占有 mode、BIZ-04 の照合・予約・解放、IO-04 clear 行、CMD / generated DTO、UI-08 snapshot step、商品 CSV / 一括操作 / 移行状態表示を後続実装 A / B で追加する。PLU slot 状態は売上・在庫・会計集計へ影響させない。
 - Alternatives considered: CV17 のレジ設定書出し file を占有 source にする案（照合に不要な列と operator の追加操作を増やすため不採用）; 毎回の再採番を維持して投入を限定する案（段階導入と安全な Diff を阻害）; clear confirm 前に slot を再利用する案（レジ側に旧商品が残る衝突を招くため不採用）。
 - Revisit: `no_free_slot` が発生して空き枯渇の兆候が出たとき、または CV17 / SR-S4000 が exact clear 行を受理しないことが Windows native L3 で判明したとき。clear が確認できるまで release_pending slot は再利用しない。
+
+## D-073: Windows native L3（CV17 / SR-S4000）の適用範囲（2026-08-19）
+
+- Decision: CV17 / SR-S4000 を伴う Windows native L3 は、(1) PLU file 形状（IO-04 出力の header / field / 値）、(2) レジ向け field 値（固定列・課税方式・部門リンク等）、(3) UI-08 の書出し・confirm・復帰の operator flow、のいずれかに触れる PR に必須とする。いずれにも触れない PR（商品一覧の PLU 移行表示・一括対象化・CSV `PLU対象` 列等）は human visual confirmation で足り、レジ実機と CV17 を要さない。
+- Status: accepted（owner 提案 2026-08-19、PR #86 plan approval）
+- Why: PR #85 L3 round 1 で product 行の CV17 受理とレジ挙動は実証済みで、PLU file を 1 byte も変えない PR に店舗訪問を課すと runway が止まる。
+- Impact: `67-ui §67.12` の適用範囲条項、および以後の PLU 関連 Plan Packet の Human Gate 判定に適用する。
+- Alternatives considered: 全 PLU PR に一律 L3（観測差分のない変更にも実機確認を課すため不採用）。
+- Revisit: PLU file 形状または register 挙動に関わる契約変更時。

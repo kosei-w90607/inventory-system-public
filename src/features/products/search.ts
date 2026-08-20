@@ -2,7 +2,13 @@
 //
 // UI-01a-D1〜D4: URL search params と ProductSearchQuery の変換を一箇所に集約する。
 
-import type { ProductSearchQuery, SortKey, SortOrder } from "@/lib/bindings";
+import type {
+  PluMigrationFilter,
+  ProductBulkFilter,
+  ProductSearchQuery,
+  SortKey,
+  SortOrder,
+} from "@/lib/bindings";
 import { z } from "zod";
 
 export const PRODUCT_DISCONTINUED_OPTIONS = [
@@ -10,6 +16,13 @@ export const PRODUCT_DISCONTINUED_OPTIONS = [
   { value: "all", label: "すべて", payload: null },
   { value: "discontinued", label: "廃番のみ", payload: true },
 ] as const;
+export const PRODUCT_PLU_OPTIONS = [
+  { value: "all", label: "すべて", payload: "all" },
+  { value: "target", label: "対象", payload: "target" },
+  { value: "pending", label: "未反映", payload: "pending" },
+  { value: "synced", label: "反映済み", payload: "synced" },
+  { value: "excluded", label: "対象外", payload: "excluded" },
+] as const satisfies readonly { value: string; label: string; payload: PluMigrationFilter }[];
 export const PRODUCT_SORT_OPTIONS = [
   { value: "product_code", label: "商品コード", payload: "ProductCode" },
   { value: "name", label: "商品名", payload: "Name" },
@@ -23,6 +36,7 @@ export const PRODUCT_SORT_DIRECTION_OPTIONS = [
 export const PRODUCT_PER_PAGE_OPTIONS = [50, 100, 200] as const;
 
 export type ProductDiscontinuedMode = (typeof PRODUCT_DISCONTINUED_OPTIONS)[number]["value"];
+export type ProductPluMode = (typeof PRODUCT_PLU_OPTIONS)[number]["value"];
 export type ProductSortParam = (typeof PRODUCT_SORT_OPTIONS)[number]["value"];
 export type ProductSortDirParam = (typeof PRODUCT_SORT_DIRECTION_OPTIONS)[number]["value"];
 export type ProductPerPage = (typeof PRODUCT_PER_PAGE_OPTIONS)[number];
@@ -34,6 +48,7 @@ function descriptorValues<
 }
 
 const PRODUCT_DISCONTINUED_VALUES = descriptorValues(PRODUCT_DISCONTINUED_OPTIONS);
+const PRODUCT_PLU_VALUES = descriptorValues(PRODUCT_PLU_OPTIONS);
 const PRODUCT_SORT_VALUES = descriptorValues(PRODUCT_SORT_OPTIONS);
 const PRODUCT_SORT_DIRECTION_VALUES = descriptorValues(PRODUCT_SORT_DIRECTION_OPTIONS);
 
@@ -41,6 +56,7 @@ export const productListSearchSchema = z.object({
   q: z.string().max(100).optional().catch(undefined),
   dept: z.coerce.number().int().positive().optional().catch(undefined),
   discontinued: z.enum(PRODUCT_DISCONTINUED_VALUES).optional().catch(undefined),
+  plu: z.enum(PRODUCT_PLU_VALUES).optional().catch(undefined),
   sort: z.enum(PRODUCT_SORT_VALUES).optional().catch(undefined),
   dir: z.enum(PRODUCT_SORT_DIRECTION_VALUES).optional().catch(undefined),
   page: z.coerce.number().int().positive().optional().catch(undefined),
@@ -59,6 +75,7 @@ export interface ProductListSearchInput {
   q?: unknown;
   dept?: unknown;
   discontinued?: unknown;
+  plu?: unknown;
   sort?: unknown;
   dir?: unknown;
   page?: unknown;
@@ -73,6 +90,7 @@ export interface NormalizedProductListSearch {
   q: string | undefined;
   dept: number | undefined;
   discontinued: ProductDiscontinuedMode;
+  plu: ProductPluMode;
   sort: ProductSortParam;
   dir: ProductSortDirParam;
   page: number;
@@ -89,6 +107,9 @@ const sortOrderMap = Object.fromEntries(
 const discontinuedMap = Object.fromEntries(
   PRODUCT_DISCONTINUED_OPTIONS.map(({ value, payload }) => [value, payload]),
 ) as Record<ProductDiscontinuedMode, boolean | null>;
+const pluMap = Object.fromEntries(
+  PRODUCT_PLU_OPTIONS.map(({ value, payload }) => [value, payload]),
+) as Record<ProductPluMode, PluMigrationFilter>;
 
 function normalizeString(value: unknown): string | undefined {
   if (typeof value !== "string") return undefined;
@@ -124,6 +145,7 @@ export function normalizeProductListSearch(
     q: normalizeString(input.q),
     dept: normalizeDepartment(input.dept),
     discontinued: normalizeEnum(input.discontinued, PRODUCT_DISCONTINUED_VALUES, "active"),
+    plu: normalizeEnum(input.plu, PRODUCT_PLU_VALUES, "all"),
     sort: normalizeEnum(input.sort, PRODUCT_SORT_VALUES, "product_code"),
     dir: normalizeEnum(input.dir, PRODUCT_SORT_DIRECTION_VALUES, "asc"),
     page: normalizePositiveInt(input.page, 1),
@@ -138,10 +160,21 @@ export function buildProductSearchQuery(search: ProductListSearchInput): Product
     keyword: normalized.q ?? null,
     department_id: normalized.dept ?? null,
     is_discontinued: discontinuedMap[normalized.discontinued],
+    plu: pluMap[normalized.plu],
     sort_key: sortKeyMap[normalized.sort],
     sort_order: sortOrderMap[normalized.dir],
     page: normalized.page,
     per_page: normalized.perPage,
+  };
+}
+
+export function buildProductBulkFilter(search: ProductListSearchInput): ProductBulkFilter {
+  const normalized = normalizeProductListSearch(search);
+  return {
+    keyword: normalized.q ?? null,
+    department_id: normalized.dept ?? null,
+    is_discontinued: discontinuedMap[normalized.discontinued],
+    plu: pluMap[normalized.plu],
   };
 }
 
@@ -153,6 +186,7 @@ export function updateProductListSearch(
   if ("q" in patch) next.q = patch.q;
   if ("dept" in patch) next.dept = patch.dept ?? undefined;
   if ("discontinued" in patch) next.discontinued = patch.discontinued;
+  if ("plu" in patch) next.plu = patch.plu;
   if ("sort" in patch) next.sort = patch.sort;
   if ("dir" in patch) next.dir = patch.dir;
   if ("page" in patch) next.page = patch.page;

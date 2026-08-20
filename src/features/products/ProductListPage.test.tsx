@@ -9,6 +9,8 @@ import { useState, type ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { commands } from "@/lib/bindings";
+import { toast } from "sonner";
+import { d052InvalidationOracle, expectExactInvalidations } from "@/test/invalidation-oracle";
 import { makeMockDepartment, makeMockProductWithRelations } from "./lib/test-fixtures";
 import { ProductListPage } from "./ProductListPage";
 import type { ProductListSearch } from "./search";
@@ -37,11 +39,15 @@ vi.mock("@/lib/bindings", () => ({
     searchProducts: vi.fn(),
     listDepartments: vi.fn(),
     listSuppliers: vi.fn(),
+    bulkSetPluTarget: vi.fn(),
   },
 }));
+vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
 const mockSearchProducts = vi.mocked(commands.searchProducts);
 const mockListDepartments = vi.mocked(commands.listDepartments);
+const mockBulkSetPluTarget = vi.mocked(commands.bulkSetPluTarget);
+const mockToastSuccess = vi.mocked(toast.success);
 
 function renderWithClient(ui: ReactNode) {
   const qc = new QueryClient({
@@ -53,9 +59,123 @@ function renderWithClient(ui: ReactNode) {
 beforeEach(() => {
   mockSearchProducts.mockReset();
   mockListDepartments.mockReset();
+  mockBulkSetPluTarget.mockReset();
+  mockToastSuccess.mockReset();
 });
 
 describe("ProductListPage (UI-01a)", () => {
+  it("REQ-907 B-V2: restores the PLU filter selection and sends the normalized search payload", async () => {
+    mockSearchProducts.mockResolvedValue({
+      status: "ok",
+      data: {
+        items: [makeMockProductWithRelations({ product_code: "PLU-FILTER" })],
+        total_count: 1,
+        page: 1,
+        per_page: 50,
+      },
+    });
+    mockListDepartments.mockResolvedValue({ status: "ok", data: [] });
+
+    renderWithClient(
+      <ProductListPage search={{ discontinued: "all", plu: "pending" }} onSearchChange={vi.fn()} />,
+    );
+
+    await screen.findByText("PLU-FILTER");
+    expect(screen.getByRole("button", { name: "未反映" })).toHaveAttribute("aria-pressed", "true");
+    expect(mockSearchProducts).toHaveBeenCalledWith({
+      keyword: null,
+      department_id: null,
+      is_discontinued: null,
+      plu: "pending",
+      sort_key: "ProductCode",
+      sort_order: "Asc",
+      page: 1,
+      per_page: 50,
+    });
+  });
+
+  it("REQ-907 B-V3: confirms filter-wide bulk target, toasts counts, and invalidates C19", async () => {
+    const user = userEvent.setup();
+    mockSearchProducts.mockResolvedValue({
+      status: "ok",
+      data: {
+        items: [makeMockProductWithRelations({ product_code: "PLU-BULK" })],
+        total_count: 37,
+        page: 1,
+        per_page: 50,
+      },
+    });
+    mockListDepartments.mockResolvedValue({ status: "ok", data: [makeMockDepartment({ id: 2 })] });
+    mockBulkSetPluTarget.mockResolvedValue({
+      status: "ok",
+      data: {
+        matched_count: 37,
+        updated_count: 31,
+        invalid_jan_skipped_count: 4,
+        discontinued_skipped_count: 2,
+      },
+    });
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false, gcTime: Number.POSITIVE_INFINITY } },
+    });
+    const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries");
+    render(
+      <QueryClientProvider client={queryClient}>
+        <ProductListPage
+          search={{ q: "  糸  ", dept: 2, discontinued: "all", plu: "pending" }}
+          onSearchChange={vi.fn()}
+        />
+      </QueryClientProvider>,
+    );
+    await screen.findByText("PLU-BULK");
+    await user.click(screen.getByRole("button", { name: "PLU 対象にする" }));
+    expect(screen.getByText("表示中の商品をPLU対象にしますか")).toBeInTheDocument();
+    expect(screen.getByText(/現在の絞り込み条件に一致する 37 件が対象です/)).toBeInTheDocument();
+    expect(screen.getByText(/PLU 書出しと PC ツールの取込みが別途必要です/)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "キャンセル" }));
+    expect(mockBulkSetPluTarget).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole("button", { name: "PLU 対象にする" }));
+    const dialog = screen.getByRole("alertdialog");
+    await user.click(within(dialog).getByRole("button", { name: "PLU 対象にする" }));
+    await waitFor(() => {
+      expect(mockBulkSetPluTarget).toHaveBeenCalledWith(
+        { keyword: "糸", department_id: 2, is_discontinued: null, plu: "pending" },
+        true,
+      );
+    });
+    expect(mockToastSuccess).toHaveBeenCalledWith(
+      "31 件を更新しました（JAN 不備 4 件 / 廃番 2 件は対象外）",
+    );
+    expectExactInvalidations(invalidateSpy.mock.calls, d052InvalidationOracle.pluBulkTarget());
+  });
+
+  it("REQ-907 B-V3: sends false for exclusion and shows a destructive failure alert", async () => {
+    const user = userEvent.setup();
+    mockSearchProducts.mockResolvedValue({
+      status: "ok",
+      data: { items: [makeMockProductWithRelations()], total_count: 1, page: 1, per_page: 50 },
+    });
+    mockListDepartments.mockResolvedValue({ status: "ok", data: [] });
+    mockBulkSetPluTarget.mockResolvedValue({
+      status: "error",
+      error: { kind: "internal", message: "synthetic failure", field: null, error_id: null },
+    });
+    renderWithClient(<ProductListPage search={{ plu: "synced" }} onSearchChange={vi.fn()} />);
+    await screen.findByText("P-0001");
+    await user.click(screen.getByRole("button", { name: "PLU 対象から外す" }));
+    const dialog = screen.getByRole("alertdialog");
+    expect(within(dialog).getByText("表示中の商品をPLU対象から外しますか")).toBeInTheDocument();
+    await user.click(within(dialog).getByRole("button", { name: "PLU 対象から外す" }));
+    await waitFor(() => {
+      expect(mockBulkSetPluTarget).toHaveBeenCalledWith(
+        { keyword: null, department_id: null, is_discontinued: false, plu: "synced" },
+        false,
+      );
+    });
+    expect(await screen.findByText("PLU対象の一括更新に失敗しました")).toBeInTheDocument();
+  });
+
   it("renders active product list with department master options", async () => {
     mockSearchProducts.mockResolvedValue({
       status: "ok",
@@ -142,6 +262,8 @@ describe("ProductListPage (UI-01a)", () => {
       screen.getByText("検索条件を変更するか、新しい商品を登録してください"),
     ).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "商品を登録する" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "PLU 対象にする" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "PLU 対象から外す" })).toBeDisabled();
   });
 
   it("shows department loading failure without breaking product search controls", async () => {

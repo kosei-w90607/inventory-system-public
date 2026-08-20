@@ -16,6 +16,8 @@ export const commands = {
 	toggleDiscontinue: (productCode: string) => typedError<boolean, CmdError>(__TAURI_INVOKE("toggle_discontinue", { productCode })),
 	// 商品を検索する（ページング対応）
 	searchProducts: (query: ProductSearchQuery) => typedError<PaginatedResult<ProductWithRelations>, CmdError>(__TAURI_INVOKE("search_products", { query })),
+	// 現在の filter 一致全件の PLU 対象状態を更新する。
+	bulkSetPluTarget: (filter: ProductBulkFilter, pluTarget: boolean) => typedError<BulkPluTargetResult, CmdError>(__TAURI_INVOKE("bulk_set_plu_target", { filter, pluTarget })),
 	// 部門選択候補を全件取得する
 	listDepartments: () => typedError<Department[], CmdError>(__TAURI_INVOKE("list_departments")),
 	// 取引先選択候補を全件取得する
@@ -357,6 +359,14 @@ export type BackupResult = {
 	file_path: string,
 	file_name: string,
 	size_bytes: number,
+};
+
+// filter 一致全件の PLU 対象状態を 1 transaction で更新する。
+export type BulkPluTargetResult = {
+	matched_count: number,
+	updated_count: number,
+	invalid_jan_skipped_count: number,
+	discontinued_skipped_count: number,
 };
 
 /**
@@ -752,6 +762,8 @@ export type ImportRow = {
 	maker_code: string | null,
 	supplier_id: number | null,
 	pos_stock_sync: boolean | null,
+	plu_target?: boolean | null,
+	warnings?: string[],
 };
 
 // 整合性補正結果
@@ -1062,6 +1074,8 @@ export type PluExportPrepareResponse = {
 	over_limit_warning: boolean,
 };
 
+export type PluMigrationFilter = "all" | "target" | "pending" | "synced" | "excluded";
+
 export type PluPreparedRow = {
 	memory_no: number,
 	row_kind: PluPreparedRowKind,
@@ -1112,6 +1126,14 @@ export type Product = {
 	pos_stock_sync: boolean,
 	created_at: string,
 	updated_at: string,
+};
+
+// PLU 対象一括更新用の商品検索条件（ページングなし）
+export type ProductBulkFilter = {
+	keyword: string | null,
+	department_id: number | null,
+	is_discontinued: boolean | null,
+	plu: PluMigrationFilter | null,
 };
 
 // 商品登録リクエスト（FUNC-4.2）
@@ -1167,6 +1189,7 @@ export type ProductSearchQuery = {
 	department_id: number | null,
 	// None=全件、Some(false)=現行品のみ、Some(true)=廃番のみ
 	is_discontinued: boolean | null,
+	plu?: PluMigrationFilter | null,
 	sort_key: SortKey,
 	sort_order: SortOrder,
 	// 1始まり。0以下は DbError::QueryFailed

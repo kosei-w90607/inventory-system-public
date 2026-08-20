@@ -17,7 +17,7 @@ CMD層は薄いラッパーのため、各コマンドの仕様は「どのBIZ�
 | get_product | product_code | BIZ-01 商品取得 | Product（全フィールド＋部門名＋取引先名＋plu_memory_no） |
 | preview_import | FileBytes | BIZ-01 一括インポート前半 | ImportPreview（valid_rows[], error_rows[], duplicate_rows[]） |
 | commit_import | ImportCommitRequest（valid_rows[], overwrite_codes[]） | BIZ-01 一括インポート後半 | ImportResult（created, updated, skipped, errors） |
-| bulk_set_plu_target | ProductBulkFilter（q, department_id?, is_discontinued?）, plu_target | BIZ-01 filter 全件 PLU 対象更新 | BulkPluTargetResult（matched, updated, invalid_jan_skipped, discontinued_skipped） |
+| bulk_set_plu_target | ProductBulkFilter（keyword, department_id?, is_discontinued?, plu）, plu_target | BIZ-01 filter 全件 PLU 対象更新 | BulkPluTargetResult（matched, updated, invalid_jan_skipped, discontinued_skipped） |
 
 ### CMD-02: 入庫コマンド群
 

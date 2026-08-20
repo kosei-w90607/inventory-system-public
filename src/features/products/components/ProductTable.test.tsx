@@ -29,6 +29,42 @@ vi.mock("@tanstack/react-router", () => ({
 }));
 
 describe("ProductTable (UI-01a-D6 / UI-01a-D8)", () => {
+  it("REQ-907 B-V1: shows the independent PLU column with three text and icon states", () => {
+    render(
+      <ProductTable
+        items={[
+          makeMockProductWithRelations({
+            product_code: "PLU-0",
+            plu_target: false,
+            plu_dirty: false,
+          }),
+          makeMockProductWithRelations({
+            product_code: "PLU-1",
+            plu_target: true,
+            plu_dirty: true,
+          }),
+          makeMockProductWithRelations({
+            product_code: "PLU-2",
+            plu_target: true,
+            plu_dirty: false,
+          }),
+        ]}
+      />,
+    );
+    expect(screen.getByRole("columnheader", { name: "PLU" })).toBeInTheDocument();
+    for (const [code, label] of [
+      ["PLU-0", "対象外"],
+      ["PLU-1", "未反映"],
+      ["PLU-2", "反映済み"],
+    ] as const) {
+      const row = screen.getByText(code).closest("tr");
+      if (row === null) throw new Error("row not found");
+      expect(within(row).getByText(label)).toBeInTheDocument();
+      expect(row.querySelector("svg[aria-hidden='true']")).not.toBeNull();
+      expect(row.className).not.toContain("text-muted-foreground");
+    }
+  });
+
   it("discontinued text badge and no state column", () => {
     render(
       <ProductTable

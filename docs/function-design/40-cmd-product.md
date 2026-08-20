@@ -103,7 +103,7 @@ fn toggle_discontinue(state: State<AppState>, product_code: String) -> Result<bo
 
 #### search_products コマンド
 
-**処理ステップ**: biz::product_service::search_products()を呼ぶ
+**処理ステップ**: biz::product_service::search_products()を呼ぶ。`ProductSearchQuery.plu` は `all|target|pending|synced|excluded` を受け、商品一覧の PLU 移行 filter として IO-01 の WHERE へ渡す。
 
 #### list_departments コマンド
 
@@ -156,9 +156,9 @@ fn bulk_set_plu_target(
     state: State<AppState>,
     filter: ProductBulkFilter,
     plu_target: bool,
-) -> Result<BulkPluTargetResponse, CmdError>
+) -> Result<BulkPluTargetResult, CmdError>
 ```
 
-`ProductBulkFilter` は商品一覧の `q` / `department_id` / `is_discontinued` と同じ意味を持ち、page / per_page を持たない。response は `matched_count`, `updated_count`, `invalid_jan_skipped_count`, `discontinued_skipped_count` を返す。CMD は generated DTO を BIZ-01 へ渡し、1 transaction の所有権や slot 解放判定を持たない。
+`ProductBulkFilter` は商品一覧の `keyword` / `department_id` / `is_discontinued` / `plu` と同じ意味を持ち、page / per_page を持たない。型は db 層所有、BIZ 再 export とし、CMD は BIZ 経由で参照する。戻り値は BIZ-01 の `BulkPluTargetResult` をそのまま返す（`create_product` の `ProductCreateResult` と同じ慣行、別の CMD 層 DTO を作らない。PR #86 gated amendment 1）。response は `matched_count`, `updated_count`, `invalid_jan_skipped_count`, `discontinued_skipped_count` を返す。CMD は generated DTO を BIZ-01 へ渡し、1 transaction の所有権や slot 解放判定を持たない。
 
 `plu_memory_no` を含む response は実装 A で `tauri-specta` 登録と `src/lib/bindings.ts` 再生成を行う。`bulk_set_plu_target` と関連 enum / DTO は後続実装 B の責務とする。

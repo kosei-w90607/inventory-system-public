@@ -1430,6 +1430,59 @@ mod tests {
     }
 
     #[test]
+    fn test_prepare_plu_export_req907_reallocates_after_reservation_dropped() {
+        // REQ-907 / B-F2: register 側で失われた予約 memory は external のまま再利用しない。
+        let (_dir, mut conn) = setup_test_db();
+        let jan = valid_jan_from_seed(116);
+        seed_product_for_plu_with_jan(
+            &conn,
+            "RESERVATION-DROPPED",
+            Some(&jan),
+            "reservation dropped",
+            1,
+            false,
+            true,
+        );
+        put_slot(&conn, 300, Some(&jan), PluSlotStatus::Reserved);
+        import_plu_register_snapshot(
+            &mut conn,
+            &snapshot_bytes(&[(300, "DIFFERENT-SYNTH".to_string())]),
+        )
+        .unwrap();
+        let dropped = plu_slot_repo::find_slot_by_memory_no(&conn, 300)
+            .unwrap()
+            .unwrap();
+        assert_eq!(dropped.status, PluSlotStatus::External);
+
+        let prepared = prepare_plu_export(
+            &mut conn,
+            PluExportPrepareRequest {
+                mode: ExportMode::Diff,
+            },
+        )
+        .unwrap();
+        let row = prepared
+            .prepared_rows
+            .iter()
+            .find(|row| row.row_kind == PluPreparedRowKind::Product)
+            .unwrap();
+        assert_ne!(row.memory_no, 300);
+        assert_eq!(row.memory_no, 217, "再予約は最小の free slot を使う");
+        let replacement = plu_slot_repo::find_slot_by_memory_no(&conn, row.memory_no)
+            .unwrap()
+            .unwrap();
+        assert_eq!(replacement.status, PluSlotStatus::Reserved);
+        assert_eq!(replacement.scanning_code.as_deref(), Some(jan.as_str()));
+        assert_eq!(
+            plu_slot_repo::find_slot_by_memory_no(&conn, 300)
+                .unwrap()
+                .unwrap()
+                .status,
+            PluSlotStatus::External
+        );
+    }
+
+    #[test]
     fn test_prepare_plu_export_req907_restores_only_min_release_pending_slot() {
         // REQ-907: A-R6 without an external candidate restores only the minimum stale slot.
         let (_dir, mut conn) = setup_test_db();
@@ -1882,6 +1935,8 @@ mod tests {
                 maker_code: None,
                 supplier_id: None,
                 pos_stock_sync: Some(true),
+                plu_target: None,
+                warnings: Vec::new(),
             }],
             vec!["JAN-CHANGE".to_string()],
         )
