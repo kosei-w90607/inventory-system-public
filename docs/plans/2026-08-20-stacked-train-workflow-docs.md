@@ -117,6 +117,7 @@ docs-only、4 系統:
 | 起源 | 規則 | 出典実測 |
 |---|---|---|
 | PR #86 WER (1) + P2-6 | stacked train 小節（Scope 1） | PR #86 base 付け替え実測 |
+| PR #85 WER (1)（提案由来） | merge-tree 事前判定（Scope 1 内、未実測注記付き） | 記録上未実測 — D-074 Revisit で次回 stacked train 適用時に検証 |
 | PR #86 WER (2) / PR #84 WER (2) | 採番規律（Scope 2） | C18 衝突 / packet-local D-n 衝突 |
 | PR #84 WER (1) | 節番号実在確認（Scope 3a） | §12 誤指定 |
 | PR #84 WER (3) / PR #85 WER (2) | traceability 再生成の完了条件（Scope 3b） | PR #72 / #84 / #85 |
