@@ -29,6 +29,7 @@ Transition narrative（append-only）:
 
 - 介入予算: 3 回（plan approval / Ready 承認 / merge）
 - relay 往復上限: 2
+- Plan Review round 天井: 3（既定 hard cap）
 
 ## Risk
 
@@ -63,12 +64,13 @@ docs-only、4 系統:
 1. **stacked train 小節新設**（`docs/DEV_WORKFLOW.md` Wave Operation 末尾）:
    - 定義: 後続 lane が先頭 lane の branch 上に stack する逐次依存 train。「file footprint 互いに素 / 生成 file は 1 wave に 1 lane」規則は適用対象外（逐次依存で衝突は base 付け替え時に解消される）。Draft PR の base は先頭 lane branch とし、`ready-hosted-final への遷移は merge train 先頭の lane のみ`の既存規則を維持する。
    - base 付け替え（先頭 lane が squash merge された後）: squash で ancestry が断絶するため、(a) conflict-free rebase + Rebase Map は plan-first commit の replay が closeout drift（`Plans.md` / archive 移動）と衝突して原則成立しない。適用可否の `git merge-tree` 事前判定は **記録上未実測の推奨手順**として区別して記述する（PR #85 closeout WER 候補 (1) の提案由来。PR #86 の base 付け替えでは Coordinator が session 内で使用したが archived packet に実行記録がなく、citable evidence を欠く — 次回 stacked train 適用時に記録付きで有効性を確認する）。(b) 確立手順 = **origin/main の単段 merge**（旧 tip 保存、Plan Commit / Amendments / Human Gate evidence SHA の ancestry 維持、Rebase Map 不要）。(c) 先頭 lane branch tip を追加 merge する多段 merge は禁止 — 他 lane の forward state-only 遷移 commit が STATECAP 検査範囲 `merge-base(origin/main, HEAD)..HEAD` に入り上限を機械超過する。
-   - STATECAP 継承計上: stack 点以前の他 lane forward state-only commit は squash 後 main から不可達のため自 PR の計数に含まれる（機械検査の現仕様、実測 = PR #86 で継承 2 本 + 自 lane 1 本 = 3/3）。継承で枠が尽きた場合の Ready 遷移は content commit 同乗（既存の正規圧縮手段）で行い、packet 遷移記録に継承 commit の SHA と理由を明記する。
+   - STATECAP 継承計上: stack 点以前の他 lane forward state-only commit は squash 後 main から不可達のため自 PR の計数に含まれる（機械検査の現仕様、実測 = PR #86 で継承 2 本 + 自 lane 1 本 = 3/3）。STATECAP は aggregate ≤3 と post-implementation subset ≤2（D-038）の**独立した二段 cap** であり、継承 commit は両方に計上されうる — PR #86 実測では post-impl 判定は継承 1 本のみで aggregate が先に律速したが、より長い stack では subset cap が先に fail-closed し得ることを明記する（rally round 2 P2-1）。継承で枠が尽きた場合の Ready 遷移は content commit 同乗（既存の正規圧縮手段）で行い、packet 遷移記録に継承 commit の SHA と理由を明記する。
    - merge 解消が実装 file に及んだ場合は独立 Final Reviewer の delta 再検証を挟んでから遷移する（docs-only 解消なら delta ack のみ）。
    - 出典実測: PR #86（rebase 即衝突 / 2 段 merge STATECAP 超過 / 単段 merge + 同乗遷移で成立、archived packet「main 吸収の merge 記録」）。
+   - 併せて **decision-log `D-074` を新設**し、stacked train の base 付け替え契約（単段 merge 確立 / 多段 merge 禁止 / STATECAP 継承計上圧縮 / merge-tree 事前判定 = Revisit 対象）を durable decision として正本化する。D-055 は「file footprint 互いに素な並列 lane + rebase」の定義を持ち stacked train を想定していないため、細則埋め込みでなく独立 entry とする（rally round 2 裁定、D-039 が D-034/035/038 から独立昇格した precedent に整合）。DEV_WORKFLOW 小節は D-074 を参照する。
 2. **連番契約 registry の採番規律**（`docs/DEV_WORKFLOW.md` Review Rules へ 1 項目）: 並行または stacked な複数 lane が同一の連番契約 registry（例: D-052 C-n、decision-log D-n、REQ-n）へ新番号を割当てる場合、merge 済み正本側を不変とし、後続 lane は正本 merge 後に採番（改番は gated amendment として記録 + 同一 packet 内 full sweep）するか、packet 起草時に番号予約を宣言する。追記文には Design Phase Rules「Design decision IDs」節への参照を含め、既存の ID 採番規範と孤立させない（rally round 1 P3-2）。出典実測: PR #86 C18 二重割当（C19 改番で解消）/ PR #84 packet-local D-n 衝突（Plan Gate 2 round 連続 P1）。
 3. **Writer 発注書規律 2 点**（`docs/AGENT_OPERATING_MANUAL.md` §5.6 へ追記）:
-   - 発注書が doc 節番号（`§n` 等）を指定するときは、起草時に rg で実在確認してから書く（PR #84 で §12 誤指定 → Writer が誤 renumbering、Final Review で復帰の実測）。
+   - 発注書が doc 節番号（`§n` 等）を指定するときは、起草時に rg で実在確認し、**その節番号が指す既存内容と発注意図の対象が一致すること（referent 一致）まで確認**してから書く（PR #84 実測は §12 が実在した上で既存 legacy path と発注対象 migration v5 の occupancy 不一致 — 実在確認だけでは検出できない型、rally round 2 P3-1）。
    - REQ token に触れる変更（test 追加を含む）を依頼する発注書は、generated `90-traceability.md` の再生成を完了条件に明記する（PR #72 / #84 / #85 の 3 実測で再発）。
 4. **L3 / visual fixture の encoding 規律**（`docs/DEV_WORKFLOW.md`「Human Visual Confirmation For Screen Changes」節へ 1 行）: Coordinator が提示する取込み fixture は対象機能の実 encoding（例: 商品 CSV は CP932）に合わせる（PR #86 visual confirmation で UTF-8 BOM fixture が fail-closed した実測）。配置裁定 = 同節が visual confirmation 準備の実質正本のため（rally round 1 P1-1、AGENT_OPERATING_MANUAL に該当節は実在しない）。
 
@@ -103,6 +105,7 @@ docs-only、4 系統:
 | `docs/DEV_WORKFLOW.md` Review Rules | 連番契約 registry 採番規律 1 項目（Scope 2） |
 | `docs/AGENT_OPERATING_MANUAL.md` §5.6 | 発注書規律 2 点追記（Scope 3） |
 | `docs/DEV_WORKFLOW.md` Human Visual Confirmation For Screen Changes | fixture encoding 1 行（Scope 4） |
+| `docs/decision-log.md` | D-074 新設（stacked train base 付け替え契約、Revisit = merge-tree 事前判定の実測検証） |
 | `docs/Plans.md` | 本 packet の active 登録 + backlog へ STATECAP 機械側是正の起票 |
 
 ## Registration / Generation Obligations
@@ -136,7 +139,7 @@ docs-only、4 系統:
 
 ## Contract Probe
 
-- Probe 1: 新設 stacked train 小節の記述する STATECAP 挙動が現実装と一致するか — `check-workflow-git.sh` の STATECAP 範囲定義（`merge-base(origin/main, HEAD)..HEAD`）を Writer が実読して引用一致を確認する（script は変更しない）。
+- Probe 1: 新設 stacked train 小節の記述する STATECAP 挙動が現実装と一致するか — `check-workflow-git.sh` の STATECAP 範囲定義（`merge-base(origin/main, HEAD)..HEAD`）と **aggregate ≤3 / post-implementation subset ≤2 の二段 cap** を Writer が実読して引用一致を確認する（script は変更しない）。
 
 ## Contract Coverage Ledger
 
@@ -150,6 +153,7 @@ docs-only、4 系統:
 | L6 | 節番号実在確認 | AGENT_OPERATING_MANUAL §5.6 | M-S6 |
 | L7 | traceability 再生成の完了条件明記 | 同上 | M-S7 |
 | L8 | fixture encoding | DEV_WORKFLOW Human Visual Confirmation For Screen Changes | M-S8 |
+| L9 | stacked train base 付け替え契約の durable decision | decision-log D-074 | M-S11 |
 
 ## Test Plan
 
@@ -180,7 +184,7 @@ anchor は汎用語の cross-reference hit を避け、rg -c で重複出現 0 �
 
 ## Spec Contract
 
-- REQ 変更なし。decision-log 新 D-n は不要見込み（既存 D-055 の運用細則化）だが、単段 merge 確立化・多段 merge 禁止・STATECAP 継承計上圧縮は相応の新規範のため、**Plan Gate rally で新 D-n 要否を明示的に再検討し、裁定理由を Review Response に残す**（rally round 1 P3-3）。要なら gated amendment ではなく plan 段階で確定する。
+- REQ 変更なし。**decision-log D-074 を新設する**（rally round 2 裁定で確定）: D-055 の定義（並列 lane + rebase）は stacked train を想定せず、細則埋め込みは D-055 の暗黙拡張になる。merge-tree 事前判定の未実測項目は D-074 の Revisit フィールドで構造的に追跡する。round 1 P3-3 → round 2 意見聴取 → 本裁定の経緯は Review Response 参照。
 
 ## Trace Matrix
 
@@ -208,3 +212,12 @@ anchor は汎用語の cross-reference hit を避け、rg -c で重複出現 0 �
 - P3-2（採番規律の孤立リスク）: Design decision IDs 節への相互参照を追記文の要件に追加。
 - P3-3（新 D-n 要否の軽い扱い）: rally での明示再検討 + 裁定理由の記録を義務化。Coordinator 現時点見解 = D-055 運用細則として新 D-n 不要（stacked train は D-055 の適用形であり独立判断を持たない）だが、round 2 reviewer の意見を求める。
 - 是正 commit = 本 commit。round 2 は fresh context で新規指摘 0 まで（天井 3 round）。
+
+### Plan Gate rally round 2（2026-08-20、独立 Sonnet Plan Reviewer、fresh context）
+
+- Verdict: 新規 P2 2 / P3 1（round 1 是正の残存なし・是正への異論なし）+ 新 D-n 新設意見。全件 accept。
+- P2-1（STATECAP 二段 cap 未記載）: `check-workflow-git.sh` は aggregate ≤3 と post-impl subset ≤2 を独立検査（D-038 正本化済み）。Scope 1 / Probe 1 / M-S3 へ両 cap の明記を追加。
+- P2-2（Plan Review round 天井 field 欠落）: DEV_WORKFLOW の must-record 規定に対する非準拠 — 本 packet 自身の欠落という true positive。Owner Effort Budget へ追加。
+- P3-1（節番号規則の精度）: PR #84 実測は「実在しない節」でなく「実在する節の referent 不一致」（一次資料 = design packet の Coordinator 裁定行を round 2 が実読、Coordinator も本 round で再実読して確認）。Scope 3a を referent 一致確認まで拡張。
+- 新 D-n 裁定 = **D-074 新設で確定**。理由: D-055 は「file footprint 互いに素な並列 lane + rebase」を定義しており stacked train はその裏返し — 細則埋め込みは D-055 の暗黙拡張になる。D-039 の独立昇格 precedent、merge-tree 未実測項目の Revisit 構造化も新設側を支持。Coordinator の round 1 見解（細則で足りる）は撤回。
+- 是正 commit = 本 commit。round 3（天井）は fresh context で新規指摘 0 の収束確認。
