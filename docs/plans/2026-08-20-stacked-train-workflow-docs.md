@@ -203,6 +203,12 @@ anchor は汎用語の cross-reference hit を避け、rg -c で重複出現 0 �
 
 （Writer が追記）
 
+- Scope 1〜4 を source docs へ追記し、D-074 を D-073 の後へ新設した。既存の D-055 / D-038 / D-039、Wave Operation bullet、§5.6 本文は変更せず、追加行だけで正本化した。
+- Probe 1: `scripts/check-workflow-git.sh` を実読し、STATECAP の計数範囲が `merge-base(origin/main, HEAD)..HEAD`、forward aggregate cap と post-implementation subset cap が独立検査であることを確認した。新設記述はこの実装と一致し、script は変更していない。
+- anchor は repo 内の事前重複なしを確認後、M-S1〜M-S8 / M-S11 の exact 文字列を Matrix へ固定した。各 target doc で exact hit を確認した。
+- mutation: M-S1〜M-S8 / M-S11 の anchor をそれぞれ意味反転し、対応する `rg -F -c` が red になることを確認した後、全 anchor を復元して green を再確認した。
+- M-S9: source docs の zero-context diff は追加行のみで、既存契約行の変更がないことを確認した。
+
 ## Review Response
 
 - Findings Freeze: not yet frozen; post-freeze exceptions: none.
