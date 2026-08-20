@@ -448,3 +448,15 @@ Do not transcribe exact-HEAD SHA or test counts here (D-035/D-038 Evidence Owner
 - Test: release-pending-only の Diff 有効 + clear prepare、app-managed-only / release 0 の Diff 無効、C2 / C14 / C18 exact invalidation、Rust summary の active + release_pending 独立集計。Rust harness は Windows で既知の `STATUS_ENTRYPOINT_NOT_FOUND` により実行未完了なら、その事実を verification に残し PASS と扱わない。
 - 実装者: Codex（store-PC provisional follow-up）。review-only pass で P2 3 件を検出して範囲を拡張した。Phase は implementing、Reviewed Content HEAD は pending、Ready 判定は行わない。
 - amendment commit: `afda36e`
+
+### main drift 吸収の merge 記録（2026-08-20）
+
+- L3 round 2 完了後、main の PR #87 merge（`80ffeda`）による drift を吸収した。当初 rebase を試行したが、`docs/Plans.md` の衝突解消により plan-first commit と amendment 5 docs commit の patch-id 同値が崩れ、D-055 Rebase Map（conflict-free rebase 限定）では証明不能なことを L1 workflow-git PK5 が機械検出した（D-055 の「conflict が出た rebase は content change」規定に合致）。
+- 裁定: rebase を破棄し、原 SHA の ancestry を保存する **origin/main の merge 方式**へ切替（衝突 = `docs/Plans.md` 1 箇所、active PLU エントリと PR #87 完了記録の両立で解消）。これにより Plan Commit `fade732` / Amendments 全 SHA / PR #85 コメントの L3 evidence SHA（開始 `92bd76f` / 最終 `48a81cb`）はすべて現 HEAD の祖先として保存され、Rebase Map は不要。
+- merge 後 tree は破棄した rebase 試行の tree と diff 空（byte 一致）であることを検分済み。よって下記 Final Review delta と Rust test の補完 evidence は本 content にそのまま適用できる。
+
+### Final Review delta（2026-08-20、独立 Sonnet Final Reviewer、gated amendment 5 = `afda36e` + `48a81cb`）
+
+- Verdict: P1 0 / P2 0 / P3 1。隔離 worktree の clean tree で mutation 3 件（summary の release_pending 集計定数化 / UI diffCount の dirty-only 化 / D-052 C2 contract からの pluSlotSummary 削除）を独立注入し 3/3 KILLED（各注入後に復元・tree clean 確認）。oracle 独立性（invalidation-oracle は production contract 非 import、UI test 期待値は production 定数非依存）、`app_managed_count` 定義不変 + `release_pending_count` 内数の非退化 assert、docs↔実装 drift 0（D-052 C2/C14/C17/C18 対応の一次資料一致を含む）を確認。
+- 補完 evidence: 店 PC で `STATUS_ENTRYPOINT_NOT_FOUND` により実行不能だった新規 Rust test は、Linux 隔離 worktree での targeted 実行で PASS を独立取得済み（件数・log は PR body evidence）。
+- P3（accept、Coordinator 是正 = 上記 merge 記録）: rebase 試行時に packet の Plan Commit / Amendments SHA が HEAD の祖先でなくなっていた指摘。merge 方式への切替で原 SHA の ancestry が復帰し解消。
