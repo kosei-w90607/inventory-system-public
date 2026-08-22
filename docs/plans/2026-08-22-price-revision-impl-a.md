@@ -87,7 +87,7 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。AC や�
 - UI-01a `src/features/products/components/ProductTable.tsx`: 「原価」列ヘッダと値（`cost_price`）を「売価」列の右隣に追加し、売価と同じ右寄せ・通貨書式にする（UI-01a-D13 / SPEC-PRV-D10、50-ui §50.6）。`src/features/products/ProductListPage.tsx` の `SearchBar` に `placeholder="商品コード・商品名・JAN・メーカー品番で検索"` を渡す（SPEC-PRVA-D1、共有 default は変えない）。`docs/function-design/50-ui-product-list.md` §50.6 の検索欄 bullet に placeholder 文言を 1 文追記する（updated in this PR）。
 - UI-01b `src/features/products/components/ProductForm.tsx` + 新設 `src/features/products/components/PriceHistorySection.tsx`: edit mode のみ第 5 セクション「価格履歴」（h2）を末尾に置き、`commands.listPriceHistory(productCode, 10)` を新しい順に表示、「すべて表示」で limit 100 を再取得、create mode では描画しない（UI-01b-D20）。空 / 取得中 / 取得失敗の表示は SPEC-PRVA-D2 に従い、`docs/function-design/51-ui-product-form.md` の UI-01b-D20 行へ 1 文追記する（updated in this PR）。
 - UI-01b 取引先 inline 追加（UI-01b-D21）: 「分類と取引先」セクションの取引先 select に「新しい取引先を追加」導線を併設。入力 name は trim、空文字は field error として CMD を呼ばない、`commands.createSupplier(name)` 成功後に `listSuppliers` を再取得して返された supplier を選択状態にし、失敗時は入力を保持して error を表示する。
-- テスト: Rust は archived Matrix「実装 PR への予約 → 実装 A」の test 名を全件実装し、本 packet の Matrix で追加した名前（`test_revise_product_price_req105_not_found_product` / `test_revise_product_price_req106_unknown_supplier_id_not_found` / `test_list_price_history_req102_clamps_limit_over_max` / `test_list_price_history_req102_unknown_product_returns_empty`）を加える。RTL は `ProductTable.test.tsx` / `ProductListPage.test.tsx` / `ProductForm.test.tsx` を拡張する（既存 test は改変しない）。
+- テスト: Rust は archived Matrix「実装 PR への予約 → 実装 A」の test 名を全件実装し、本 packet の Matrix で追加した名前（`test_revise_product_price_req105_not_found_product` / `test_revise_product_price_req106_unknown_supplier_id_not_found` / `test_revise_product_price_req106_assigns_supplier_when_price_unchanged` / `test_revise_product_price_req105_persists_large_values_exactly` / `test_list_price_history_req102_clamps_limit_over_max` / `test_list_price_history_req102_unknown_product_returns_empty`）を加える。DTO の配置は SPEC-PRVA-D5（BIZ 所有、CMD は qualified path 参照）。RTL は `ProductTable.test.tsx` / `ProductListPage.test.tsx` / `ProductForm.test.tsx` を拡張する（既存 test は改変しない）。
 - Writer 完了条件に `cd src-tauri && cargo check --release`（Human Gate が L3 を含むため、CI gate ではない）。
 
 ## Non-scope
@@ -143,7 +143,7 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。AC や�
 | route 新設 | 該当なし |
 | operator 画面新設 | 該当なし（既存 UI-01a / UI-01b の変更、到達導線は既存） |
 
-## Design Decisions（packet-local、SPEC-PRVA-D1〜D3）
+## Design Decisions（packet-local、SPEC-PRVA-D1〜D5）
 
 ### SPEC-PRVA-D1: UI-01a 検索欄の placeholder 文言
 
@@ -165,6 +165,17 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。AC や�
 - 却下: 不存在 id を黙って無視して `supplier_assigned=false` にする案（UI-14 の filter 取引先が削除済みだった等の異常を隠す）。
 - 転記先: なし（40-cmd の既存文言の範囲内。30-biz step 5 の挙動を変えない）。
 
+### SPEC-PRVA-D4: 価格 no-op + supplier 紐付けだけの呼出し
+
+- 売価・原価とも現値と同じで `assign_supplier_id = Some(存在する id)`、かつ商品の `supplier_id` が NULL のとき、価格改定は no-op（`changed=false`、price_history / operation_log なし、`plu_dirty` 不変）のまま step 5 の supplier 紐付けだけを実行し、`supplier_id` と `updated_at` を更新して `supplier_assigned=true` を返す。`supplier_id` が既に非 NULL なら何も書かず `supplier_assigned=false`。
+- 理由: 30-biz §4.4.1 step 2 の no-op は「価格改定」に限定した文言で、step 5 は価格変更に条件付けられていない。UI-14 の「未設定の商品にこの取引先を設定する」は価格を変えない行でも有効になり得る。
+- 却下: 価格 no-op のとき supplier 紐付けも skip する案（UI-14 で取引先だけ補完したい行が成立しない）/ supplier-only の書込みに operation_log を出す案（30-biz は `product_price_revise` を価格変更時に限定しており、契約外の log 種別を増やさない）。
+- 転記先: なし（30-biz step 2 / 5 の文言の範囲内の解釈を固定。Ledger の `test_revise_product_price_req106_assigns_supplier_when_price_unchanged` で契約化）。
+
+### SPEC-PRVA-D5: DTO の配置
+
+- `PriceRevisionInput` / `PriceRevisionResult` は `src-tauri/src/biz/product_service.rs` に置き（既存 `ProductCreateRequest` / `ProductUpdateRequest` と同じ）、CMD は `product_service::PriceRevisionInput` として参照する。`PriceHistoryEntry` は `product_repo.rs`（20-io §2.6 の所有）に置き、BIZ が re-export、CMD は BIZ 経由で参照する。`design_compliance_test` は fn シグネチャのみ照合し struct 配置は検査しないため、ここで固定する。
+
 ## Design Intent Trace
 
 | Spec / requirement ID | Source design doc section | Decision ID | Why / rejected alternatives | Implementation target | Test target |
@@ -178,10 +189,10 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。AC や�
 ## Design Intent Audit
 
 - Source docs can answer what is being built and why without chat history or archived Plan Packets: yes（SPEC-PRV-D2 / D5 / D6 / D9 / D10 は PR #93 で source docs へ転記済み。本 packet は実装対象と test の対応を固定するだけ）。
-- Plan-only durable decisions found and promoted to source docs / decision-log / ADR: SPEC-PRVA-D1（50-ui §50.6）/ SPEC-PRVA-D2（51-ui D20）を本 PR で転記。SPEC-PRVA-D3 は 40-cmd 既存文言の範囲内で転記不要。
+- Plan-only durable decisions found and promoted to source docs / decision-log / ADR: SPEC-PRVA-D1（50-ui §50.6）/ SPEC-PRVA-D2（51-ui D20）を本 PR で転記。SPEC-PRVA-D3 / D4 は 40-cmd / 30-biz 既存文言の範囲内の解釈固定で転記不要（Ledger の test で契約化）、SPEC-PRVA-D5 は実装配置の pin で設計判断ではない。
 - Assumptions and constraints: schema 変更なし / `price_history.changed_at` は既存 `insert_price_history` が現在日時を入れる / `plu_dirty` は売価変更時のみ / 既存 `update_product` の price_history 書込みは不変 / `limit` は UI から 10 または 100 のみ送られる。
 - Deferred design gaps, risk, and follow-up target: UI-14（実装 B）/ cost_diffs（実装 C）/ 取引先の改名・統合（別起票）/ `list_price_history` の `limit = 0` は SQL の `LIMIT 0` どおり空配列で UI は送らない（Matrix Boundary Checks に記録、契約化しない）。
-- Test Design Matrix can cite design decision IDs or source doc sections: yes（SPEC-PRV-D2 / D5 / D6 / D9 / D10、SPEC-PRVA-D1〜D3、UI-01a-D13、UI-01b-D20 / D21）。
+- Test Design Matrix can cite design decision IDs or source doc sections: yes（SPEC-PRV-D2 / D5 / D6 / D9 / D10、SPEC-PRVA-D1〜D5、UI-01a-D13、UI-01b-D20 / D21）。
 - Absolute guarantee / escape hatch self-check completed, with every exception checked and compatibility stated: 絶対保証 = no-op で書込みなし / 原価のみで plu_dirty なし / 非 NULL supplier_id 不変 / 3 テーブル同時 rollback。escape hatch なし。既存 CMD の wire は不変、`bindings.ts` は追加のみ。
 
 ## Impact Review Lenses
@@ -189,7 +200,7 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。AC や�
 | Lens | Applicability / finding | Follow-up artifact |
 |---|---|---|
 | Adapter / core boundary | POS 連携は `plu_dirty` 既存経路のみ。新 adapter なし | — |
-| Fact check / design decision split | 事実 = PR #93 source docs。判断 = SPEC-PRVA-D1〜D3 | 本 packet |
+| Fact check / design decision split | 事実 = PR #93 source docs。判断 = SPEC-PRVA-D1〜D5 | 本 packet |
 | Lifecycle / retry | 価格履歴取得失敗は「再試行」で再取得。取引先追加失敗は入力保持 | Matrix State Lifecycle |
 | Operator workflow | UI-01a でメーカー品番検索 → 原価列で確認 → UI-01b で価格修正 → 履歴で確認 | L3 checklist |
 | Replacement path | 紙の前年リスト参照 → 価格履歴セクション | Goal |
@@ -213,11 +224,11 @@ Minimum design checks for business-app work:
 - Persistence / transaction / audit impact: products 部分更新（`selling_price` / `cost_price` / `updated_at` / 条件付き `plu_dirty` / 条件付き `supplier_id`）+ `price_history` insert + `operation_logs` insert を 1 transaction。schema 変更なし。
 - Operator workflow / Japanese UI wording: 「原価」列 / 「価格履歴」「すべて表示」「価格履歴はまだありません」「再試行」/ 「新しい取引先を追加」/ placeholder「商品コード・商品名・JAN・メーカー品番で検索」。色のみの状態表現禁止（inventory-operator-ui）。
 - Error, empty, retry, and recovery behavior: 負値 / 空文字 = validation、不存在 = not-found、履歴 0 件 = 空文言、取得失敗 = inline error + 再試行、取引先追加失敗 = 入力保持。
-- Testability and traceability IDs: REQ-102 / 103 / 105 / 106、SPEC-PRV-D2 / D5 / D6 / D9 / D10、SPEC-PRVA-D1〜D3、UI-01a-D13、UI-01b-D20 / D21。
+- Testability and traceability IDs: REQ-102 / 103 / 105 / 106、SPEC-PRV-D2 / D5 / D6 / D9 / D10、SPEC-PRVA-D1〜D5、UI-01a-D13、UI-01b-D20 / D21。
 
 ## Contract Probe
 
-- tauri-specta が `Option<i64>` field と `Vec<PriceHistoryEntry>` 戻り値を既存 CMD と同じ形で生成するか: 既存 `update_product`（`Option<Option<i64>>` の supplier_id）と `list_suppliers`（`Vec<Supplier>`）が同型で生成済み → N/A（既存先例）。
+- tauri-specta が `Option<i64>` field と `Vec<PriceHistoryEntry>` 戻り値を既存 CMD と同じ形で生成するか: 既存 `ProductCreateRequest.department_id: Option<i64>`（product_service.rs、特別な attribute なし）と `list_suppliers`（`Vec<Supplier>`）が同型で生成済み → N/A（既存先例。`Option<Option<i64>>` の supplier_id は custom attribute が要る別型で、本 PR の `assign_supplier_id: Option<i64>` は該当しない）。
 - `design_compliance_test` が新 pub fn を doc 側コードブロックから検出するか: 20-io §2.6 / 30-biz §4.4.1・§4.7.2・§4.7.3 / 40-cmd の 3 CMD は全て ```rust コードブロック内にシグネチャがある（PR #93 で転記）→ N/A（`KNOWN_ALLOWLIST` 追加不要。Writer は実装後に `cargo test --test design_compliance_test` で確認）。
 
 ## Contract Coverage Ledger
@@ -240,6 +251,8 @@ Minimum design checks for business-app work:
 | SPEC-PRV-D5 step 5 / D6 NULL のときだけ supplier_id 設定（`supplier_assigned=true`） | 同上 | `test_revise_product_price_req106_assigns_null_supplier_id` | — |
 | SPEC-PRV-D6 既存の非 NULL supplier_id は不変（`supplier_assigned=false`） | 同上 | `test_revise_product_price_req106_keeps_existing_supplier_id` | — |
 | SPEC-PRVA-D3 不存在 assign_supplier_id → NotFound | 同上 | `test_revise_product_price_req106_unknown_supplier_id_not_found` | — |
+| SPEC-PRVA-D4 価格 no-op + NULL supplier への紐付けだけ実行（`changed=false` / `supplier_assigned=true` / price_history・operation_log なし） | 同上 | `test_revise_product_price_req106_assigns_supplier_when_price_unchanged` | — |
+| 境界（archived Matrix 予約）10^7 直下の値を exact に永続化（products + price_history 4 値） | 同上 | `test_revise_product_price_req105_persists_large_values_exactly` | — |
 | SPEC-PRV-D5 step 6 3 テーブル同時 rollback | 同上 | `test_revise_product_price_req105_tx_atomicity_rollback` | — |
 | SPEC-PRV-D6 create_supplier trim して作成 | product_service `create_supplier` | `test_create_supplier_req106_trims_and_creates` | — |
 | SPEC-PRV-D6 create_supplier 空文字 reject（CMD / SQL なし） | 同上 | `test_create_supplier_req106_rejects_empty_name` | — |
@@ -279,10 +292,10 @@ Human visual confirmation checklist（Windows native L3、owner は目視と PAS
 ## Boundary / Wire Contract
 
 - producer: CMD `revise_product_price` / `create_supplier` / `list_price_history`（product_cmd）
-- consumer: UI-01b（本 PR）、UI-14（実装 B）、UI-02（実装 C）— `src/lib/bindings.ts` 経由
+- consumer: `list_price_history` / `create_supplier` = UI-01b（本 PR）と UI-14（実装 B）。`revise_product_price` = UI-14（実装 B）/ UI-02（実装 C）のみで、本 PR では UI から呼ばない（UI-01b の保存は既存 `update_product` のまま）— いずれも `src/lib/bindings.ts` 経由
 - wire type: `PriceRevisionInput { product_code: string, new_selling_price: number, new_cost_price: number, assign_supplier_id: number | null }` / `PriceRevisionResult { product_code: string, changed: boolean, plu_dirty_set: boolean, supplier_assigned: boolean }` / `Supplier { id: number, name: string }`（既存）/ `PriceHistoryEntry { id: number, old_selling_price: number, new_selling_price: number, old_cost_price: number, new_cost_price: number, changed_at: string }` / `list_price_history(product_code: string, limit: number)`
 - internal type: Rust `i64` 円 / `u32` limit / `String` ISO 日時（既存 price_history と同じ）/ `Option<i64>` supplier id
-- precision/range: 円整数 ≥ 0（負値 reject）。limit は u32、100 超は 100 に丸め。円単位 10^7 未満の既存契約内で JS safe integer を超えない
+- precision/range: 円整数 ≥ 0（負値 reject）。上限は source docs に契約がない（schema は `INTEGER NOT NULL`、30-biz §4.4.1 は下限のみ）。wire は JS `number` ↔ Rust `i64` で、手芸店の売価・原価が 10^7 円未満に収まるのは `未実測` の前提。archived Matrix が予約した「10^7 直下の境界 unit test」は本 PR で `test_revise_product_price_req105_persists_large_values_exactly`（9,999,999 円の exact 永続化）として消化し、新原価案の整数除算の overflow 境界は実装 B（導出は UI-14 側）に残す。limit は u32、100 超は 100 に丸め
 - round-trip path: UI-01b 保存（既存 update_product）→ price_history → `listPriceHistory(code, 10)` → セクション表示。取引先: 入力 → `createSupplier` → `listSuppliers` 再取得 → select 値
 - invalid input: 負値 / 空文字 → `CmdErrorKind::Validation`、不存在 product / supplier → `CmdErrorKind::NotFound`（新 variant なし）
 - compatibility: 既存 CMD の入出力不変。`bindings.ts` は型 3 件 + command 3 件の追加のみ
@@ -301,7 +314,7 @@ Human visual confirmation checklist（Windows native L3、owner は目視と PAS
 
 Contract ID: SPEC-PRVA
 
-- SPEC-PRV-D2 / D5 / D6 / D9 / D10（source docs 転記済み、実装対象）と SPEC-PRVA-D1〜D3（本 packet の Design Decisions 節）を正とする。
+- SPEC-PRV-D2 / D5 / D6 / D9 / D10（source docs 転記済み、実装対象）と SPEC-PRVA-D1〜D5（本 packet の Design Decisions 節）を正とする。
 
 ## Trace Matrix
 

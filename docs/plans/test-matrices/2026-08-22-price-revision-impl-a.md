@@ -13,7 +13,8 @@ Risk: R3
 - SPEC-PRV-D6: `create_supplier` の trim / 空文字 reject / 同名は既存行（30-biz §4.7.2）、UI-01b-D21 inline 追加。
 - SPEC-PRV-D9: `list_price_history` の `changed_at DESC, id DESC` / limit 丸め / 不存在は空配列（20-io §2.6、30-biz §4.7.3）、UI-01b-D20 価格履歴セクション。
 - SPEC-PRV-D10 / UI-01a-D13: 「原価」列が「売価」の右隣。
-- SPEC-PRVA-D1〜D3（packet）: placeholder 文言 / 価格履歴の空・失敗表示 / 不存在 assign_supplier_id の NotFound。
+- SPEC-PRVA-D1〜D5（packet）: placeholder 文言 / 価格履歴の空・失敗表示 / 不存在 assign_supplier_id の NotFound / 価格 no-op + supplier 紐付けだけの呼出し / DTO 配置。
+- 境界（archived Matrix 予約）: 10^7 直下の価格値の exact 永続化（上限契約は source docs に無く、10^7 は `未実測` の前提）。
 - 登録・生成: lib.rs 2 list、bindings.ts、90-traceability、design_compliance_test。
 
 ## Failure Modes
@@ -53,6 +54,8 @@ Risk: R3
 | SPEC-PRV-D5 step 5 / D6 | NULL なのに未設定 | unit | `test_revise_product_price_req106_assigns_null_supplier_id` | supplier_id NULL の商品に `Some(id)` を渡しても設定されない、または `supplier_assigned != true` |
 | SPEC-PRV-D6 | 非 NULL を上書き | unit | `test_revise_product_price_req106_keeps_existing_supplier_id` | 既存 supplier_id=A の商品に `Some(B)` を渡すと A が B になる、または `supplier_assigned != false` |
 | SPEC-PRVA-D3 | 不存在 supplier を黙認 | unit | `test_revise_product_price_req106_unknown_supplier_id_not_found` | 存在しない id を `Some` で渡して `NotFound` 以外が返る、または価格が更新される |
+| SPEC-PRVA-D4 | 価格 no-op で supplier 紐付けも skip / 余計な書込み | unit | `test_revise_product_price_req106_assigns_supplier_when_price_unchanged` | 現値と同じ価格 + `Some(存在 id)` + supplier_id NULL で、supplier_id が設定されない、`supplier_assigned != true`、`changed != false`、または price_history / `product_price_revise` 行が増える |
+| 境界 10^7 直下 | 大きな値の丸め / 桁落ち | unit | `test_revise_product_price_req105_persists_large_values_exactly` | `new_selling_price = 9_999_999` / `new_cost_price = 9_999_998` が products と price_history の new 値に exact に残らない（oracle は literal を独立転記） |
 | SPEC-PRV-D5 step 6 | 部分 commit | unit | `test_revise_product_price_req105_tx_atomicity_rollback` | 途中失敗（例: price_history insert を失敗させる test hook / 制約違反）後に products の価格が変わっている、または operation_logs に行が残る |
 | SPEC-PRV-D6 create_supplier | trim なし | unit (product_service) | `test_create_supplier_req106_trims_and_creates` | `"  メーカーX  "` が trim されず保存される、または新規行が返らない |
 | SPEC-PRV-D6 create_supplier | 空文字で INSERT | unit | `test_create_supplier_req106_rejects_empty_name` | `"   "` で `ValidationFailed` 以外、または suppliers 行数が増える |
@@ -128,7 +131,7 @@ Workflow-state rows:
 - internal type: Rust `i64` / `u32` / `String`。
 - producer/consumer: product_cmd → bindings.ts → ProductForm / ProductListPage（本 PR）、UI-14 / UI-02（後続）。
 - round-trip token: 該当なし（URL state token は既存 search params のみ、変更なし）。
-- precision/range: 円 10^7 未満の既存契約内で JS safe integer 内。
+- precision/range: 上限契約は source docs に無い（schema `INTEGER NOT NULL`、30-biz は `>= 0` のみ）。JS `number` ↔ `i64` で、10^7 円未満は `未実測` の前提。archived Matrix 予約の境界 test は `test_revise_product_price_req105_persists_large_values_exactly`（9,999,999）で消化。
 - cross-language parse: `changed_at` は ISO 文字列のまま表示（既存 price_history と同じ、変換しない）。
 
 ## Compatibility Checks
@@ -166,7 +169,7 @@ Workflow-state rows:
 - If a state-only commit edits Scope/AC in the same packet file, does hunk-level review reject it even though the filename is allowlisted?: `git diff --unified=0` で hunk を検査し、Workflow State と遷移記録以外の hunk があれば implementing へ戻す。
 - If output order changes, which test fails?: `ORDER BY changed_at DESC, id DESC` を ASC に → `test_list_price_history_req102_desc_order`（同一 changed_at 2 行で id の tie-break も assert）。
 - If dry-run performs a side effect, which test fails?: 該当なし。
-- If a JSON number crosses JavaScript safe integer range, which test fails?: 円 10^7 未満の契約内で到達しない（既存 Boundary と同じ、新 test なし）。
+- If a JSON number crosses JavaScript safe integer range, which test fails?: 上限契約が無いため到達を防ぐ test は置けない（`未実測` 前提 10^7 未満）。桁落ちなしの exact 永続化は `test_revise_product_price_req105_persists_large_values_exactly` が 10^7 直下で検証する。新原価案の整数除算 overflow は実装 B の Matrix に残す。
 - If a state token is round-tripped through browser/client code, which test fails?: 該当なし（新 token なし）。
 - 追加（SPEC-PRV-D2）: `search_products` の LIKE から maker_code を落とす → `test_search_products_req105_keyword_matches_maker_code`。`find_products_for_bulk_plu_target` 側だけ落とす → `test_find_products_for_bulk_plu_target_req105_keyword_matches_maker_code`。
 - 追加（SPEC-PRV-D5 step 4）: 売価変更時の plu_dirty 設定を削除 → `test_revise_product_price_req105_plu_dirty_on_selling_change`。原価のみでも立てるよう変更 → `test_revise_product_price_req105_cost_only_no_plu_dirty`。
