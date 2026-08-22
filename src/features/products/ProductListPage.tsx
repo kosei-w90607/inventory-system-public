@@ -107,6 +107,7 @@ export function ProductListPage({ search, onSearchChange }: ProductListPageProps
             pageOnlyChange 機構が担う。 */}
         <SearchBar
           value={search.q ?? ""}
+          placeholder="商品コード・商品名・JAN・メーカー品番で検索"
           debounceMs={200}
           onSearchChange={(value) => {
             updateSearch({ q: value === "" ? undefined : value });

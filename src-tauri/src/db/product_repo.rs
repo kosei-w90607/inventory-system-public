@@ -207,6 +207,17 @@ pub struct NewPriceHistory {
     pub new_cost: i64,
 }
 
+/// 価格履歴の読取り用行マッピング
+#[derive(Debug, Clone, serde::Serialize, specta::Type)]
+pub struct PriceHistoryEntry {
+    pub id: i64,
+    pub old_selling_price: i64,
+    pub new_selling_price: i64,
+    pub old_cost_price: i64,
+    pub new_cost_price: i64,
+    pub changed_at: String,
+}
+
 /// 商品検索条件
 ///
 /// 20-io-product-repo.md §2.3 search_products
@@ -695,7 +706,7 @@ pub fn search_products(
         let like = format!("%{}%", keyword);
         let idx = params.len() + 1;
         conditions.push(format!(
-            "(p.name LIKE ?{idx} OR p.product_code LIKE ?{idx} OR p.jan_code LIKE ?{idx})",
+            "(p.name LIKE ?{idx} OR p.product_code LIKE ?{idx} OR p.jan_code LIKE ?{idx} OR p.maker_code LIKE ?{idx})",
         ));
         params.push(Box::new(like));
     }
@@ -802,7 +813,7 @@ pub fn find_products_for_bulk_plu_target(
         let like = format!("%{}%", keyword);
         let idx = params.len() + 1;
         conditions.push(format!(
-            "(p.name LIKE ?{idx} OR p.product_code LIKE ?{idx} OR p.jan_code LIKE ?{idx})"
+            "(p.name LIKE ?{idx} OR p.product_code LIKE ?{idx} OR p.jan_code LIKE ?{idx} OR p.maker_code LIKE ?{idx})"
         ));
         params.push(Box::new(like));
     }
@@ -980,6 +991,35 @@ pub fn insert_price_history(conn: &DbConnection, history: &NewPriceHistory) -> R
         ],
     )?;
     Ok(())
+}
+
+/// 商品コードに紐付く価格履歴を新しい順で取得する。
+pub fn list_price_history(
+    conn: &DbConnection,
+    product_code: &str,
+    limit: u32,
+) -> Result<Vec<PriceHistoryEntry>, DbError> {
+    let mut stmt = conn.prepare(
+        "SELECT id, old_selling, new_selling, old_cost, new_cost, changed_at
+         FROM price_history
+         WHERE product_code = ?1
+         ORDER BY changed_at DESC, id DESC
+         LIMIT ?2",
+    )?;
+    let rows = stmt.query_map(
+        rusqlite::params![product_code, i64::from(limit.min(100))],
+        |row| {
+            Ok(PriceHistoryEntry {
+                id: row.get(0)?,
+                old_selling_price: row.get(1)?,
+                new_selling_price: row.get(2)?,
+                old_cost_price: row.get(3)?,
+                new_cost_price: row.get(4)?,
+                changed_at: row.get(5)?,
+            })
+        },
+    )?;
+    rows.collect::<Result<Vec<_>, _>>().map_err(DbError::from)
 }
 
 /// 全商品の product_code, name, stock_quantity を取得する（BIZ-07 整合性チェック用）
@@ -2181,5 +2221,156 @@ mod tests {
         // ORDER BY product_code ASC
         assert_eq!(result[0], ("ASQ-001".to_string(), "商品A".to_string(), 0));
         assert_eq!(result[1], ("ASQ-002".to_string(), "商品B".to_string(), 15));
+    }
+
+    #[test]
+    fn test_search_products_req105_keyword_matches_maker_code() {
+        let (_dir, conn) = setup_test_db();
+        let mut product = create_test_product("MK-001", "合成商品", 1);
+        product.maker_code = Some("MAKER-ALPHA-42".to_string());
+        insert_product(&conn, &product).unwrap();
+        let mut query = default_search_query();
+        query.keyword = Some("ALPHA-42".to_string());
+        let result = search_products(&conn, &query).unwrap();
+        assert_eq!(result.items.len(), 1);
+        assert_eq!(result.items[0].product.product_code, "MK-001");
+    }
+
+    #[test]
+    fn test_search_products_req103_keyword_matches_existing_three_columns() {
+        let (_dir, conn) = setup_test_db();
+        let mut by_name = create_test_product("LEG-001", "NEEDLE-NAME", 1);
+        by_name.jan_code = Some("4900000000001".to_string());
+        let mut by_code = create_test_product("CODE-NEEDLE", "合成B", 1);
+        by_code.jan_code = Some("4900000000002".to_string());
+        let mut by_jan = create_test_product("LEG-003", "合成C", 1);
+        by_jan.jan_code = Some("4909876543210".to_string());
+        insert_product(&conn, &by_name).unwrap();
+        insert_product(&conn, &by_code).unwrap();
+        insert_product(&conn, &by_jan).unwrap();
+        for (keyword, expected) in [
+            ("NEEDLE-NAME", "LEG-001"),
+            ("CODE-NEEDLE", "CODE-NEEDLE"),
+            ("987654321", "LEG-003"),
+        ] {
+            let mut query = default_search_query();
+            query.keyword = Some(keyword.to_string());
+            let result = search_products(&conn, &query).unwrap();
+            assert_eq!(result.items.len(), 1, "keyword={keyword}");
+            assert_eq!(result.items[0].product.product_code, expected);
+        }
+    }
+
+    #[test]
+    fn test_find_products_for_bulk_plu_target_req105_keyword_matches_maker_code() {
+        let (_dir, conn) = setup_test_db();
+        let mut product = create_test_product("BULK-MK-001", "合成商品", 1);
+        product.maker_code = Some("BULK-MAKER-Z9".to_string());
+        insert_product(&conn, &product).unwrap();
+        let result = find_products_for_bulk_plu_target(
+            &conn,
+            &ProductBulkFilter {
+                keyword: Some("MAKER-Z9".to_string()),
+                department_id: None,
+                is_discontinued: None,
+                plu: None,
+            },
+        )
+        .unwrap();
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].product_code, "BULK-MK-001");
+    }
+
+    fn insert_history_fixture(conn: &DbConnection, product_code: &str, count: u32) {
+        insert_product(conn, &create_test_product(product_code, "履歴対象商品", 1)).unwrap();
+        for index in 0..count {
+            conn.execute(
+                "INSERT INTO price_history
+                 (product_code, old_selling, new_selling, old_cost, new_cost, changed_at)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+                rusqlite::params![
+                    product_code,
+                    i64::from(index),
+                    i64::from(index + 1),
+                    i64::from(index + 10),
+                    i64::from(index + 11),
+                    format!("2026-08-22T00:{:02}:{:02}", (index / 60) % 60, index % 60),
+                ],
+            )
+            .unwrap();
+        }
+    }
+
+    #[test]
+    fn test_list_price_history_req102_desc_order() {
+        let (_dir, conn) = setup_test_db();
+        insert_history_fixture(&conn, "HIST-ORDER", 3);
+        let result = list_price_history(&conn, "HIST-ORDER", 10).unwrap();
+        assert_eq!(result.len(), 3);
+        assert_eq!(result[0].new_selling_price, 3);
+        assert_eq!(result[1].new_selling_price, 2);
+        assert_eq!(result[2].new_selling_price, 1);
+    }
+
+    #[test]
+    fn test_list_price_history_req102_id_desc_tie_break_on_same_changed_at() {
+        let (_dir, conn) = setup_test_db();
+        insert_product(
+            &conn,
+            &create_test_product("HIST-TIE-BREAK", "履歴同時刻商品", 1),
+        )
+        .unwrap();
+        for (id, changed_at) in [
+            (101_i64, "2026-08-22T12:00:00"),
+            (102_i64, "2026-08-22T12:00:00"),
+            (103_i64, "2026-08-21T12:00:00"),
+        ] {
+            conn.execute(
+                "INSERT INTO price_history
+                 (id, product_code, old_selling, new_selling, old_cost, new_cost, changed_at)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+                rusqlite::params![
+                    id,
+                    "HIST-TIE-BREAK",
+                    id + 10,
+                    id + 20,
+                    id + 30,
+                    id + 40,
+                    changed_at,
+                ],
+            )
+            .unwrap();
+        }
+
+        let result = list_price_history(&conn, "HIST-TIE-BREAK", 10).unwrap();
+        let actual_ids: Vec<i64> = result.iter().map(|entry| entry.id).collect();
+
+        assert_eq!(actual_ids, [102, 101, 103]);
+        assert_eq!([result[0].id, result[1].id], [102, 101]);
+    }
+
+    #[test]
+    fn test_list_price_history_req102_respects_limit() {
+        let (_dir, conn) = setup_test_db();
+        insert_history_fixture(&conn, "HIST-LIMIT", 6);
+        let result = list_price_history(&conn, "HIST-LIMIT", 4).unwrap();
+        assert_eq!(result.len(), 4);
+        assert_eq!(result[0].new_selling_price, 6);
+    }
+
+    #[test]
+    fn test_list_price_history_req102_clamps_limit_over_max() {
+        let (_dir, conn) = setup_test_db();
+        insert_history_fixture(&conn, "HIST-CLAMP", 105);
+        let result = list_price_history(&conn, "HIST-CLAMP", 101).unwrap();
+        assert_eq!(result.len(), 100);
+        assert_eq!(result[0].new_selling_price, 105);
+    }
+
+    #[test]
+    fn test_list_price_history_req102_unknown_product_returns_empty() {
+        let (_dir, conn) = setup_test_db();
+        let result = list_price_history(&conn, "UNKNOWN-HISTORY", 10).unwrap();
+        assert!(result.is_empty());
     }
 }

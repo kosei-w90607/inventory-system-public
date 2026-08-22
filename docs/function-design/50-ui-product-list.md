@@ -86,7 +86,7 @@ per_page: number  // 上限 200。UI は 50 / 100 / 200 のみ送信し、200 �
 
 ## 50.6 表示と操作
 
-- 検索欄は商品名 / 商品コード / JAN コード / メーカー品番（`maker_code`）を同じ入力で扱う（SPEC-PRV-D2）。live 型（[59-ui-shared-patterns.md](59-ui-shared-patterns.md) §59.1、`debounceMs=200`）で入力から 200ms 後に search params を更新し、Enter は debounce を待たず即時反映する（IME 変換確定中の Enter は無視）。`type="search"` のネイティブ clear を使い、外付け Label と検索ボタンは持たない。`aria-label="商品検索"` で識別する（UI-01a-D9）。
+- 検索欄は商品名 / 商品コード / JAN コード / メーカー品番（`maker_code`）を同じ入力で扱う（SPEC-PRV-D2）。placeholder は「商品コード・商品名・JAN・メーカー品番で検索」とする。live 型（[59-ui-shared-patterns.md](59-ui-shared-patterns.md) §59.1、`debounceMs=200`）で入力から 200ms 後に search params を更新し、Enter は debounce を待たず即時反映する（IME 変換確定中の Enter は無視）。`type="search"` のネイティブ clear を使い、外付け Label と検索ボタンは持たない。`aria-label="商品検索"` で識別する（UI-01a-D9）。
 - 部門フィルタは `commands.listDepartments()` 由来の全 21 部門から選ぶ。検索結果の現在ページから候補を作らない。
 - 廃番モードは `表示中` / `すべて` / `廃番のみ` の意味が日本語で分かる segmented control にする。
 - テーブル列は 商品コード、商品名、部門、売価、原価、在庫数、操作導線を基本にする。原価は売価の右隣に置く（SPEC-PRV-D10）。廃番状態は専用列を持たず、商品名セル内に表す（UI-01a-D8）。

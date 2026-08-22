@@ -44,6 +44,20 @@ pub fn update_product(
     product_service::update_product(&mut conn, &product_code, &req).map_err(CmdError::from)
 }
 
+/// 商品価格を改定する。
+#[tauri::command]
+#[specta::specta]
+pub fn revise_product_price(
+    state: State<AppState>,
+    input: product_service::PriceRevisionInput,
+) -> Result<product_service::PriceRevisionResult, CmdError> {
+    let mut conn = state
+        .db
+        .lock()
+        .map_err(|error| CmdError::internal("DB接続エラー", error))?;
+    product_service::revise_product_price(&mut conn, input).map_err(CmdError::from)
+}
+
 /// 廃番状態を切り替える
 ///
 /// 戻り値は is_discontinued の新しい値。
@@ -106,6 +120,32 @@ pub fn list_suppliers(state: State<AppState>) -> Result<Vec<Supplier>, CmdError>
         .lock()
         .map_err(|error| CmdError::internal("DB接続エラー", error))?;
     product_service::list_suppliers(&conn).map_err(CmdError::from)
+}
+
+/// 取引先を作成する（同名は既存行を返す）。
+#[tauri::command]
+#[specta::specta]
+pub fn create_supplier(state: State<AppState>, name: String) -> Result<Supplier, CmdError> {
+    let conn = state
+        .db
+        .lock()
+        .map_err(|error| CmdError::internal("DB接続エラー", error))?;
+    product_service::create_supplier(&conn, name).map_err(CmdError::from)
+}
+
+/// 商品の価格履歴を取得する。
+#[tauri::command]
+#[specta::specta]
+pub fn list_price_history(
+    state: State<AppState>,
+    product_code: String,
+    limit: u32,
+) -> Result<Vec<product_service::PriceHistoryEntry>, CmdError> {
+    let conn = state
+        .db
+        .lock()
+        .map_err(|error| CmdError::internal("DB接続エラー", error))?;
+    product_service::list_price_history(&conn, product_code, limit).map_err(CmdError::from)
 }
 
 /// 商品詳細を取得する
