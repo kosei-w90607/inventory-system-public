@@ -72,7 +72,7 @@ Risk: R3
 | SPEC-PRV-D7 文言 | 常時文言欠落 | RTL | `再読み込みで確定前の入力が失われる旨の文言を常時表示する` | 「画面を再読み込みすると、確定前に入力した新売価・新原価は失われます。1行ずつ確定してください。」の exact text が無い（0 件 / error 時も） |
 | SPEC-PRV-D6 / SPEC-PRVB-D7 | 再取得なし / 選択されない | RTL | `新しい取引先を追加すると createSupplier 後に listSuppliers を再取得し追加した取引先が filter で選択状態になる` | `createSupplier` 引数が trim 後の値でない、解決後に `listSuppliers` が再呼出しされない、filter select の value が返却 id でない、`includeUnassigned` が true にならない |
 | SPEC-PRV-D6 空白 / 失敗 | CMD 呼出し / 入力消失 | RTL | `取引先名が空白のみなら createSupplier を呼ばず field error を出し失敗時は入力を保持する` | 空白で `createSupplier` が呼ばれる、reject 後に dialog が閉じる / 入力が消える / Alert + 再試行が無い |
-| SPEC-PRVB-D9 | 導線欠落 | RTL | `filter なしの 0 件は商品一覧への導線、filter ありの 0 件は「条件に一致する商品がありません」と「絞り込みを解除」を出す` | filter なし 0 件で `/products` link が無い、filter あり 0 件で文言 / button が無い、「絞り込みを解除」で全 param が既定に戻らない |
+| SPEC-PRVB-D9 | 導線欠落 | RTL | `filter なしの 0 件は商品一覧への導線、filter ありの 0 件は「条件に一致する商品がありません」と「絞り込みを解除」を出す` | filter なし 0 件で「商品がまだ登録されていません」の text または `/products` link が無い、filter あり 0 件で文言 / button が無い、「絞り込みを解除」で全 param が既定に戻らない |
 | SPEC-PRVB-D9 error | Alert なし | RTL | `一覧取得失敗で Alert と再試行を出し再試行で再取得する` | reject で `role="alert"` + 「再試行」が無い、押下で `searchProducts` が再呼出しされない |
 | REQ-105 到達 | pending / 経路違い | unit (navigation.test.ts) | `test_navigation_req105_ui14_active_at_products_price_revision` | `ui-14` entry が無い、`status !== "active"`、`to !== "/products/price-revision"` |
 | D-052 C20 登録 | 件数 / oracle 不一致 | unit + CLI | `invalidation-contract.meta.test.ts`（`toHaveLength(20)`、oracle に C20 転記）PASS + `invalidation-contract.static.test.ts` PASS + `rg -c "C20" docs/decision-log.md docs/UI_TECH_STACK.md` 各 ≥ 1 | entry 数 19 のまま、oracle 欠落、success handler が `invalidateByContract` 以外、docs 未追記 |
