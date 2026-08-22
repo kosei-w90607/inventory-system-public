@@ -18,7 +18,7 @@ If a state-only commit materializes multiple phases, list the complete adjacent 
 - Reviewed Content HEAD: pending
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
-- Human Gate: Plan Gate 承認（owner 裁定 1 件〈SP-103-04 原価列 = (a)〉は 2026-08-22 に完了） → source docs amendment 後の Ready 化 + docs-only のため `workflow_dispatch` 1 run（CI-TRIGGER-D1）→ 三点一致 → merge。Windows native L3 は docs-only design-first PR ではなし
+- Human Gate: Plan Gate 承認（owner 裁定 1 件〈SP-103-04 原価列 = (a)〉は 2026-08-22 に完了） → source docs amendment 後の Ready 化 → hosted final（`design_compliance_test.rs` の SKIP_DOCS 1 行を含む non-doc event-eligible change のため、CI-TRIGGER-D1 の Ready / `synchronize` 経路で自動 run。予防的 `workflow_dispatch` はしない）→ 三点一致 → merge。Windows native L3 は design-first PR ではなし
 
 ## Owner Effort Budget
 
@@ -80,7 +80,7 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。AC や�
 - `docs/function-design/40-cmd-product.md`: CMD `revise_product_price` / `create_supplier` / `list_price_history` の契約と DTO。L144 の「`find_or_create_supplier` の公開 CMD は別 Design Phase」を本 packet で消化した旨に改訂。
 - `docs/function-design/31-biz-inventory-service.md`: BIZ-02 `create_receiving` の保存フロー（§12.3）に原価差分検出 step を追加し、`ReceivingCreateResult` に `cost_diffs` を追加。
 - `docs/function-design/44-cmd-inventory.md`（`create_receiving` CMD の所有 doc）: `ReceivingCreateResult.cost_diffs` の wire contract。
-- `docs/function-design/50-ui-product-list.md`: UI-01a-D13（SP-103-04 原価列を基本列に追加、owner 裁定 2026-08-22）+ §50.6 基本列の文を改訂、keyword 一致対象に メーカー品番 を追加（§50.5 / §50.6）。
+- `docs/function-design/50-ui-product-list.md`: UI-01a-D13（SP-103-04 原価列を基本列に追加、owner 裁定 2026-08-22）+ §50.6 基本列の文を改訂、keyword 一致対象に メーカー品番 を追加（§50.6 の一致列の文。§50.5 は `keyword` 型行のみで変更なし）。
 - `docs/function-design/51-ui-product-form.md`: 第 5 セクション「価格履歴」（UI-01b-D20）、取引先 inline 追加（UI-01b-D7 の改訂、§7.7 非 scope から除去、UI-01b-D21）。
 - `docs/function-design/77-ui-bulk-price-revision.md`（新設、UI-14）: 画面構成 / URL state / CMD・DTO 契約 / 表示と操作 / Loading・Empty・Error / テスト観点 / Deferred。50-ui と同じ節立て。
 - `docs/function-design/61-ui-receiving.md`（UI-02 入庫画面）: 保存完了時の原価差分ダイアログ（REQ-209）。
@@ -387,5 +387,6 @@ Fill after implementation.
 
 Fill after review.
 - Plan Review round 2（Sonnet、独立 context、2026-08-22、packet `a035e13`）: P1 2 / P2 2 / P3 0、verdict fail。全件 accept して是正: P1-1 AC の Ledger 予約検証式（`rg -c "SPEC-PRV-D"`）が Matrix 表記と不一致で充足不能 → 実装対象 10 行に限定し D1/D11/D12 を除外と明記、M-D12 も同期 / P1-2 52-ui-shared-layout §52.3 画面 registry（UI-14 行）の登録義務が未列挙 → Scope + Obligations に追加 / P2-1 30-biz §4.9.1 `bulk_set_plu_target` への注記が Scope に未記載 → 追記 / P2-2 Matrix Negative Paths の `list_price_history` 不存在時「要確定」が stale → D9 確定済みへ更新。
-- Coordinator sweep（round 2 後、2026-08-22）: 新設 `77-ui` doc は `design_compliance_test.rs` の unmapped_docs assert により `SKIP_DOCS` 登録が必須で、本 PR が test file 1 行を触ることが判明 → Non-scope の例外 / Scope bullet / Registration 行 / Human Gate（Ready event で通常 run）を同期。
+- Coordinator sweep（round 2 後、2026-08-22）: 新設 `77-ui` doc は `design_compliance_test.rs` の unmapped_docs assert により `SKIP_DOCS` 登録が必須で、本 PR が test file 1 行を触ることが判明 → Non-scope の例外 / Scope bullet / Registration 行を同期（Human Gate 行の同期は sd pattern 不一致で未適用のまま round 3 へ → round 3 P1-1 で捕捉、是正済み）。
+- Plan Review round 3（Sonnet、独立 context、2026-08-22、packet `19c0477`〜`004eadf`）: P1 3 / P2 0 / P3 2、verdict fail。天井 3 到達のため round 4 は起こさず Coordinator disposition = 全件一括是正 + rg sweep（DEV_WORKFLOW Review Rules、PR #84 round 3 と同型）: P1-1 Human Gate の `workflow_dispatch` 文言（non-doc を含むため CI-TRIGGER-D1 の Ready / synchronize 経路が正）→ 是正 / P1-2 Matrix Boundary Checks の limit 上限「第 2 発注で確定」stale → 上限 100 へ / P1-3 Matrix Negative Paths の自動提案 regex が 51-ui の pos_stock_sync 提案文に誤 hit → 77-ui 限定 + 肯定文のみへ特定化 / P3-1 Scope の §50.5 表記 → §50.6 へ / P3-2 Plans.md 次の行動 entry の stale 参照（31-biz L319）→ §12.3 step 10 へ同期。是正後に Coordinator が `rg` で「要確定 / 第 2 発注で確定 / workflow_dispatch 1 run / L319 / UI-01a-D9 / 裁定 (a) の場合」を packet・Matrix・Plans.md 全 sweep し 0 hit を確認。
 - Findings Freeze: not yet frozen; post-freeze exceptions: none.

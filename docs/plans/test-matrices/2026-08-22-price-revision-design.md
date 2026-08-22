@@ -71,7 +71,7 @@ pending（第 2 発注後に実測）。本発注時点の事前確認（旧文�
 For workflow-state changes, add explicit rows for:
 
 - content candidate -> L1 / independent review -> state-only human-confirm commit: 本 PR は `Phase: plan-draft` → Plan Gate 承認 → 第 2 発注（source docs amendment）→ L1 full（`generate_traceability --check` 含む）→ human-confirm。state-only commit は本 packet に含まない（docs amendment は内容変更のため通常経路）。
-- owner authorization -> Draft state-only Ready commit -> exact-HEAD L1 -> PR body -> Ready/dispatch -> merge with no later tracked commit: owner 裁定（原価列）→ Plan Gate 承認 → Ready 化 + `workflow_dispatch` 1 run（CI-TRIGGER-D1）→ 三点一致 → merge、以降 tracked commit なし。
+- owner authorization -> Draft state-only Ready commit -> exact-HEAD L1 -> PR body -> Ready/dispatch -> merge with no later tracked commit: owner 裁定（原価列）→ Plan Gate 承認 → Ready 化 → Ready / `synchronize` 経路の hosted 自動 run（CI-TRIGGER-D1、`design_compliance_test.rs` SKIP_DOCS 1 行を含むため非 docs-only）→ 三点一致 → merge、以降 tracked commit なし。
 - state-only violation: 本 packet は docs-only PR のため state-only 区分自体が非該当（全変更が Scope/AC/Design を伴う）。
 - hosted-not-required incidental failure: not applicable — `Hosted CI Requirement: required`（docs-only でも generate_traceability を伴うため required）。
 
@@ -101,7 +101,7 @@ Enumerate every site of each borrowed pattern; do not sample only the nearest fi
   - `rg -n "上代" docs/function-design/ docs/db-design/ docs/spec/` — 現状 0 hit。
   - `rg -n "PDF.*解析" docs/function-design/` — 現状 0 hit。
   - `rg -n "draft.*保存" docs/function-design/` — 現状 0 hit（77-ui 新設後も「draft 保存テーブルは設けない」という否定文以外の肯定文が現れないことを M-D7 で確認）。
-  - `rg -n "新売価.*自動提案|自動.*提案" docs/function-design/` — 現状 0 hit。
+  - `rg -n "新売価.*自動提案|自動.*新原価.*提案" docs/function-design/77-ui-bulk-price-revision.md` — 肯定文 0 hit（否認文「新売価の自動提案はしない」の 1 件のみ許容。51-ui の pos_stock_sync / plu_target 初期値提案の文は対象外のため docs 全域 regex は使わない）。
   - `rg -n "暫定.*フラグ|暫定原価" docs/function-design/` — 現状 0 hit。
 
 ## Boundary Checks
@@ -109,7 +109,7 @@ Enumerate every site of each borrowed pattern; do not sample only the nearest fi
 - threshold: 新原価案の整数除算 `(new_selling * cost_price) / selling_price` は円単位 INTEGER（10^7 未満）同士の積が 10^14 未満で i64 に収まる（Contract Probe で N/A 判定済み、境界値 10^7 直下での実装 PR 側 unit test を予約）。
 - null/default: `selling_price = 0` → 新原価案の初期値は現原価そのまま（fallback）。`supplier_id = NULL` → UI-14 filter 未指定時は対象に含む。
 - empty/non-empty: UI-14 絞り込み結果 0 件 → Empty 表示（既存パターン踏襲）。`cost_diffs` 空配列 = 差分なし（ダイアログ非表示）。
-- min/max: 円は 0 以上（負値 reject）。`list_price_history` の `limit` は既定 10、「すべて表示」で拡張（上限は第 2 発注で確定）。
+- min/max: 円は 0 以上（負値 reject）。`list_price_history` の `limit` は既定 10、「すべて表示」で 100（上限 100、超過は 100 に丸める。packet SPEC-PRV-D9 で確定）。
 - status/policy enum: 該当なし（本 packet に新規 status enum は追加しない。取引先の状態遷移は persist しない導出値のみ）。
 - wire type: `PriceRevisionInput.new_selling_price` / `new_cost_price` は `number`（i64 円、JS safe integer 範囲内、円単位で 10^7 未満のため逸脱しない）。
 - internal type: Rust `i64` 円、`String` ISO 日時（既存 price_history と同型）。
@@ -155,7 +155,7 @@ Enumerate every site of each borrowed pattern; do not sample only the nearest fi
 - If a guard is removed, which test fails?: D5 の負値 validation guard を外した場合、`test_revise_product_price_req105_validation_*` 系が落ちる。
 - If an output field is omitted, which test fails?: `ReceivingCreateResult.cost_diffs` を省略した場合、`cargo run --bin generate_bindings`（実装 PR）または既存 RTL の ReceivingPage テストで型不整合が検出される。
 - If tracked Workflow State stores the current PR HEAD, does a state commit make it stale immediately? The accepted design must keep current exact-HEAD evidence in PR metadata.: 本 packet は `Reviewed Content HEAD: pending` を human-confirm 直前の commit 内でのみ確定する規律（feedback: Reviewed Content HEAD timing）に従う。
-- If a hosted URL/headSha is committed after the run, does the merge three-point check fail because PR HEAD changed?: `workflow_dispatch` 1 run（CI-TRIGGER-D1）後の三点一致は Workflow State の Human Gate 定義どおり実行順を固定する。
+- If a hosted URL/headSha is committed after the run, does the merge three-point check fail because PR HEAD changed?: Ready / `synchronize` 経路の hosted run（CI-TRIGGER-D1）後の三点一致は Workflow State の Human Gate 定義どおり実行順を固定し、hosted URL / headSha は packet に commit しない。
 - If a state-only commit edits Scope/AC in the same packet file, does hunk-level review reject it even though the filename is allowlisted?: 本 PR は state-only 区分非該当（docs-only 内容変更）のため該当セクションは適用対象外。
 - If output order changes, which test fails?: `list_price_history` の順序が `changed_at DESC, id DESC` から変わった場合、実装 A の Rust DESC 順テストが落ちる。
 - If dry-run performs a side effect, which test fails?: 該当なし（本 packet に dry-run 機能はない）。
