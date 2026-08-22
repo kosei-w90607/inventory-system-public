@@ -4,7 +4,7 @@
 >
 > **更新ルール**: 会話で進展があるたびにこのファイルを更新する。各セクションは最新の状態を反映し、過去の経緯は「経緯ログ」セクションに蓄積する。
 >
-> **最終更新**: 2026-08-21 / PR #89 workflow docs（stacked train + D-074）+ PR #88 nanoid 更新 merge。次は受入台本第2版（⑤）or UI batch 1 の owner 選定
+> **最終更新**: 2026-08-22 / PR #93 価格改定支援 design-first squash merge。SPEC-PRV-D1〜D12 を source docs へ正本化済み、次は実装 PR A（backend + UI-01a/01b）
 
 ---
 
@@ -31,6 +31,7 @@
 **Phase 2 の日常利用 UI 5 画面は code-complete / route active で、PR #75 closeout merge `f44f99a` に `v0.8.0-ui-daily` tag を作成済み。AI Quality Workflow は PR #87 `ef0fd73` で Design Phase を導入済み。Phase 3 商品マスタ UI と Phase 4（UI-11b / UI-11a / UI-10 / UI-11c / UI-13）は完了済み。次期 milestone と監査是正の最新順序は `Plans.md` を優先する。**
 
 ### 直近の作業状態
+- **価格改定（値上げ連絡）支援 design-first**: **完了**（R3 docs-only、PR #93 squash merge `ada2401`、2026-08-22）。SPEC-PRV-D1〜D12 を source docs へ正本化（suppliers = メーカー意味 / keyword maker_code / UI-14 一括価格改定画面新設 / revise_product_price + create_supplier + list_price_history / 入庫 cost_diffs step 10 / UI-01b 価格履歴 + inline 取引先 / UI-01a 原価列 / REQ-105・106・209 + 90-traceability 再生成）。Plan Gate rally 3 round、Final Review 是正後 P1/P2/P3=0、L1 full + hosted run `32561913686` 三点一致。証跡は archived [Packet](archive/plans/2026-08-22-price-revision-design.md) / [Matrix](archive/plans/test-matrices/2026-08-22-price-revision-design.md)。次 = 実装 PR A（backend + UI-01a/01b）packet 起草。
 - **stacked train + 発注書規律の workflow docs 正本化**: **完了**（R3、PR #89 squash merge `b3e90cb`、2026-08-21）。DEV_WORKFLOW へ stacked train 小節（単段 merge 確立 / STATECAP 二段 cap 継承計上と content commit 同乗）+ D-074 新設 + 採番規律 + 発注書規律（referent 一致 / traceability 完了条件）+ fixture encoding を正本化。Plan Gate 3 round / Final Review Double Audit P1/P2/P3=0、exact-HEAD 三点一致（`dc1d856`、run `32391371212`）。同日 PR #88 で nanoid 3.3.18 更新（issue #82 消化）。証跡は archived [Packet](archive/plans/2026-08-20-stacked-train-workflow-docs.md) / [Matrix](archive/plans/test-matrices/2026-08-20-stacked-train-workflow-docs.md)。
 - **PLU bulk onboarding 実装（実装 B）**: **完了**（R3、PR #86 squash merge `225f7af`、2026-08-20）。商品 CSV 任意列 `PLU対象` / `bulk_set_plu_target`（filter 一致全件の 1 TX 一括 ON・OFF + 件数確認 dialog）/ 商品一覧の PLU 移行 badge 独立列 + `plu` URL filter / UI-01c preview 列 / D-052 C19 を実装。C 番号は PR #85 amendment 5 の C18 = prepare と衝突したため gated amendment 5 で C19 へ改番。squash 後の base 付け替えは rebase / 2 段 merge を実測棄却して origin/main 単段 merge + content commit 同乗遷移で成立（stacked train の workflow docs 正本化は follow-up）。Final Review round 1 P1/P2=0 + delta 再検証 P1/P2/P3=0、owner visual confirmation V1〜V6 全 PASS、hosted run `32374702949` で exact-HEAD 三点一致（`5079a79`）。証跡は archived [Packet](archive/plans/2026-08-19-plu-bulk-onboarding-implementation.md) / [Matrix](archive/plans/test-matrices/2026-08-19-plu-bulk-onboarding-implementation.md)。
 - **PLU slot core 実装（実装 A）**: **完了**（R3、PR #85 squash merge `f88037d`、2026-08-20）。`plu_slots` migration v5 / Z004 snapshot 照合 / sticky 最小空き予約 / clear 行解放 / UI-08 snapshot step + Diff gate / UI-01b レジメモリNo. を実装。Windows native L3 2 round で実機確認し、S9 起源の gated amendment 5（release_pending の Diff 計上 + D-052 C2/C14/C18）を同 PR で正式化、clear 行の CV17 受理・レジ未設定化の実機確認で `PLU_CLEAR_ROW_ENABLED=true` 確定。Final Review delta P1/P2=0、L1 full + hosted run `32368937596` の exact-HEAD 三点一致（`b131fd1`）。証跡は archived [Packet](archive/plans/2026-08-18-plu-slot-core-implementation.md) / [Matrix](archive/plans/test-matrices/2026-08-18-plu-slot-core-implementation.md)。次 = 実装 B（bulk onboarding）packet 起草。
