@@ -6,7 +6,7 @@ Use the field definitions, enums, transition evidence, packet-selection rule, an
 
 If a state-only commit materializes multiple phases, list the complete adjacent forward sequence and the pre-existing evidence for every intermediate transition in an append-only review/evidence record. Recording compression never permits a gate skip.
 
-- Phase: human-confirm
+- Phase: ready-hosted-final
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: ae80660
@@ -18,7 +18,7 @@ If a state-only commit materializes multiple phases, list the complete adjacent 
 - Reviewed Content HEAD: f87a363
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
-- Human Gate: Plan Gate 承認 → human visual confirmation（Windows native L3、対象 = UI-01a 原価列 / UI-01b 価格履歴セクション / UI-01b 取引先 inline 追加、checklist は Test Plan 節）と Ready 承認（同一セッションで 1 回に束ねる）→ hosted final（Rust / TS / bindings を含む non-doc change のため CI-TRIGGER-D1 の Ready / `synchronize` 経路で自動 run。予防的 `workflow_dispatch` はしない）→ 三点一致 → merge
+- Human Gate: Plan Gate 承認済み → human visual confirmation（Windows native L3 3 項目）PASS + Ready 承認済み（2026-08-23、介入 2/3）→ hosted final（Rust / TS / bindings を含む non-doc change のため CI-TRIGGER-D1 の Ready / `synchronize` 経路で自動 run。予防的 `workflow_dispatch` はしない）→ 三点一致 → merge
 
 ## Owner Effort Budget
 
@@ -365,3 +365,9 @@ If R3 review-only sub-agent is skipped, record an explicit line beginning with `
 - implementing -> local-verified: content candidate `cb880db`（Codex Writer 第 1 発注）と是正 delta `f87a363`（Codex Writer 第 2 発注、relay 2/2）の両方で L1 `local-ci.sh full` RESULT=PASS / END_TREE_STATE=CLEAN（evidence path は PR #94 body）。Coordinator の記述是正 `a15ce06` は packet / Matrix のみ。exact-HEAD の L1 full は Ready 遷移 commit で再実施する。
 - local-verified -> independent-review: 独立 Sonnet Final Reviewer（fresh context、worktree 隔離）が Contract Audit（Ledger 全行の実装 + test 監査、Matrix 記載の mutant 群の実注入、AC 再実測、scope / 既存 test 無改変 / PR body。件数は Review Response の Final Review 行と reviewer 報告が正）を実施。
 - independent-review -> human-confirm: Final Review P1 0 / P2 1 / P3 2 を全件裁定・是正（`a15ce06` + `f87a363`）し、fresh context の delta 再検証で P1/P2/P3 = 0。`Reviewed Content HEAD` = `f87a363`。隣接 3 遷移を 1 state-only commit で圧縮記録（post-implementation state-only 1 本目 / forward 合計 2 本目 / cap 3、PR #93 と同型）。
+
+### 遷移記録（2026-08-23、state-only 遷移 human-confirm -> ready-hosted-final）
+
+- Windows native L3: checklist 1〜3 を owner が全件 PASS。UI-01a はメーカー品番検索と売価直後の原価列、UI-01b は修正時の価格履歴（売価の旧値 → 新値）と新規時の非表示、取引先 inline 追加は空白 reject・IME 確定 Enter の誤送信なし・追加後の選択状態を確認した。
+- Data recovery: L3 前の控えへ通常復元し、復元後に synthetic maker code が検索結果へ出ないことを確認した。break-glass は未使用。
+- owner Ready 承認（2026-08-23、介入 2 回目 / 予算 3 回）: 本 state-only commit で `human-confirm -> ready-hosted-final` を materialize（forward state-only 3 本目 / cap 3、post-implementation 2 本目 / cap 2）。resulting exact HEAD で L1 full を再実行し、PR body を更新してから Draft を解除する。Ready event の同一 HEAD hosted final を待ち、三点一致前は merge しない。
