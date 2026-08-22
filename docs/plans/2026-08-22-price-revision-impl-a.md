@@ -6,10 +6,10 @@ Use the field definitions, enums, transition evidence, packet-selection rule, an
 
 If a state-only commit materializes multiple phases, list the complete adjacent forward sequence and the pre-existing evidence for every intermediate transition in an append-only review/evidence record. Recording compression never permits a gate skip.
 
-- Phase: plan-draft
+- Phase: implementing
 - Risk: R3
 - Execution Mode: fable-window
-- Plan Commit: pending
+- Plan Commit: ae80660
 - Amendments: none
 - Coordinator: Fable
 - Writer: Codex
@@ -350,3 +350,9 @@ If R3 review-only sub-agent is skipped, record an explicit line beginning with `
 - Plan Review round 2（Sonnet、fresh context、2026-08-22、packet `b298094`）: P1 0 / P2 1 / P3 1、全件 accept して是正 `1e333c6`: P2-1 round 1 是正で差し替えた Contract Probe の先例 `department_id` は `i64` で `Option<i64>` ではない（Coordinator の是正主張の裏取り不足）→ `ProductCreateRequest.supplier_id: Option<i64>` へ訂正 / P3-1 UI-01b-D21 失敗時入力保持の oracle が取引先名 field のみで「既存の商品 form 保存値を失わない」を見ていない → Ledger / Matrix に他 field 不変を追加。あわせて SPEC-PRVA-D3 に隣接 `create_product`（ValidationFailed）との差を明記。
 - Plan Review round 3（Sonnet、fresh context、delta 検証、2026-08-22、packet `1e333c6`）: P1 0 / P2 0 / P3 0、verdict pass。round 2 是正 3 hunk の anchor 実在と regression sweep、Workflow State 13 field、`doc-consistency-check.sh --target plan` exit 0（WARN は未実装 test token の PK3 のみ）を確認。Plan rally 収束（round 3/3、天井内）。Plan Commit 候補 = plan-first commit `ae80660`（本 branch の全 content commit の祖先）。
 - Findings Freeze: not yet frozen; post-freeze exceptions: none.
+
+### 遷移記録（2026-08-22、state-only 遷移 plan-draft -> plan-gate -> plan-approved -> implementing）
+
+- plan-draft -> plan-gate の evidence: packet と Test Design Matrix を plan-first commit `ae80660` で commit 済み、`doc-consistency-check.sh --target plan` exit 0（WARN は未実装 test token の PK3 のみ）。
+- plan-gate -> plan-approved の evidence: 独立 Sonnet Plan Reviewer 3 round（round 1 P1 1 / P2 3 → 是正 `b298094`、round 2 P1 0 / P2 1 → 是正 `1e333c6`、round 3 fresh delta 検証 P1 0 / P2 0 / P3 0 = pass、Review Response 参照）、owner plan approval（2026-08-22、介入 1 回目 / 予算 3 回）、Plan Commit = plan-first commit `ae80660`（本 branch の全 content commit の祖先）。
+- plan-approved -> implementing の evidence: 実装は Codex Writer 発注（cwd pin / Plan Commit 記入 / 本遷移を Coordinator が先行）で着手し、plan-first commit が全実装 commit に先行する。隣接 3 遷移を 1 state-only commit で圧縮記録（PR #84 / #93 と同型、DEV_WORKFLOW 圧縮規則、forward state-only 1 本目 / cap 3）。
