@@ -103,7 +103,7 @@ fn toggle_discontinue(state: State<AppState>, product_code: String) -> Result<bo
 
 #### search_products コマンド
 
-**処理ステップ**: biz::product_service::search_products()を呼ぶ。`ProductSearchQuery.plu` は `all|target|pending|synced|excluded` を受け、商品一覧の PLU 移行 filter として IO-01 の WHERE へ渡す。
+**処理ステップ**: biz::product_service::search_products()を呼ぶ。`ProductSearchQuery.plu` は `all|target|pending|synced|excluded` を受け、商品一覧の PLU 移行 filter として IO-01 の WHERE へ渡す。`supplier_id` / `include_unassigned` は UI-14 の取引先 filter としてそのまま BIZ-01 wrapper を通し、抽出判断は IO-01 が所有する（SPEC-PRVB-D1）。
 
 #### list_departments コマンド
 

@@ -1219,6 +1219,8 @@ export type ProductSearchQuery = {
 	// 商品名/product_code/jan_code の部分一致
 	keyword: string | null,
 	department_id: number | null,
+	supplier_id?: number | null,
+	include_unassigned?: boolean,
 	// None=全件、Some(false)=現行品のみ、Some(true)=廃番のみ
 	is_discontinued: boolean | null,
 	plu?: PluMigrationFilter | null,

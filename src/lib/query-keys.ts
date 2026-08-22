@@ -78,6 +78,14 @@ export const queryKeys = {
     product: (productCode: string) => ["product-form", "product", { productCode }] as const,
     suppliers: () => ["product-form", "suppliers"] as const,
   },
+  // UI-14 一括価格改定
+  priceRevision: {
+    root: () => ["price-revision"] as const,
+    search: (search: object) => ["price-revision", "search", search] as const,
+    suppliers: () => ["price-revision", "suppliers"] as const,
+    departments: () => ["price-revision", "departments"] as const,
+    history: (productCode: string) => ["price-revision", "history", { productCode }] as const,
+  },
   // UI-02 入庫記録
   // 設計: docs/function-design/61-ui-receiving.md §61.7
   receivings: {

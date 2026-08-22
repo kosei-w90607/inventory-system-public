@@ -226,6 +226,10 @@ pub struct ProductSearchQuery {
     /// 商品名/product_code/jan_code の部分一致
     pub keyword: Option<String>,
     pub department_id: Option<i64>,
+    #[serde(default)]
+    pub supplier_id: Option<i64>,
+    #[serde(default)]
+    pub include_unassigned: bool,
     /// None=全件、Some(false)=現行品のみ、Some(true)=廃番のみ
     pub is_discontinued: Option<bool>,
     #[serde(default)]
@@ -714,6 +718,16 @@ pub fn search_products(
     if let Some(dept_id) = query.department_id {
         conditions.push(format!("p.department_id = ?{}", params.len() + 1));
         params.push(Box::new(dept_id));
+    }
+
+    if let Some(supplier_id) = query.supplier_id {
+        let idx = params.len() + 1;
+        if query.include_unassigned {
+            conditions.push(format!("(p.supplier_id = ?{idx} OR p.supplier_id IS NULL)"));
+        } else {
+            conditions.push(format!("p.supplier_id = ?{idx}"));
+        }
+        params.push(Box::new(supplier_id));
     }
 
     if let Some(discontinued) = query.is_discontinued {
@@ -1475,6 +1489,8 @@ mod tests {
         ProductSearchQuery {
             keyword: None,
             department_id: None,
+            supplier_id: None,
+            include_unassigned: false,
             is_discontinued: None,
             plu: None,
             sort_key: SortKey::ProductCode,
@@ -1588,6 +1604,95 @@ mod tests {
         for p in &products {
             insert_product(conn, p).unwrap();
         }
+    }
+
+    /// REQ-105 取引先 filter 用 fixture。
+    /// supplier A 2件 / supplier B 1件 / 未設定 2件を、部門 1 / 2 に分散して投入する。
+    fn seed_products_for_supplier_search(conn: &DbConnection) -> (i64, i64) {
+        let supplier_a = find_or_create_supplier(conn, "取引先A").unwrap();
+        let supplier_b = find_or_create_supplier(conn, "取引先B").unwrap();
+        let fixtures = [
+            ("SUP-A-D1", 1, Some(supplier_a.id)),
+            ("SUP-A-D2", 2, Some(supplier_a.id)),
+            ("SUP-B-D1", 1, Some(supplier_b.id)),
+            ("SUP-NULL-D1", 1, None),
+            ("SUP-NULL-D2", 2, None),
+        ];
+        for (code, department_id, supplier_id) in fixtures {
+            let mut product = create_test_product(code, code, department_id);
+            product.supplier_id = supplier_id;
+            insert_product(conn, &product).unwrap();
+        }
+        (supplier_a.id, supplier_b.id)
+    }
+
+    fn result_codes(result: &PaginatedResult<ProductWithRelations>) -> Vec<&str> {
+        result
+            .items
+            .iter()
+            .map(|item| item.product.product_code.as_str())
+            .collect()
+    }
+
+    #[test]
+    fn test_search_products_req105_supplier_filter_matches_only_selected_supplier() {
+        // REQ-105 / SPEC-PRVB-D1: Some(A) + false は A の商品だけを返す。
+        let (_dir, conn) = setup_test_db();
+        let (supplier_a, _) = seed_products_for_supplier_search(&conn);
+        let mut query = default_search_query();
+        query.supplier_id = Some(supplier_a);
+        query.include_unassigned = false;
+
+        let result = search_products(&conn, &query).unwrap();
+        assert_eq!(result_codes(&result), vec!["SUP-A-D1", "SUP-A-D2"]);
+        assert_eq!(result.total_count, 2);
+    }
+
+    #[test]
+    fn test_search_products_req105_supplier_filter_includes_unassigned_when_flag_set() {
+        // REQ-105 / SPEC-PRVB-D1: Some(A) + true は A と未設定を返す。
+        let (_dir, conn) = setup_test_db();
+        let (supplier_a, _) = seed_products_for_supplier_search(&conn);
+        let mut query = default_search_query();
+        query.supplier_id = Some(supplier_a);
+        query.include_unassigned = true;
+
+        let result = search_products(&conn, &query).unwrap();
+        assert_eq!(
+            result_codes(&result),
+            vec!["SUP-A-D1", "SUP-A-D2", "SUP-NULL-D1", "SUP-NULL-D2"]
+        );
+        assert_eq!(result.total_count, 4);
+    }
+
+    #[test]
+    fn test_search_products_req105_no_supplier_filter_when_unspecified() {
+        // REQ-105 / SPEC-PRVB-D1: supplier 未指定時は flag を無視して全件を返す。
+        let (_dir, conn) = setup_test_db();
+        seed_products_for_supplier_search(&conn);
+        let mut query = default_search_query();
+        query.supplier_id = None;
+        query.include_unassigned = true;
+
+        let result = search_products(&conn, &query).unwrap();
+        assert_eq!(result.total_count, 5);
+        assert_eq!(result.items.len(), 5);
+    }
+
+    #[test]
+    fn test_search_products_req105_supplier_filter_combines_with_other_conditions() {
+        // REQ-105 / SPEC-PRVB-D1: supplier OR 条件を括弧で閉じ、部門条件と AND 結合する。
+        let (_dir, conn) = setup_test_db();
+        let (supplier_a, _) = seed_products_for_supplier_search(&conn);
+        let mut query = default_search_query();
+        query.supplier_id = Some(supplier_a);
+        query.include_unassigned = true;
+        query.department_id = Some(1);
+        query.keyword = Some("D1".to_string());
+
+        let result = search_products(&conn, &query).unwrap();
+        assert_eq!(result_codes(&result), vec!["SUP-A-D1", "SUP-NULL-D1"]);
+        assert_eq!(result.total_count, 2);
     }
 
     #[test]
