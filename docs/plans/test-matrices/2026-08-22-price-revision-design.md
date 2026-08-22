@@ -51,7 +51,7 @@ Risk: R3
 | SPEC-PRV-D9 [本 design-first PR] | 契機カラム or 表示条件が未確定 | CLI/negative rg | M-D9: `rg -F -c "list_price_history" docs/function-design/20-io-product-repo.md docs/function-design/40-cmd-product.md` 各 ≥ 1、`rg -F -c "価格履歴" docs/function-design/51-ui-product-form.md` ≥ 1（現状 0 hit）、契機カラムを追加する記述の hit 0 | 読取り関数・CMD・UI セクションのいずれかが欠落、または契機カラムが誤って足される |
 | SPEC-PRV-D10 [本 design-first PR] | 決定 ID が UI-01a-D13 で転記されない | CLI/contract review + ID 一意性 | M-D10: `rg -o "UI-01a-D[0-9]+" docs/function-design/50-ui-product-list.md \| sort -u -V \| tail -1` が amendment 後に本裁定の新 ID（現状の最大は UI-01a-D12 のため次は **UI-01a-D13**）と一致し、`rg -F -c` で同 ID が 1 回だけ出現（重複 0） | 裁定行が既存 UI-01a-D9（keyword trim, 2026-08-03）または UI-01a-D10（PLU 状態列）と ID 衝突する、または未記録 |
 | SPEC-PRV-D11 [本 design-first PR] | REQ / coverage / traceability のいずれかに露出漏れ | CLI/contract review | M-D11: `rg -c "REQ-105\|REQ-106\|REQ-209" docs/spec/requirements.md` ≥ 3、`rg -c "SP-102-08\|SP-103-04" docs/spec/requirements-coverage.md` = 2、`cd src-tauri && cargo run --bin generate_traceability -- --check` exit 0 | REQ 追加漏れ、coverage 行漏れ、または traceability 再生成で T1/T2 検出 |
-| SPEC-PRV-D12 [Matrix のみ] | PR 分割が Ledger に写っていない | packet/Matrix review | M-D12: 本 Matrix「実装 PR への予約」に A/B/C の 3 節が存在し、Contract Coverage Ledger の全 13 行（D1〜D11 + UI-14 到達導線 + D12）がいずれか 1 節に写っている | 予約先未記載の Ledger 行がある |
+| SPEC-PRV-D12 [Matrix のみ] | PR 分割が Ledger に写っていない | packet/Matrix review | M-D12: 本 Matrix「実装 PR への予約」に A/B/C の 3 節が存在し、Contract Coverage Ledger の実装対象 10 行（D2〜D10 + UI-14 到達導線）がいずれか 1 節に `Dn:` 表記で写っている。D1（docs-only）/ D11（第 2 発注）/ D12（plan 事項）は予約対象外として同節末尾に明記 | 予約先未記載の実装対象 Ledger 行がある |
 
 ### M-D1〜M-D12 実行結果（第 2 発注後に実測）
 
@@ -93,7 +93,7 @@ Enumerate every site of each borrowed pattern; do not sample only the nearest fi
 - invalid input: `new_selling_price` / `new_cost_price` が負値 → validation error、TX 未開始。`create_supplier` の空文字 name → validation error。
 - duplicate/ambiguous input: `create_supplier` に既存同名 → 新規作成せず既存行を返す（重複行を作らない）。
 - unknown reference: `assign_supplier_id` が不存在の supplier_id → `CmdError`（not-found 系、Boundary/Wire Contract の既存 variant 再利用）。
-- dependency missing: `list_price_history` に product_code 不存在 → 空配列 or not-found（第 2 発注で 40-cmd に確定させる、本 Matrix は要確定点として明記）。
+- dependency missing: `list_price_history` に product_code 不存在 → 空配列（packet SPEC-PRV-D9 で確定済み、not-found error にしない）。第 2 発注で 40-cmd に転記。
 - permission/write failure: 該当なし（既存 DB 権限モデルに変更なし）。
 - dry-run side effect: 該当なし（UI-14 に dry-run 相当の機能はない。確定は即時反映）。
 - D-075 否認語の不在（negative rg、非 scope 節の否定文は除外）:
@@ -186,6 +186,8 @@ Enumerate every site of each borrowed pattern; do not sample only the nearest fi
 
 - D8: `test_create_receiving_req209_detects_cost_diff`、`test_create_receiving_req209_no_diff_when_cost_matches`、`test_create_receiving_req209_empty_on_idempotent_replay`、`test_create_receiving_req209_cost_diff_detection_does_not_affect_save_tx`（`src-tauri/src/biz/inventory_service.rs`）。
 - D8 UI: RTL `src/features/receiving/ReceivingPage.test.tsx`（保存完了時の差分ダイアログ表示、「マスタ原価をこの実原価に更新する」→ `revise_product_price` 呼出しで新売価は現売価据え置き）。
+
+予約対象外（実装なし）: D1 = docs-only（master-tables §3 の意味改訂のみ）/ D11 = 第 2 発注の docs 作業（requirements / coverage / 90-traceability）/ D12 = plan 事項（本節自体）。
 
 ## Residual Test Gaps
 

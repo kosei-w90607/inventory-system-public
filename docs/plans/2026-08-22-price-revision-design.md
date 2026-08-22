@@ -76,7 +76,7 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。AC や�
 - `docs/spec/requirements-coverage.md`: SP-102 行の直下に SP-102-08 行（→ REQ-105、current）、SP-103 行の直下に SP-103-04 行（→ REQ-103 + UI-01a-D13、current）を追加。完全性契約（distinct ID 件数）の文を実数に合わせて更新。
 - `docs/function-design/90-traceability.md`: `cargo run --bin generate_traceability` で再生成（手動編集禁止）。
 - `docs/function-design/20-io-product-repo.md`: §2.6 に `list_price_history` 読取り関数、`ProductSearchQuery.keyword` / `ProductBulkFilter.keyword` の一致対象に `maker_code` を追加、`revise_product_price` 用の部分更新関数、`find_or_create_supplier` の入力正規化（trim / 空文字拒否）を追記。
-- `docs/function-design/30-biz-product-service.md`: BIZ-01 に `revise_product_price`（行単位確定）/ `create_supplier` / `list_price_history` を追加。`plu_dirty` 規則（売価変更時のみ）を本経路でも維持する旨を明記。
+- `docs/function-design/30-biz-product-service.md`: BIZ-01 に `revise_product_price`（行単位確定、operation_type `product_price_revise`）/ `create_supplier` / `list_price_history` を追加。`plu_dirty` 規則（売価変更時のみ）を本経路でも維持する旨を明記。§4.9.1 `bulk_set_plu_target` に keyword の maker_code 拡張で母集団が広がる旨を注記（SPEC-PRV-D2 隣接契約）。
 - `docs/function-design/40-cmd-product.md`: CMD `revise_product_price` / `create_supplier` / `list_price_history` の契約と DTO。L144 の「`find_or_create_supplier` の公開 CMD は別 Design Phase」を本 packet で消化した旨に改訂。
 - `docs/function-design/31-biz-inventory-service.md`: BIZ-02 `create_receiving` の保存フロー（§12.3）に原価差分検出 step を追加し、`ReceivingCreateResult` に `cost_diffs` を追加。
 - `docs/function-design/44-cmd-inventory.md`（`create_receiving` CMD の所有 doc）: `ReceivingCreateResult.cost_diffs` の wire contract。
@@ -87,6 +87,7 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。AC や�
 - `docs/db-design/master-tables.md` §3 suppliers: 役割文を「メーカー/ブランド（値上げ連絡の主体）」へ改訂（D-075 (6)）、問屋チャネルは保持しない旨を追記。`products.supplier_id` の漸進補完（UI-14 確定時）を補足。
 - `docs/db-design/tracking-system-tables.md` price_history: 書込み契機 3 種（手動修正 / 一括改定 / 入庫差分承諾）を列挙し、契機カラムは設けない（導出不能を明記）旨を追記。
 - `docs/FUNCTION_DESIGN.md` 索引 / `docs/SCREEN_DESIGN.md` 画面一覧（#20 一括価格改定）/ `docs/architecture/ui-task-specs.md`（UI-14）/ `biz-task-specs.md` / `cmd-task-specs.md` / `io-task-specs.md` の entry 追加。
+- `docs/function-design/52-ui-shared-layout.md` §52.3 ルーティング定義: UI-14 行（一括価格改定 / `/products/price-revision` / `src/routes/products/price-revision.tsx` / 商品管理 / サイドバー ○）を追加し、サイドバー項目数の表記を更新。
 - `docs/decision-log.md`: D-075 の Impact に本 packet の決定 ID を追記（新 D 番号は起こさない。SP-103-04 の最終判断は UI-01a-D13 として 50-ui に記録）。
 - `docs/Plans.md`: active packet link と closeout。
 
@@ -112,7 +113,7 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。AC や�
 - `docs/function-design/77-ui-bulk-price-revision.md` が存在し、`> 対応仕様:` 行に REQ-105 を含む。`docs/FUNCTION_DESIGN.md` から link されている。
 - `bash scripts/doc-consistency-check.sh` exit 0（ERROR 0。既存 WARN 1 件〈40-cmd ページング上限〉は本 PR と無関係）。
 - 本 packet の SPEC-PRV-D1〜D12 が、それぞれ Scope 記載の source doc の決定行または本文へ 1 対 1 で転記され、`docs/plans/test-matrices/2026-08-22-price-revision-design.md` の M-D1〜M-D12 anchor oracle（`rg -F -c` で新文言 ≥ 1 + 旧文言 = 0）が「実行結果」表で全行 PASS。
-- Contract Coverage Ledger の全行が `docs/plans/test-matrices/2026-08-22-price-revision-design.md`「実装 PR への予約」表に実装 PR（A/B/C）の予約先付きで存在し（`rg -c "SPEC-PRV-D"` の行数が Ledger と一致）、Plan Review 最終 round の Ledger 欠落指摘が 0 件（Review Response に記録）。
+- Contract Coverage Ledger のうち実装対象行（SPEC-PRV-D2〜D10 + UI-14 到達導線 = 10 行）が `docs/plans/test-matrices/2026-08-22-price-revision-design.md`「実装 PR への予約」表の A / B / C いずれかに予約先付きで列挙されている（D1 = docs-only、D11 = 第 2 発注、D12 = plan 事項の 3 行は予約対象外と同表に明記）。Plan Review 最終 round の Ledger 欠落指摘が 0 件（Review Response に記録）。
 
 ## Design Sources
 
@@ -144,7 +145,7 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。AC や�
 | source doc 新設・改名 | `FUNCTION_DESIGN.md` / `SCREEN_DESIGN.md` 画面一覧 #20 / `ui-task-specs.md` UI-14 entry |
 | REQ coverage 追加 | `cargo run --bin generate_traceability` で `90-traceability.md` 再生成（第 2 発注の完了条件、`-- --check` exit 0） |
 | route 新設（`src/routes/products/price-revision.tsx`） | 実装 PR B で `npm run generate:routes` |
-| operator 画面新設（UI-14） | 実装 PR B で `src/config/navigation.ts` products group に `ui-14` entry（`to` + `status: "active"`）+ `navigation.test.ts` に REQ-105 到達テスト。本 PR では 77-ui と Ledger に到達導線契約行を立てる |
+| operator 画面新設（UI-14） | 実装 PR B で `src/config/navigation.ts` products group に `ui-14` entry（`to` + `status: "active"`）+ `navigation.test.ts` に REQ-105 到達テスト。本 PR では 77-ui と Ledger に到達導線契約行を立て、52-ui §52.3 の画面 registry に UI-14 行を追加する |
 | AGENT_OPERATING_MANUAL §5.5 consultation relay | 該当なし |
 
 L1 full の生成系検査は bindings / frontend routes / traceability の 3 種。本 PR で発火するのは traceability のみ。
@@ -384,4 +385,5 @@ Fill after implementation.
 ## Review Response
 
 Fill after review.
+- Plan Review round 2（Sonnet、独立 context、2026-08-22、packet `a035e13`）: P1 2 / P2 2 / P3 0、verdict fail。全件 accept して是正: P1-1 AC の Ledger 予約検証式（`rg -c "SPEC-PRV-D"`）が Matrix 表記と不一致で充足不能 → 実装対象 10 行に限定し D1/D11/D12 を除外と明記、M-D12 も同期 / P1-2 52-ui-shared-layout §52.3 画面 registry（UI-14 行）の登録義務が未列挙 → Scope + Obligations に追加 / P2-1 30-biz §4.9.1 `bulk_set_plu_target` への注記が Scope に未記載 → 追記 / P2-2 Matrix Negative Paths の `list_price_history` 不存在時「要確定」が stale → D9 確定済みへ更新。
 - Findings Freeze: not yet frozen; post-freeze exceptions: none.
