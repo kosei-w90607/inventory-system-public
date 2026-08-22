@@ -6,7 +6,7 @@ Use the field definitions, enums, transition evidence, packet-selection rule, an
 
 If a state-only commit materializes multiple phases, list the complete adjacent forward sequence and the pre-existing evidence for every intermediate transition in an append-only review/evidence record. Recording compression never permits a gate skip.
 
-- Phase: implementing
+- Phase: human-confirm
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: 325da8a
@@ -15,7 +15,7 @@ If a state-only commit materializes multiple phases, list the complete adjacent 
 - Writer: Codex
 - Plan Reviewer: Sonnet
 - Final Reviewer: Sonnet
-- Reviewed Content HEAD: pending
+- Reviewed Content HEAD: cc60e26
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
 - Human Gate: Plan Gate 承認 → human visual confirmation（Windows native L3、対象 = UI-14 到達 / 取引先 filter + 未設定含む / 400 行級の絞り込み → 突合 → 入力 → 行確定の反復 / 確定結果の UI-01a・UI-01b 反映、checklist は Test Plan 節）と Ready 承認（同一セッションで 1 回に束ねる）→ hosted final（Rust / TS / bindings を含む non-doc change のため CI-TRIGGER-D1 の Ready / `synchronize` 経路で自動 run。予防的 `workflow_dispatch` はしない）→ 三点一致 → merge
@@ -396,7 +396,8 @@ If R3 review-only sub-agent is skipped, record an explicit line beginning with `
 - Plan Review round 1（Sonnet、独立 context、2026-08-23、packet `325da8a`）: P1 0 / P2 3 / P3 3、verdict fail。全件 Coordinator が rg で裏取りのうえ accept して是正 `baba1ca`: P2-1 Contract Probe 4 の `predev` は存在しない script（`package.json` は `pretypecheck` / `prelint` / `prelint:fix` / `pretest` のみ、dev は `vite.config.ts` の `tanstackRouter` plugin）→ 文言訂正 / P2-2 Design Sources の 50-ui §50.5 は CMD / DTO 契約で URL state は §50.4 → 訂正 + query key 先例を `query-keys.ts` に明示 / P2-3 `generate_traceability` の T4 FE baseline（`FE_UNREFERENCED_BASELINE = 22`）に新設 FE test file が触れる → Scope に REQ-105 / UI-14 参照の義務を追記 / P3-1 SPEC-PRVB-D9 の「該当する商品がありません」が wording 表と Matrix assert から漏れ → 両方に追加 / P3-2 `invalidation-contract.ts` / `invalidation-oracle.ts` のヘッダコメント C1〜C19 更新を Scope に追記 / P3-3 Ledger の floor 導出 oracle に Matrix の (1001, 999, 1000) → 999 を転記。
 - Plan Review round 2（Sonnet、fresh context、2026-08-23、packet `baba1ca`）: delta 検証 7 hunk / anchor 9/9 実在 / 矛盾 0。P1 0 / P2 1 / P3 2、verdict fail。全件 Coordinator が実測・rg で裏取りのうえ accept して是正: P2-1 掛率 oracle の「(1, 16) が `toFixed(1)` 直接実装を検出」は誤り（両実装とも "6.3"。node で brute force 2001×2000 のうち 792 組が不一致、(23, 80) = 28.75 は直接 "28.7" / 四捨五入 "28.8"）→ Ledger / Matrix の oracle に (23, 80) → "28.8" を追加し誤主張を削除、Final Reviewer の実注入 mutant に D3 掛率 `toFixed` 直接を追加（6 → 7）/ P3-1 round 1 P3-1 是正で入れた「商品がまだ登録されていません」は 77-ui にも既存 EmptyState 先例（UI-01a `ProductListPage` title「該当する商品がありません」）にも無い新文言 → 先例 title に統一し SPEC-PRVB-D9 に根拠を明記、Matrix の Adjacent Pattern Audit に EmptyState 行を追加 / P3-2 SPEC-PRVB-D6 の除外根拠で「取引先」を E3 に含めていた（E3 は name / 部門 / 単位 / 価格のみ）→ 価格は E3、取引先は「consumer が supplier を読まない」に分けて訂正。
 - Plan Review round 3（Sonnet、fresh context、delta 検証、2026-08-23、packet `f4981ac`）: delta 9 hunk / anchor 9/9 実在、(23, 80) と (1, 16) の実測値と brute force 792 組を node で再現一致、regression sweep（Workflow State 13 field / 77-ui 契約語 26/26 / `doc-consistency-check.sh --target plan` exit 0・ERROR 0・WARN 2 = PK3 既知）。P1 0 / P2 0 / P3 1、verdict pass。P3-1 Matrix の Adjacent Pattern Audit「mutation 成功時 invalidation（D-052）」行に round 2 P3-2 の是正（価格 = E3 / 取引先 = consumer なし）が伝播していなかった → accept、同行を訂正。Plan rally 収束（round 3/3、天井内）。Plan Commit 候補 = plan-first commit `325da8a`（本 branch の全 content commit の祖先）。
-- Findings Freeze: not yet frozen; post-freeze exceptions: none.
+- Final Review（Sonnet、fresh context、worktree 隔離、2026-08-23、content candidate `cc60e26`）: P1 0 / P2 0 / P3 0 = PASS。Scope 33 file が packet Scope / gated amendment 1 と一致（packet 外 0 / 未実装 0、`docs/plans/` hunk は Implementation Results のみ、既存 test 改変は許容 3 種のみ）、Ledger 36/36 行を実装 + test で監査（C20 oracle / 算式隔離 / `isRevisedToday` 文字列比較を確認）、AC 全項目を再実測（`cargo test` 886 PASS / `npm test` 144 file・1058 PASS / bindings diff 空 / traceability `--check` exit 0 / `--target plan` 全チェック通過 / `cargo check --release` PASS）、Matrix の 7 mutant + reviewer 選定 3 mutant（`includeUnassigned` 既定 false 化 / `costTouched` guard 除去 / toggle 無視）を clean worktree で実注入し全 kill・生存 0、終了時 worktree clean。所見: 掛率 `toFixed` 直接 mutant の (23, 80) 判別は `(cost / selling) * 100` の演算順でのみ再現（test は実際に捕捉、欠陥ではない）。
+- Findings Freeze: frozen after Final Review（2026-08-23）; post-freeze exceptions: none.
 
 ### 遷移記録（2026-08-23、state-only 遷移 plan-draft -> plan-gate -> plan-approved -> implementing）
 
@@ -411,3 +412,9 @@ If R3 review-only sub-agent is skipped, record an explicit line beginning with `
 - 裁定: (i) `PriceRevisionPage` を `EXCLUDED_PAGES` に追加（UI-USW-D3 (c)、棚卸しと同型の行単位即時保存。77-ui は常時文言を代替安全網として契約しており、離脱ガード追加は 77-ui の契約外で UX 変更になるため採らない）+ 77-ui §77.6 に非適用の 1 文を転記（UI-USW-D3「適用画面は各 function-design の該当節に明記」の裏返しとして非適用理由も明記）。(ii) `ListSkeleton` 新設は 04-backbone 原則 11 に適合するため採用、共有 pattern の慣行に合わせ test と 02-component-catalog 1 行を追加。(iii) Rust fixture の field 追加は struct literal の機械的追従で assertion 不変のため許容、Scope の「既存 test 無改変」の例外に明記。Final Reviewer は (i) の分類根拠と (iii) の assertion 不変を監査対象に含める。
 - 却下: `PriceRevisionPage` を `APPLIED_PAGES` に入れて離脱ガードを配線（77-ui 契約外、Plan Gate 済み scope の UX 変更）/ sweep test から UI-14 を特例で除外する条件分岐（manifest 完全一致の設計意図を壊す）。
 - amendment commit SHA は Workflow State `Amendments` に後続 commit で記録（PR #86 gated amendment 1 と同型）。
+
+### 遷移記録（2026-08-23、state-only 遷移 implementing -> local-verified -> independent-review -> human-confirm）
+
+- implementing -> local-verified: content candidate `cc60e26`（Codex Writer 第 1 発注、gated amendment 1 反映済み、relay 1/2）で L1 `local-ci.sh full` RESULT=PASS / END_TREE_STATE=CLEAN / MERGE_EVIDENCE_VALID=true（evidence path は PR #95 body）。Coordinator の packet commit（`119847e` / `b6a7c72`）は docs/plans のみ。exact-HEAD の L1 full は Ready 遷移 commit で再実施する。
+- local-verified -> independent-review: 独立 Sonnet Final Reviewer（fresh context、worktree 隔離）が Contract Audit（Scope 突合、Ledger 36 行の実装 + test 監査、AC 再実測、Matrix 7 mutant + 追加 3 mutant の実注入、PR body / docs 検査。件数は Review Response の Final Review 行と reviewer 報告が正）を実施。
+- independent-review -> human-confirm: Final Review P1 0 / P2 0 / P3 0 = PASS、是正 delta なし。`Reviewed Content HEAD` = `cc60e26`。隣接 3 遷移を 1 state-only commit で圧縮記録（post-implementation state-only 1 本目 / forward 合計 2 本目 / cap 3、PR #94 と同型）。
