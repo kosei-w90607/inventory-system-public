@@ -35,7 +35,7 @@ Risk: R3
 ## Test Matrix
 
 - Before citing an existing test as regression coverage, use `rg` or an equivalent repository search to verify that the cited test exists.
-- 既存 test（無改変で PASS を要求、rg で実在確認済み 2026-08-23）: `test_search_products_req103_department_filter` / `test_search_products_req103_all_filter_combinations` / `test_search_products_req103_combined_filters_with_pagination` / `test_search_products_req907_filters_plu_migration_states` / `test_search_products_req105_keyword_matches_maker_code`（product_repo.rs）、`test_navigation_all_items_no_pending_status` / `test_navigation_req101_ui01b_active_at_products_new`（navigation.test.ts）、`src/features/products/search.test.ts` / `hooks/useProductList.test.tsx` / `ProductListPage.test.tsx`（file 単位）、`invalidation-contract.meta.test.ts` の `REQ-907 B-I1`（件数 literal のみ 19 → 20 に更新、他 assertion 不変）。
+- 既存 test（無改変で PASS を要求、rg で実在確認済み 2026-08-23）: `test_search_products_req103_department_filter` / `test_search_products_req103_all_filter_combinations` / `test_search_products_req103_combined_filters_with_pagination` / `test_search_products_req907_filters_plu_migration_states` / `test_search_products_req105_keyword_matches_maker_code`（product_repo.rs）、`test_navigation_all_items_no_pending_status` / `test_navigation_req101_ui01b_active_at_products_new`（navigation.test.ts）、`src/features/products/search.test.ts` / `hooks/useProductList.test.tsx` / `ProductListPage.test.tsx`（file 単位）、`invalidation-contract.meta.test.ts` の `REQ-907 B-I1`（件数 literal のみ 19 → 20 に更新、他 assertion 不変）、`unsaved-changes-guard-sweep.test.ts` の `T16` / `T17`（gated amendment 1: `EXCLUDED_PAGES` に `PriceRevisionPage` 1 entry 追加のみ、assertion 不変）、Rust 既存 test の `ProductSearchQuery` struct literal（`supplier_id: None, include_unassigned: false` の機械的追従のみ、assertion 不変）。
 
 | Contract | Failure Mode | Test Type | Test Name | Would fail if... |
 |---|---|---|---|---|
@@ -76,6 +76,8 @@ Risk: R3
 | SPEC-PRVB-D9 error | Alert なし | RTL | `一覧取得失敗で Alert と再試行を出し再試行で再取得する` | reject で `role="alert"` + 「再試行」が無い、押下で `searchProducts` が再呼出しされない |
 | REQ-105 到達 | pending / 経路違い | unit (navigation.test.ts) | `test_navigation_req105_ui14_active_at_products_price_revision` | `ui-14` entry が無い、`status !== "active"`、`to !== "/products/price-revision"` |
 | D-052 C20 登録 | 件数 / oracle 不一致 | unit + CLI | `invalidation-contract.meta.test.ts`（`toHaveLength(20)`、oracle に C20 転記）PASS + `invalidation-contract.static.test.ts` PASS + `rg -c "C20" docs/decision-log.md docs/UI_TECH_STACK.md` 各 ≥ 1 | entry 数 19 のまま、oracle 欠落、success handler が `invalidateByContract` 以外、docs 未追記 |
+| gated amendment 1 (i) UI-USW-D3 (c) 分類 | 未分類で T17 FAIL / 誤って APPLIED に配線 | unit 既存 (unsaved-changes-guard-sweep.test.ts) + CLI | 既存 `T17: 適用6画面の配線と全Page分類を明示manifestへ完全一致させる` PASS + `rg -c "PriceRevisionPage" src/hooks/unsaved-changes-guard-sweep.test.ts` = 1 + `rg -c "UI-USW-D3" docs/function-design/77-ui-bulk-price-revision.md` ≥ 1 | `PriceRevisionPage` が manifest に無い、`APPLIED_PAGES` 側にある、または 77-ui §77.6 に非適用の 1 文が無い |
+| gated amendment 1 (ii) 共有 ListSkeleton | 描画なし / 行数無視 | unit (ListSkeleton.test.tsx) | `ListSkeleton は指定行数の skeleton 行を描画し読み込み中を示す` | `rows={3}` で skeleton 行が 3 つ描画されない、または読み込み中を示す role / aria 属性が無い |
 | 登録: bindings / traceability / routes | 生成漏れ | CLI | AC の `generate_bindings` diff 空 + `cd src-tauri && cargo run --bin generate_traceability -- --check` exit 0 + `npm run generate:routes && npm run typecheck` PASS + `git ls-files src/routeTree.gen.ts` 空 | 生成物 stale、traceability drift、route 未生成、生成物を commit |
 
 ## State Lifecycle Matrix
@@ -109,6 +111,8 @@ Workflow-state rows:
 | 本日 / 日付文字列比較 | `useYesterdayDate.ts` / `date-nav.ts`（`toLocaleDateString("sv-SE")`） | `isRevisedToday` + Page の today 取得 | `Date` parse した比較は TZ ずれのため採らない | unit + RTL（`vi.setSystemTime`） |
 | 行内 error + 再試行（操作者 UI） | `PriceHistorySection`（inline error + 再試行）、UI-01b 取引先取得失敗 | 行確定 error / 取引先候補 error | — | RTL |
 | EmptyState 文言（操作者 UI） | `ProductListPage`（`EmptyState` title「該当する商品がありません」）、`src/components/patterns/EmptyState.tsx` | UI-14 filter なし 0 件は同 title + 商品一覧 link（SPEC-PRVB-D9）、filter あり 0 件は 77-ui §77.7 の「条件に一致する商品がありません」+「絞り込みを解除」 | 77-ui が文言を規定する filter あり側は先例と揃えない（正本優先） | RTL Empty |
+| 未保存編集の離脱ガード分類（UI-USW-D3） | `unsaved-changes-guard-sweep.test.ts` の `APPLIED_PAGES`（form 6 画面）/ `EXCLUDED_PAGES`（`StocktakePage` = (c) 行単位即時保存） | `PriceRevisionPage` を `EXCLUDED_PAGES` へ（(c) 同型、77-ui §77.6 常時文言が代替）（gated amendment 1） | `APPLIED_PAGES` 側の `useUnsavedChangesWarning` 配線は 77-ui 契約外のため採らない | 既存 T17 PASS + 77-ui 1 文 |
+| 一覧 Loading 表示 | `StockInquiryPage`（`ui/skeleton.tsx` を直接 3 行並べる）、04-backbone 原則 11「共通 `ListSkeleton`」 | 共有 `patterns/ListSkeleton.tsx` 新設 + UI-14 で使用（gated amendment 1） | 既存画面の `Skeleton` 直書きを `ListSkeleton` へ置換するのは UI batch の backlog で本 PR では触らない | `ListSkeleton.test.tsx` + 02-component-catalog 1 行 |
 | navigation active entry + 到達テスト | `ui-01b-new`（`test_navigation_req101_ui01b_active_at_products_new`） | `ui-14` + `test_navigation_req105_ui14_active_at_products_price_revision` | — | navigation.test.ts |
 | IME 合成中 Enter の無視 | `SearchBar`（UI-01a-D9）、実装 A 取引先 inline | `CreateSupplierDialog`（Enter で追加する場合は composition 中を無視） | Enter 送信を持たない実装なら該当なし（Writer 判断、報告に明記） | L3 item 2 |
 
