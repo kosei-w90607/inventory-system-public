@@ -147,6 +147,7 @@
 | Z004_260311PLU_商品_.CSV | POS CSV: PLU商品別売上（サンプル）★設計に重要 |
 | Z005_260313.CSV | POS CSV: 部門別売上（サンプル） |
 | hearing_sheet_v1.0.docx | 旧Word版ヒアリングシート（参考保管） |
+| [docs/evidence/issue-90/hearing-2026-08-21-22.sanitized.md](evidence/issue-90/hearing-2026-08-21-22.sanitized.md) | issue #90/#91 owner 聞き取り記録（価格改定・棚卸し除外の聞き取り、匿名化済み） |
 
 ### 実装成果物
 | 領域 | 内容 |
