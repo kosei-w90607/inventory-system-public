@@ -60,6 +60,7 @@ const EXCLUDED_PAGES = [
   { component: "MonthlySalesPage", path: "src/features/monthly-sales/MonthlySalesPage.tsx" },
   { component: "OperationLogsPage", path: "src/features/operation-logs/OperationLogsPage.tsx" },
   { component: "PluExportPage", path: "src/features/plu-export/PluExportPage.tsx" },
+  { component: "PriceRevisionPage", path: "src/features/products/PriceRevisionPage.tsx" },
   { component: "ProductImportPage", path: "src/features/products/ProductImportPage.tsx" },
   { component: "ProductListPage", path: "src/features/products/ProductListPage.tsx" },
   { component: "StockInquiryPage", path: "src/features/stock-inquiry/StockInquiryPage.tsx" },

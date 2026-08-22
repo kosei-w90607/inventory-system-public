@@ -4,6 +4,7 @@ import {
   BarChart3,
   BarChartBig,
   ClipboardList,
+  CircleDollarSign,
   DatabaseBackup,
   FileDown,
   FileSpreadsheet,
@@ -49,7 +50,7 @@ export interface NavArea {
   items: readonly NavItem[];
 }
 
-/// 4 エリア × 20 項目。Phase 2 daily 5 画面は route 実装済みで active。
+/// 4 エリア × 21 項目。Phase 2 daily 5 画面は route 実装済みで active。
 /// Phase 3/4 以降で各画面着手時に to を実 path に + status を "active" に切り替える。
 export const navigation: readonly NavArea[] = [
   {
@@ -135,6 +136,14 @@ export const navigation: readonly NavArea[] = [
         title: "PLU書出し",
         to: "/products/plu-export",
         icon: FileDown,
+        status: "active",
+      },
+      {
+        id: "ui-14",
+        label: "一括価格改定",
+        title: "一括価格改定",
+        to: "/products/price-revision",
+        icon: CircleDollarSign,
         status: "active",
       },
     ],

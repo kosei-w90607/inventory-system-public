@@ -16,6 +16,18 @@ describe("navigation config REQ-904", () => {
   });
 });
 
+describe("navigation config REQ-105 / UI-14", () => {
+  it("test_navigation_req105_ui14_active_at_products_price_revision", () => {
+    const item = navigation.flatMap((area) => area.items).find((entry) => entry.id === "ui-14");
+    expect(item).toMatchObject({
+      label: "一括価格改定",
+      title: "一括価格改定",
+      status: "active",
+      to: "/products/price-revision",
+    });
+  });
+});
+
 describe("navigation config sidebar pending links", () => {
   it("test_navigation_req101_ui01b_active_at_products_new", () => {
     // REQ-101: 商品登録画面への operator 到達導線

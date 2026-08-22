@@ -2182,6 +2182,8 @@ mod tests {
         let query = ProductSearchQuery {
             keyword: None,
             department_id: None,
+            supplier_id: None,
+            include_unassigned: false,
             is_discontinued: None,
             plu: None,
             sort_key: product_repo::SortKey::ProductCode,
@@ -3180,6 +3182,8 @@ mod tests {
         let query = ProductSearchQuery {
             keyword: Some("BL7 FILTER".into()),
             department_id: Some(2),
+            supplier_id: None,
+            include_unassigned: false,
             is_discontinued: Some(false),
             plu: Some(PluMigrationFilter::Pending),
             sort_key: SortKey::Name,
