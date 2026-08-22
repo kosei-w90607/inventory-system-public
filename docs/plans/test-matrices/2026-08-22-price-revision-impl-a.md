@@ -77,7 +77,7 @@ Risk: R3
 | SPEC-PRVA-D2 | 失敗 + 再試行 | RTL | `取得失敗で再試行ボタンから再取得できる` | reject 後に error 文言 / 「再試行」が出ない、または押下で再呼出しされない |
 | UI-01b-D21 | 空白で CMD | RTL | `取引先名が空白のみなら createSupplier を呼ばず field error を出す` | `createSupplier` が呼ばれる、または error 文言が出ない |
 | UI-01b-D21 | trim / 成功後の再取得と選択 | RTL | `新しい取引先を追加すると listSuppliers を再取得し返却 supplier を選択状態にする` | `createSupplier` の引数が trim 後の値でない、`listSuppliers` 再呼出しがない、select 値が返却 id でない |
-| UI-01b-D21 | 失敗で入力消失 | RTL | `createSupplier 失敗時に入力値を保持し error を表示する` | reject 後に input 値が空になる、または error 文言が出ない |
+| UI-01b-D21 | 失敗で入力消失 / form 値消失 | RTL | `createSupplier 失敗時に入力値と既存の商品 form 値を保持し error を表示する` | reject 後に取引先名 input が空になる、先に入力した 商品名 field の値が変わる、または error 文言が出ない（51-ui「既存の商品 form 保存値を失わない」） |
 | REQ-105 / 106 traceability | T3 WARN 残存 / T1 drift | CLI | `cd src-tauri && cargo run --bin generate_traceability -- --check` exit 0 + `rg -c "REQ-105.*no-test\|REQ-106.*no-test" docs/function-design/90-traceability.md` = 0 | 再生成漏れ、または test 名の REQ token が誤り |
 
 ## State Lifecycle Matrix

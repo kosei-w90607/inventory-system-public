@@ -163,6 +163,7 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。AC や�
 - `assign_supplier_id = Some(id)` のとき、価格変更の有無に関わらず最初に `product_repo::find_supplier_by_id` で存在を検証し、不存在は `BizError::NotFound`（40-cmd「不存在 `assign_supplier_id` は not-found の既存 `CmdErrorKind` へ正規化」の BIZ 側具体化）。存在すれば 30-biz step 5 どおり `supplier_id` が NULL のときだけ設定し、`supplier_assigned` は実際に設定したときのみ true。
 - 理由: FK 違反を SQLite に任せると `Internal` に落ちて UI が原因を示せない。入力整合性は BIZ step 1 の validation と同じ位置で先に落とす。
 - 却下: 不存在 id を黙って無視して `supplier_assigned=false` にする案（UI-14 の filter 取引先が削除済みだった等の異常を隠す）。
+- 隣接パターンとの差: 既存 `create_product` は supplier 不存在を `ValidationFailed("指定された取引先が存在しません")` にしている（30-biz create_product step f）。本 CMD は 40-cmd が「不存在 `assign_supplier_id` は not-found」と明示するため `NotFound` を採り、既存 `create_product` の error kind は変えない。
 - 転記先: なし（40-cmd の既存文言の範囲内。30-biz step 5 の挙動を変えない）。
 
 ### SPEC-PRVA-D4: 価格 no-op + supplier 紐付けだけの呼出し
@@ -228,7 +229,7 @@ Minimum design checks for business-app work:
 
 ## Contract Probe
 
-- tauri-specta が `Option<i64>` field と `Vec<PriceHistoryEntry>` 戻り値を既存 CMD と同じ形で生成するか: 既存 `ProductCreateRequest.department_id: Option<i64>`（product_service.rs、特別な attribute なし）と `list_suppliers`（`Vec<Supplier>`）が同型で生成済み → N/A（既存先例。`Option<Option<i64>>` の supplier_id は custom attribute が要る別型で、本 PR の `assign_supplier_id: Option<i64>` は該当しない）。
+- tauri-specta が `Option<i64>` field と `Vec<PriceHistoryEntry>` 戻り値を既存 CMD と同じ形で生成するか: 既存 `ProductCreateRequest.supplier_id: Option<i64>`（30-biz の create_product request 定義 / product_service.rs、特別な attribute なし）と `list_suppliers`（`Vec<Supplier>`）が同型で生成済み → N/A（既存先例。`Option<Option<i64>>` の supplier_id は custom attribute が要る別型で、本 PR の `assign_supplier_id: Option<i64>` は該当しない）。
 - `design_compliance_test` が新 pub fn を doc 側コードブロックから検出するか: 20-io §2.6 / 30-biz §4.4.1・§4.7.2・§4.7.3 / 40-cmd の 3 CMD は全て ```rust コードブロック内にシグネチャがある（PR #93 で転記）→ N/A（`KNOWN_ALLOWLIST` 追加不要。Writer は実装後に `cargo test --test design_compliance_test` で確認）。
 
 ## Contract Coverage Ledger
@@ -269,7 +270,7 @@ Minimum design checks for business-app work:
 | SPEC-PRVA-D2 空 / 取得失敗 + 再試行 | PriceHistorySection | RTL `ProductForm.test.tsx`: 0 件で「価格履歴はまだありません」、reject で error + 「再試行」再呼出し | — |
 | UI-01b-D21 trim + 空文字は CMD を呼ばない | ProductForm | RTL `ProductForm.test.tsx`: 空白のみで `createSupplier` 未呼出し + field error | — |
 | UI-01b-D21 成功で候補再取得 + 返却 supplier を選択 | ProductForm | RTL `ProductForm.test.tsx`: `createSupplier` 解決後に `listSuppliers` 再呼出し + select 値が返却 id | L3: 追加した取引先が候補に出る |
-| UI-01b-D21 失敗時入力保持 | ProductForm | RTL `ProductForm.test.tsx`: reject 後も入力値が残り error 表示 | — |
+| UI-01b-D21 失敗時入力保持（取引先名の入力値 + 既存の商品 form 保存値の両方） | ProductForm | RTL `ProductForm.test.tsx`: reject 後も取引先名の入力値が残り error 表示、かつ先に入力済みの 商品名 など他 field の値が不変 | — |
 | REQ-105 / 106 traceability（T3 WARN 解消） | 90-traceability | `generate_traceability -- --check` exit 0 + `no-test` 0 hit | — |
 
 ## Test Plan
