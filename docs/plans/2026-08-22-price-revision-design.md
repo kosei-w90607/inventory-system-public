@@ -90,6 +90,7 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。AC や�
 - `docs/function-design/52-ui-shared-layout.md` §52.3 ルーティング定義: UI-14 行（一括価格改定 / `/products/price-revision` / `src/routes/products/price-revision.tsx` / 商品管理 / サイドバー ○）を追加し、サイドバー項目数の表記を更新。
 - `docs/decision-log.md`: D-075 の Impact に本 packet の決定 ID を追記（新 D 番号は起こさない。SP-103-04 の最終判断は UI-01a-D13 として 50-ui に記録）。
 - `docs/Plans.md`: active packet link と closeout。
+- `src-tauri/tests/design_compliance_test.rs`: `SKIP_DOCS` に `77-ui-bulk-price-revision.md` を追加（登録義務、1 行。これにより本 PR は pure docs-only ではなく hosted CI の path filter 上は通常 run 対象になる）。
 
 本発注（第 1 発注）で実際に編集する scope:
 
@@ -98,7 +99,7 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。AC や�
 
 ## Non-scope
 
-- `src-tauri/**`、`src/**`、`src/lib/bindings.ts` の変更（実装 A/B/C の後続 PR）。
+- `src-tauri/**`、`src/**`、`src/lib/bindings.ts` の変更（実装 A/B/C の後続 PR）。唯一の例外 = `src-tauri/tests/design_compliance_test.rs` の `SKIP_DOCS` に `77-ui-bulk-price-revision.md` を 1 行追加する登録義務（新設 doc が未登録だと同 test の unmapped_docs assert が fail する）。
 - PDF 自動解析取込 / 上代カラム / 掛率の永続化 / 暫定原価フラグ / 新売価の自動提案 / 指定日の予約反映 / draft 保存テーブル（D-075 で否認済み）。
 - 取引先の改名・統合 UI、取引先管理画面（B 案）、CSV による取引先名受理（C 案）。必要になったら別起票。
 - リニューアル品（バーコード・品番が変わった同名商品）の同定支援（issue #66）。
@@ -141,7 +142,7 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。AC や�
 | 新規追加物 | 登録・生成義務 |
 |---|---|
 | Tauri command（`revise_product_price` / `create_supplier` / `list_price_history`、`create_receiving` DTO 拡張） | 実装 PR A/C で `lib.rs` `collect_commands` 登録 + `#[tauri::command]` / `#[specta::specta]` + `generate_bindings`。本 PR では 40-cmd / 44-cmd-inventory に契約行として予約 |
-| function-design doc 新設（`77-ui-bulk-price-revision.md`） | `docs/FUNCTION_DESIGN.md` 索引 + `src-tauri/tests/design_compliance_test.rs` の `SKIP_DOCS` に追加（50-ui と同じく CMD 署名は 40-cmd 側に置き 77-ui には inline 署名を置かない。inline 署名を置く場合のみ 73-ui-stocktake の先例で map entry）+ 必須セクション充足 |
+| function-design doc 新設（`77-ui-bulk-price-revision.md`） | `docs/FUNCTION_DESIGN.md` 索引 + `src-tauri/tests/design_compliance_test.rs` の `SKIP_DOCS` に追加（第 2 発注で実施。50-ui と同じく CMD 署名は 40-cmd 側に置き 77-ui には inline 署名を置かない。inline 署名を置く場合のみ 73-ui-stocktake の先例で map entry。未登録のままだと unmapped_docs assert が fail）+ 必須セクション充足 |
 | source doc 新設・改名 | `FUNCTION_DESIGN.md` / `SCREEN_DESIGN.md` 画面一覧 #20 / `ui-task-specs.md` UI-14 entry |
 | REQ coverage 追加 | `cargo run --bin generate_traceability` で `90-traceability.md` 再生成（第 2 発注の完了条件、`-- --check` exit 0） |
 | route 新設（`src/routes/products/price-revision.tsx`） | 実装 PR B で `npm run generate:routes` |
@@ -386,4 +387,5 @@ Fill after implementation.
 
 Fill after review.
 - Plan Review round 2（Sonnet、独立 context、2026-08-22、packet `a035e13`）: P1 2 / P2 2 / P3 0、verdict fail。全件 accept して是正: P1-1 AC の Ledger 予約検証式（`rg -c "SPEC-PRV-D"`）が Matrix 表記と不一致で充足不能 → 実装対象 10 行に限定し D1/D11/D12 を除外と明記、M-D12 も同期 / P1-2 52-ui-shared-layout §52.3 画面 registry（UI-14 行）の登録義務が未列挙 → Scope + Obligations に追加 / P2-1 30-biz §4.9.1 `bulk_set_plu_target` への注記が Scope に未記載 → 追記 / P2-2 Matrix Negative Paths の `list_price_history` 不存在時「要確定」が stale → D9 確定済みへ更新。
+- Coordinator sweep（round 2 後、2026-08-22）: 新設 `77-ui` doc は `design_compliance_test.rs` の unmapped_docs assert により `SKIP_DOCS` 登録が必須で、本 PR が test file 1 行を触ることが判明 → Non-scope の例外 / Scope bullet / Registration 行 / Human Gate（Ready event で通常 run）を同期。
 - Findings Freeze: not yet frozen; post-freeze exceptions: none.
