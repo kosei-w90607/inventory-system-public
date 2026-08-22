@@ -6,7 +6,7 @@ Use the field definitions, enums, transition evidence, packet-selection rule, an
 
 If a state-only commit materializes multiple phases, list the complete adjacent forward sequence and the pre-existing evidence for every intermediate transition in an append-only review/evidence record. Recording compression never permits a gate skip.
 
-- Phase: human-confirm
+- Phase: ready-hosted-final
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: 0b10e18
@@ -414,3 +414,7 @@ Fill after review.
 - implementing -> local-verified: content candidate `0e60da5`（Codex Writer 第 2 発注）の L1 `local-ci.sh full` RESULT=PASS / END_TREE_STATE=CLEAN（evidence path は PR #93 body）。是正 delta `18d87ac` は packet / Matrix / Plans.md のみで source docs・test に触れず、`doc-consistency-check.sh`（全体 / `--target plan`）exit 0 を再確認。exact-HEAD の L1 full は Ready 遷移 commit で実施する。
 - local-verified -> independent-review: 独立 Sonnet Final Reviewer（fresh context）が Contract Audit を実施（Ledger 13/13、M-D1〜M-D12 の rg 件数再実測が Writer 表と全一致、Mechanical Impact Inventory sweep、登録義務、ID 一意性、Non-scope / Data Safety）。
 - independent-review -> human-confirm: Final Review P1 0 / P2 1 / P3 1 を全件裁定・是正（`18d87ac`）し、fresh context の delta 再検証で P1/P2 = 0。`Reviewed Content HEAD` = `18d87ac`。隣接 3 遷移を 1 state-only commit で圧縮記録（post-implementation state-only 1 本目 / cap 3、PR #84 と同型）。
+
+### 遷移記録（2026-08-22、state-only 遷移 human-confirm -> ready-hosted-final）
+
+- owner Ready 承認（2026-08-22、介入 3 回目 / 予算 3）。Human Gate の残り = owner の Ready 化と hosted final。`design_compliance_test.rs` SKIP_DOCS 1 行を含む non-doc event-eligible change のため、CI-TRIGGER-D1 の表に従い Ready event の自動 run を待ち、予防的 `workflow_dispatch` はしない。post-implementation state-only 2 本目 / cap 3。exact HEAD（本 commit）の L1 full と hosted run headSha は PR #93 body に記録し、packet には commit しない。
