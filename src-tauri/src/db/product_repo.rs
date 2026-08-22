@@ -2313,6 +2313,43 @@ mod tests {
     }
 
     #[test]
+    fn test_list_price_history_req102_id_desc_tie_break_on_same_changed_at() {
+        let (_dir, conn) = setup_test_db();
+        insert_product(
+            &conn,
+            &create_test_product("HIST-TIE-BREAK", "履歴同時刻商品", 1),
+        )
+        .unwrap();
+        for (id, changed_at) in [
+            (101_i64, "2026-08-22T12:00:00"),
+            (102_i64, "2026-08-22T12:00:00"),
+            (103_i64, "2026-08-21T12:00:00"),
+        ] {
+            conn.execute(
+                "INSERT INTO price_history
+                 (id, product_code, old_selling, new_selling, old_cost, new_cost, changed_at)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+                rusqlite::params![
+                    id,
+                    "HIST-TIE-BREAK",
+                    id + 10,
+                    id + 20,
+                    id + 30,
+                    id + 40,
+                    changed_at,
+                ],
+            )
+            .unwrap();
+        }
+
+        let result = list_price_history(&conn, "HIST-TIE-BREAK", 10).unwrap();
+        let actual_ids: Vec<i64> = result.iter().map(|entry| entry.id).collect();
+
+        assert_eq!(actual_ids, [102, 101, 103]);
+        assert_eq!([result[0].id, result[1].id], [102, 101]);
+    }
+
+    #[test]
     fn test_list_price_history_req102_respects_limit() {
         let (_dir, conn) = setup_test_db();
         insert_history_fixture(&conn, "HIST-LIMIT", 6);
