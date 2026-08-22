@@ -110,4 +110,32 @@ describe("ProductTable (UI-01a-D6 / UI-01a-D8)", () => {
     expect(within(row).queryByText("表示中")).not.toBeInTheDocument();
     expect(row.className).not.toContain("text-muted-foreground");
   });
+
+  it("REQ-105 UI-01a-D13 places cost immediately after selling price and renders the value", () => {
+    render(
+      <ProductTable
+        items={[
+          makeMockProductWithRelations({
+            product_code: "PRICE-001",
+            selling_price: 1234,
+            cost_price: 567,
+          }),
+        ]}
+      />,
+    );
+    const headers = screen.getAllByRole("columnheader").map((header) => header.textContent);
+    expect(headers).toEqual([
+      "商品コード",
+      "商品名",
+      "部門",
+      "売価",
+      "原価",
+      "在庫数",
+      "PLU",
+      "操作",
+    ]);
+    const row = screen.getByText("PRICE-001").closest("tr");
+    if (row === null) throw new Error("row not found");
+    expect(within(row).getByText("￥567")).toBeInTheDocument();
+  });
 });

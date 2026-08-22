@@ -6,7 +6,7 @@
 // UI-01b-D12: 必須項目ラベルに（必須）を付ける（色符号化しない）。
 // UI-01b-D13: 「廃番にする」は確認ダイアログを通す（「表示に戻す」は直接実行）。
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { ArrowLeft, Save } from "lucide-react";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -20,11 +20,14 @@ import {
   isComposedDigitsOnly,
   normalizeComposedDigits,
 } from "@/components/patterns/normalizeComposedDigits";
-import type { Department, Supplier } from "@/lib/bindings";
+import { commands, type Department, type Supplier } from "@/lib/bindings";
+import { describeError } from "@/lib/describe-error";
+import { unwrapResult } from "@/lib/invoke";
 import { suggestPluTarget } from "../lib/jan-code";
 import type { ProductFormValues, ProductTaxRate } from "../lib/product-form-request";
 import { DiscontinueConfirmDialog } from "./DiscontinueConfirmDialog";
 import { StockUnitField } from "./StockUnitField";
+import { PriceHistorySection } from "./PriceHistorySection";
 
 export interface ProductFormProps {
   mode: "create" | "edit";
@@ -84,6 +87,30 @@ export function ProductForm({
   onToggleDiscontinue,
 }: ProductFormProps) {
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [supplierOptions, setSupplierOptions] = useState(suppliers);
+  const [showSupplierInput, setShowSupplierInput] = useState(false);
+  const [supplierName, setSupplierName] = useState("");
+  const [supplierCreateError, setSupplierCreateError] = useState<string | null>(null);
+  const [isCreatingSupplier, setIsCreatingSupplier] = useState(false);
+
+  useEffect(() => {
+    setSupplierOptions((current) => {
+      const merged = [...suppliers];
+      for (const supplier of current) {
+        if (!merged.some((candidate) => candidate.id === supplier.id)) merged.push(supplier);
+      }
+      if (
+        merged.length === current.length &&
+        merged.every(
+          (supplier, index) =>
+            supplier.id === current[index]?.id && supplier.name === current[index]?.name,
+        )
+      ) {
+        return current;
+      }
+      return merged;
+    });
+  }, [suppliers]);
 
   const update = <K extends keyof ProductFormValues>(key: K, value: ProductFormValues[K]) => {
     onValuesChange((prev) => ({ ...prev, [key]: value }));
@@ -277,12 +304,80 @@ export function ProductForm({
               }}
             >
               <option value="">取引先なし</option>
-              {suppliers.map((supplier) => (
+              {supplierOptions.map((supplier) => (
                 <option key={supplier.id} value={supplier.id}>
                   {supplier.name}
                 </option>
               ))}
             </select>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setShowSupplierInput((shown) => !shown);
+                setSupplierCreateError(null);
+              }}
+            >
+              新しい取引先を追加
+            </Button>
+            {showSupplierInput ? (
+              <div className="space-y-2 rounded-md border border-input p-3">
+                <Label htmlFor="new-supplier-name">取引先名</Label>
+                <Input
+                  id="new-supplier-name"
+                  value={supplierName}
+                  onChange={(event) => {
+                    setSupplierName(event.target.value);
+                    setSupplierCreateError(null);
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") event.preventDefault();
+                  }}
+                />
+                {supplierCreateError !== null ? (
+                  <p className="text-sm text-destructive" role="alert">
+                    {supplierCreateError}
+                  </p>
+                ) : null}
+                <Button
+                  type="button"
+                  size="sm"
+                  disabled={isCreatingSupplier}
+                  onClick={() => {
+                    const trimmed = supplierName.trim();
+                    if (trimmed === "") {
+                      setSupplierCreateError("取引先名を入力してください");
+                      return;
+                    }
+                    setIsCreatingSupplier(true);
+                    setSupplierCreateError(null);
+                    void (async () => {
+                      try {
+                        const created = await unwrapResult(commands.createSupplier(trimmed), {
+                          source: "commands",
+                          cmd: "create_supplier",
+                        });
+                        const refreshed = await unwrapResult(commands.listSuppliers(), {
+                          source: "commands",
+                          cmd: "list_suppliers",
+                        });
+                        setSupplierOptions(refreshed);
+                        update("supplierId", created.id);
+                        setSupplierName("");
+                        setShowSupplierInput(false);
+                      } catch (createError) {
+                        setSupplierCreateError(describeError(createError));
+                      } finally {
+                        setIsCreatingSupplier(false);
+                      }
+                    })();
+                  }}
+                >
+                  追加する
+                </Button>
+              </div>
+            ) : null}
           </div>
         </div>
       </FormSection>
@@ -373,6 +468,10 @@ export function ProductForm({
           }}
         />
       </FormSection>
+
+      {mode === "edit" && productCodeLabel !== undefined ? (
+        <PriceHistorySection productCode={productCodeLabel} />
+      ) : null}
 
       <div className="flex flex-wrap justify-end gap-2 border-t pt-4">
         <Button type="button" variant="outline" onClick={onCancel}>

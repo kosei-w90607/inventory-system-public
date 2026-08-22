@@ -8,6 +8,8 @@ export const commands = {
 	createProduct: (req: ProductCreateRequest) => typedError<ProductCreateResult, CmdError>(__TAURI_INVOKE("create_product", { req })),
 	// 商品情報を更新する
 	updateProduct: (productCode: string, req: ProductUpdateRequest_Deserialize) => typedError<ProductUpdateResult, CmdError>(__TAURI_INVOKE("update_product", { productCode, req })),
+	// 商品価格を改定する。
+	reviseProductPrice: (input: PriceRevisionInput) => typedError<PriceRevisionResult, CmdError>(__TAURI_INVOKE("revise_product_price", { input })),
 	/**
 	 *  廃番状態を切り替える
 	 *
@@ -22,6 +24,10 @@ export const commands = {
 	listDepartments: () => typedError<Department[], CmdError>(__TAURI_INVOKE("list_departments")),
 	// 取引先選択候補を全件取得する
 	listSuppliers: () => typedError<Supplier[], CmdError>(__TAURI_INVOKE("list_suppliers")),
+	// 取引先を作成する（同名は既存行を返す）。
+	createSupplier: (name: string) => typedError<Supplier, CmdError>(__TAURI_INVOKE("create_supplier", { name })),
+	// 商品の価格履歴を取得する。
+	listPriceHistory: (productCode: string, limit: number) => typedError<PriceHistoryEntry[], CmdError>(__TAURI_INVOKE("list_price_history", { productCode, limit })),
 	/**
 	 *  商品詳細を取得する
 	 *
@@ -1100,6 +1106,32 @@ export type PreviewData = {
 	error_summary: ErrorSummary,
 	duplicate_check: DuplicateCheck,
 	preview_created_at: string,
+};
+
+// 価格履歴の読取り用行マッピング
+export type PriceHistoryEntry = {
+	id: number,
+	old_selling_price: number,
+	new_selling_price: number,
+	old_cost_price: number,
+	new_cost_price: number,
+	changed_at: string,
+};
+
+// 価格改定入力（SPEC-PRV-D5）。
+export type PriceRevisionInput = {
+	product_code: string,
+	new_selling_price: number,
+	new_cost_price: number,
+	assign_supplier_id: number | null,
+};
+
+// 価格改定結果（SPEC-PRV-D5）。
+export type PriceRevisionResult = {
+	product_code: string,
+	changed: boolean,
+	plu_dirty_set: boolean,
+	supplier_assigned: boolean,
 };
 
 /**

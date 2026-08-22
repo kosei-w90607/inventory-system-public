@@ -36,6 +36,7 @@ export function ProductTable({ items, returnTo = "/products" }: ProductTableProp
           <TableHead>商品名</TableHead>
           <TableHead>部門</TableHead>
           <TableHead className="text-right">売価</TableHead>
+          <TableHead className="text-right">原価</TableHead>
           <TableHead className="text-right">在庫数</TableHead>
           <TableHead>PLU</TableHead>
           <TableHead className="text-right">操作</TableHead>
@@ -60,6 +61,9 @@ export function ProductTable({ items, returnTo = "/products" }: ProductTableProp
             <TableCell>{item.department_name}</TableCell>
             <TableCell className="text-right tabular-nums">
               {yenFormatter.format(item.selling_price)}
+            </TableCell>
+            <TableCell className="text-right tabular-nums">
+              {yenFormatter.format(item.cost_price)}
             </TableCell>
             <TableCell className="text-right tabular-nums">
               {item.stock_quantity.toLocaleString("ja-JP")} {item.stock_unit}

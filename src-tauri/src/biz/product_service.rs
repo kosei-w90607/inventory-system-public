@@ -14,6 +14,8 @@ use crate::db::product_repo::{
 };
 use crate::db::stocktake_repo::NewStocktakeItem;
 
+pub use crate::db::product_repo::PriceHistoryEntry;
+
 // ---------------------------------------------------------------------------
 // 型定義
 // ---------------------------------------------------------------------------
@@ -65,6 +67,24 @@ pub struct ProductUpdateRequest {
 #[derive(Debug, serde::Serialize, specta::Type)]
 pub struct ProductUpdateResult {
     pub warnings: Vec<String>,
+}
+
+/// 価格改定入力（SPEC-PRV-D5）。
+#[derive(Debug, serde::Deserialize, specta::Type)]
+pub struct PriceRevisionInput {
+    pub product_code: String,
+    pub new_selling_price: i64,
+    pub new_cost_price: i64,
+    pub assign_supplier_id: Option<i64>,
+}
+
+/// 価格改定結果（SPEC-PRV-D5）。
+#[derive(Debug, serde::Serialize, specta::Type)]
+pub struct PriceRevisionResult {
+    pub product_code: String,
+    pub changed: bool,
+    pub plu_dirty_set: bool,
+    pub supplier_assigned: bool,
 }
 
 fn deserialize_nullable_update_field<'de, D, T>(
@@ -341,6 +361,108 @@ pub fn update_product(
     Ok(ProductUpdateResult { warnings: vec![] })
 }
 
+/// 売価・原価だけを安全に改定し、未紐付けの場合だけ取引先を補完する。
+pub fn revise_product_price(
+    conn: &mut DbConnection,
+    input: PriceRevisionInput,
+) -> Result<PriceRevisionResult, BizError> {
+    let existing = product_repo::find_by_product_code(conn, &input.product_code)?
+        .ok_or_else(|| BizError::NotFound("商品が見つかりません".to_string()))?;
+
+    if input.new_selling_price < 0 {
+        return Err(BizError::ValidationFailed(
+            "売価は0以上で入力してください".to_string(),
+        ));
+    }
+    if input.new_cost_price < 0 {
+        return Err(BizError::ValidationFailed(
+            "原価は0以上で入力してください".to_string(),
+        ));
+    }
+
+    if let Some(supplier_id) = input.assign_supplier_id {
+        product_repo::find_supplier_by_id(conn, supplier_id)?
+            .ok_or_else(|| BizError::NotFound("取引先が見つかりません".to_string()))?;
+    }
+
+    let selling_changed = input.new_selling_price != existing.product.selling_price;
+    let cost_changed = input.new_cost_price != existing.product.cost_price;
+    let changed = selling_changed || cost_changed;
+    let supplier_assigned =
+        existing.product.supplier_id.is_none() && input.assign_supplier_id.is_some();
+
+    if !changed && !supplier_assigned {
+        return Ok(PriceRevisionResult {
+            product_code: input.product_code,
+            changed: false,
+            plu_dirty_set: false,
+            supplier_assigned: false,
+        });
+    }
+
+    let tx = conn
+        .transaction()
+        .map_err(|error| BizError::DatabaseError(DbError::from(error)))?;
+
+    if changed {
+        product_repo::insert_price_history(
+            &tx,
+            &NewPriceHistory {
+                product_code: input.product_code.clone(),
+                old_selling: existing.product.selling_price,
+                new_selling: input.new_selling_price,
+                old_cost: existing.product.cost_price,
+                new_cost: input.new_cost_price,
+            },
+        )?;
+    }
+
+    #[cfg(test)]
+    if changed
+        && failpoint::UPDATE_PRODUCT_AFTER_PRICE_HISTORY.load(std::sync::atomic::Ordering::SeqCst)
+    {
+        return Err(BizError::DatabaseError(DbError::QueryFailed(
+            "failpoint: update_product_after_price_history".into(),
+        )));
+    }
+
+    let updates = ProductUpdates {
+        selling_price: selling_changed.then_some(input.new_selling_price),
+        cost_price: cost_changed.then_some(input.new_cost_price),
+        supplier_id: supplier_assigned.then_some(input.assign_supplier_id),
+        plu_dirty: selling_changed.then_some(true),
+        ..Default::default()
+    };
+    product_repo::update_product(&tx, &input.product_code, &updates)?;
+
+    if changed {
+        system_repo::insert_operation_log(
+            &tx,
+            &NewOperationLog {
+                operation_type: "product_price_revise".to_string(),
+                summary: format!("商品価格を改定しました: {}", input.product_code),
+                detail_json: Some(format!(
+                    r#"{{"selling_price":{{"old":{},"new":{}}},"cost_price":{{"old":{},"new":{}}}}}"#,
+                    existing.product.selling_price,
+                    input.new_selling_price,
+                    existing.product.cost_price,
+                    input.new_cost_price
+                )),
+            },
+        )?;
+    }
+
+    tx.commit()
+        .map_err(|error| BizError::DatabaseError(DbError::from(error)))?;
+
+    Ok(PriceRevisionResult {
+        product_code: input.product_code,
+        changed,
+        plu_dirty_set: selling_changed,
+        supplier_assigned,
+    })
+}
+
 /// 商品の廃番フラグを反転する（FUNC-4.5）
 pub fn toggle_discontinue(conn: &mut DbConnection, product_code: &str) -> Result<bool, BizError> {
     let existing = product_repo::find_by_product_code(conn, product_code)?
@@ -531,6 +653,29 @@ pub fn list_departments(conn: &DbConnection) -> Result<Vec<product_repo::Departm
 /// BIZ層では追加の業務ロジックなし。商品や検索結果から候補を派生せず、IO層の取引先 master data を返す。
 pub fn list_suppliers(conn: &DbConnection) -> Result<Vec<product_repo::Supplier>, BizError> {
     product_repo::list_suppliers(conn).map_err(BizError::from)
+}
+
+/// 取引先名を正規化し、同名がなければ作成する。
+pub fn create_supplier(
+    conn: &DbConnection,
+    name: String,
+) -> Result<product_repo::Supplier, BizError> {
+    let trimmed = name.trim();
+    if trimmed.is_empty() {
+        return Err(BizError::ValidationFailed(
+            "取引先名を入力してください".to_string(),
+        ));
+    }
+    product_repo::find_or_create_supplier(conn, trimmed).map_err(BizError::from)
+}
+
+/// 商品の価格履歴を新しい順で取得する。
+pub fn list_price_history(
+    conn: &DbConnection,
+    product_code: String,
+    limit: u32,
+) -> Result<Vec<PriceHistoryEntry>, BizError> {
+    product_repo::list_price_history(conn, &product_code, limit).map_err(BizError::from)
 }
 
 /// 商品の在庫詳細を取得する（最終入庫日・最終販売日付き）
@@ -3062,5 +3207,315 @@ mod tests {
         assert_eq!(pending_result.matched_count, search_count);
         assert_eq!(all_result.matched_count, 4);
         assert_ne!(all_result.matched_count, pending_result.matched_count);
+    }
+
+    fn create_price_revision_product(conn: &mut DbConnection) -> String {
+        create_product(conn, default_create_request())
+            .unwrap()
+            .product_code
+    }
+
+    fn revision_input(product_code: &str) -> PriceRevisionInput {
+        PriceRevisionInput {
+            product_code: product_code.to_string(),
+            new_selling_price: 700,
+            new_cost_price: 400,
+            assign_supplier_id: None,
+        }
+    }
+
+    fn price_revision_log_count(conn: &DbConnection) -> i64 {
+        conn.query_row(
+            "SELECT COUNT(*) FROM operation_logs WHERE operation_type = 'product_price_revise'",
+            [],
+            |row| row.get(0),
+        )
+        .unwrap()
+    }
+
+    #[test]
+    fn test_revise_product_price_req105_not_found_product() {
+        let (_dir, mut conn) = setup_test_db();
+        let error = revise_product_price(&mut conn, revision_input("MISSING")).unwrap_err();
+        assert!(matches!(error, BizError::NotFound(_)));
+    }
+
+    #[test]
+    fn test_revise_product_price_req105_validation_negative_selling_price() {
+        let (_dir, mut conn) = setup_test_db();
+        let code = create_price_revision_product(&mut conn);
+        let mut input = revision_input(&code);
+        input.new_selling_price = -1;
+        assert!(matches!(
+            revise_product_price(&mut conn, input),
+            Err(BizError::ValidationFailed(_))
+        ));
+    }
+
+    #[test]
+    fn test_revise_product_price_req105_validation_negative_cost_price() {
+        let (_dir, mut conn) = setup_test_db();
+        let code = create_price_revision_product(&mut conn);
+        let mut input = revision_input(&code);
+        input.new_cost_price = -1;
+        assert!(matches!(
+            revise_product_price(&mut conn, input),
+            Err(BizError::ValidationFailed(_))
+        ));
+    }
+
+    #[test]
+    fn test_revise_product_price_req105_no_op_when_unchanged() {
+        let (_dir, mut conn) = setup_test_db();
+        let code = create_price_revision_product(&mut conn);
+        conn.execute(
+            "UPDATE products SET updated_at = '2000-01-01T00:00:00' WHERE product_code = ?1",
+            [&code],
+        )
+        .unwrap();
+        let result = revise_product_price(
+            &mut conn,
+            PriceRevisionInput {
+                product_code: code.clone(),
+                new_selling_price: 500,
+                new_cost_price: 300,
+                assign_supplier_id: None,
+            },
+        )
+        .unwrap();
+        assert!(!result.changed);
+        let updated_at: String = conn
+            .query_row(
+                "SELECT updated_at FROM products WHERE product_code = ?1",
+                [&code],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(updated_at, "2000-01-01T00:00:00");
+        assert!(product_repo::list_price_history(&conn, &code, 10)
+            .unwrap()
+            .is_empty());
+    }
+
+    #[test]
+    fn test_revise_product_price_req105_no_op_writes_no_operation_log() {
+        let (_dir, mut conn) = setup_test_db();
+        let code = create_price_revision_product(&mut conn);
+        let before = price_revision_log_count(&conn);
+        revise_product_price(
+            &mut conn,
+            PriceRevisionInput {
+                product_code: code,
+                new_selling_price: 500,
+                new_cost_price: 300,
+                assign_supplier_id: None,
+            },
+        )
+        .unwrap();
+        assert_eq!(price_revision_log_count(&conn), before);
+    }
+
+    #[test]
+    fn test_revise_product_price_req105_writes_price_history_four_values() {
+        let (_dir, mut conn) = setup_test_db();
+        let code = create_price_revision_product(&mut conn);
+        revise_product_price(&mut conn, revision_input(&code)).unwrap();
+        let history = product_repo::list_price_history(&conn, &code, 10).unwrap();
+        assert_eq!(history.len(), 1);
+        assert_eq!(history[0].old_selling_price, 500);
+        assert_eq!(history[0].new_selling_price, 700);
+        assert_eq!(history[0].old_cost_price, 300);
+        assert_eq!(history[0].new_cost_price, 400);
+    }
+
+    #[test]
+    fn test_revise_product_price_req105_writes_operation_log() {
+        let (_dir, mut conn) = setup_test_db();
+        let code = create_price_revision_product(&mut conn);
+        revise_product_price(&mut conn, revision_input(&code)).unwrap();
+        assert_eq!(price_revision_log_count(&conn), 1);
+    }
+
+    #[test]
+    fn test_revise_product_price_req105_plu_dirty_on_selling_change() {
+        let (_dir, mut conn) = setup_test_db();
+        let code = create_price_revision_product(&mut conn);
+        conn.execute(
+            "UPDATE products SET plu_dirty = 0 WHERE product_code = ?1",
+            [&code],
+        )
+        .unwrap();
+        let result = revise_product_price(&mut conn, revision_input(&code)).unwrap();
+        let product = product_repo::find_by_product_code(&conn, &code)
+            .unwrap()
+            .unwrap();
+        assert!(result.plu_dirty_set);
+        assert!(product.product.plu_dirty);
+    }
+
+    #[test]
+    fn test_revise_product_price_req105_cost_only_no_plu_dirty() {
+        let (_dir, mut conn) = setup_test_db();
+        let code = create_price_revision_product(&mut conn);
+        conn.execute(
+            "UPDATE products SET plu_dirty = 0 WHERE product_code = ?1",
+            [&code],
+        )
+        .unwrap();
+        let result = revise_product_price(
+            &mut conn,
+            PriceRevisionInput {
+                product_code: code.clone(),
+                new_selling_price: 500,
+                new_cost_price: 400,
+                assign_supplier_id: None,
+            },
+        )
+        .unwrap();
+        let product = product_repo::find_by_product_code(&conn, &code)
+            .unwrap()
+            .unwrap();
+        assert!(!result.plu_dirty_set);
+        assert!(!product.product.plu_dirty);
+    }
+
+    #[test]
+    fn test_revise_product_price_req106_assigns_null_supplier_id() {
+        let (_dir, mut conn) = setup_test_db();
+        let code = create_price_revision_product(&mut conn);
+        let supplier = create_supplier(&conn, "合成取引先A".to_string()).unwrap();
+        let mut input = revision_input(&code);
+        input.assign_supplier_id = Some(supplier.id);
+        let result = revise_product_price(&mut conn, input).unwrap();
+        let product = product_repo::find_by_product_code(&conn, &code)
+            .unwrap()
+            .unwrap();
+        assert!(result.supplier_assigned);
+        assert_eq!(product.product.supplier_id, Some(supplier.id));
+    }
+
+    #[test]
+    fn test_revise_product_price_req106_keeps_existing_supplier_id() {
+        let (_dir, mut conn) = setup_test_db();
+        let first = create_supplier(&conn, "合成取引先A".to_string()).unwrap();
+        let second = create_supplier(&conn, "合成取引先B".to_string()).unwrap();
+        let mut request = default_create_request();
+        request.supplier_id = Some(first.id);
+        let code = create_product(&mut conn, request).unwrap().product_code;
+        let mut input = revision_input(&code);
+        input.assign_supplier_id = Some(second.id);
+        let result = revise_product_price(&mut conn, input).unwrap();
+        let product = product_repo::find_by_product_code(&conn, &code)
+            .unwrap()
+            .unwrap();
+        assert!(!result.supplier_assigned);
+        assert_eq!(product.product.supplier_id, Some(first.id));
+    }
+
+    #[test]
+    fn test_revise_product_price_req106_unknown_supplier_id_not_found() {
+        let (_dir, mut conn) = setup_test_db();
+        let code = create_price_revision_product(&mut conn);
+        let mut input = revision_input(&code);
+        input.assign_supplier_id = Some(999_999);
+        let error = revise_product_price(&mut conn, input).unwrap_err();
+        assert!(matches!(error, BizError::NotFound(_)));
+        let product = product_repo::find_by_product_code(&conn, &code)
+            .unwrap()
+            .unwrap();
+        assert_eq!(product.product.selling_price, 500);
+    }
+
+    #[test]
+    fn test_revise_product_price_req106_assigns_supplier_when_price_unchanged() {
+        let (_dir, mut conn) = setup_test_db();
+        let code = create_price_revision_product(&mut conn);
+        let supplier = create_supplier(&conn, "合成取引先".to_string()).unwrap();
+        let before_logs = price_revision_log_count(&conn);
+        let result = revise_product_price(
+            &mut conn,
+            PriceRevisionInput {
+                product_code: code.clone(),
+                new_selling_price: 500,
+                new_cost_price: 300,
+                assign_supplier_id: Some(supplier.id),
+            },
+        )
+        .unwrap();
+        assert!(!result.changed);
+        assert!(result.supplier_assigned);
+        assert!(product_repo::list_price_history(&conn, &code, 10)
+            .unwrap()
+            .is_empty());
+        assert_eq!(price_revision_log_count(&conn), before_logs);
+    }
+
+    #[test]
+    fn test_revise_product_price_req105_persists_large_values_exactly() {
+        let (_dir, mut conn) = setup_test_db();
+        let code = create_price_revision_product(&mut conn);
+        revise_product_price(
+            &mut conn,
+            PriceRevisionInput {
+                product_code: code.clone(),
+                new_selling_price: 9_999_999,
+                new_cost_price: 9_999_998,
+                assign_supplier_id: None,
+            },
+        )
+        .unwrap();
+        let product = product_repo::find_by_product_code(&conn, &code)
+            .unwrap()
+            .unwrap();
+        let history = product_repo::list_price_history(&conn, &code, 10).unwrap();
+        assert_eq!(product.product.selling_price, 9_999_999);
+        assert_eq!(product.product.cost_price, 9_999_998);
+        assert_eq!(history[0].new_selling_price, 9_999_999);
+        assert_eq!(history[0].new_cost_price, 9_999_998);
+    }
+
+    #[test]
+    #[serial]
+    fn test_revise_product_price_req105_tx_atomicity_rollback() {
+        let (_dir, mut conn) = setup_test_db();
+        let code = create_price_revision_product(&mut conn);
+        let before_logs = price_revision_log_count(&conn);
+        let _guard = failpoint::arm(&failpoint::UPDATE_PRODUCT_AFTER_PRICE_HISTORY);
+        assert!(revise_product_price(&mut conn, revision_input(&code)).is_err());
+        let product = product_repo::find_by_product_code(&conn, &code)
+            .unwrap()
+            .unwrap();
+        assert_eq!(product.product.selling_price, 500);
+        assert!(product_repo::list_price_history(&conn, &code, 10)
+            .unwrap()
+            .is_empty());
+        assert_eq!(price_revision_log_count(&conn), before_logs);
+    }
+
+    #[test]
+    fn test_create_supplier_req106_trims_and_creates() {
+        let (_dir, conn) = setup_test_db();
+        let supplier = create_supplier(&conn, "  合成取引先  ".to_string()).unwrap();
+        assert_eq!(supplier.name, "合成取引先");
+        assert_eq!(product_repo::list_suppliers(&conn).unwrap().len(), 1);
+    }
+
+    #[test]
+    fn test_create_supplier_req106_rejects_empty_name() {
+        let (_dir, conn) = setup_test_db();
+        assert!(matches!(
+            create_supplier(&conn, " \t ".to_string()),
+            Err(BizError::ValidationFailed(_))
+        ));
+        assert!(product_repo::list_suppliers(&conn).unwrap().is_empty());
+    }
+
+    #[test]
+    fn test_create_supplier_req106_returns_existing_row_for_duplicate_name() {
+        let (_dir, conn) = setup_test_db();
+        let first = create_supplier(&conn, "合成取引先".to_string()).unwrap();
+        let second = create_supplier(&conn, " 合成取引先 ".to_string()).unwrap();
+        assert_eq!(first.id, second.id);
+        assert_eq!(product_repo::list_suppliers(&conn).unwrap().len(), 1);
     }
 }

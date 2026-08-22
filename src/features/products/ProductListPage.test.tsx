@@ -297,6 +297,26 @@ describe("ProductListPage (UI-01a)", () => {
       await screen.findByText("部門一覧の取得に失敗しました", {}, { timeout: 4000 }),
     ).toBeInTheDocument();
   });
+
+  it("REQ-105 UI-01a uses the maker-code placeholder and shows the cost header", async () => {
+    mockSearchProducts.mockResolvedValue({
+      status: "ok",
+      data: {
+        items: [makeMockProductWithRelations({ product_code: "COST-001" })],
+        total_count: 1,
+        page: 1,
+        per_page: 50,
+      },
+    });
+    mockListDepartments.mockResolvedValue({ status: "ok", data: [] });
+    renderWithClient(<ProductListPage search={{}} onSearchChange={vi.fn()} />);
+    await screen.findByText("COST-001");
+    expect(screen.getByLabelText("商品検索")).toHaveAttribute(
+      "placeholder",
+      "商品コード・商品名・JAN・メーカー品番で検索",
+    );
+    expect(screen.getByRole("columnheader", { name: "原価" })).toBeInTheDocument();
+  });
 });
 
 describe("ProductListPage SPEC-UIBB-1/2（filter-empty reset action、既存「商品を登録する」と共存）", () => {

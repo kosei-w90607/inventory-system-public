@@ -3,7 +3,17 @@
 import React from "react";
 import { createEvent, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+import { commands, type PriceHistoryEntry } from "@/lib/bindings";
+
+vi.mock("@/lib/bindings", () => ({
+  commands: {
+    listPriceHistory: vi.fn().mockResolvedValue({ status: "ok", data: [] }),
+    createSupplier: vi.fn(),
+    listSuppliers: vi.fn().mockResolvedValue({ status: "ok", data: [] }),
+  },
+}));
 
 import { makeMockDepartment, makeMockSupplier } from "../lib/test-fixtures";
 import {
@@ -476,5 +486,190 @@ describe("ProductForm (UI-01b)", () => {
 
     fireEvent.change(input, { target: { value: "９６３８５０７４" } });
     expect(screen.getByLabelText("レジにバーコード登録する")).not.toBeChecked();
+  });
+});
+
+describe("ProductForm price history and inline supplier (REQ-102 / REQ-106)", () => {
+  const mockListPriceHistory = vi.mocked(commands.listPriceHistory);
+  const mockCreateSupplier = vi.mocked(commands.createSupplier);
+  const mockListSuppliers = vi.mocked(commands.listSuppliers);
+
+  beforeEach(() => {
+    mockListPriceHistory.mockReset();
+    mockCreateSupplier.mockReset();
+    mockListSuppliers.mockReset();
+    mockListPriceHistory.mockResolvedValue({ status: "ok", data: [] });
+    mockListSuppliers.mockResolvedValue({ status: "ok", data: [] });
+  });
+
+  function renderStateful(mode: "create" | "edit" = "edit") {
+    function Harness() {
+      const [values, setValues] = React.useState<ProductFormValues>({
+        ...createProductFormDefaults,
+        name: "入力済みの商品名",
+      });
+      return (
+        <ProductForm
+          mode={mode}
+          values={values}
+          departments={[makeMockDepartment()]}
+          suppliers={[makeMockSupplier({ id: 1, name: "既存取引先" })]}
+          errors={{}}
+          saveError={null}
+          supplierWarning={null}
+          productCodeLabel={mode === "edit" ? "PRICE-001" : undefined}
+          isSaving={false}
+          posSyncTouched={false}
+          onValuesChange={setValues}
+          onPosSyncTouchedChange={vi.fn()}
+          onSubmit={vi.fn()}
+          onCancel={vi.fn()}
+        />
+      );
+    }
+    return render(<Harness />);
+  }
+
+  it("shows history only in edit mode and calls listPriceHistory with 10", async () => {
+    const entry: PriceHistoryEntry = {
+      id: 2,
+      old_selling_price: 100,
+      new_selling_price: 120,
+      old_cost_price: 60,
+      new_cost_price: 70,
+      changed_at: "2026-08-22T12:00:00",
+    };
+    mockListPriceHistory.mockResolvedValue({ status: "ok", data: [entry] });
+    const edit = renderStateful("edit");
+    expect(await screen.findByRole("heading", { name: "価格履歴" })).toBeInTheDocument();
+    expect(mockListPriceHistory).toHaveBeenCalledWith("PRICE-001", 10);
+    expect(await screen.findByText("2026-08-22T12:00:00")).toBeInTheDocument();
+    edit.unmount();
+    mockListPriceHistory.mockClear();
+    renderStateful("create");
+    expect(screen.queryByRole("heading", { name: "価格履歴" })).not.toBeInTheDocument();
+    expect(mockListPriceHistory).not.toHaveBeenCalled();
+  });
+
+  it("keeps the returned newest-first row order", async () => {
+    mockListPriceHistory.mockResolvedValue({
+      status: "ok",
+      data: [
+        {
+          id: 9,
+          old_selling_price: 200,
+          new_selling_price: 210,
+          old_cost_price: 100,
+          new_cost_price: 105,
+          changed_at: "NEWEST",
+        },
+        {
+          id: 8,
+          old_selling_price: 180,
+          new_selling_price: 200,
+          old_cost_price: 90,
+          new_cost_price: 100,
+          changed_at: "OLDER",
+        },
+      ],
+    });
+    renderStateful();
+    const newest = await screen.findByText("NEWEST");
+    const older = screen.getByText("OLDER");
+    expect(newest.compareDocumentPosition(older) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it("reloads all history with limit 100", async () => {
+    mockListPriceHistory.mockResolvedValue({
+      status: "ok",
+      data: [
+        {
+          id: 1,
+          old_selling_price: 1,
+          new_selling_price: 2,
+          old_cost_price: 1,
+          new_cost_price: 2,
+          changed_at: "ROW",
+        },
+      ],
+    });
+    const user = userEvent.setup();
+    renderStateful();
+    await user.click(await screen.findByRole("button", { name: "すべて表示" }));
+    expect(mockListPriceHistory).toHaveBeenCalledWith("PRICE-001", 100);
+  });
+
+  it("shows the exact empty message", async () => {
+    renderStateful();
+    expect(await screen.findByText("価格履歴はまだありません")).toBeInTheDocument();
+  });
+
+  it("shows an inline error and retries", async () => {
+    mockListPriceHistory
+      .mockResolvedValueOnce({
+        status: "error",
+        error: {
+          kind: "internal",
+          message: "synthetic history failure",
+          field: null,
+          error_id: null,
+        },
+      })
+      .mockResolvedValueOnce({ status: "ok", data: [] });
+    const user = userEvent.setup();
+    renderStateful();
+    expect(await screen.findByRole("alert")).toHaveTextContent("価格履歴を取得できませんでした");
+    await user.click(screen.getByRole("button", { name: "再試行" }));
+    expect(await screen.findByText("価格履歴はまだありません")).toBeInTheDocument();
+    expect(mockListPriceHistory).toHaveBeenCalledTimes(2);
+  });
+
+  it("rejects whitespace supplier names without calling createSupplier", async () => {
+    const user = userEvent.setup();
+    renderStateful("create");
+    await user.click(screen.getByRole("button", { name: "新しい取引先を追加" }));
+    await user.type(screen.getByLabelText("取引先名"), "   ");
+    await user.click(screen.getByRole("button", { name: "追加する" }));
+    expect(screen.getByRole("alert")).toHaveTextContent("取引先名を入力してください");
+    expect(mockCreateSupplier).not.toHaveBeenCalled();
+  });
+
+  it("trims, creates, refreshes suppliers, and selects the returned id", async () => {
+    mockCreateSupplier.mockResolvedValue({
+      status: "ok",
+      data: { id: 44, name: "新規取引先", created_at: "2026-08-22T00:00:00" },
+    });
+    mockListSuppliers.mockResolvedValue({
+      status: "ok",
+      data: [{ id: 44, name: "新規取引先", created_at: "2026-08-22T00:00:00" }],
+    });
+    const user = userEvent.setup();
+    renderStateful("create");
+    await user.click(screen.getByRole("button", { name: "新しい取引先を追加" }));
+    await user.type(screen.getByLabelText("取引先名"), "  新規取引先  ");
+    await user.click(screen.getByRole("button", { name: "追加する" }));
+    expect(mockCreateSupplier).toHaveBeenCalledWith("新規取引先");
+    expect(mockListSuppliers).toHaveBeenCalledTimes(1);
+    expect(await screen.findByLabelText("取引先")).toHaveValue("44");
+  });
+
+  it("preserves supplier input and other form values after create failure", async () => {
+    mockCreateSupplier.mockResolvedValue({
+      status: "error",
+      error: {
+        kind: "internal",
+        message: "synthetic supplier failure",
+        field: null,
+        error_id: null,
+      },
+    });
+    const user = userEvent.setup();
+    renderStateful("create");
+    await user.click(screen.getByRole("button", { name: "新しい取引先を追加" }));
+    await user.type(screen.getByLabelText("取引先名"), "保持する取引先名");
+    await user.click(screen.getByRole("button", { name: "追加する" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("synthetic supplier failure");
+    expect(screen.getByLabelText("取引先名")).toHaveValue("保持する取引先名");
+    expect(screen.getByLabelText("商品名（必須）")).toHaveValue("入力済みの商品名");
   });
 });
