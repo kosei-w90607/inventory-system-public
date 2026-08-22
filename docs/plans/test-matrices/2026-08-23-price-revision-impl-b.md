@@ -56,7 +56,7 @@ Risk: R3
 | SPEC-PRVB-D3 floor | 丸め誤り | unit (price-revision-math.test.ts) | `deriveProposedCost は整数除算で切り捨てる` | (1200, 700, 1000) → 840 / (1250, 333, 1000) → 416 / (999, 700, 1000) → 699 のいずれかが不一致（`Math.round` なら 416.25 → 416 は同じだが 699.3 → 699 も同じ、(1001, 999, 1000) → 999.999 → 999 を加えて round（1000）と区別する） |
 | SPEC-PRVB-D3 fallback | 現売価 0 で例外 / NaN | unit | `deriveProposedCost は現売価 0 で現原価を返す` | (1200, 700, 0) → 700 でない（`Infinity` / `NaN` / throw） |
 | 境界（実装 A defer） | 桁落ち | unit | `deriveProposedCost は 10^7 直下の値でも exact に計算する` | (9_999_999, 9_999_999, 1) → 99_999_980_000_001 の `toBe` が落ちる（oracle は literal 独立転記） |
-| SPEC-PRVB-D3 掛率 | 丸め / 桁 | unit | `formatMarkupRate は小数 1 桁に四捨五入する` | (700, 1000) → "70.0" / (333, 1000) → "33.3" / (1, 16) → "6.3" / (2, 3) → "66.7" のいずれか不一致（`toFixed(1)` 直接なら (1, 16) = 6.25 が "6.3" にならない環境依存を検出） |
+| SPEC-PRVB-D3 掛率 | 丸め / 桁 | unit | `formatMarkupRate は小数 1 桁に四捨五入する` | (700, 1000) → "70.0" / (333, 1000) → "33.3" / (1, 16) → "6.3" / (2, 3) → "66.7"  / (23, 80) → "28.8" のいずれか不一致（`toFixed(1)` 直接実装は 2 進丸めで (23, 80) = 28.75 を "28.7" にする。(1, 16) = 6.25 は両実装で "6.3" になり判別しない） |
 | SPEC-PRVB-D3 掛率 0 | `—` でない | unit | `formatMarkupRate は現売価 0 で — を返す` | (700, 0) が "—" 以外 |
 | SPEC-PRVB-D2 本日判定 | TZ / 境界 | unit | `isRevisedToday は changed_at の日付部分と today の一致で判定する` | ("2026-08-23T09:15:00", "2026-08-23") → true / ("2026-08-22T23:59:59", "2026-08-23") → false / (undefined, "2026-08-23") → false のいずれか不一致 |
 | SPEC-PRV-D3 toggle | 既定 off / off 不可 | RTL (PriceRevisionPage.test.tsx) | `取引先を選ぶと「取引先未設定の商品も含める」が既定 on で表示され off にすると include_unassigned=false で再検索する` | 取引先選択後に checkbox（`getByRole("checkbox", {name: "取引先未設定の商品も含める"})`）が未表示 / unchecked、または off 後の `searchProducts` 引数が `include_unassigned: false` でない |
@@ -72,7 +72,7 @@ Risk: R3
 | SPEC-PRV-D7 文言 | 常時文言欠落 | RTL | `再読み込みで確定前の入力が失われる旨の文言を常時表示する` | 「画面を再読み込みすると、確定前に入力した新売価・新原価は失われます。1行ずつ確定してください。」の exact text が無い（0 件 / error 時も） |
 | SPEC-PRV-D6 / SPEC-PRVB-D7 | 再取得なし / 選択されない | RTL | `新しい取引先を追加すると createSupplier 後に listSuppliers を再取得し追加した取引先が filter で選択状態になる` | `createSupplier` 引数が trim 後の値でない、解決後に `listSuppliers` が再呼出しされない、filter select の value が返却 id でない、`includeUnassigned` が true にならない |
 | SPEC-PRV-D6 空白 / 失敗 | CMD 呼出し / 入力消失 | RTL | `取引先名が空白のみなら createSupplier を呼ばず field error を出し失敗時は入力を保持する` | 空白で `createSupplier` が呼ばれる、reject 後に dialog が閉じる / 入力が消える / Alert + 再試行が無い |
-| SPEC-PRVB-D9 | 導線欠落 | RTL | `filter なしの 0 件は商品一覧への導線、filter ありの 0 件は「条件に一致する商品がありません」と「絞り込みを解除」を出す` | filter なし 0 件で「商品がまだ登録されていません」の text または `/products` link が無い、filter あり 0 件で文言 / button が無い、「絞り込みを解除」で全 param が既定に戻らない |
+| SPEC-PRVB-D9 | 導線欠落 | RTL | `filter なしの 0 件は商品一覧への導線、filter ありの 0 件は「条件に一致する商品がありません」と「絞り込みを解除」を出す` | filter なし 0 件で「該当する商品がありません」の text または `/products` link が無い、filter あり 0 件で文言 / button が無い、「絞り込みを解除」で全 param が既定に戻らない |
 | SPEC-PRVB-D9 error | Alert なし | RTL | `一覧取得失敗で Alert と再試行を出し再試行で再取得する` | reject で `role="alert"` + 「再試行」が無い、押下で `searchProducts` が再呼出しされない |
 | REQ-105 到達 | pending / 経路違い | unit (navigation.test.ts) | `test_navigation_req105_ui14_active_at_products_price_revision` | `ui-14` entry が無い、`status !== "active"`、`to !== "/products/price-revision"` |
 | D-052 C20 登録 | 件数 / oracle 不一致 | unit + CLI | `invalidation-contract.meta.test.ts`（`toHaveLength(20)`、oracle に C20 転記）PASS + `invalidation-contract.static.test.ts` PASS + `rg -c "C20" docs/decision-log.md docs/UI_TECH_STACK.md` 各 ≥ 1 | entry 数 19 のまま、oracle 欠落、success handler が `invalidateByContract` 以外、docs 未追記 |
@@ -108,6 +108,7 @@ Workflow-state rows:
 | 取引先 inline 追加（実装 A UI-01b-D21） | `ProductForm`（`createSupplier` → `listSuppliers` 再取得 → select） | `CreateSupplierDialog` + suppliers `refetch()` → URL `supplier` | `ProductForm` の実装は流用せず別 component（form 文脈と filter 文脈で選択先が異なる） | RTL 取引先追加 |
 | 本日 / 日付文字列比較 | `useYesterdayDate.ts` / `date-nav.ts`（`toLocaleDateString("sv-SE")`） | `isRevisedToday` + Page の today 取得 | `Date` parse した比較は TZ ずれのため採らない | unit + RTL（`vi.setSystemTime`） |
 | 行内 error + 再試行（操作者 UI） | `PriceHistorySection`（inline error + 再試行）、UI-01b 取引先取得失敗 | 行確定 error / 取引先候補 error | — | RTL |
+| EmptyState 文言（操作者 UI） | `ProductListPage`（`EmptyState` title「該当する商品がありません」）、`src/components/patterns/EmptyState.tsx` | UI-14 filter なし 0 件は同 title + 商品一覧 link（SPEC-PRVB-D9）、filter あり 0 件は 77-ui §77.7 の「条件に一致する商品がありません」+「絞り込みを解除」 | 77-ui が文言を規定する filter あり側は先例と揃えない（正本優先） | RTL Empty |
 | navigation active entry + 到達テスト | `ui-01b-new`（`test_navigation_req101_ui01b_active_at_products_new`） | `ui-14` + `test_navigation_req105_ui14_active_at_products_price_revision` | — | navigation.test.ts |
 | IME 合成中 Enter の無視 | `SearchBar`（UI-01a-D9）、実装 A 取引先 inline | `CreateSupplierDialog`（Enter で追加する場合は composition 中を無視） | Enter 送信を持たない実装なら該当なし（Writer 判断、報告に明記） | L3 item 2 |
 
@@ -173,11 +174,11 @@ Workflow-state rows:
 - If a JSON number crosses JavaScript safe integer range, which test fails?: 上限契約が無いため到達を防ぐ test は置けない（`未実測` 前提）。10^7 直下の exact 計算は `deriveProposedCost は 10^7 直下の値でも exact に計算する` で検証（実装 A からの defer 消化）。
 - If a state token is round-tripped through browser/client code, which test fails?: URL 8 param の normalize / patch → `priceRevisionSearch.test.ts`。`includeUnassigned` の落とし漏れ → `supplier 指定時は includeUnassigned 欠落を true にし未指定時は落とす`。
 - 追加（SPEC-PRVB-D1）: `(p.supplier_id = ? OR p.supplier_id IS NULL)` の括弧を外す → `_combines_with_other_conditions`（department 条件が OR に飲まれて件数が増える）。COUNT 側だけ条件を落とす → 4 test の `total_count` assertion。
-- 追加（SPEC-PRVB-D3）: `Math.floor` → `Math.round` → `deriveProposedCost は整数除算で切り捨てる`（(1001, 999, 1000) → 999 が 1000 になる）。`Math.round(x*1000)/10` → `toFixed(1)` 直接 → 掛率 test（(1, 16)）。`slice(0, 10)` → `Date` parse → 本日判定 test は同値になり得るため `isRevisedToday` の文字列 API を Final Review の目視で確認（TZ 依存 mutant は RTL で判別不能、Residual に記録）。
+- 追加（SPEC-PRVB-D3）: `Math.floor` → `Math.round` → `deriveProposedCost は整数除算で切り捨てる`（(1001, 999, 1000) → 999 が 1000 になる）。`Math.round(x*1000)/10` → `toFixed(1)` 直接 → 掛率 test の (23, 80) → "28.8"（"28.7" になる。Coordinator が node で実測、2026-08-23）。`slice(0, 10)` → `Date` parse → 本日判定 test は同値になり得るため `isRevisedToday` の文字列 API を Final Review の目視で確認（TZ 依存 mutant は RTL で判別不能、Residual に記録）。
 - 追加（SPEC-PRVB-D4）: 確定 handler が全 editing 行を送る → RTL 確定 test（`toHaveBeenCalledTimes(1)`）。成功後の入力消去を削除 → RTL 成功 test。
 - 追加（SPEC-PRVB-D6）: C20 から `pluDirty` を落とす / `lowStock` を足す → RTL oracle 完全一致 + meta oracle 完全一致。
 - 追加（SPEC-PRV-D7）: badge 条件を「履歴があれば常に」に変える → RTL badge test（昨日の行）。
-- Final Reviewer は上記のうち最低 D1 `IS NULL` 除去 / D1 括弧除去 / D3 floor → round / D4 全行送信 / D6 `pluDirty` 除去 / D7 昨日 badge の 6 mutant を clean worktree で実注入し、対応 test が落ちることを独立再現する（feedback: Mutation kill claims need reproduction）。
+- Final Reviewer は上記のうち最低 D1 `IS NULL` 除去 / D1 括弧除去 / D3 floor → round / D3 掛率 `toFixed(1)` 直接 / D4 全行送信 / D6 `pluDirty` 除去 / D7 昨日 badge の 7 mutant を clean worktree で実注入し、対応 test が落ちることを独立再現する（feedback: Mutation kill claims need reproduction）。
 
 ## Residual Test Gaps
 

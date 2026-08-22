@@ -190,7 +190,7 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。AC や�
 ### SPEC-PRVB-D6: D-052 C20 `productPriceRevise(productCode)` の key 集合
 
 - `[queryKeys.productList.root(), queryKeys.productForm.product(productCode), queryKeys.pluDirty(), queryKeys.priceRevision.root()]`。
-- 理由（UI_TECH_STACK §2.5 の table.column 導出）: `revise_product_price` が書く列は `products.selling_price` / `cost_price` / `updated_at` / 条件付き `plu_dirty` / 条件付き `supplier_id` と `price_history` 行。UI-01a 一覧（価格 / PLU 状態列）、UI-01b 商品 form（価格・取引先、再 mount で履歴セクションも再取得）、ホーム未反映件数（`plu_dirty`）、UI-14 自身（一覧 + 行履歴）が読む。`lowStock` / `stockInquiryRoot` / `stockMovements.root` は価格・取引先の JOIN 表示列のみで E3 除外、`pluSlotSummary` は `get_plu_slot_summary` が plu_slots 状態と snapshot 設定だけを読み `plu_dirty` 非依存（Contract Probe 2）、operation_logs は E1 除外。
+- 理由（UI_TECH_STACK §2.5 の table.column 導出）: `revise_product_price` が書く列は `products.selling_price` / `cost_price` / `updated_at` / 条件付き `plu_dirty` / 条件付き `supplier_id` と `price_history` 行。UI-01a 一覧（価格 / PLU 状態列）、UI-01b 商品 form（価格・取引先、再 mount で履歴セクションも再取得）、ホーム未反映件数（`plu_dirty`）、UI-14 自身（一覧 + 行履歴）が読む。`lowStock` / `stockInquiryRoot` / `stockMovements.root` は、価格列については商品 master 表示列の JOIN stale として E3 除外、取引先（`supplier_id`）については当該 query の consumer（`SummaryCards` / stock-inquiry / `StockMovementsPage`）が supplier を読まないため invalidate 対象に該当しない（E3 とは別の「書込み列を読む consumer なし」の理由）、`pluSlotSummary` は `get_plu_slot_summary` が plu_slots 状態と snapshot 設定だけを読み `plu_dirty` 非依存（Contract Probe 2）、operation_logs は E1 除外。
 - 却下: C2 `productUpdate` の集合をそのまま流用（E3 で除外すべき 3 key を含み「過剰 invalidation は契約違反」に触れる）/ C20 を置かず `refetch()` のみ（UI-01a / UI-01b / ホームが stale のまま）。
 - 転記先: decision-log D-052 Contract 行 + UI_TECH_STACK §2.5 件数（本 PR）。
 
@@ -209,7 +209,7 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。AC や�
 
 ### SPEC-PRVB-D9: Empty / Error の導線
 
-- filter なし（`q` 空、`supplier` / `dept` 未指定、`discontinued` false）で 0 件 → `EmptyState` に「商品がまだ登録されていません」+ 商品一覧（`/products`）への link。filter ありで 0 件 → `条件に一致する商品がありません` + `絞り込みを解除`（全 param を既定へ戻し page 1）。一覧取得失敗 → ページ上部 Alert に日本語説明 + `再試行`（query `refetch`）。いずれも色だけで状態を表さない。
+- filter なし（`q` 空、`supplier` / `dept` 未指定、`discontinued` false）で 0 件 → `EmptyState` に title「該当する商品がありません」（UI-01a `ProductListPage` の既存 `EmptyState` title と同文言、新文言を増やさない）+ 商品一覧（`/products`）への link（77-ui §77.7「商品一覧への導線」は文言を規定しないため、先例文言 + link で固定する）。filter ありで 0 件 → `条件に一致する商品がありません` + `絞り込みを解除`（全 param を既定へ戻し page 1）。一覧取得失敗 → ページ上部 Alert に日本語説明 + `再試行`（query `refetch`）。いずれも色だけで状態を表さない。
 - 転記先: なし（77-ui §77.7 の範囲内。RTL で契約化）。
 
 ## Design Intent Trace
@@ -260,7 +260,7 @@ Minimum design checks for business-app work:
 - Backend function design: 20-io `search_products`（本 PR 改訂）、30-biz §4.4.1 / §4.6 / §4.7.2 / §4.7.3。
 - Command / DTO / data contract: 40-cmd `search_products`（`ProductSearchQuery` + 2 field）/ `revise_product_price`（`PriceRevisionInput` / `PriceRevisionResult`）/ `create_supplier` / `list_price_history` / `list_suppliers`。
 - Persistence / transaction / audit impact: 本 PR の backend 変更は読取り WHERE のみ。書込みは実装 A の `revise_product_price`（3 テーブル 1 TX）を UI から呼ぶ。schema 変更なし。
-- Operator workflow / Japanese UI wording: title `一括価格改定`、filter label `取引先` / `部門` / `廃番を含む` / `取引先未設定の商品も含める` / `未設定の商品にこの取引先を設定する` / `新しい取引先を追加`、列 `商品コード` / `JAN` / `メーカー品番` / `商品名` / `現売価` / `現原価` / `現掛率` / `新売価` / `新原価（案）` / `確定`、badge `最近改定`、行 error `確定できませんでした` + `再試行`、常時文言 `画面を再読み込みすると、確定前に入力した新売価・新原価は失われます。1行ずつ確定してください。`、Empty `条件に一致する商品がありません` + `絞り込みを解除`（filter あり）/ `商品がまだ登録されていません` + 商品一覧への link（filter なし、SPEC-PRVB-D9）。色のみの状態表現禁止（inventory-operator-ui）。
+- Operator workflow / Japanese UI wording: title `一括価格改定`、filter label `取引先` / `部門` / `廃番を含む` / `取引先未設定の商品も含める` / `未設定の商品にこの取引先を設定する` / `新しい取引先を追加`、列 `商品コード` / `JAN` / `メーカー品番` / `商品名` / `現売価` / `現原価` / `現掛率` / `新売価` / `新原価（案）` / `確定`、badge `最近改定`、行 error `確定できませんでした` + `再試行`、常時文言 `画面を再読み込みすると、確定前に入力した新売価・新原価は失われます。1行ずつ確定してください。`、Empty `条件に一致する商品がありません` + `絞り込みを解除`（filter あり）/ `該当する商品がありません` + 商品一覧への link（filter なし、SPEC-PRVB-D9）。色のみの状態表現禁止（inventory-operator-ui）。
 - Error, empty, retry, and recovery behavior: 一覧 = Alert + 再試行、行 = 行内 error + 再試行 + 入力保持、取引先追加 = dialog 保持、候補取得失敗 = inline error（一覧は隠さない）、Empty = filter 有無で導線を分ける（SPEC-PRVB-D9）。
 - Testability and traceability IDs: REQ-105 / REQ-106、SPEC-PRV-D3〜D7、SPEC-PRVB-D1〜D9、D-031、D-052-C20、UI-14。
 
@@ -290,7 +290,7 @@ Minimum design checks for business-app work:
 | SPEC-PRV-D4 / SPEC-PRVB-D3 新原価案 floor 導出 | price-revision-math | `price-revision-math.test.ts`: `deriveProposedCost は整数除算で切り捨てる`（独立 oracle: (1200, 700, 1000) → 840 / (1250, 333, 1000) → 416 / (999, 700, 1000) → 699 / (1001, 999, 1000) → 999〈`Math.round` なら 1000 になる区別 case〉） | — |
 | SPEC-PRV-D4 現売価 0 → 現原価 fallback | 同上 | `deriveProposedCost は現売価 0 で現原価を返す`（(1200, 700, 0) → 700） | — |
 | 境界（実装 A から defer）10^7 直下の積の exact 計算 | 同上 | `deriveProposedCost は 10^7 直下の値でも exact に計算する`（(9_999_999, 9_999_999, 1) → 99_999_980_000_001、literal 独立転記） | — |
-| SPEC-PRV-D4 現掛率 % 小数 1 桁四捨五入 / 現売価 0 は `—` | 同上 | `formatMarkupRate は小数 1 桁に四捨五入する`（(700, 1000) → "70.0" / (333, 1000) → "33.3" / (1, 16) → "6.3" / (2, 3) → "66.7"）/ `formatMarkupRate は現売価 0 で — を返す` | — |
+| SPEC-PRV-D4 現掛率 % 小数 1 桁四捨五入 / 現売価 0 は `—` | 同上 | `formatMarkupRate は小数 1 桁に四捨五入する`（(700, 1000) → "70.0" / (333, 1000) → "33.3" / (1, 16) → "6.3" / (2, 3) → "66.7" / (23, 80) → "28.8"〈`toFixed(1)` 直接実装なら "28.7" になる判別 case〉）/ `formatMarkupRate は現売価 0 で — を返す` | — |
 | SPEC-PRV-D7 / SPEC-PRVB-D2 本日判定 | 同上 | `isRevisedToday は changed_at の日付部分と today の一致で判定する`（("2026-08-23T09:15:00", "2026-08-23") → true / ("2026-08-22T23:59:59", "2026-08-23") → false / (undefined, …) → false） | — |
 | SPEC-PRV-D3 「取引先未設定の商品も含める」既定 on / toggle off 可 | PriceRevisionFilters / Page | RTL `取引先を選ぶと「取引先未設定の商品も含める」が既定 on で表示され off にすると include_unassigned=false で再検索する` | L3 item 2 |
 | SPEC-PRV-D6 「未設定の商品にこの取引先を設定する」は取引先選択中だけ表示・既定 on | 同上 | RTL `「未設定の商品にこの取引先を設定する」は取引先選択中だけ表示され既定 on で supplier 変更時に on へ戻る` | — |
@@ -388,5 +388,6 @@ Do not transcribe exact-HEAD SHA or test counts here (D-035/D-038 Evidence Owner
 
 Fill after review.
 If R3 review-only sub-agent is skipped, record an explicit line beginning with `Review-only skipped because:` and the reason.
-- Plan Review round 1（Sonnet、独立 context、2026-08-23、packet `325da8a`）: P1 0 / P2 3 / P3 3、verdict fail。全件 Coordinator が rg で裏取りのうえ accept して是正（是正 commit = round 2 記録に SHA を記す）: P2-1 Contract Probe 4 の `predev` は存在しない script（`package.json` は `pretypecheck` / `prelint` / `prelint:fix` / `pretest` のみ、dev は `vite.config.ts` の `tanstackRouter` plugin）→ 文言訂正 / P2-2 Design Sources の 50-ui §50.5 は CMD / DTO 契約で URL state は §50.4 → 訂正 + query key 先例を `query-keys.ts` に明示 / P2-3 `generate_traceability` の T4 FE baseline（`FE_UNREFERENCED_BASELINE = 22`）に新設 FE test file が触れる → Scope に REQ-105 / UI-14 参照の義務を追記 / P3-1 SPEC-PRVB-D9 の「商品がまだ登録されていません」が wording 表と Matrix assert から漏れ → 両方に追加 / P3-2 `invalidation-contract.ts` / `invalidation-oracle.ts` のヘッダコメント C1〜C19 更新を Scope に追記 / P3-3 Ledger の floor 導出 oracle に Matrix の (1001, 999, 1000) → 999 を転記。
+- Plan Review round 1（Sonnet、独立 context、2026-08-23、packet `325da8a`）: P1 0 / P2 3 / P3 3、verdict fail。全件 Coordinator が rg で裏取りのうえ accept して是正 `baba1ca`: P2-1 Contract Probe 4 の `predev` は存在しない script（`package.json` は `pretypecheck` / `prelint` / `prelint:fix` / `pretest` のみ、dev は `vite.config.ts` の `tanstackRouter` plugin）→ 文言訂正 / P2-2 Design Sources の 50-ui §50.5 は CMD / DTO 契約で URL state は §50.4 → 訂正 + query key 先例を `query-keys.ts` に明示 / P2-3 `generate_traceability` の T4 FE baseline（`FE_UNREFERENCED_BASELINE = 22`）に新設 FE test file が触れる → Scope に REQ-105 / UI-14 参照の義務を追記 / P3-1 SPEC-PRVB-D9 の「該当する商品がありません」が wording 表と Matrix assert から漏れ → 両方に追加 / P3-2 `invalidation-contract.ts` / `invalidation-oracle.ts` のヘッダコメント C1〜C19 更新を Scope に追記 / P3-3 Ledger の floor 導出 oracle に Matrix の (1001, 999, 1000) → 999 を転記。
+- Plan Review round 2（Sonnet、fresh context、2026-08-23、packet `baba1ca`）: delta 検証 7 hunk / anchor 9/9 実在 / 矛盾 0。P1 0 / P2 1 / P3 2、verdict fail。全件 Coordinator が実測・rg で裏取りのうえ accept して是正: P2-1 掛率 oracle の「(1, 16) が `toFixed(1)` 直接実装を検出」は誤り（両実装とも "6.3"。node で brute force 2001×2000 のうち 792 組が不一致、(23, 80) = 28.75 は直接 "28.7" / 四捨五入 "28.8"）→ Ledger / Matrix の oracle に (23, 80) → "28.8" を追加し誤主張を削除、Final Reviewer の実注入 mutant に D3 掛率 `toFixed` 直接を追加（6 → 7）/ P3-1 round 1 P3-1 是正で入れた「商品がまだ登録されていません」は 77-ui にも既存 EmptyState 先例（UI-01a `ProductListPage` title「該当する商品がありません」）にも無い新文言 → 先例 title に統一し SPEC-PRVB-D9 に根拠を明記、Matrix の Adjacent Pattern Audit に EmptyState 行を追加 / P3-2 SPEC-PRVB-D6 の除外根拠で「取引先」を E3 に含めていた（E3 は name / 部門 / 単位 / 価格のみ）→ 価格は E3、取引先は「consumer が supplier を読まない」に分けて訂正。
 - Findings Freeze: not yet frozen; post-freeze exceptions: none.
