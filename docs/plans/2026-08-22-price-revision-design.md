@@ -140,7 +140,7 @@ Priority: `Goal Invariant > Acceptance Criteria > supporting evidence`。AC や�
 | 新規追加物 | 登録・生成義務 |
 |---|---|
 | Tauri command（`revise_product_price` / `create_supplier` / `list_price_history`、`create_receiving` DTO 拡張） | 実装 PR A/C で `lib.rs` `collect_commands` 登録 + `#[tauri::command]` / `#[specta::specta]` + `generate_bindings`。本 PR では 40-cmd / 44-cmd-inventory に契約行として予約 |
-| function-design doc 新設（`77-ui-bulk-price-revision.md`） | `docs/FUNCTION_DESIGN.md` 索引 + `src-tauri/tests/design_compliance_test.rs` `build_doc_to_modules_map()` entry（UI doc の扱いは 50-ui の先例に倣い Writer が確認）+ 必須セクション充足 |
+| function-design doc 新設（`77-ui-bulk-price-revision.md`） | `docs/FUNCTION_DESIGN.md` 索引 + `src-tauri/tests/design_compliance_test.rs` の `SKIP_DOCS` に追加（50-ui と同じく CMD 署名は 40-cmd 側に置き 77-ui には inline 署名を置かない。inline 署名を置く場合のみ 73-ui-stocktake の先例で map entry）+ 必須セクション充足 |
 | source doc 新設・改名 | `FUNCTION_DESIGN.md` / `SCREEN_DESIGN.md` 画面一覧 #20 / `ui-task-specs.md` UI-14 entry |
 | REQ coverage 追加 | `cargo run --bin generate_traceability` で `90-traceability.md` 再生成（第 2 発注の完了条件、`-- --check` exit 0） |
 | route 新設（`src/routes/products/price-revision.tsx`） | 実装 PR B で `npm run generate:routes` |
@@ -162,6 +162,7 @@ L1 full の生成系検査は bindings / frontend routes / traceability の 3 �
 - `ProductSearchQuery.keyword` / `ProductBulkFilter.keyword` の部分一致対象を 商品名 / product_code / jan_code / **maker_code** の 4 列にする。UI-01a と UI-14 が共有する。
 - 理由: 値上げリストにはバーコードとメーカー品番が必ず記載され、JAN なし商品でもメーカー品番だけある商品が実在する（master-tables §1）。リストの行から商品へ到達する主動線の鍵。
 - 却下: UI-14 専用の検索 field を増やす案（同じ repo 関数に別条件を足すより、一致列追加の方が UI-01a の利便も上がり #66 とも整合）。
+- 隣接契約: `ProductBulkFilter` は一括 PLU 対象化（`find_products_for_bulk_plu_target`、SPEC-PLS-D6）と共有のため、同機能の keyword 抽出集合も maker_code 一致を含むよう広がる。UI-01a で見えている行と一括 PLU 対象化の母集団を一致させる意図的な同時変更とし、30-biz の一括 PLU 対象化の節にその旨を明記、実装 A で回帰テストを予約する。
 
 ### SPEC-PRV-D3: UI-14 一括価格改定画面の絞り込みと対象
 
@@ -181,7 +182,7 @@ L1 full の生成系検査は bindings / frontend routes / traceability の 3 �
 ### SPEC-PRV-D5: 行単位確定 = CMD `revise_product_price`
 
 - CMD `revise_product_price(input: PriceRevisionInput) -> Result<PriceRevisionResult, CmdError>`。`PriceRevisionInput { product_code, new_selling_price: i64, new_cost_price: i64, assign_supplier_id: Option<i64> }`。
-- BIZ-01: 商品を読み、`new_selling_price >= 0` / `new_cost_price >= 0` を検証（UI-01b の価格 validation と同じ規則を再利用）。売価・原価とも現値と同じなら no-op（`changed = false`、price_history を書かない）。変更があれば 1 transaction で products の `selling_price` / `cost_price` / `updated_at` を更新し、`price_history` に old/new 4 値を insert。`plu_dirty` は売価が変わった場合のみ 1（既存規則「原価のみ変更は plu_dirty を立てない」を維持。PLU TSV に原価列はない）。
+- BIZ-01: 商品を読み、`new_selling_price >= 0` / `new_cost_price >= 0` を検証（UI-01b の価格 validation と同じ規則を再利用）。売価・原価とも現値と同じなら no-op（`changed = false`、price_history を書かない）。変更があれば 1 transaction で products の `selling_price` / `cost_price` / `updated_at` を更新し、`price_history` に old/new 4 値を insert。`plu_dirty` は売価が変わった場合のみ 1（既存規則「原価のみ変更は plu_dirty を立てない」を維持。PLU TSV に原価列はない）。同 transaction 内で `system_repo::insert_operation_log(operation_type = "product_price_revise")` を書く（`product_update` / `receiving_create` と同じ慣行、QR-06）。no-op のときは operation log も書かない。
 - `assign_supplier_id` が Some で、かつ商品の `supplier_id` が NULL のときだけ `supplier_id` を設定する（既存値は上書きしない、D6）。
 - `PriceRevisionResult { product_code, changed: bool, plu_dirty_set: bool, supplier_assigned: bool }`。
 - 却下: 既存 `update_product`（全項目更新）を UI-14 から呼ぶ案（行ごとに全 field を往復し、意図しない項目更新と競合の余地がある）/ 複数行を 1 CMD でまとめて確定する案（中断・再開を行単位で成立させる設計〈D7〉と相性が悪く、部分失敗の扱いが増える）。
@@ -202,7 +203,7 @@ L1 full の生成系検査は bindings / frontend routes / traceability の 3 �
 ### SPEC-PRV-D8: 入庫時原価差分検出（BIZ-02 拡張）
 
 - `create_receiving` の保存フロー（31-biz §12.3）で、明細の `cost_price` と `products.cost_price` を完全一致比較し、不一致の商品を `ReceivingCreateResult.cost_diffs: Vec<CostDiff>` で返す。`CostDiff { product_code, product_name, master_cost_price, received_cost_price }`。
-- 検出は保存成功後の読取りで行い、保存 transaction の成否に影響しない（`stock_warnings` と同じ位置付け）。idempotent replay 時は空配列。
+- 検出は §12.3 の既存 9 step の後に step 10 として COMMIT 後の別読取りで行い、保存 transaction の成否に影響しない（`stock_warnings` が TX 内 step 6 で蓄積されるのとは位置が異なる）。idempotent replay 時は空配列。
 - 自動更新はしない。UI-02 は保存完了時に差分一覧ダイアログを出し、商品ごとに「マスタ原価をこの実原価に更新する」→ `revise_product_price(product_code, new_selling = 現売価, new_cost = received_cost_price)` を呼ぶ。見送りは記録なし、次回入庫で差分が残れば再提示。
 - 理由: 手芸用品以外は値上げ連絡がなく、入庫伝票が唯一の価格改定導線（D-075 Why）。±1 円も差分として提示（端数訂正の現運用がまさにこれ）。
 - 却下: 入庫保存時に自動でマスタ原価を上書きする案（約定値引き等の一時差を恒久化する恐れ、店主の確認を挟む現運用と不一致）。
@@ -210,7 +211,8 @@ L1 full の生成系検査は bindings / frontend routes / traceability の 3 �
 ### SPEC-PRV-D9: 価格履歴閲覧（UI-01b 第 5 セクション）
 
 - IO `list_price_history(conn, product_code, limit) -> Vec<PriceHistoryEntry>`（`changed_at DESC, id DESC`）。CMD `list_price_history(product_code: String, limit: u32) -> Result<Vec<PriceHistoryEntry>, CmdError>`。`PriceHistoryEntry { id, old_selling_price, new_selling_price, old_cost_price, new_cost_price, changed_at }`。
-- UI-01b 修正モードに「価格履歴」セクション（UI-01b-D20）: 直近 10 件 + 「すべて表示」で limit 拡張。新規登録モードでは非表示。
+- `product_code` 不存在時は空配列を返す（読取り専用のため not-found error にしない）。`limit` は既定 10・上限 100（超過は 100 に丸める）。
+- UI-01b 修正モードに「価格履歴」セクション（UI-01b-D20）: 直近 10 件 + 「すべて表示」で limit = 100。新規登録モードでは非表示。
 - 契機（手動 / 一括改定 / 入庫差分）の列は出さない（price_history に契機カラムがなく、schema 変更をしない）。
 
 ### SPEC-PRV-D10: SP-103-04 商品一覧の原価列 = 基本列に追加（owner 裁定 2026-08-22、UI-01a-D13）
@@ -305,14 +307,14 @@ Minimum design checks for business-app work:
 | Design contract / decision ID | Implementation target | Automated test | L3 or non-scope |
 |---|---|---|---|
 | SPEC-PRV-D1 suppliers = メーカー意味 | master-tables §3（docs）| M-D1 anchor | non-scope（実装なし） |
-| SPEC-PRV-D2 keyword に maker_code | 実装 A product_repo | Rust: keyword が maker_code に部分一致 / 既存 3 列の回帰 | — |
+| SPEC-PRV-D2 keyword に maker_code | 実装 A product_repo | Rust: keyword が maker_code に部分一致 / 既存 3 列の回帰 / 一括 PLU 対象化（`ProductBulkFilter`）でも maker_code 一致が母集団に入る回帰 | — |
 | SPEC-PRV-D3 絞り込み + 未設定含む | 実装 B UI-14 + 実装 A query | Rust: `supplier_id = X OR NULL` の抽出 / RTL: toggle 既定 on | L3: 400 行級の操作性 |
 | SPEC-PRV-D4 列 + 新原価案導出 | 実装 B UI-14 | RTL: 導出値 floor / selling=0 の「—」と現原価 fallback / % 表示 | — |
-| SPEC-PRV-D5 revise_product_price | 実装 A BIZ/CMD | Rust: no-op / 売価変更で plu_dirty / 原価のみで plu_dirty なし / price_history 4 値 / 負値 reject / TX 原子性 | — |
+| SPEC-PRV-D5 revise_product_price | 実装 A BIZ/CMD | Rust: no-op（price_history / operation_log なし）/ 売価変更で plu_dirty / 原価のみで plu_dirty なし / price_history 4 値 / operation_log `product_price_revise` / 負値 reject / TX 原子性 | — |
 | SPEC-PRV-D6 漸進補完 + create_supplier | 実装 A/B | Rust: NULL のみ設定 / 既存値不変 / trim・空文字 reject / 同名は既存行 | — |
 | SPEC-PRV-D7 行単位確定 + 最近改定 | 実装 B | RTL: 本日 changed_at のバッジ表示 / 再読込で確定前の入力値消失の明示文言 | — |
 | SPEC-PRV-D8 cost_diffs | 実装 C BIZ-02 / UI-02 | Rust: 不一致抽出 / 一致で空 / replay で空 / 保存成否非依存 ; RTL: ダイアログ → revise 呼出し（売価据え置き） | — |
-| SPEC-PRV-D9 list_price_history + UI-01b | 実装 A | Rust: DESC 順 / limit ; RTL: 修正モードのみ表示 / 10 件 + すべて表示 | — |
+| SPEC-PRV-D9 list_price_history + UI-01b | 実装 A | Rust: DESC 順 / limit 既定 10・上限 100 丸め / 不存在 product_code で空配列 ; RTL: 修正モードのみ表示 / 10 件 + すべて表示 | — |
 | SPEC-PRV-D10 原価列追加 | 実装 A UI-01a | RTL: 列ヘッダ「原価」が 売価 の右隣に存在 | — |
 | SPEC-PRV-D11 REQ / coverage / traceability | 第 2 発注 | `generate_traceability -- --check` exit 0 / rg anchor | — |
 | UI-14 到達導線（navigation） | 実装 B | `navigation.test.ts` REQ-105 到達テスト | — |
