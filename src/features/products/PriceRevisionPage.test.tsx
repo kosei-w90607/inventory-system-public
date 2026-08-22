@@ -172,6 +172,34 @@ describe("PriceRevisionPage UI-14 / REQ-105", () => {
     ).toBeChecked();
   });
 
+  it("browser 履歴で supplier search が変わった場合も取引先設定 toggle を既定 on に戻す", async () => {
+    const user = userEvent.setup();
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false, gcTime: Number.POSITIVE_INFINITY } },
+    });
+    const onSearchChange = vi.fn();
+    const view = render(
+      <QueryClientProvider client={client}>
+        <PriceRevisionPage search={{ supplier: 7 }} onSearchChange={onSearchChange} />
+      </QueryClientProvider>,
+    );
+    const assign = await screen.findByRole("checkbox", {
+      name: "未設定の商品にこの取引先を設定する",
+    });
+    await user.click(assign);
+    expect(assign).not.toBeChecked();
+
+    view.rerender(
+      <QueryClientProvider client={client}>
+        <PriceRevisionPage search={{ supplier: 8 }} onSearchChange={onSearchChange} />
+      </QueryClientProvider>,
+    );
+
+    expect(
+      await screen.findByRole("checkbox", { name: "未設定の商品にこの取引先を設定する" }),
+    ).toBeChecked();
+  });
+
   it("新売価入力で新原価（案）が導出され現売価 0 の行は掛率「—」と現原価 fallback になり新売価は空から始まる", async () => {
     const user = userEvent.setup();
     renderStateful();
@@ -498,9 +526,32 @@ describe("PriceRevisionPage UI-14 / REQ-105", () => {
       "/products",
     );
     first.unmount();
-    renderStateful({ q: "該当なし" });
+    renderStateful({
+      q: "該当なし",
+      supplier: 7,
+      includeUnassigned: false,
+      dept: 1,
+      discontinued: true,
+      sort: "name",
+      page: 2,
+      perPage: 100,
+    });
     expect(await screen.findByText("条件に一致する商品がありません")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "絞り込みを解除" })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "絞り込みを解除" }));
+    await waitFor(() => {
+      expect(mockSearchProducts).toHaveBeenLastCalledWith({
+        keyword: null,
+        department_id: null,
+        supplier_id: null,
+        include_unassigned: false,
+        is_discontinued: false,
+        plu: "all",
+        sort_key: "ProductCode",
+        sort_order: "Asc",
+        page: 1,
+        per_page: 50,
+      });
+    });
   });
 
   it("一覧取得失敗で Alert と再試行を出し再試行で再取得する", async () => {

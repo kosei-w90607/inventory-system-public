@@ -57,6 +57,12 @@ describe("priceRevisionSearch UI-14 / REQ-105", () => {
     });
   });
 
+  it.each([50, 100, 200] as const)("perPage=%i は検索 query にそのまま保持する", (perPage) => {
+    expect(buildPriceRevisionProductSearchQuery({ perPage })).toMatchObject({
+      per_page: perPage,
+    });
+  });
+
   it("filter patch は page を 1 に戻す", () => {
     const current = { q: "毛糸", supplier: 7, includeUnassigned: false, page: 4 };
     expect(updatePriceRevisionSearch(current, { q: "布" })).toEqual({

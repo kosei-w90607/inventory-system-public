@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { PackageSearch } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { EmptyState } from "@/components/patterns/EmptyState";
 import { ListSkeleton } from "@/components/patterns/ListSkeleton";
@@ -28,6 +28,9 @@ export function PriceRevisionPage({
 }) {
   const list = usePriceRevisionList({ search });
   const [assignSupplier, setAssignSupplier] = useState(true);
+  useEffect(() => {
+    setAssignSupplier(true);
+  }, [list.normalizedSearch.supplier]);
   const patchSearch = (patch: PriceRevisionSearchPatch) => {
     if ("supplier" in patch) setAssignSupplier(true);
     onSearchChange((current) => updatePriceRevisionSearch(current, patch));
