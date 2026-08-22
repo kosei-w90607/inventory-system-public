@@ -94,8 +94,17 @@ struct ReceivingCreateResult {
     created: bool,
     idempotent_replay: bool,
     stock_warnings: Vec<String>,
+    cost_diffs: Vec<CostDiff>,
+}
+struct CostDiff {
+    product_code: String,
+    product_name: String,
+    master_cost_price: i64,
+    received_cost_price: i64,
 }
 ```
+
+`cost_diffs` は SPEC-PRV-D8 / REQ-209 の field 追加だけであり、既存 field の意味・名称は変えない。既存 consumer は `cost_diffs` を無視できる。新 consumer の UI-02 は保存成功時だけ読み、idempotent replay の空配列ではダイアログを出さない。
 
 **処理ステップ**:
 1. state.db.lock() でDB接続を取得（`&mut conn`）

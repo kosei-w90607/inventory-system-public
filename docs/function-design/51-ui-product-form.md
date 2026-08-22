@@ -1,6 +1,6 @@
 ## 7. UI-01b: 商品登録・修正
 
-> 対応仕様: REQ-101 / REQ-102 / UI-01b
+> 対応仕様: REQ-101 / REQ-102 / REQ-106 / UI-01b
 >
 > 入力ドキュメント: `docs/architecture/ui-task-specs.md` UI-01b、`docs/SCREEN_DESIGN.md` 商品登録・修正画面、`docs/function-design/30-biz-product-service.md` `create_product` / `update_product` / `toggle_discontinue` / `get_product`、`docs/function-design/40-cmd-product.md` CMD-01、`docs/function-design/20-io-product-repo.md` products / departments / suppliers
 
@@ -18,11 +18,11 @@
 | REQ-101 | UI-01b-D4 | create mode の商品コード入力は「JANコードあり」と「JANなし独自コード自動発番」に分ける。JAN blank + 選択部門に `code_prefix` がある場合だけサーバー発番を使い、`code_prefix` がない部門では保存前 validation で止める。 | 現行 `ProductCreateRequest` は任意 `product_code` 手入力を受けない。UI が手入力欄を出しても backend に送れないため不採用。JANなし商品は独自コード発番対象部門を選ぶ。 |
 | REQ-102 / SP-102-04 | UI-01b-D5 | edit mode では `product_code` と `jan_code` を読取専用、`stock_quantity` と `stock_unit` も初回 UI-01b 実装では読取専用にする。 | `product_code` 変更不可は DB 設計と仕様で確定済み。`ProductUpdateRequest` は `stock_unit` / `stock_quantity` を更新しない。単位変更は在庫履歴・閾値・POS 連動への影響が大きいため別 Design Phase。 |
 | REQ-101 / pos_stock_sync | UI-01b-D6 | create mode で `stock_unit='cm'` にした場合は `pos_stock_sync=false` を提案し、利用者は toggle で true に戻せる。BIZ は UI から受け取った値を尊重する。 | `stock_unit='cm'` だけで POS 在庫同期を決める案は、DB_DESIGN の `pos_stock_sync` 明示フラグ方針に反する。 |
-| REQ-101 / suppliers | UI-01b-D7 | 取引先候補は `commands.listSuppliers()` 由来の complete master data とする。inline 新規取引先作成は初回 UI-01b 実装では非 scope。 | `suppliers` は任意項目で、誤った master 追加は後から直しづらい。`find_or_create_supplier` の公開 CMD と新規追加 UX は別途設計してから扱う。 |
+| REQ-101 / REQ-106 / suppliers | UI-01b-D7 | 取引先候補は `commands.listSuppliers()` 由来の complete master data とし、「新しい取引先を追加」から `commands.createSupplier(name)` を呼べる。 | SPEC-PRV-D6 / UI-01b-D21 で漸進追加を scope 化した。約 80 社の事前投入はせず、必要なメーカー/ブランドだけを form の文脈で追加する。 |
 | REQ-101 / REQ-102 | UI-01b-D8 | form は部分障害を分ける。部門候補取得失敗は保存不可、取引先候補取得失敗は取引先未指定なら保存可能、edit の `getProduct` 失敗は form 本体を出さず一覧へ戻る導線を出す。 | 商品登録で部門は必須、取引先は任意。全取得が成功するまで画面全体を空にする案は、復旧操作を阻害するため不採用。 |
 | REQ-101 / REQ-102 | UI-01b-D9 | 日本語入力を伴う form のため、実装 PR では Windows native L3 を計画する。 | Tauri 2 Linux WebView には IME 制約があり、商品名・メーカー品番・取引先名の入力品質は Linux だけでは判断できない。 |
 | REQ-102 | PRODUCT-PATCH-D1 | edit保存はgenerated `ProductUpdateRequest_Deserialize`を直接使う。通常fieldはomitted/null=no update・value=set、`supplier_id` / `maker_code`はomitted=no update・null=clear・value=setとする。 | `Partial<ProductUpdateRequest_Deserialize>` と保存時castはgenerated wire契約の誤りを隠すため不採用。 |
-| REQ-101 / REQ-102 | UI-01b-D10 | form を「商品の識別」「分類と取引先」「価格」「在庫」の 4 セクションに分割し、各セクション見出しを h2 `text-xl font-semibold` + Separator + 1 行説明にする。メーカー品番は「商品の識別」に置く。 | 1 列のフラットな入力列は、非IT利用者が入力順を把握しづらい。意味の塊でグルーピングし、入力の流れを明示する。section ごとの説明で登録後変更できない項目を予告する。 |
+| REQ-101 / REQ-102 | UI-01b-D10 | form を「商品の識別」「分類と取引先」「価格」「在庫」の基本 4 セクションに分割し、edit mode は第 5 セクション「価格履歴」（UI-01b-D20）を末尾に加える。各セクション見出しは h2 `text-xl font-semibold` + Separator + 1 行説明とし、メーカー品番は「商品の識別」に置く。 | 1 列のフラットな入力列は、非IT利用者が入力順を把握しづらい。意味の塊でグルーピングし、入力の流れを明示する。section ごとの説明で登録後変更できない項目を予告する。 |
 | REQ-102 | UI-01b-D11 | read-only 入力（商品コード / edit の JANコード・現在庫）は `readOnly` + `bg-muted` で示す。数量単位 select は `disabled` を維持する。 | `disabled` の opacity-50 は値が読みづらく、read-only と操作不能の意味が混ざる。表示専用の値は読める muted 背景にする。`<select>` は readOnly 属性が効かないため数量単位だけ `disabled` を残す。 |
 | REQ-101 / REQ-102 | UI-01b-D12 | 必須項目（商品名・部門・売価・原価、create 時は初期在庫）のラベルに `（必須）` を付ける。色で必須を符号化しない。JANコードは対象外。 | 非IT利用者には必須項目が分かりやすい方がよい。色（赤 * 等）だけの符号化は [design-system/00-foundations.md §業務ステータスの視認性](../design-system/00-foundations.md) に反するため、テキストで明示する。JAN は任意（独自コード発番経路がある）ため必須にしない。 |
 | REQ-102 | UI-01b-D13 | 「廃番にする」操作は確認ダイアログ（`DiscontinueConfirmDialog`、shadcn AlertDialog）を通す。「表示に戻す」は確認なしで直接実行する。 | 廃番化は一覧の通常表示から外れる片方向の状態変更で、誤操作の影響が大きいため確認する。復帰は影響が小さく、戻す操作にさらに確認を挟むと操作が重くなるため直接実行する。共通判断は design-system DSR-07 / component catalog ⑧を参照する。 |
@@ -32,6 +32,8 @@
 | REQ-101 | UI-01b-D17 | create 保存時、jan_code 非 null なら「trim -> UI-01b-D16 と同一写像の全角→半角正規化 -> 検証」の順で適用し、正規化後の値が ASCII 数字 8 桁または 13 桁かつモジュラス 10 チェックディジット整合であることを必須とする。保存値は正規化後の値とする。この pipeline は frontend（`src/features/products/lib/jan-code.ts` 新設 + `product-form-request.ts`）が実行し、BIZ（BIZ-01-D1）は正規化後 wire 値を検証のみ行い再正規化しない。既存の blank + code_prefix 規則・文言は不変。ISBN-10 は許容しない（本は 13 桁 JAN〈EAN-13/ISBN-13〉で登録 = owner 裁定 2026-08-11）。 | 手入力 typo・読み違いの防御（実バーコードはチェックディジット整合が保証される）。warn-only は防御にならず不採用。JAN 欄空白 + 独自コード発番部門の既存経路が escape hatch として残る。 |
 | REQ-402 | UI-01b-D18 | `suggestPluTarget` は trim と UI-01b-D16 写像を適用した candidate、すなわち正規化適用後の値で評価し、ASCII 数字 13 桁のみ true とする（JAN-8 は false 維持 = PLU 書出し 13 桁前提との整合）。BIZ `should_default_plu_target`（BIZ-01-D2）と同一意味論の意図的二重実装とし、実装統合はせず、両側に同一ケース表の独立転記 oracle drift-guard test を置く。composition 中の評価は transient で onCompositionEnd の正規化で収束し、追加の抑制はしない。 | 全角 13 桁入力で PLU 提案が false になる既知問題を入力正規化で根治する。wire 越えの SSOT 化は bindings 定数 export の重さに見合わず不採用（判定は 1 行規模）。 |
 | REQ-907 / SPEC-PLS-D7 | UI-01b-D19 | edit mode は `plu_memory_no` を「レジメモリNo.」として読取り専用表示する。未割当は `未割当`。廃番解除は `plu_target` を自動復帰させず、必要なら利用者が明示して再対象化する。 | slot identity と商品状態を operator が確認でき、廃番解除だけで意図せずレジ再登録されることを防ぐ。 |
+| REQ-102 / SPEC-PRV-D9 | UI-01b-D20 | edit mode に第 5 セクション「価格履歴」を置き、直近 10 件を表示する。「すべて表示」は limit 100 で再取得し、create mode ではセクション自体を出さない。 | 過去の価格を商品修正の文脈で確認し、紙の前年リスト参照を置き換える。price_history に契機カラムがないため変更契機の列は表示しない。 |
+| REQ-106 / SPEC-PRV-D6 | UI-01b-D21 | 「分類と取引先」セクションに「新しい取引先を追加」導線を置く。name は trim、空文字を拒否し、同名は既存行を返したうえで complete master data を再取得する。 | `suppliers` はメーカー/ブランドを漸進補完する。改名・統合 UI や約 80 社の事前一括投入は扱わない。 |
 
 ## 7.2 Component / Route 構成
 
@@ -45,12 +47,13 @@ src/
     products/
       ProductFormPage.tsx
       components/
-        ProductForm.tsx                -- 4 セクション分割（UI-01b-D10）
+        ProductForm.tsx                -- create は 4、edit は価格履歴を加えた 5 セクション（UI-01b-D10 / D20）
+        PriceHistorySection.tsx        -- edit mode の価格履歴（UI-01b-D20）
         StockUnitField.tsx
         DiscontinueConfirmDialog.tsx   -- 廃番確認（UI-01b-D13）
 ```
 
-既存 UI-01a は `src/features/products` 配下に実装済みのため、UI-01b も同 feature に置く。商品コード / 部門 / 取引先の入力は `ProductForm` 内のセクションに inline で持たせ、shared 化は複数画面で再利用が必要になった時点で別 PR に切り出す。`ProductForm` は内部の `FormSection`（h2 見出し + Separator + 説明）で「商品の識別」「分類と取引先」「価格」「在庫」を構成する（UI-01b-D10）。
+既存 UI-01a は `src/features/products` 配下に実装済みのため、UI-01b も同 feature に置く。商品コード / 部門 / 取引先の入力は `ProductForm` 内のセクションに inline で持たせ、shared 化は複数画面で再利用が必要になった時点で別 PR に切り出す。`ProductForm` は内部の `FormSection`（h2 見出し + Separator + 説明）で「商品の識別」「分類と取引先」「価格」「在庫」を構成し、edit mode だけ第 5 セクション「価格履歴」を末尾に加える（UI-01b-D10 / UI-01b-D20）。
 
 ## 7.3 Route / State
 
@@ -91,6 +94,8 @@ UI-01b は以下の generated binding を使用する。
 | `commands.getProduct(productCode)` | generated 済み | edit 初期表示 |
 | `commands.listDepartments()` | generated 済み | 必須部門候補 |
 | `commands.listSuppliers()` | generated 済み | 任意取引先候補 |
+| `commands.createSupplier(name)` | 実装 A で生成 | 新しい取引先（メーカー/ブランド）の追加 |
+| `commands.listPriceHistory(productCode, limit)` | 実装 A で生成 | edit mode の価格履歴（直近 10 件 / すべて表示 100 件） |
 | `commands.createProduct(req)` | generated 済み | create 保存 |
 | `commands.updateProduct(productCode, req)` | generated 済み | edit 保存 |
 | `commands.toggleDiscontinue(productCode)` | generated 済み | edit 廃番 / 復帰 |
@@ -139,6 +144,14 @@ UI-01b は以下の generated binding を使用する。
    - maker_code空へ戻す: `maker_code: null`（Rustの `Some(None)`、clear）。
    - clear可能fieldのunchangedはomittedにし、nullと区別する。
 5. 廃番 / 復帰は edit mode だけに出す。状態は色だけでなく「廃番」「表示中」の日本語 badge と button label で示す。「廃番にする」は確認ダイアログ（`DiscontinueConfirmDialog`）を通し、「表示に戻す」は確認なしで直接実行する（UI-01b-D13）。
+6. 第 5 セクション「価格履歴」で `commands.listPriceHistory(productCode, 10)` の結果を新しい順に表示する。「すべて表示」で limit 100 を再取得する。create mode では表示しない（UI-01b-D20）。
+
+### 取引先 inline 追加（Create / Edit 共通、UI-01b-D21）
+
+- 「分類と取引先」セクションの complete master data 選択に「新しい取引先を追加」を併設する
+- 入力 name は trim し、空文字は field error として CMD を呼ばない
+- `commands.createSupplier(name)` 成功後は `listSuppliers` を再取得し、返された supplier を選択状態にできる
+- 追加失敗時は入力を保持して再試行できる。既存の商品 form 保存値を失わない
 
 ## 7.6 Validation / Error / Recovery
 
@@ -165,11 +178,11 @@ Error recovery:
 - `getProduct` not found: form を出さず「商品が見つかりません」を表示し、一覧へ戻る導線を出す。
 - save validation / duplicate: field error または form-level alert を出し、入力値は保持する。
 - save internal error: form-level alert を出し、保存ボタンを再度押せる状態に戻す。
+- 取引先追加エラー: inline error を出し、取引先名と商品 form の入力を保持して再試行可能にする。
 - 商品 form の初期値 / 読込み値を baseline として `useUnsavedChangesWarning` へ接続し、create / update 成功時は一覧遷移前に提出値へ baseline を同期して離脱ガードを解除する（UI-USW-D1）。
 
 ## 7.7 Non-scope / Follow-up
 
-- inline 新規取引先作成。
 - 商品コードの手入力登録。
 - edit mode での `stock_unit` / `stock_quantity` 変更。
 - cm / m 表示切替 UI。UI-01b では `cm` を入力・表示できるが、`m` 換算表示 toggle は別 Design Phase で扱う。
@@ -187,17 +200,20 @@ Error recovery:
 - `stock_unit='cm'` 時の `pos_stock_sync=false` 提案と手動 override。
 - 部門取得失敗 / 取引先取得失敗 / `getProduct` not found / duplicate save error の復旧。
 - 廃番状態は日本語 badge + button label で示し、色だけにしない。
-- form は「商品の識別」「分類と取引先」「価格」「在庫」の 4 セクションに分かれ、h2 見出しを持つ（UI-01b-D10）。
+- form は create で基本 4 セクション、edit で「価格履歴」を加えた 5 セクションに分かれ、h2 見出しを持つ（UI-01b-D10 / D20）。
 - read-only 入力（商品コード / edit の JANコード・現在庫）は `readonly` 属性を持ち、数量単位 select は `disabled` を維持する（UI-01b-D11）。
 - 必須項目（商品名・部門・売価・原価、create 時は初期在庫）のラベルに `（必須）` が含まれる（UI-01b-D12）。
 - 「廃番にする」は確認ダイアログを出し、キャンセルで状態が変わらない。「表示に戻す」は確認なしで直接実行する（UI-01b-D13）。
 - 保存成功時に `toast.success`（`id: "product-save-success"`）が navigate より前に発火する（UI-01b-D14）。
+- UI-01b-D20: edit mode のみ第 5 セクション「価格履歴」が表示され、直近 10 件と「すべて表示」100 件を新しい順に取得する。create mode では表示しない。
+- UI-01b-D21: 「新しい取引先を追加」で trim・空文字拒否・同名既存行返却・候補再取得・失敗時入力保持が成立する。
 - Windows native L3: 日本語入力、Tab 移動、保存後遷移、廃番 / 復帰の視認性。
 
 ## 7.9 変更履歴
 
 | 日付 | 版 | 内容 |
 |---|---|---|
+| 2026-08-22 | 価格改定支援 design-first | SPEC-PRV-D6 / D9 を昇格。UI-01b-D7 を inline 追加対応へ改訂し、UI-01b-D20（価格履歴）/ D21（取引先追加）を追加。 |
 | 2026-08-11 | JAN 専用欄正規化 design | UI-01b-D16〜D18 を追加（JAN 欄の全角→半角正規化 / 保存時 JAN-8/13 + チェックディジット validation / PLU 提案の正規化後評価と BIZ 二重実装契約）。§7.5 / §7.6 / §7.7 を整合。実装は後続 PR。 |
 | 2026-08-03 | UI safety net implementation | 商品 form の dirty 判定を共通離脱ガードへ接続し、保存成功時の baseline 同期を実装。 |
 | 2026-06-09 | UI-01b Design Phase | TanStack Router route、generated command 方針、supplier 候補、JANなし商品コード、edit read-only fields、cm / m defer、Windows native L3 を Design Phase 基準で整理。 |

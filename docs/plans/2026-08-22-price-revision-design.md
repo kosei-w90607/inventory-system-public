@@ -381,7 +381,11 @@ Contract ID: SPEC-PRV
 
 ## Implementation Results
 
-Fill after implementation.
+- SPEC-PRV-D1〜D12 を Scope 記載の source docs、索引、task specs、decision log へ転記した。新設 UI-14 文書は `docs/function-design/77-ui-bulk-price-revision.md` とし、`design_compliance_test.rs` の `SKIP_DOCS` に登録した。
+- REQ-105 / REQ-106 / REQ-209 と SP-102-08 / SP-103-04 を追加し、`90-traceability.md` を generator で再生成した。
+- M-D1〜M-D12 は全行 PASS。exact anchor の実測件数は Test Design Matrix の実行結果表に記録した。
+- targeted gate は `generate_traceability -- --check` exit 0、`doc-consistency-check.sh` exit 0（既存 WARN 1 件のみ）、`doc-consistency-check.sh --target plan` 全チェック通過、`design_compliance_test` PASS。
+- exact-HEAD の L1 full evidence / candidate HEAD / remote ref は tracked packet に追記せず、content commit 後の Writer 最終報告で提示する。
 
 ## Review Response
 
@@ -396,3 +400,10 @@ Fill after review.
 - plan-draft -> plan-gate の evidence: packet（`0b10e18`）と Test Design Matrix（同 commit）を commit 済み、`doc-consistency-check.sh --target plan` 全チェック通過。
 - plan-gate -> plan-approved の evidence: 独立 Sonnet Plan Reviewer 3 round（round 1 P1 0 / P2 3 → 是正 `a035e13`、round 2 P1 2 / P2 2 → 是正 `19c0477`、round 3 P1 3 / P2 0 = 表記整合のみ → 天井 3 到達で Coordinator 一括是正 `3613456`、残 P1/P2 = 0）、owner 裁定（SP-103-04 原価列 = (a)、介入 1/3）と owner plan approval（2026-08-22、介入 2/3）、Plan Commit = plan-first commit `0b10e18`（本 branch の全 content commit の祖先）。
 - plan-approved -> implementing の evidence: 本 design-first PR の implementation = source docs amendment（Codex Writer 第 2 発注）であり、plan-first commit が先行済み。隣接 3 遷移を 1 state-only commit で圧縮記録（PR #84 と同型、DEV_WORKFLOW 圧縮規則）。
+
+### Writer 報告（2026-08-22、Codex）
+
+- SPEC-PRV-D1〜D12 の source docs amendment、REQ / coverage / traceability 更新、UI-14 文書・索引・task specs 登録を完了した。M-D1〜M-D12 は全行 PASS（実測件数は Matrix の実行結果表）。
+- Mechanical Impact Inventory: keyword 旧文言は Matrix oracle 1 hit のみ、基本列旧文言 0 hit、40-cmd 旧保留文 0 hit、51-ui §7.7 旧文言は archive 2 hit のみ、suppliers 旧役割文は Packet / Matrix oracle 各 1 hit のみ。archive は履歴保持、Packet / Matrix は置換対象を表す検証用引用として明示除外し、archive 外の source docs に旧契約は残していない。
+- provisional 判断: なし。
+- Review-only skipped because: 独立 Final Reviewer は Sonnet に固定されており、Writer 自己レビューで代替しないため。

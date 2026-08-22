@@ -67,7 +67,7 @@ fn search_products(conn: &DbConnection, query: &ProductSearchQuery) -> Result<Pa
 ```
 
 **ProductSearchQuery構造体**:
-- keyword: Option<String>（商品名、product_code、jan_codeの部分一致）
+- keyword: Option<String>（商品名、product_code、jan_code、maker_codeの部分一致。SPEC-PRV-D2）
 - department_id: Option<i64>
 - is_discontinued: Option<bool>（Noneなら全件、Some(false)なら現行品のみ）
 - plu: Option<PluMigrationFilter>（All / Target / Pending / Synced / Excluded。UI search param `plu` から BIZ-01 が変換）
@@ -79,7 +79,7 @@ fn search_products(conn: &DbConnection, query: &ProductSearchQuery) -> Result<Pa
 **処理ステップ**:
 1. page / per_page の入力ガードを行う（page >= 1、per_page >= 1）。per_page は D-031 の `PAGINATION_MAX_PER_PAGE = 200` でクランプする。(page - 1) * clamped_per_page の overflow は offset 計算時に DbError::QueryFailed。
 2. WHERE句の構築:
-   - keywordがSome → `(p.name LIKE '%keyword%' OR p.product_code LIKE '%keyword%' OR p.jan_code LIKE '%keyword%')`
+   - keywordがSome → `(p.name LIKE '%keyword%' OR p.product_code LIKE '%keyword%' OR p.jan_code LIKE '%keyword%' OR p.maker_code LIKE '%keyword%')`（SPEC-PRV-D2）
    - department_idがSome → `p.department_id = ?`
    - is_discontinuedがSome → `p.is_discontinued = ?`
    - plu が Target → `p.plu_target=1`、Pending → `p.plu_target=1 AND p.plu_dirty=1`、Synced → `p.plu_target=1 AND p.plu_dirty=0`、Excluded → `p.plu_target=0`。All は条件を加えない
@@ -180,6 +180,8 @@ fn update_product(conn: &DbConnection, product_code: &str, updates: &ProductUpda
 3. WHERE product_code = ? で実行
 4. affected_rows == 1 → Ok(true)
 5. affected_rows == 0 → Ok(false)（該当商品なし）
+
+`revise_product_price` はこの部分更新契約を使い、`ProductUpdates` には `selling_price` / `cost_price` / 売価変更時だけの `plu_dirty` / 商品の `supplier_id` が NULL の場合だけの `supplier_id` だけを設定する（SPEC-PRV-D5 / SPEC-PRV-D6）。BIZ-01 が旧値との比較と transaction を所有し、IO は全項目更新や業務判断を行わない。
 
 **エラーハンドリング**:
 - SQL実行失敗 → DbError::QueryFailed(詳細)
@@ -325,7 +327,7 @@ fn list_suppliers(conn: &DbConnection) -> Result<Vec<Supplier>, DbError>
 
 #### find_or_create_supplier
 
-**関数要求**: 名前で取引先を検索し、なければ作成して返す。サジェスト入力で新規追加する場合に使用
+**関数要求**: 名前で取引先を検索し、なければ作成して返す。サジェスト入力で新規追加する場合に使用（SPEC-PRV-D6）
 
 **シグネチャ**:
 ```
@@ -333,9 +335,10 @@ fn find_or_create_supplier(conn: &DbConnection, name: &str) -> Result<Supplier, 
 ```
 
 **処理ステップ**:
-1. SELECT * FROM suppliers WHERE name = ?
-2. ヒット → そのSupplierを返す
-3. ヒットなし → INSERT INTO suppliers (name, created_at) VALUES (?, ?) → 作成したSupplierを返す
+1. `name.trim()` で前後空白を除去し、空文字なら SQL を実行せず入力エラーとして返す
+2. SELECT * FROM suppliers WHERE name = ?（trim 後の値）
+3. ヒット → そのSupplierを返す
+4. ヒットなし → INSERT INTO suppliers (name, created_at) VALUES (?, ?) → 作成したSupplierを返す
 
 ---
 
@@ -353,6 +356,27 @@ fn insert_price_history(conn: &DbConnection, history: &NewPriceHistory) -> Resul
 
 **処理ステップ**:
 1. INSERT INTO price_history (..., changed_at) VALUES (..., 現在日時)
+
+#### list_price_history（SPEC-PRV-D9）
+
+**関数要求**: 商品コードに紐付く価格履歴を新しい順で取得する
+
+**シグネチャ**:
+```rust
+fn list_price_history(
+    conn: &DbConnection,
+    product_code: &str,
+    limit: u32,
+) -> Result<Vec<PriceHistoryEntry>, DbError>
+```
+
+**PriceHistoryEntry構造体**:
+- id, old_selling_price, new_selling_price, old_cost_price, new_cost_price, changed_at
+
+**処理ステップ**:
+1. `limit` は呼出し既定 10、上限 100 とし、100 超は 100 に丸める
+2. `WHERE product_code = ? ORDER BY changed_at DESC, id DESC LIMIT ?` で取得する
+3. `product_code` が存在しない場合もエラーにせず空配列を返す
 
 ---
 

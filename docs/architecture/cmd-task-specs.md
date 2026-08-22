@@ -18,12 +18,15 @@ CMD層は薄いラッパーのため、各コマンドの仕様は「どのBIZ�
 | preview_import | FileBytes | BIZ-01 一括インポート前半 | ImportPreview（valid_rows[], error_rows[], duplicate_rows[]） |
 | commit_import | ImportCommitRequest（valid_rows[], overwrite_codes[]） | BIZ-01 一括インポート後半 | ImportResult（created, updated, skipped, errors） |
 | bulk_set_plu_target | ProductBulkFilter（keyword, department_id?, is_discontinued?, plu）, plu_target | BIZ-01 filter 全件 PLU 対象更新 | BulkPluTargetResult（matched, updated, invalid_jan_skipped, discontinued_skipped） |
+| revise_product_price | PriceRevisionInput（product_code, new_selling_price, new_cost_price, assign_supplier_id?） | BIZ-01 行単位価格改定 | PriceRevisionResult（product_code, changed, plu_dirty_set, supplier_assigned） |
+| create_supplier | name | BIZ-01 取引先（メーカー/ブランド）追加 | Supplier（同名は既存行） |
+| list_price_history | product_code, limit | BIZ-01 価格履歴参照 | PriceHistoryEntry[]（DESC、既定10・上限100） |
 
 ### CMD-02: 入庫コマンド群
 
 | コマンド名 | 入力 | 呼び出すBIZ | 出力 |
 |-----------|------|-----------|------|
-| create_receiving | ReceivingCreateRequest（supplier_id?, receiving_date, note?, items[]） | BIZ-02 入庫記録 | Result（record_id, stock_warnings[]） |
+| create_receiving | ReceivingCreateRequest（supplier_id?, receiving_date, note?, items[]） | BIZ-02 入庫記録 | ReceivingCreateResult（record_id, created, idempotent_replay, stock_warnings[], cost_diffs[]） |
 | list_receivings | ListQuery（page, per_page, date_from?, date_to?） | BIZ-02 入庫一覧 | ReceivingList（items[], total_count） |
 
 ### CMD-03: 返品・交換コマンド群

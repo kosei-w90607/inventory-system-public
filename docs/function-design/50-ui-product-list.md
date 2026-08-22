@@ -2,13 +2,13 @@
 
 > 最終更新: 2026-06-09 / Design Phase readiness trial
 >
-> 対応仕様: REQ-103 / UI-01a
+> 対応仕様: REQ-103 / REQ-105 / UI-01a
 >
 > 入力ドキュメント: `docs/architecture/ui-task-specs.md` UI-01a、`docs/SCREEN_DESIGN.md` 商品検索・一覧画面、`docs/function-design/20-io-product-repo.md` `search_products`、`docs/function-design/30-biz-product-service.md` `search_products`、`docs/function-design/40-cmd-product.md` `search_products`
 
 ## 50.1 位置付け
 
-商品検索・一覧は、商品管理の入口画面である。商品名 / 商品コード / JAN コード検索、部門絞込み、廃番状態の切替、並替え、ページングを扱い、商品登録・修正画面への導線を提供する。
+商品検索・一覧は、商品管理の入口画面である。商品名 / 商品コード / JAN コード / メーカー品番検索、部門絞込み、廃番状態の切替、並替え、ページングを扱い、商品登録・修正画面への導線を提供する（SPEC-PRV-D2）。
 
 この設計は UI 実装前の Design Phase 成果物であり、バックエンド関数 / CMD / DTO / DB 契約は既存の `search_products` をそのまま使う。実装計画やテスト設計は Plan Packet / Test Design Matrix に置き、ここには実装者が迷わないための durable な設計判断を残す。
 
@@ -28,6 +28,7 @@
 | REQ-907 / SPEC-PLS-D7 | UI-01a-D10 | PLU 移行状態を独立列「PLU」に置き、`plu_target=0 -> 対象外`、`plu_target=1 && plu_dirty=1 -> 未反映`、`plu_target=1 && plu_dirty=0 -> 反映済み` の 3 語彙で導出する。`plu=all|target|pending|synced|excluded` を URL search param に持つ。 | DSR-04: この画面では PLU 移行状態が filter / 一括操作の主情報であり、全行に値があるため商品名セル内へ詰め込まない。badge は text / icon を併用し、色だけで状態を符号化しない。PLU 状態による行減衰は行わない。 |
 | REQ-907 / SPEC-PLS-D6 | UI-01a-D11 | 現在の q / dept / discontinued / plu filter に一致する全件を「PLU 対象にする / 対象から外す」で更新する。実行前に件数付き dialog、実行後に更新 / JAN 不備 skip / 廃番 skip の結果を表示する。 | page 内だけ、または PLU filter を落とした更新は operator が見ている集合とずれる。BIZ-01 の 1 TX command に判断を集約する。 |
 | REQ-907 / D-052 | UI-01a-D12 | 一括操作成功後は D-052 C19（`productList.root / pluDirty / productForm.root / pluSlotSummary`）を invalidate する。 | 一覧 badge、ホーム未反映件数、商品詳細、slot 要約の stale を同じ production SSOT から解消する。 |
+| REQ-103 / SP-103-04 / SPEC-PRV-D10 | UI-01a-D13 | 原価列を基本列に追加し、売価の右隣に置く（owner 裁定 2026-08-22）。 | 聞き取り第 3 陣 Q4 により PC 画面は通常客から見えず、店主の棚卸し・税理士対応・値付けは原価中心と確認できた。列密度より日常の参照性を優先する。 |
 
 ## 50.3 画面構成
 
@@ -67,7 +68,7 @@ src/features/products/components/ProductPagination.tsx
 
 UI は `commands.searchProducts(query: ProductSearchQuery)` を呼ぶ。
 
-`ProductSearchQuery`:
+`ProductSearchQuery`（SPEC-PRV-D2 により keyword は `maker_code` を含む）:
 
 ```text
 keyword: string | null
@@ -85,10 +86,10 @@ per_page: number  // 上限 200。UI は 50 / 100 / 200 のみ送信し、200 �
 
 ## 50.6 表示と操作
 
-- 検索欄は商品名 / 商品コード / JAN コードを同じ入力で扱う。live 型（[59-ui-shared-patterns.md](59-ui-shared-patterns.md) §59.1、`debounceMs=200`）で入力から 200ms 後に search params を更新し、Enter は debounce を待たず即時反映する（IME 変換確定中の Enter は無視）。`type="search"` のネイティブ clear を使い、外付け Label と検索ボタンは持たない。`aria-label="商品検索"` で識別する（UI-01a-D9）。
+- 検索欄は商品名 / 商品コード / JAN コード / メーカー品番（`maker_code`）を同じ入力で扱う（SPEC-PRV-D2）。live 型（[59-ui-shared-patterns.md](59-ui-shared-patterns.md) §59.1、`debounceMs=200`）で入力から 200ms 後に search params を更新し、Enter は debounce を待たず即時反映する（IME 変換確定中の Enter は無視）。`type="search"` のネイティブ clear を使い、外付け Label と検索ボタンは持たない。`aria-label="商品検索"` で識別する（UI-01a-D9）。
 - 部門フィルタは `commands.listDepartments()` 由来の全 21 部門から選ぶ。検索結果の現在ページから候補を作らない。
 - 廃番モードは `表示中` / `すべて` / `廃番のみ` の意味が日本語で分かる segmented control にする。
-- テーブル列は 商品コード、商品名、部門、売価、在庫数、操作導線を基本にする。廃番状態は専用列を持たず、商品名セル内に表す（UI-01a-D8）。
+- テーブル列は 商品コード、商品名、部門、売価、原価、在庫数、操作導線を基本にする。原価は売価の右隣に置く（SPEC-PRV-D10）。廃番状態は専用列を持たず、商品名セル内に表す（UI-01a-D8）。
 - 商品コードと商品名は並べて見せ、商品コード単独で利用者判断を強制しない。
 - 廃番状態は色だけで表さず、廃番商品のみ商品名セル内に `廃番` text badge を出し、行を muted 表示にする。「表示中」badge は出さない（UI-01a-D8）。
 - PLU 移行状態は独立列「PLU」で `対象外` / `未反映` / `反映済み` の text badge と補助 icon で示す。filter 一致全件の一括操作は件数付き確認 dialog を通し、成功は toast、失敗は destructive Alert で示す（UI-01a-D10〜D12）。
@@ -124,6 +125,7 @@ UI-01a 実装時は、以下を trace ID 付きで検証する。
 - UI-01a-D9: 検索欄が live 型（`debounceMs=200`）で動作し、Enter は debounce を待たず即時反映、IME 変換確定中の Enter は発火しない。`q` の変更・クリアで `page` が既定へ戻る。外付け Label・検索ボタンは表示されない。
 - UI-01a-D10: 3 語彙の導出式、`plu` URL 復元、色以外の符号が一致する。
 - UI-01a-D11: page 外も含む filter 全件の件数確認と、更新 / JAN 不備 skip / 廃番 skip の結果を表示する。
+- SPEC-PRV-D10: 「原価」列ヘッダが「売価」の右隣に存在し、値が基本列として表示される。
 
 ## 50.9 Deferred
 

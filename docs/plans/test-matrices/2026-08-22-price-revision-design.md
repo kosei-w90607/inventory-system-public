@@ -55,7 +55,20 @@ Risk: R3
 
 ### M-D1〜M-D12 実行結果（第 2 発注後に実測）
 
-pending（第 2 発注後に実測）。本発注時点の事前確認（旧文言の現状 hit 数、新文言の現状 0 hit）は各行の Would fail if... 欄に記載のとおり rg で確認済み（2026-08-22）。
+| Test | Result | 実測件数 / evidence（2026-08-22） |
+|---|---|---|
+| M-D1 | PASS | 新文言 1 / 旧文言 0 |
+| M-D2 | PASS | 20-io 新文言 1 / 旧文言 0、50-ui `maker_code` 2、30-biz `maker_code` 5 |
+| M-D3 | PASS | 未設定 toggle 3、抽出条件 2、在庫ゼロ 2 |
+| M-D4 | PASS | floor 式 1、自動提案否認 1 |
+| M-D5 | PASS | `revise_product_price` 30-biz 2 / 40-cmd 3、原価のみ規則 2、operation type 2 |
+| M-D6 | PASS | `create_supplier(name` 1、NULL 限定規則 1、旧保留文 0 |
+| M-D7 | PASS | draft table 否認 1、「最近改定」6、`draft 保存` 全 hit 1 |
+| M-D8 | PASS | `cost_diffs` 31-biz 4 / 44-cmd 2、保存 transaction 非依存 1、UI action 3 |
+| M-D9 | PASS | `list_price_history` 20-io 2 / 40-cmd 2、51-ui「価格履歴」10、契機カラム追加 0 |
+| M-D10 | PASS | `UI-01a-D13` 1、最大 ID = D13 |
+| M-D11 | PASS | requirements 対象 REQ hit 4、coverage 対象 SP hit 2、`generate_traceability -- --check` exit 0 |
+| M-D12 | PASS | 実装 A/B/C 3 節、D2〜D10 9 行 + UI-14 到達導線 1、予約対象外 3 件を明記 |
 
 ## State Lifecycle Matrix
 
