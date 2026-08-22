@@ -6,7 +6,7 @@ Use the field definitions, enums, transition evidence, packet-selection rule, an
 
 If a state-only commit materializes multiple phases, list the complete adjacent forward sequence and the pre-existing evidence for every intermediate transition in an append-only review/evidence record. Recording compression never permits a gate skip.
 
-- Phase: human-confirm
+- Phase: ready-hosted-final
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: 325da8a
@@ -18,7 +18,7 @@ If a state-only commit materializes multiple phases, list the complete adjacent 
 - Reviewed Content HEAD: cc60e26
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
-- Human Gate: Plan Gate 承認 → human visual confirmation（Windows native L3、対象 = UI-14 到達 / 取引先 filter + 未設定含む / 400 行級の絞り込み → 突合 → 入力 → 行確定の反復 / 確定結果の UI-01a・UI-01b 反映、checklist は Test Plan 節）と Ready 承認（同一セッションで 1 回に束ねる）→ hosted final（Rust / TS / bindings を含む non-doc change のため CI-TRIGGER-D1 の Ready / `synchronize` 経路で自動 run。予防的 `workflow_dispatch` はしない）→ 三点一致 → merge
+- Human Gate: Plan Gate 承認済み（2026-08-23、介入 1/3）→ human visual confirmation（Windows native L3 4 項目）PASS（item 4 の PLU 未反映件数は fixture 条件で観測不能だったため、実商品 1 件の売価改定 → ホーム N → N+1 → backup 復元の最小シナリオで追加確認 PASS）+ Ready 承認済み（2026-08-23、介入 3/3）→ hosted final（Rust / TS / bindings を含む non-doc change のため CI-TRIGGER-D1 の Ready / `synchronize` 経路で自動 run。予防的 `workflow_dispatch` はしない）→ 三点一致 → merge
 
 ## Owner Effort Budget
 
@@ -418,3 +418,11 @@ If R3 review-only sub-agent is skipped, record an explicit line beginning with `
 - implementing -> local-verified: content candidate `cc60e26`（Codex Writer 第 1 発注、gated amendment 1 反映済み、relay 1/2）で L1 `local-ci.sh full` RESULT=PASS / END_TREE_STATE=CLEAN / MERGE_EVIDENCE_VALID=true（evidence path は PR #95 body）。Coordinator の packet commit（`119847e` / `b6a7c72`）は docs/plans のみ。exact-HEAD の L1 full は Ready 遷移 commit で再実施する。
 - local-verified -> independent-review: 独立 Sonnet Final Reviewer（fresh context、worktree 隔離）が Contract Audit（Scope 突合、Ledger 36 行の実装 + test 監査、AC 再実測、Matrix 7 mutant + 追加 3 mutant の実注入、PR body / docs 検査。件数は Review Response の Final Review 行と reviewer 報告が正）を実施。
 - independent-review -> human-confirm: Final Review P1 0 / P2 0 / P3 0 = PASS、是正 delta なし。`Reviewed Content HEAD` = `cc60e26`。隣接 3 遷移を 1 state-only commit で圧縮記録（post-implementation state-only 1 本目 / forward 合計 2 本目 / cap 3、PR #94 と同型）。
+
+### 遷移記録（2026-08-23、state-only 遷移 human-confirm -> ready-hosted-final）
+
+- Windows native L3（介入 2/3）: checklist 1〜3 を owner が全件 PASS（item 1 到達 / title / 絞り込み / 一覧 / 常時文言、item 2 取引先 filter の未設定含む on = 380 件 / off = 250 件・空白 reject・IME 確定 Enter 誤送信なし・追加後の選択状態、item 3 perPage 200 × 2 page・page 移動で確定前入力消失・現売価 0 の `—` + 現原価維持・10 行の期待値確定・全行「最近改定」・描画から badge 出現まで一瞬で速度良好）。item 4 は UI-01a 売価原価 / UI-01b 価格履歴 / UI-14 再読込後の確定値と badge / 確定前入力消失が PASS、ホームの PLU 未反映件数だけ fixture（380 件すべて `PLU対象=0`、ホーム件数は `plu_dirty = 1 AND plu_target = 1`）で観測不能 → owner 裁定により介入 3/3 で最小シナリオ（復元済み実 DB の PLU 反映済み実商品 1 件を UI-14 で売価改定 → ホーム N → N+1 → backup 復元）を追加実施し PASS。
+- Data recovery: L3 前の控え（`inventory_backup_20260823_033106.db`）へ通常復元し、ホーム遷移 / synthetic 商品コード 0 件 / synthetic 取引先消失 / 残留なしを確認。追加シナリオ後も再復元済み。break-glass は未使用。
+- 非再現観察: 新原価（案）が一度空欄に見えた事象は再試行で再現せず（215 が自動入力）、機能 FAIL とせず観察として記録。
+- UX findings（全一覧画面を対象とする改善候補、本 PR の scope 外、closeout で Plans.md backlog へ記録）: 総件数と pagination の上部表示 / table header の sticky 化 / 長い一覧で商品識別列を見失わない設計 / 枠線・背景・操作領域のコントラスト強化 / 緑内障のある実利用者を前提にした Windows native 再評価。
+- owner Ready 承認（2026-08-23、介入 3 回目 / 予算 3 回）: 本 state-only commit で `human-confirm -> ready-hosted-final` を materialize（forward state-only 3 本目 / cap 3、post-implementation 2 本目 / cap 2）。resulting exact HEAD で L1 full を再実行し、PR body を更新してから Draft を解除する。Ready event の同一 HEAD hosted final を待ち、三点一致前は merge しない。
