@@ -6,10 +6,10 @@ Use the field definitions, enums, transition evidence, packet-selection rule, an
 
 If a state-only commit materializes multiple phases, list the complete adjacent forward sequence and the pre-existing evidence for every intermediate transition in an append-only review/evidence record. Recording compression never permits a gate skip.
 
-- Phase: plan-draft
+- Phase: implementing
 - Risk: R3
 - Execution Mode: fable-window
-- Plan Commit: pending
+- Plan Commit: 0b10e18
 - Amendments: none
 - Coordinator: Fable
 - Writer: Codex
@@ -390,3 +390,9 @@ Fill after review.
 - Coordinator sweep（round 2 後、2026-08-22）: 新設 `77-ui` doc は `design_compliance_test.rs` の unmapped_docs assert により `SKIP_DOCS` 登録が必須で、本 PR が test file 1 行を触ることが判明 → Non-scope の例外 / Scope bullet / Registration 行を同期（Human Gate 行の同期は sd pattern 不一致で未適用のまま round 3 へ → round 3 P1-1 で捕捉、是正済み）。
 - Plan Review round 3（Sonnet、独立 context、2026-08-22、packet `19c0477`〜`004eadf`）: P1 3 / P2 0 / P3 2、verdict fail。天井 3 到達のため round 4 は起こさず Coordinator disposition = 全件一括是正 + rg sweep（DEV_WORKFLOW Review Rules、PR #84 round 3 と同型）: P1-1 Human Gate の `workflow_dispatch` 文言（non-doc を含むため CI-TRIGGER-D1 の Ready / synchronize 経路が正）→ 是正 / P1-2 Matrix Boundary Checks の limit 上限「第 2 発注で確定」stale → 上限 100 へ / P1-3 Matrix Negative Paths の自動提案 regex が 51-ui の pos_stock_sync 提案文に誤 hit → 77-ui 限定 + 肯定文のみへ特定化 / P3-1 Scope の §50.5 表記 → §50.6 へ / P3-2 Plans.md 次の行動 entry の stale 参照（31-biz L319）→ §12.3 step 10 へ同期。是正後に Coordinator が `rg` で「要確定 / 第 2 発注で確定 / workflow_dispatch 1 run / L319 / UI-01a-D9 / 裁定 (a) の場合」を packet・Matrix・Plans.md 全 sweep し 0 hit を確認。
 - Findings Freeze: not yet frozen; post-freeze exceptions: none.
+
+### 遷移記録（2026-08-22、state-only 遷移 plan-draft -> plan-gate -> plan-approved -> implementing）
+
+- plan-draft -> plan-gate の evidence: packet（`0b10e18`）と Test Design Matrix（同 commit）を commit 済み、`doc-consistency-check.sh --target plan` 全チェック通過。
+- plan-gate -> plan-approved の evidence: 独立 Sonnet Plan Reviewer 3 round（round 1 P1 0 / P2 3 → 是正 `a035e13`、round 2 P1 2 / P2 2 → 是正 `19c0477`、round 3 P1 3 / P2 0 = 表記整合のみ → 天井 3 到達で Coordinator 一括是正 `3613456`、残 P1/P2 = 0）、owner 裁定（SP-103-04 原価列 = (a)、介入 1/3）と owner plan approval（2026-08-22、介入 2/3）、Plan Commit = plan-first commit `0b10e18`（本 branch の全 content commit の祖先）。
+- plan-approved -> implementing の evidence: 本 design-first PR の implementation = source docs amendment（Codex Writer 第 2 発注）であり、plan-first commit が先行済み。隣接 3 遷移を 1 state-only commit で圧縮記録（PR #84 と同型、DEV_WORKFLOW 圧縮規則）。
