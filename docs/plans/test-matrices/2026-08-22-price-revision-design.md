@@ -110,9 +110,9 @@ Enumerate every site of each borrowed pattern; do not sample only the nearest fi
 - permission/write failure: 該当なし（既存 DB 権限モデルに変更なし）。
 - dry-run side effect: 該当なし（UI-14 に dry-run 相当の機能はない。確定は即時反映）。
 - D-075 否認語の不在（negative rg、非 scope 節の否定文は除外）:
-  - `rg -n "掛率を保存|掛率.*永続化" docs/function-design/ docs/db-design/ docs/spec/` — 現状 0 hit（維持を確認）。
-  - `rg -n "上代" docs/function-design/ docs/db-design/ docs/spec/` — 現状 0 hit。
-  - `rg -n "PDF.*解析" docs/function-design/` — 現状 0 hit。
+  - `rg -n "掛率を保存|掛率.*永続化" docs/function-design/ docs/db-design/ docs/spec/` — 肯定文 0 hit。第 2 発注後の実測 = 1 hit（`77-ui-bulk-price-revision.md` SPEC-PRV-D4 の却下理由「永続化や浮動小数計算は円の再現性を損なう」= 否認文脈、許容）。
+  - `rg -n "上代" docs/function-design/ docs/db-design/ docs/spec/` — 肯定文 0 hit。第 2 発注後の実測 = 1 hit（`77-ui-bulk-price-revision.md` Deferred の「参考上代」言及 = 非採用の列挙、許容）。
+  - `rg -n "PDF.*解析" docs/function-design/` — 肯定文 0 hit。第 2 発注後の実測 = 1 hit（`77-ui-bulk-price-revision.md` Deferred の「PDF 自動解析」= 非採用の列挙、許容）。
   - `rg -n "draft.*保存" docs/function-design/` — 現状 0 hit（77-ui 新設後も「draft 保存テーブルは設けない」という否定文以外の肯定文が現れないことを M-D7 で確認）。
   - `rg -n "新売価.*自動提案|自動.*新原価.*提案" docs/function-design/77-ui-bulk-price-revision.md` — 肯定文 0 hit（否認文「新売価の自動提案はしない」の 1 件のみ許容。51-ui の pos_stock_sync / plu_target 初期値提案の文は対象外のため docs 全域 regex は使わない）。
   - `rg -n "暫定.*フラグ|暫定原価" docs/function-design/` — 現状 0 hit。
