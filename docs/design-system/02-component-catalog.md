@@ -384,6 +384,8 @@ function FormSection({ title, description, children }: FormSectionProps) {
 | **Progress Bar** | 確定的進捗（CSV取込み、バックアップ） | shadcn/ui `Progress` |
 | **透過オーバーレイ** | 画面全体ロック必要時（データ整合性チェック中） | カスタム component + backdrop |
 
+共有 `ListSkeleton`（所在: `src/components/patterns/ListSkeleton.tsx`）は表・一覧の列構造を保つ取得中表示に使い、props は `rows?: number`（既定 6）/ `columns?: number`（既定 8）とする。
+
 **不使用**: ドット点滅、波形アニメ等の装飾ローディング（業務アプリの集中を妨げる）
 
 ### 空状態（Empty State）の標準UI

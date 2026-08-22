@@ -69,6 +69,8 @@ fn search_products(conn: &DbConnection, query: &ProductSearchQuery) -> Result<Pa
 **ProductSearchQuery構造体**:
 - keyword: Option<String>（商品名、product_code、jan_code、maker_codeの部分一致。SPEC-PRV-D2）
 - department_id: Option<i64>
+- supplier_id: Option<i64>（`None` なら取引先条件なし）
+- include_unassigned: bool（`supplier_id` 指定時だけ有効。true なら未設定商品も含める）
 - is_discontinued: Option<bool>（Noneなら全件、Some(false)なら現行品のみ）
 - plu: Option<PluMigrationFilter>（All / Target / Pending / Synced / Excluded。UI search param `plu` から BIZ-01 が変換）
 - sort_key: SortKey（Name / ProductCode / StockQuantity / SellingPrice）
@@ -81,6 +83,7 @@ fn search_products(conn: &DbConnection, query: &ProductSearchQuery) -> Result<Pa
 2. WHERE句の構築:
    - keywordがSome → `(p.name LIKE '%keyword%' OR p.product_code LIKE '%keyword%' OR p.jan_code LIKE '%keyword%' OR p.maker_code LIKE '%keyword%')`（SPEC-PRV-D2）
    - department_idがSome → `p.department_id = ?`
+   - supplier_idがSome → include_unassigned が true なら `(p.supplier_id = ? OR p.supplier_id IS NULL)`、false なら `p.supplier_id = ?`。supplier_id が None なら flag を無視して条件を加えない（SPEC-PRVB-D1）
    - is_discontinuedがSome → `p.is_discontinued = ?`
    - plu が Target → `p.plu_target=1`、Pending → `p.plu_target=1 AND p.plu_dirty=1`、Synced → `p.plu_target=1 AND p.plu_dirty=0`、Excluded → `p.plu_target=0`。All は条件を加えない
 2. COUNT(*) でtotal_countを取得

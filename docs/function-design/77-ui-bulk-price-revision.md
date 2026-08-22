@@ -37,6 +37,7 @@ src/
   routes/products/price-revision.tsx
   features/products/
     PriceRevisionPage.tsx
+    priceRevisionSearch.ts
     components/
       PriceRevisionFilters.tsx
       PriceRevisionTable.tsx
@@ -44,6 +45,8 @@ src/
     hooks/
       usePriceRevisionList.ts
       useReviseProductPrice.ts
+    lib/
+      price-revision-math.ts
 ```
 
 - PageHeader: title `一括価格改定`、値上げリストの 1 行ずつを照合・確定する画面であることを日本語の 1 行説明で示す
@@ -107,6 +110,7 @@ CMD の署名と wire DTO の正本は [40-cmd-product.md](40-cmd-product.md) �
 - **draft 保存テーブルは設けない**。確定済み行は再訪時にも更新後の現価格として取得できる
 - 当該商品の直近 `price_history.changed_at` が本日（ローカル日付）なら、行頭に icon + text badge `最近改定` を表示する。これは price_history からの導出で、別 field を永続化しない
 - `画面を再読み込みすると、確定前に入力した新売価・新原価は失われます。1行ずつ確定してください。` を絞り込み枠と一覧の間に常時表示する
+- 共通離脱ガード（UI_TECH_STACK §6.11 useUnsavedChangesWarning）は UI-USW-D3 (c)（行単位の即時 DB 保存、棚卸しと同型）により適用せず、上記の常時文言で代替する。
 
 ## 77.7 Loading / Empty / Error
 
@@ -134,10 +138,10 @@ CMD の署名と wire DTO の正本は [40-cmd-product.md](40-cmd-product.md) �
 - 新売価の算出補助、複数行の一括確定、改定前入力の長期保持
 - 取引先の改名・統合・専用管理画面、問屋チャネル、約 80 社の事前一括投入
 - リニューアル品の同定支援（issue #66）
-- UI-14 の実装と Windows native L3 は後続実装 PR B で扱う
 
 ## 77.10 変更履歴
 
 | 日付 | 版 | 内容 |
 |---|---|---|
 | 2026-08-22 | 価格改定支援 design-first | SPEC-PRV-D3〜D7 / REQ-105 / REQ-106 の UI-14 契約を新設。 |
+| 2026-08-23 | 価格改定支援 実装 B | UI-14 一括価格改定画面、取引先 filter、行単位確定、最近改定表示を実装。 |
