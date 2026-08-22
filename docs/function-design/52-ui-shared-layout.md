@@ -58,7 +58,7 @@ SidebarLink の active 判定も TanStack Router の `<Link activeProps>` で表
 
 ### 52.3 ルーティング定義
 
-全画面対応表（20 ナビ表示 + 2 ナビ非表示。UI-06b は UI-06a と `/stock` を共用するため route は 21）。設計合意書 §2.1 を転記（D-047 反映済み）。
+全画面対応表（21 ナビ表示 + 2 ナビ非表示。UI-06b は UI-06a と `/stock` を共用するため route は 22）。設計合意書 §2.1 を転記（D-047 反映済み）。
 
 | UI-ID | 画面名 | URL パス | route ファイル | サイドバー4エリア | ナビ表示 | 備考 |
 |---|---|---|---|---|---|---|
@@ -72,6 +72,7 @@ SidebarLink の active 判定も TanStack Router の `<Link activeProps>` で表
 | UI-01b (編集) | 商品修正 | `/products/$code/edit` | `src/routes/products/$code.edit.tsx` | （ナビ非表示） | — | 一覧 or 在庫照会詳細から遷移 |
 | UI-01c | 一括インポート | `/products/import` | `src/routes/products/import.tsx` | 商品管理 | ○ | |
 | UI-08 | PLU書出し | `/products/plu-export` | `src/routes/products/plu-export.tsx` | 商品管理 | ○ | 商品管理 route とサイドバー配置を一致させる |
+| UI-14 | 一括価格改定 | `/products/price-revision` | `src/routes/products/price-revision.tsx` | 商品管理 | ○ | REQ-105/106。値上げリストを行単位で商品マスタへ反映 |
 | UI-02 | 入庫記録 | `/inventory/receiving` | `src/routes/inventory/receiving.tsx` | 入出庫 | ○ | |
 | UI-03 | 返品・交換 | `/inventory/return` | `src/routes/inventory/return.tsx` | 入出庫 | ○ | |
 | UI-04 | 手動販売出庫 | `/inventory/manual-sale` | `src/routes/inventory/manual-sale.tsx` | 入出庫 | ○ | |
@@ -157,7 +158,7 @@ export const navigation: readonly NavArea[] = [...] as const;
 - `to: "/"` + `status: "active"` = ホームのみ 1 項目
 - `to: null` + `status: "pending"` = 残り 18 項目（route 未実装、Phase 2 以降で順次 active 化）
 
-**2026-07-16 時点**: サイドバー pending 項目は 0 件（全 20 項目 active。UI-13 追加時に 19 表記の更新が漏れていたため本 PR で是正）。最後まで pending だった「商品登録」（UI-01b）と「在庫少一覧」（UI-06b）を本 PR で active 化した。UI-06b は独立画面ではなく UI-06a への deep-link（D-047、詳細は §52.6）。
+**2026-08-22 時点**: 現行実装のサイドバー pending 項目は 0 件。UI-14 を加えた設計上のナビ表示は 21 項目で、実装 PR B が `navigation.ts` の商品管理へ active entry を追加する。UI-06b は独立画面ではなく UI-06a への deep-link（D-047、詳細は §52.6）。
 
 ---
 

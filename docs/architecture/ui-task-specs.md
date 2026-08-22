@@ -96,9 +96,9 @@ UI層の仕様は画面設計書（SCREEN_DESIGN.md）とモックアップ（sc
 - PLU 対象一括操作 → CMD-01 bulk_set_plu_target
 
 **【利用者操作フロー】**
-1. 検索バーにキーワード入力（商品名/商品コード/JANコード）
+1. 検索バーにキーワード入力（商品名/商品コード/JANコード/メーカー品番、SPEC-PRV-D2）
 2. 部門フィルタ、廃番表示ON/OFF
-3. 一覧表示（商品コード/商品名/売価/在庫数/部門/廃番状態/PLU移行状態）。`対象外` / `未反映` / `反映済み` を色以外の text / icon でも示す
+3. 一覧表示（商品コード/商品名/売価/原価/在庫数/部門/廃番状態/PLU移行状態）。原価は売価の右隣（UI-01a-D13）。`対象外` / `未反映` / `反映済み` を色以外の text / icon でも示す
 4. 行クリックで商品編集画面へ遷移
 5. 「新規登録」ボタンでUI-01bへ遷移（新規モード）
 6. 現在 filter に一致する全件を対象に、件数確認後「PLU 対象にする / 対象から外す」を実行し結果件数を確認する
@@ -117,6 +117,8 @@ UI層の仕様は画面設計書（SCREEN_DESIGN.md）とモックアップ（sc
 - 画面表示時（editモード）→ CMD-01 get_product
 - 部門リスト取得 → CMD-01 list_departments
 - 取引先リスト取得 → CMD-01 list_suppliers
+- 新しい取引先を追加 → CMD-01 create_supplier
+- edit mode の価格履歴取得 → CMD-01 list_price_history
 - 保存ボタン → CMD-01 create_product または update_product
 - 廃番ボタン → CMD-01 toggle_discontinue
 
@@ -127,6 +129,31 @@ UI層の仕様は画面設計書（SCREEN_DESIGN.md）とモックアップ（sc
 4. pos_stock_sync: stock_unit='cm'なら初期値OFFを提案、利用者が変更可能
 5. 保存 → バリデーション → 成功トースト → 一覧に戻る
 6. edit は `plu_memory_no` を読取り専用表示する。廃番解除で plu_target を自動復帰しない
+7. edit は第 5 セクション「価格履歴」で直近 10 件を表示し、「すべて表示」で 100 件を取得する。create では表示しない
+
+### UI-14: 一括価格改定
+
+**タスク要求**: REQ-105 / REQ-106。値上げリストを見ながら商品を絞り込み、売価・原価を行単位で改定する
+
+**【状態管理】**
+- URL state（取引先、取引先未設定を含む、部門、keyword、廃番を含む、sort、page、perPage）
+- 商品一覧と各行の新売価 / 新原価（案）入力、行確定状態
+- 取引先 complete master data と inline 追加状態
+
+**【CMD呼び出し】**
+- 一覧取得 → CMD-01 search_products（keyword は maker_code を含む）
+- 取引先候補 / 追加 → CMD-01 list_suppliers / create_supplier
+- 行確定 → CMD-01 revise_product_price
+- 最近改定の導出 → CMD-01 list_price_history
+
+**【利用者操作フロー】**
+1. 取引先・部門・keyword・廃番で絞り込む。取引先指定時は「取引先未設定の商品も含める」を既定 on とし、在庫ゼロ商品も対象にする
+2. 現売価をリストの旧売価と突合し、新売価を手入力する
+3. 現掛率と整数除算で導出した新原価（案）を確認・修正する
+4. 1 行ずつ確定し、supplier_id が未設定なら選択中の取引先を既定 on の同時紐付けで補完する
+5. 本日の price_history がある行は icon + 日本語 `最近改定` で示す。再読込で確定前入力が失われる旨を常時明記する
+
+詳細契約は [77-ui-bulk-price-revision.md](../function-design/77-ui-bulk-price-revision.md) を正とする。
 
 ### UI-01c: 商品一括インポート
 

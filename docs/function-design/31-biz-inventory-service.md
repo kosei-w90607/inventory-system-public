@@ -71,6 +71,13 @@ fn create_receiving(conn: &mut DbConnection, req: ReceivingCreateRequest) -> Res
 - created: bool
 - idempotent_replay: bool
 - stock_warnings: Vec<String>
+- cost_diffs: Vec<CostDiff>（SPEC-PRV-D8 / REQ-209）
+
+**CostDiff構造体**:
+- product_code: String
+- product_name: String
+- master_cost_price: i64
+- received_cost_price: i64
 
 **不変条件**: created=true ↔ idempotent_replay=false、created=false ↔ idempotent_replay=true。この2組み合わせ以外は生成しない
 
@@ -79,7 +86,7 @@ fn create_receiving(conn: &mut DbConnection, req: ReceivingCreateRequest) -> Res
    - inventory_repo::find_receiving_by_idempotency_key(conn, &req.idempotency_key)
    - Some((existing_id, existing_fp)) の場合:
      - request_fingerprint を計算し、existing_fp と比較
-     - 一致 → ReceivingCreateResult { record_id: existing_id, created: false, idempotent_replay: true, stock_warnings: [] } を返す
+     - 一致 → ReceivingCreateResult { record_id: existing_id, created: false, idempotent_replay: true, stock_warnings: [], cost_diffs: [] } を返す
      - 不一致 → BizError::IdempotencyConflict("同じ冪等キーで異なる内容のリクエストです")
 2. **バリデーション（TX外）**
    a. items が空 → BizError::ValidationFailed("明細が1件以上必要です")
@@ -91,7 +98,12 @@ fn create_receiving(conn: &mut DbConnection, req: ReceivingCreateRequest) -> Res
 6. 各item: insert_receiving_item + apply_stock_change(+quantity, Receiving, ReceivingRecord, record_id)
 7. system_repo::insert_operation_log(operation_type="receiving_create")
 8. **COMMIT**
-9. ReceivingCreateResult { record_id, created: true, idempotent_replay: false, stock_warnings }
+9. ReceivingCreateResult の既存 field（record_id / created=true / idempotent_replay=false / stock_warnings）を構成する
+10. **COMMIT 後の原価差分検出（SPEC-PRV-D8）**
+   - 保存 transaction とは別の読取りで、各明細の `cost_price` と現在の `products.cost_price` を完全一致比較する
+   - 不一致を `CostDiff { product_code, product_name, master_cost_price, received_cost_price }` として `cost_diffs` に積み、ReceivingCreateResult として返す
+   - 差分検出は **保存 transaction の成否に影響しない**。検出失敗を理由に保存済み入庫を rollback しない
+   - idempotent replay 時は step 1 で `cost_diffs: []` を返し、再提示しない
 
 **request_fingerprint 正規化**:
 - ヘッダ行: "{supplier_id}|{receiving_date}"

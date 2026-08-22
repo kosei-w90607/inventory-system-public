@@ -123,7 +123,7 @@ fn generate_custom_code(conn: &DbConnection, department_id: i64) -> Result<Strin
 
 ### 4.4 update_product
 
-**関数要求**: 商品情報を更新する。売価/原価が変わった場合はprice_historyに記録し、売価変更時はplu_dirty=1にする
+**関数要求**: 商品情報を更新する。売価/原価が変わった場合はprice_historyに記録し、売価変更時はplu_dirty=1にする。原価のみの変更では plu_dirty を立てない
 
 **シグネチャ**:
 ```
@@ -168,6 +168,33 @@ Rustでは通常fieldを `Option<T>`、clear可能fieldを `Option<Option<T>>` �
 - 商品が見つからない → BizError::NotFound
 - バリデーション失敗 → BizError::ValidationFailed
 - DB操作失敗 → ROLLBACK → BizError::DatabaseError
+
+---
+
+### 4.4.1 revise_product_price（SPEC-PRV-D5 / REQ-105）
+
+**関数要求**: UI-14 の行単位確定と UI-02 の入庫原価差分承諾から、売価・原価だけを安全に改定する
+
+```rust
+fn revise_product_price(
+    conn: &mut DbConnection,
+    input: PriceRevisionInput,
+) -> Result<PriceRevisionResult, BizError>
+```
+
+- `PriceRevisionInput { product_code, new_selling_price: i64, new_cost_price: i64, assign_supplier_id: Option<i64> }`
+- `PriceRevisionResult { product_code, changed: bool, plu_dirty_set: bool, supplier_assigned: bool }`
+
+**処理ステップ**:
+
+1. 商品を取得し、不存在は `BizError::NotFound` とする。`new_selling_price` / `new_cost_price` は 0 以上の整数だけを受け付ける
+2. 売価・原価とも現値と同じなら価格改定は no-op（`changed=false`）。price_history と `product_price_revise` operation log は書かない
+3. 変更がある場合は 1 transaction で、価格改定用の部分更新、price_history の old/new 4 値（`old_selling` / `new_selling` / `old_cost` / `new_cost`）、`system_repo::insert_operation_log(operation_type = "product_price_revise")` を書く
+4. `plu_dirty` は売価変更時のみ 1 にする。**原価のみの変更では plu_dirty を立てない**（PLU TSV に原価列はない）
+5. `assign_supplier_id` が Some の場合も、**supplier_id が NULL のときだけ**設定する。既存の非 NULL 値は上書きしない（SPEC-PRV-D6）。結果の `supplier_assigned` はこの成否を表す
+6. 途中失敗は products / price_history / operation_logs の変更をまとめて rollback する
+
+既存 `update_product` の全項目 request を UI-14 から流用せず、この関数が意図した価格 field と漸進的な supplier 紐付けだけを所有する。
 
 ---
 
@@ -238,7 +265,34 @@ fn list_suppliers(conn: &DbConnection) -> Result<Vec<product_repo::Supplier>, Bi
 1. product_repo::list_suppliers(conn) を呼ぶ
 2. 結果をそのまま返す（DbError → BizError::DatabaseErrorに変換）
 
-**設計判断**: 初回 UI-01b では inline 新規取引先作成は扱わない。`find_or_create_supplier` の公開 CMD と新規追加 UX は、master data 追加の誤操作を避けるため別 Design Phase で扱う。
+**設計判断（SPEC-PRV-D6）**: 初回 UI-01b で保留した inline 新規取引先作成は、価格改定支援の Design Phase で `create_supplier` として消化する。候補一覧は引き続き complete master data を正とする。
+
+### 4.7.2 create_supplier（SPEC-PRV-D6 / REQ-106）
+
+```rust
+fn create_supplier(
+    conn: &DbConnection,
+    name: String,
+) -> Result<product_repo::Supplier, BizError>
+```
+
+1. `name` を trim し、空文字は `BizError::ValidationFailed` とする
+2. `product_repo::find_or_create_supplier` を呼ぶ
+3. 同名が既に存在する場合は新規行を作らず既存行を返す
+
+### 4.7.3 list_price_history（SPEC-PRV-D9 / REQ-102）
+
+```rust
+fn list_price_history(
+    conn: &DbConnection,
+    product_code: String,
+    limit: u32,
+) -> Result<Vec<product_repo::PriceHistoryEntry>, BizError>
+```
+
+- `changed_at DESC, id DESC` で返す
+- limit は既定 10・上限 100 とし、超過は 100 に丸める
+- `product_code` 不存在時は読取り専用契約として空配列を返す
 
 ---
 
@@ -383,6 +437,8 @@ fn bulk_set_plu_target(
 ```
 
 現在 filter（keyword / department / discontinued / plu）に一致する**全件**をページングなしで対象にし、1 transaction で更新する。`ProductBulkFilter` は db 層 `product_repo` 所有で、BIZ が再 export する。
+
+SPEC-PRV-D2 により keyword は商品名 / product_code / jan_code / maker_code の部分一致を共有する。maker_code 追加で一括 PLU 対象化の母集団も意図的に広がり、UI-01a で見えている filter 一致集合と一致させる。
 
 - ON: `plu_target=0` のうち未廃番かつ有効な 13 桁 JAN の商品だけを `plu_target=1`, `plu_dirty=1` にする。既に `plu_target=1` の行は `plu_dirty` を含め無変更とする。JAN 不備と廃番はそれぞれ skip 件数へ積む
 - OFF: filter 一致全件を `plu_target=0` にし、1→0 の商品は BIZ-04 解放 trigger を呼ぶ

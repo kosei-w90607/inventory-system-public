@@ -41,7 +41,9 @@
 | REQ-502 | 月次売上を商品・部門・比較の観点で集計できる | `spec/requirements.md`; `function-design/34-biz-sales-service.md`; `function-design/57-ui-monthly-sales.md` | current | — |
 | SP-101 | 商品コード、名称、分類、価格、在庫単位等を検証して商品を登録する | `function-design/30-biz-product-service.md`; `function-design/51-ui-product-form.md` | current | — |
 | SP-102 | 商品情報の変更、廃番、売価履歴、PLU 再出力要否を一貫して扱う | `function-design/30-biz-product-service.md`; `function-design/51-ui-product-form.md` | current | — |
+| SP-102-08 | 取引先（メーカー）・部門で商品を絞り込み、売価・原価を一括で改定する（REQ-105） | `spec/requirements.md`; `function-design/30-biz-product-service.md`; `function-design/77-ui-bulk-price-revision.md` | current | 2026-08-21 原典全数突合で dropped-silently と判明し復活 |
 | SP-103 | コード・名称・分類・状態で商品を検索し、業務単位で数量を表示する | `function-design/30-biz-product-service.md`; `function-design/58-ui-stock-inquiry.md` | current | — |
+| SP-103-04 | 商品一覧の基本列で原価を確認できる（REQ-103） | `function-design/50-ui-product-list.md` | current | UI-01a-D13 で原価列を基本列に追加 |
 | SP-104 | 一括取込前に行検証と重複時の選択を行い、正常な対象だけを確定して結果を示す | `function-design/60-ui-product-import.md` | partial | テンプレート配布は現行非スコープ |
 | SP-201 | 複数商品の仕入入庫を数量・原価・任意の取引先とともに記録する | `function-design/31-biz-inventory-service.md`; `function-design/61-ui-receiving.md` | current | — |
 | SP-202 | 返品・交換の増減方向と POS 側処理有無を記録し、二重反映を避けて証跡を追跡可能にする | `function-design/31-biz-inventory-service.md`; `function-design/63-ui-return-exchange.md`; `function-design/65-inventory-record-traceability.md` | partial | 印刷は後続 |
@@ -65,14 +67,14 @@
 
 ## 完全性契約
 
-- owner 保管原典の distinct ID は REQ 17、SP 17、QR 6 の計 40 件である。
-- ledger の ID は重複不可で、上記 40 件との差集合は常に空でなければならない。
+- owner 保管原典の distinct ID は REQ 17、SP 19、QR 6 の計 42 件である。
+- ledger の ID は重複不可で、上記 42 件との差集合は常に空でなければならない。
 - `partial` / `deferred` / `superseded` を `current` に変更するときは、対応する source design と traceability evidence を同じ変更で更新する。
 - 原典の具体的な業務値・発言・所在・ファイル名・保管 path は本書へ転記しない。
 
 ## Semantic audit protocol
 
-構造検査だけでは意味のずれを検出できないため、原典を参照できる独立 reviewer が次を全 40 行で確認する。
+構造検査だけでは意味のずれを検出できないため、原典を参照できる独立 reviewer が次を全 42 行で確認する。
 
 1. ID と公開要約が原典の業務目的を保持し、具体的な業務値・発言を持ち込んでいない。
 2. 定義先が実在する source design で、公開要約と同じ責務を定義している。placeholder や自己参照だけの行は失敗とする。
@@ -80,4 +82,4 @@
 4. `partial` / `deferred` / `superseded` は差分・後続理由が source design と一致する。
 5. 似た名前の別契約を混同していない。特に REQ-403 / SP-403 の POS 部門別売上照合と、REQ-904 / UI-13 の在庫整合性を別々に追跡する。
 
-review evidence は `ID / status / pass-fail` と finding だけを記録し、原典の文面、実 path、検査 log は tracked artifact へ転載しない。40 行すべての pass が揃わなければ本 ledger は公開候補にできない。
+review evidence は `ID / status / pass-fail` と finding だけを記録し、原典の文面、実 path、検査 log は tracked artifact へ転載しない。42 行すべての pass が揃わなければ本 ledger は公開候補にできない。

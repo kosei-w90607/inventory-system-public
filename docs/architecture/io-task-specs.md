@@ -36,6 +36,9 @@
 **【制御構造】**
 - コネクションプールは不要（1人運用デスクトップアプリ、単一接続で十分）
 - トランザクション管理はBIZ層が開始/コミット/ロールバックを指示し、IO層が実行
+- product_repository の keyword は商品名、product_code、jan_code、maker_codeの部分一致とし、検索一覧と filter 全件処理で共有する（SPEC-PRV-D2）
+- 価格改定は products の価格・`plu_dirty`・NULL supplier_id だけを部分更新し、price_history の old/new 4 値を同じ BIZ transaction で書ける repository 関数を提供する（SPEC-PRV-D5 / D6）
+- `find_or_create_supplier` は trim 後の name を使い、空文字を拒否する。`list_price_history` は `changed_at DESC, id DESC`、既定 10・上限 100、不存在 product_code は空配列とする（SPEC-PRV-D6 / D9）
 
 ---
 

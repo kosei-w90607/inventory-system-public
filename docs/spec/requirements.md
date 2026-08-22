@@ -1,19 +1,21 @@
 # REQ インベントリ
 
 > **親文書**: [README.md](README.md)（spec index）
-> **出典**: owner が repo 外で保管する要求原典の REQ 17 本 + 開発拡張 ID 8 本（コードコメント / Design Phase 由来）+ Design Phase 補足 ID 3 本。公開要求の全 ID 対応と状態は [requirements-coverage.md](requirements-coverage.md) を正とする
+> **出典**: owner が repo 外で保管する要求原典の REQ 17 本 + 開発拡張 ID 8 本（コードコメント / Design Phase 由来）+ Design Phase 補足 ID 5 本 + 原典 SP 復活対応 ID 1 本。公開要求の全 ID 対応と状態は [requirements-coverage.md](requirements-coverage.md) を正とする
 > **役割**: `generate_traceability` bin（`cargo run --bin generate_traceability -- --check`）の T2 phantom REQ 判定 / T3 テスト 0 本 WARN の判定基盤。本表にない REQ ID をテストが使うと CI / pre-push が ERROR になる
 > **coverage**: `required` はテスト 0 本なら T3 WARN、`deferred` は未実装要求として T3 WARN 対象外。実装着手時に `required` へ戻す。
 > **更新規約**: owner 保管原典の変更を採用するときは、本表、[requirements-coverage.md](requirements-coverage.md)、対応 design、traceability を同じ変更で同期する。原典の文面や機微な業務事実は公開 repository へ転記しない
 
-## REQ 一覧（28 行）
+## REQ 一覧（31 行）
 
 | REQ ID | 名称 | 対応タスク | 出典 | coverage |
 |---|---|---|---|---|
 | REQ-101 | 商品を新規登録できること | UI-01b, BIZ-01 | 要求仕様書 v2.1 | required |
-| REQ-102 | 商品情報を修正できること | UI-01b, BIZ-01 | 要求仕様書 v2.1 | required |
+| REQ-102 | 商品情報を修正できること | UI-01b（価格履歴セクション）, BIZ-01 | 要求仕様書 v2.1 | required |
 | REQ-103 | 商品を検索・一覧表示できること | UI-01a, BIZ-01 | 要求仕様書 v2.1 | required |
 | REQ-104 | 商品マスタをCSVから一括インポートできること（任意列 `PLU対象` は 1 / 0 / 空欄） | UI-01c, BIZ-01 | 要求仕様書 v2.1 + D-072 | required |
+| REQ-105 | 取引先（メーカー）・部門で商品を絞り込み、売価・原価を一括で改定できること | UI-14, BIZ-01 | 要求仕様書 v2.1（SP-102-08） | required |
+| REQ-106 | 取引先（メーカー/ブランド）を商品登録・価格改定画面から追加登録できること | UI-01b, UI-14, BIZ-01 | Design Phase 補足 2026-08-22 | required |
 | REQ-201 | 仕入れによる入庫を記録できること | UI-02, BIZ-02 | 要求仕様書 v2.1 | required |
 | REQ-202 | 顧客返品・交換による入庫を記録できること | UI-03, BIZ-02 | 要求仕様書 v2.1 | required |
 | REQ-203 | CSV取込みで記録されない販売出庫を手動で記録できること | UI-04, BIZ-02 | 要求仕様書 v2.1 | required |
@@ -22,6 +24,7 @@
 | REQ-206 | 入出庫系の業務記録を後から一覧・詳細で追跡できること | UI-02b, UI-03b, UI-04b, UI-05b, UI-07b, UI-10b | Design Phase 補足 2026-06-27 | deferred |
 | REQ-207 | 在庫変動履歴から元業務記録へ相互参照できること | UI-06c, BIZ-02 | Design Phase 補足 2026-06-27 | deferred |
 | REQ-208 | 入出庫系の業務記録を物理削除せず取消・訂正できること | UI-02b, UI-03b, UI-04b, UI-05b, BIZ-02 | Design Phase 補足 2026-06-27 | deferred |
+| REQ-209 | 仕入入庫の明細原価が商品マスタの原価と異なる場合に検知し、マスタ原価の更新を提案できること | UI-02, BIZ-02 | Design Phase 補足 2026-08-22 | required |
 | REQ-301 | 商品別の在庫数を照会できること | UI-00, UI-06a | 要求仕様書 v2.1 | required |
 | REQ-302 | 在庫切れ・在庫少の商品を一覧表示できること | UI-00, UI-06b | 要求仕様書 v2.1 | required |
 | REQ-303 | 商品ごとの在庫変動履歴を時系列で参照できること | UI-06c, BIZ-02 | 要求仕様書 v2.1 | required |
@@ -42,6 +45,6 @@
 ## 補足
 
 - 開発拡張 ID（REQ-700, REQ-901〜907）は owner 保管原典の ID 集合には含まれない。REQ-907 は D-072 の design-first 契約として追加し、後続実装で traceability test を付与する。
-- Design Phase 補足 ID（REQ-206〜208）は REQ-201〜205 / REQ-303 / QR-06 の実装時に露出した横断要件である。公開複合正本の拡張候補として管理し、実装着手までは `coverage=deferred` とする。
+- Design Phase 補足 ID（REQ-206〜209、REQ-106）は既存要求の実装・聞き取りで露出した横断要件である。REQ-206〜208 は実装着手まで `coverage=deferred`、REQ-106 / REQ-209 は価格改定支援の設計契約（SPEC-PRV-D11）として `coverage=required` とする。
 - REQ-403 は POS 部門別売上照合として `coverage=deferred` とし、`--check` の `[T3]` WARN 対象外にする。UI-13 / REQ-904 の在庫整合性とは別契約であり、専用 task の Design Phase と実装着手時に `required` へ戻す。
 - SP-NNN / QR-NN / `UI-NNx-Dn`（設計決定 ID）は本表の対象外（traceability v1 の Non-scope）。

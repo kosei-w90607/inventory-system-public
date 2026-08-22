@@ -7,7 +7,7 @@
 
 ### BIZ-01: 商品管理ロジック
 
-**タスク要求**: 商品マスタの登録・修正・廃番管理・独自コード発番・売価変更履歴記録・一括インポート・filter 全件 PLU 対象更新の業務ロジックを提供する
+**タスク要求**: 商品マスタの登録・修正・廃番管理・独自コード発番・売価変更履歴記録・一括価格改定・取引先追加・価格履歴参照・一括インポート・filter 全件 PLU 対象更新の業務ロジックを提供する
 
 **理由**: 商品マスタはシステムの中心であり、入出庫・CSV取込み・棚卸し・売上レポートの全てがproductsテーブルを参照する。商品データの整合性を保つルールをBIZ層に集約することで、CMD層やUI層から直接DB操作する事故を防ぐ
 
@@ -19,11 +19,16 @@
 - 廃番切替: product_code, is_discontinued
 - 一括インポート: CSVファイルバイト列（任意列 `PLU対象`）
 - PLU 一括更新: 商品一覧 filter と plu_target
+- 価格改定: product_code, new_selling_price, new_cost_price, assign_supplier_id（任意）
+- 取引先追加: name
+- 価格履歴参照: product_code, limit
 
 出力データ:
 - 登録結果: 生成されたproduct_code（独自コード発番時）、成功/失敗
 - 検索結果: 商品一覧（ページング対応）、在庫数・売価・原価含む
 - 一括インポート結果: プレビューデータ（正常行/エラー行/重複行）、取込み結果サマリ
+- 価格改定結果: product_code, changed, plu_dirty_set, supplier_assigned
+- 価格履歴: old/new の売価・原価と changed_at（新しい順）
 
 内部で扱うテーブル: products, departments, suppliers, price_history, inventory_movements, stocktake_items, plu_slots, operation_logs
 
@@ -53,6 +58,13 @@
 4. 売価が変わる場合 → plu_dirty=1にセット
 5. productsをUPDATE（updated_at更新）
 6. operation_logsに記録（operation_type='product_update', detail_jsonに変更前後）
+
+**一括価格改定の行単位確定（SPEC-PRV-D5 / D6）:**
+1. 売価・原価がともに同じ場合は価格履歴・操作ログを書かない
+2. 変更時は 1 transaction で価格の部分更新、price_history old/new 4 値、`product_price_revise` 操作ログを記録する
+3. 売価変更時だけ `plu_dirty=1`。原価のみでは立てない
+4. assign_supplier_id は商品が NULL のときだけ設定し、既存値を上書きしない
+5. create_supplier は trim・空文字拒否・同名既存行返却、list_price_history は DESC・既定 10・上限 100 とする
 
 **廃番切替:**
 1. product_codeで既存商品を取得
@@ -92,7 +104,7 @@
 
 ### BIZ-02: 在庫変動ロジック
 
-**タスク要求**: 入庫・返品・手動販売出庫・廃棄による在庫変動を統一的に処理する。products.stock_quantityの更新とinventory_movementsの記録を常にセットで実行する
+**タスク要求**: 入庫・返品・手動販売出庫・廃棄による在庫変動を統一的に処理する。products.stock_quantityの更新とinventory_movementsの記録を常にセットで実行し、入庫保存後は原価差分を保存 transaction と独立に返す（REQ-209 / SPEC-PRV-D8）
 
 **理由**: 在庫変動は4つの異なる画面（入庫/返品/手動販売/廃棄）から発生するが、「在庫を増減してその履歴を記録する」という共通処理がある。これをBIZ-02に集約することで、在庫整合性のルールが1箇所にまとまる
 

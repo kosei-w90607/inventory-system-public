@@ -1,6 +1,6 @@
 # 61. UI-02: 入庫記録
 
-> 対応仕様: REQ-201 / UI-02
+> 対応仕様: REQ-201 / REQ-209 / UI-02
 >
 > 入力ドキュメント: `docs/architecture/ui-task-specs.md` UI-02、`docs/architecture/cmd-task-specs.md` CMD-02、`docs/architecture/biz-task-specs.md` BIZ-02、`docs/function-design/31-biz-inventory-service.md`、`docs/function-design/44-cmd-inventory.md`、`docs/SCREEN_DESIGN.md`、`docs/UI_TECH_STACK.md` §5.3
 
@@ -32,6 +32,7 @@
 | REQ-201 / cache | UI-02-D12 | 保存成功時の invalidation は [D-052](../decision-log.md) C4 と `src/lib/invalidation-contract.ts` を正本とする。 | 入庫で変わる在庫・履歴とその consumer を table.column 導出で一貫して stale 化し、画面側の key 列挙を廃止する。 |
 | REQ-201 / UI-02 | UI-02-D13 | Windows native L3 は owner 目視確認を必須にする。確認対象は navigation、取引先候補、商品検索/スキャン相当 Enter 追加、同一商品数量加算、cm 表示、validation、保存中 disable、結果表示、recent list、在庫照会/商品登録導線。 | 新規 operator-facing screen であり、連続入力・日本語商品名・フォーカス戻しは CI だけでは判断しづらい。 |
 | REQ-201 / product add suggest | UI-02-D14 | 商品追加欄に live 候補プレビュー（catalog ⑮ ProductAddSuggest / SPEC-SUGGEST-D1〜D11）を追加する。Enter commit 経路（UI-02-D4）とフォーカス戻し（UI-02-D5）は不変。lock source は既存 `isFormLocked` 派生 state、候補確定は既存の複数件候補テーブル選択と同一 handler。 | variant B。純 autocomplete 型（Enter 追加廃止）はスキャナ Enter が候補 async 読込み前に届くため退行・不採用（owner 方針 2026-08-04）。契約正本は catalog ⑮ に一元化し、画面 doc には画面固有の結線のみ置く（5 画面複製 drift 防止）。 |
+| REQ-209 / SPEC-PRV-D8 | UI-02-D15 | 保存成功時に `ReceivingCreateResult.cost_diffs` があれば原価差分ダイアログを開き、商品ごとに「マスタ原価をこの実原価に更新する」か見送る。承諾時は `revise_product_price` を新売価 = 現売価据え置き、新原価 = 入庫実原価で呼ぶ。 | 手芸用品以外は入庫伝票が価格改定の唯一の導線。自動上書きは約定値引きを恒久化する恐れがあるため、商品ごとの確認を必須にする。見送りは無記録とし、差分が残れば次回入庫で再提示する。 |
 
 ## 61.2 Component / Route 構成
 
@@ -84,6 +85,8 @@ UI-02 実装 PR では以下を generated binding に出す。
 | `ReceivingCreateRequest` | BIZ type は既存、`specta::Type` 未対応 | create payload |
 | `ReceivingItemInput` | BIZ type は既存、`specta::Type` 未対応 | 明細 payload |
 | `ReceivingCreateResult` | BIZ type は既存、`specta::Type` 未対応 | 保存結果 |
+| `CostDiff` | SPEC-PRV-D8 で追加 | 商品コード・商品名・マスタ原価・入庫実原価の差分 |
+| `commands.reviseProductPrice(input)` | 実装 A で生成 | 差分承諾時のマスタ原価更新（新売価は現売価据え置き） |
 | `ReceivingRecordWithSupplier` | DB type は既存、`serde::Serialize` のみ | 最近の入庫一覧 |
 
 `createReceiving` payload:
@@ -100,6 +103,8 @@ UI-02 実装 PR では以下を generated binding に出す。
 
 `listReceivings` は `perPage=10` を初期値とし、CMD/BIZ の上限100を UI から超えない。
 
+`ReceivingCreateResult` は既存 field に `cost_diffs: CostDiff[]` を追加するだけで、既存 consumer は無視できる。idempotent replay は空配列を返す（SPEC-PRV-D8）。
+
 ## 61.5 表示 / 操作
 
 - PageHeader title は `入庫記録`、subtitle は仕入れ商品の到着時に在庫へ反映する作業であることを短く示す。
@@ -110,6 +115,7 @@ UI-02 実装 PR では以下を generated binding に出す。
 - 明細表は商品名、商品コード、現在庫、入庫数量、原価、単位、行削除を表示する。生地は `cm` 単位を主表示にする。
 - 明細が 0 件の場合、保存ボタンは disabled にし、理由を「商品が追加されていません」と表示する。
 - 保存ボタンは `入庫を記録`。保存成功後は result panel へ移り、フォーム本文は操作不可にする。保存結果や保存系エラーの Alert はページ先頭側に出るため、保存成功または command 失敗時はページ先頭へスクロールする。
+- 保存成功時に `cost_diffs` が 1 件以上なら原価差分ダイアログを表示する。各行は商品名・商品コード・マスタ原価・今回の実原価を日本語ラベルで示し、状態を色だけに依存させない。「マスタ原価をこの実原価に更新する」は商品単位で実行し、成功 / 失敗を同じ行で判別できるようにする（UI-02-D15）。
 - 最近の入庫一覧は日付、取引先、備考、記録日時を表示する。詳細編集や取消は出さない。
 
 ## 61.6 Error / Recovery
@@ -122,6 +128,7 @@ UI-02 実装 PR では以下を generated binding に出す。
 - BIZ validation error: form state を保持する。入力を修正して再送する場合は新しい `idempotencyKey` を採番し、同じ key で異なる fingerprint を送らない。
 - internal error: 入力と `idempotencyKey` を保持し、同内容のまま同じ伝票として再試行できるようにする。入力を編集して再送する場合は新しい `idempotencyKey` を採番する。
 - idempotent replay: result panel に「同じ内容の再送として処理済み」と表示し、二重登録ではないことを示す。
+- 原価差分更新失敗: 入庫保存の成功表示は維持し、該当商品の差分行だけ再試行可能にする。見送りは記録せず閉じられ、次回入庫で差分が残れば再提示される。
 
 ## 61.7 Cache / Navigation
 
@@ -154,11 +161,13 @@ UI-02 実装 PR では以下を generated binding に出す。
 - UI-02-D11: 最近の入庫一覧を取得し、空/取得失敗/成功を表示できる。
 - UI-02-D12: 保存成功時の実呼出し集合が D-052-C4 の独立 test oracle と完全一致する。
 - UI-02-D13: Windows native L3 で連続入力、フォーカス戻し、日本語表示、保存結果を確認する。
+- UI-02-D15: 保存完了時だけ原価差分ダイアログが出て、空配列 / idempotent replay では出ない。「マスタ原価をこの実原価に更新する」が `reviseProductPrice` を現売価据え置き・入庫実原価で呼び、見送りは無記録である。
 
 ## 61.10 変更履歴
 
 | 日付 | 版 | 内容 |
 |---|---|---|
+| 2026-08-22 | 価格改定支援 design-first | SPEC-PRV-D8 / REQ-209 の保存後原価差分ダイアログ（UI-02-D15）を追加。 |
 | 2026-08-05 | product add suggest design | UI-02-D14 新設: 商品追加欄の live 候補プレビュー（正本 = catalog ⑮ SPEC-SUGGEST-D1〜D10）。Enter commit 経路・フォーカス戻しは不変。 |
 | 2026-08-03 | UI safety net implementation | 入庫 form の dirty 判定を共通離脱ガードへ接続し、保存中 / 保存結果の非 block を実装。 |
 | 2026-06-28 | Save result visibility follow-up | 保存成功または command 失敗時はページ先頭へスクロールし、result panel / Alert が画面内に入るようにした。frontend validation は近傍表示のためスクロールしない。 |

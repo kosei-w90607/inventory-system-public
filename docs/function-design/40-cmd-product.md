@@ -141,7 +141,76 @@ fn list_suppliers(state: State<AppState>) -> Result<Vec<Supplier>, CmdError>
 3. Ok → `Vec<Supplier>` をそのまま返す
 4. Err(BizError) → CmdErrorに変換して返す
 
-**設計判断**: UI-01b の取引先候補は complete master data から取得する。inline 新規取引先作成は初回 UI-01b 実装では非 scope とし、`find_or_create_supplier` の公開 CMD は別 Design Phase で扱う。
+**設計判断（SPEC-PRV-D6）**: UI-01b / UI-14 の取引先候補は complete master data から取得する。初回 UI-01b で保留した `find_or_create_supplier` の公開境界は、本 Design Phase で `create_supplier` CMD として消化する。
+
+#### revise_product_price コマンド（SPEC-PRV-D5 / REQ-105）
+
+```rust
+#[tauri::command]
+#[specta::specta]
+fn revise_product_price(
+    state: State<AppState>,
+    input: PriceRevisionInput,
+) -> Result<PriceRevisionResult, CmdError>
+```
+
+```rust
+struct PriceRevisionInput {
+    product_code: String,
+    new_selling_price: i64,
+    new_cost_price: i64,
+    assign_supplier_id: Option<i64>,
+}
+
+struct PriceRevisionResult {
+    product_code: String,
+    changed: bool,
+    plu_dirty_set: bool,
+    supplier_assigned: bool,
+}
+```
+
+CMD は DB 接続を取得し、BIZ-01 `revise_product_price` を呼んで結果をそのまま返す。負値は validation、不存在 `product_code` / `assign_supplier_id` は not-found の既存 `CmdErrorKind` へ正規化し、価格更新・履歴・操作ログ・supplier 紐付けの判断を CMD に持たない。
+
+#### create_supplier コマンド（SPEC-PRV-D6 / REQ-106）
+
+wire contract: `create_supplier(name: String) -> Result<Supplier, CmdError>`。
+
+```rust
+#[tauri::command]
+#[specta::specta]
+fn create_supplier(
+    state: State<AppState>,
+    name: String,
+) -> Result<Supplier, CmdError>
+```
+
+BIZ-01 が name を trim し、空文字を validation error とする。同名が既にあれば既存 `Supplier { id, name }` を返す。UI-01b と UI-14 は成功後に `list_suppliers` を再取得する。
+
+#### list_price_history コマンド（SPEC-PRV-D9 / REQ-102）
+
+```rust
+#[tauri::command]
+#[specta::specta]
+fn list_price_history(
+    state: State<AppState>,
+    product_code: String,
+    limit: u32,
+) -> Result<Vec<PriceHistoryEntry>, CmdError>
+```
+
+```rust
+struct PriceHistoryEntry {
+    id: i64,
+    old_selling_price: i64,
+    new_selling_price: i64,
+    old_cost_price: i64,
+    new_cost_price: i64,
+    changed_at: String,
+}
+```
+
+`changed_at DESC, id DESC` で返す。limit は既定 10・上限 100（超過は 100 に丸める）。`product_code` 不存在時は not-found error ではなく空配列を返す。
 
 #### get_product コマンド
 

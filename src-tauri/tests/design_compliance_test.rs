@@ -43,6 +43,7 @@ const SKIP_DOCS: &[&str] = &[
     "67-ui-plu-export.md",
     "68-ui-backup-restore.md",
     "76-ui-request-primitives.md",
+    "77-ui-bulk-price-revision.md",
     // 自動生成のトレーサビリティマトリクス（generate_traceability bin が再生成、関数定義を持たない）
     "90-traceability.md",
 ];
