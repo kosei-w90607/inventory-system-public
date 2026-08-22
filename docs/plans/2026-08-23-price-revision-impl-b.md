@@ -6,10 +6,10 @@ Use the field definitions, enums, transition evidence, packet-selection rule, an
 
 If a state-only commit materializes multiple phases, list the complete adjacent forward sequence and the pre-existing evidence for every intermediate transition in an append-only review/evidence record. Recording compression never permits a gate skip.
 
-- Phase: plan-draft
+- Phase: implementing
 - Risk: R3
 - Execution Mode: fable-window
-- Plan Commit: pending
+- Plan Commit: 325da8a
 - Amendments: none
 - Coordinator: Fable
 - Writer: Codex
@@ -392,3 +392,9 @@ If R3 review-only sub-agent is skipped, record an explicit line beginning with `
 - Plan Review round 2（Sonnet、fresh context、2026-08-23、packet `baba1ca`）: delta 検証 7 hunk / anchor 9/9 実在 / 矛盾 0。P1 0 / P2 1 / P3 2、verdict fail。全件 Coordinator が実測・rg で裏取りのうえ accept して是正: P2-1 掛率 oracle の「(1, 16) が `toFixed(1)` 直接実装を検出」は誤り（両実装とも "6.3"。node で brute force 2001×2000 のうち 792 組が不一致、(23, 80) = 28.75 は直接 "28.7" / 四捨五入 "28.8"）→ Ledger / Matrix の oracle に (23, 80) → "28.8" を追加し誤主張を削除、Final Reviewer の実注入 mutant に D3 掛率 `toFixed` 直接を追加（6 → 7）/ P3-1 round 1 P3-1 是正で入れた「商品がまだ登録されていません」は 77-ui にも既存 EmptyState 先例（UI-01a `ProductListPage` title「該当する商品がありません」）にも無い新文言 → 先例 title に統一し SPEC-PRVB-D9 に根拠を明記、Matrix の Adjacent Pattern Audit に EmptyState 行を追加 / P3-2 SPEC-PRVB-D6 の除外根拠で「取引先」を E3 に含めていた（E3 は name / 部門 / 単位 / 価格のみ）→ 価格は E3、取引先は「consumer が supplier を読まない」に分けて訂正。
 - Plan Review round 3（Sonnet、fresh context、delta 検証、2026-08-23、packet `f4981ac`）: delta 9 hunk / anchor 9/9 実在、(23, 80) と (1, 16) の実測値と brute force 792 組を node で再現一致、regression sweep（Workflow State 13 field / 77-ui 契約語 26/26 / `doc-consistency-check.sh --target plan` exit 0・ERROR 0・WARN 2 = PK3 既知）。P1 0 / P2 0 / P3 1、verdict pass。P3-1 Matrix の Adjacent Pattern Audit「mutation 成功時 invalidation（D-052）」行に round 2 P3-2 の是正（価格 = E3 / 取引先 = consumer なし）が伝播していなかった → accept、同行を訂正。Plan rally 収束（round 3/3、天井内）。Plan Commit 候補 = plan-first commit `325da8a`（本 branch の全 content commit の祖先）。
 - Findings Freeze: not yet frozen; post-freeze exceptions: none.
+
+### 遷移記録（2026-08-23、state-only 遷移 plan-draft -> plan-gate -> plan-approved -> implementing）
+
+- plan-draft -> plan-gate の evidence: packet と Test Design Matrix を plan-first commit `325da8a` で commit 済み、`doc-consistency-check.sh --target plan` exit 0（WARN は未実装 test token の PK3 のみ）。
+- plan-gate -> plan-approved の evidence: 独立 Sonnet Plan Reviewer 3 round（round 1 P1 0 / P2 3 / P3 3 → 是正 `baba1ca`、round 2 P1 0 / P2 1 / P3 2 → 是正 `f4981ac`、round 3 fresh delta 検証 P1 0 / P2 0 / P3 1 = pass → 是正 `4b0b332`、Review Response 参照）、owner 裁定 (a)（`ProductSearchQuery` amendment を本 packet に同梱）+ owner plan approval（2026-08-23、介入 1 回目 / 予算 3 回）、Plan Commit = plan-first commit `325da8a`（本 branch の全 content commit の祖先）。
+- plan-approved -> implementing の evidence: 実装は Codex Writer 発注（cwd pin / Plan Commit 記入 / 本遷移を Coordinator が先行）で着手し、plan-first commit が全実装 commit に先行する。隣接 3 遷移を 1 state-only commit で圧縮記録（PR #84 / #93 / #94 と同型、DEV_WORKFLOW 圧縮規則、forward state-only 1 本目 / cap 3）。
