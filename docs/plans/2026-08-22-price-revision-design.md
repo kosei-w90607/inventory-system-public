@@ -6,7 +6,7 @@ Use the field definitions, enums, transition evidence, packet-selection rule, an
 
 If a state-only commit materializes multiple phases, list the complete adjacent forward sequence and the pre-existing evidence for every intermediate transition in an append-only review/evidence record. Recording compression never permits a gate skip.
 
-- Phase: implementing
+- Phase: human-confirm
 - Risk: R3
 - Execution Mode: fable-window
 - Plan Commit: 0b10e18
@@ -15,7 +15,7 @@ If a state-only commit materializes multiple phases, list the complete adjacent 
 - Writer: Codex
 - Plan Reviewer: Sonnet
 - Final Reviewer: Sonnet
-- Reviewed Content HEAD: pending
+- Reviewed Content HEAD: 18d87ac
 - Final Exact-HEAD Evidence: PR body
 - Hosted CI Requirement: required
 - Human Gate: Plan Gate 承認（owner 裁定 1 件〈SP-103-04 原価列 = (a)〉は 2026-08-22 に完了） → source docs amendment 後の Ready 化 → hosted final（`design_compliance_test.rs` の SKIP_DOCS 1 行を含む non-doc event-eligible change のため、CI-TRIGGER-D1 の Ready / `synchronize` 経路で自動 run。予防的 `workflow_dispatch` はしない）→ 三点一致 → merge。Windows native L3 は design-first PR ではなし
@@ -408,3 +408,9 @@ Fill after review.
 - Mechanical Impact Inventory: keyword 旧文言は Matrix oracle 1 hit のみ、基本列旧文言 0 hit、40-cmd 旧保留文 0 hit、51-ui §7.7 旧文言は archive 2 hit のみ、suppliers 旧役割文は Packet / Matrix oracle 各 1 hit のみ。archive は履歴保持、Packet / Matrix は置換対象を表す検証用引用として明示除外し、archive 外の source docs に旧契約は残していない。
 - provisional 判断: なし。
 - Review-only skipped because: 独立 Final Reviewer は Sonnet に固定されており、Writer 自己レビューで代替しないため。
+
+### 遷移記録（2026-08-22、state-only 遷移 implementing -> local-verified -> independent-review -> human-confirm）
+
+- implementing -> local-verified: content candidate `0e60da5`（Codex Writer 第 2 発注）の L1 `local-ci.sh full` RESULT=PASS / END_TREE_STATE=CLEAN（evidence path は PR #93 body）。是正 delta `18d87ac` は packet / Matrix / Plans.md のみで source docs・test に触れず、`doc-consistency-check.sh`（全体 / `--target plan`）exit 0 を再確認。exact-HEAD の L1 full は Ready 遷移 commit で実施する。
+- local-verified -> independent-review: 独立 Sonnet Final Reviewer（fresh context）が Contract Audit を実施（Ledger 13/13、M-D1〜M-D12 の rg 件数再実測が Writer 表と全一致、Mechanical Impact Inventory sweep、登録義務、ID 一意性、Non-scope / Data Safety）。
+- independent-review -> human-confirm: Final Review P1 0 / P2 1 / P3 1 を全件裁定・是正（`18d87ac`）し、fresh context の delta 再検証で P1/P2 = 0。`Reviewed Content HEAD` = `18d87ac`。隣接 3 遷移を 1 state-only commit で圧縮記録（post-implementation state-only 1 本目 / cap 3、PR #84 と同型）。
