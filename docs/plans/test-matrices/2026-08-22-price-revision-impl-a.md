@@ -60,7 +60,8 @@ Risk: R3
 | SPEC-PRV-D6 create_supplier | trim なし | unit (product_service) | `test_create_supplier_req106_trims_and_creates` | `"  メーカーX  "` が trim されず保存される、または新規行が返らない |
 | SPEC-PRV-D6 create_supplier | 空文字で INSERT | unit | `test_create_supplier_req106_rejects_empty_name` | `"   "` で `ValidationFailed` 以外、または suppliers 行数が増える |
 | SPEC-PRV-D6 create_supplier | 同名二重作成 | unit | `test_create_supplier_req106_returns_existing_row_for_duplicate_name` | 同名 2 回目で id が変わる、または suppliers 行数が 2 になる |
-| SPEC-PRV-D9 | 昇順 | unit (product_repo) | `test_list_price_history_req102_desc_order` | `changed_at` 異なる 3 行（同一 changed_at の 2 行は id DESC）で返却順が新しい順でない |
+| SPEC-PRV-D9 | 昇順 | unit (product_repo) | `test_list_price_history_req102_desc_order` | `changed_at` 異なる 3 行で返却順が新しい順でない |
+| SPEC-PRV-D9 | tie-break 欠落 | unit (product_repo) | `test_list_price_history_req102_id_desc_tie_break_on_same_changed_at` | 同一 `changed_at` を持つ 2 行（id 小 → 大の順で insert）で返却順が id DESC でない（`id ASC` mutant が生存する。Final Review で実証された survivor の是正） |
 | SPEC-PRV-D9 | limit 無視 | unit | `test_list_price_history_req102_respects_limit` | 行数 > limit で limit 件より多く返る |
 | SPEC-PRV-D9 | 上限丸めなし | unit | `test_list_price_history_req102_clamps_limit_over_max` | `limit = 101` で 100 件超が返る（fixture は 101 行以上、または SQL の LIMIT 引数を観測） |
 | SPEC-PRV-D9 | 不存在で error | unit | `test_list_price_history_req102_unknown_product_returns_empty` | 不存在 product_code で `Ok(vec![])` 以外 |
@@ -167,7 +168,7 @@ Workflow-state rows:
 - If tracked Workflow State stores the current PR HEAD, does a state commit make it stale immediately?: `Reviewed Content HEAD` は human-confirm 遷移 commit 内でのみ設定し、exact-HEAD evidence は PR body に置く。
 - If a hosted URL/headSha is committed after the run, does the merge three-point check fail because PR HEAD changed?: hosted URL / headSha は packet に commit しない。Ready 後の tracked commit を作らない。
 - If a state-only commit edits Scope/AC in the same packet file, does hunk-level review reject it even though the filename is allowlisted?: `git diff --unified=0` で hunk を検査し、Workflow State と遷移記録以外の hunk があれば implementing へ戻す。
-- If output order changes, which test fails?: `ORDER BY changed_at DESC, id DESC` を ASC に → `test_list_price_history_req102_desc_order`（同一 changed_at 2 行で id の tie-break も assert）。
+- If output order changes, which test fails?: `changed_at DESC` を ASC に → `test_list_price_history_req102_desc_order`。`id DESC` だけを ASC に → `test_list_price_history_req102_id_desc_tie_break_on_same_changed_at`（Final Review で `id ASC` mutant の生存を実証し、tie-break 専用 test として分離）。
 - If dry-run performs a side effect, which test fails?: 該当なし。
 - If a JSON number crosses JavaScript safe integer range, which test fails?: 上限契約が無いため到達を防ぐ test は置けない（`未実測` 前提 10^7 未満）。桁落ちなしの exact 永続化は `test_revise_product_price_req105_persists_large_values_exactly` が 10^7 直下で検証する。新原価案の整数除算 overflow は実装 B の Matrix に残す。
 - If a state token is round-tripped through browser/client code, which test fails?: 該当なし（新 token なし）。
