@@ -67,6 +67,16 @@ Keep it factual and stable.
 - Some products must not auto-decrement stock from POS sales import
 - Register-processed returns are reflected through CSV import
 - Manual return/exchange exists for non-register cases
+- Price-revision notices for handicraft goods arrive via one main wholesaler, one notice per maker, as printed/PDF lists carrying barcode / product name / maker code / old & new price
+- Non-handicraft categories (hair accessories, aprons, bags, etc.) learn price changes only from receiving slips at reorder, not from wholesaler notices
+- Markup ratio (掛率) varies per product and is a derived value (current cost ÷ current selling price), not persisted in a dedicated column
+- Cost is set by the wholesaler/maker, not chosen by the store, except occasional seller-negotiated discounts (約定) on bulk orders
+- Selling price is the tax-inclusive reference list price (`selling_price` is tax-inclusive); some categories have no reference list price and the store sets price from cost instead
+- `suppliers` means maker/brand (the price-revision notice originator), not the wholesaler order channel
+- Stock-take valuation population = products registered in the product master only
+- A small number of very old items per year (about 1-5) are kept outside the product master (no product code), sold via department key with no item-level sales tracking, and re-registered with a new code/price if reordered
+- The operator PC screen is not customer-visible during normal operation
+- Price revisions are applied promptly without waiting for any notice-listed effective date; large lists (up to ~400 lines, including non-stocked items) can take several days to work through
 
 ## Progress Snapshot
 
@@ -109,6 +119,8 @@ Keep it factual and stable.
 - SR-S4000 scanning PLU reflection path is confirmed at the procedure/profile level, and PR #122 external gate is accepted by structural equivalence to the confirmed CV17 1.1.1 11-column shape. Use `docs/plu-export-and-real-csv-verification.md` for the Post-UI-08 app-generated `.txt` recheck; do not treat app-side `plu_exported_at` as proof of PC-tool/register reflection.
 - REQ-401 implementation: implement IO-07/BIZ-08/CMD-12 and daily_report_* migration from the archived SALES design, then update UI-07/daily/monthly reports; keep Z004 product-sales track separate until post-PLU verification proves item-level sales import semantics
 - Optional future UI quality follow-up: reassess smoke E2E / visual regression at the timing recorded in `docs/UI_TECH_STACK.md` §7.2: future cross-screen typography/density changes, first Phase 3 cross-screen workflow planning, and before the `v1.0.0` candidate after Phase 4
+- Price-revision support design (issue #90): owner hearing settled the open premises (filter axes, supplier registration path, no provisional-cost flag, cost-column recommendation); Plan Packet drafting is pending. See `docs/evidence/issue-90/hearing-2026-08-21-22.sanitized.md` and decision-log D-075
+- Stock-take exclusion of long-dormant items (issue #91): merged into the UI-10 stock-take semantics follow-up as a one-line population definition (no system feature); close candidate. See decision-log D-076
 
 ## Companion Docs
 
